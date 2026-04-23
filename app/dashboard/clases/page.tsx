@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getPagoAlumnoSummary } from "@/lib/supabase-relations";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const t1 = "#1A1D23";
@@ -31,6 +32,7 @@ interface Reserva {
   alumnos: { full_name: string; phone: string | null } | null;
 }
 
+
 interface FormState {
   class_name: string;
   day_of_week: string;
@@ -52,6 +54,15 @@ const EMPTY_FORM: FormState = {
   notes: "",
   coach_name: "",
 };
+
+function mapReservaRow(row: unknown): Reserva {
+  const r = row as { id: string; fecha: string; alumnos: unknown };
+  return {
+    id: r.id,
+    fecha: r.fecha,
+    alumnos: getPagoAlumnoSummary(r.alumnos),
+  };
+}
 
 export default function ClasesPage() {
   const [gymId,         setGymId]         = useState<string | null>(null);
@@ -185,7 +196,7 @@ export default function ClasesPage() {
       .eq("estado", "confirmada")
       .in("fecha", dates)
       .order("fecha");
-    setReservas(prev => ({ ...prev, [id]: (data ?? []) as Reserva[] }));
+    setReservas(prev => ({ ...prev, [id]: (data ?? []).map((row) => mapReservaRow(row)) }));
     setLoadingRes(null);
   };
 
