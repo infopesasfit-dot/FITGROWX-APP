@@ -1,0 +1,138 @@
+💎 FitGrowX Elite Dashboard — v2.3 FULL
+⚠️ CRITICAL: Visual System & Overrides
+1. Sidebar "Elite Mirror" (#151515)
+Fondo: Gris grafito profundo #151515.
+
+Floating: NUNCA toca los bordes. margin: 12px, border-radius: 24px.
+
+Efecto Espejo: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 50%).
+
+Sombra: box-shadow: 10px 0 40px rgba(0,0,0,0.15).
+
+Borde: 1px solid rgba(255,255,255,0.05) (definición premium).
+
+Interactividad Colapsable:
+
+Implementar estado reactivo isCollapsed.
+
+Botón: Flecha (Chevron) centrada en el borde derecho del sidebar.
+
+Ancho: w-64 (expandido) / w-20 (colapsado). Al colapsar, ocultar labels y centrar iconos.
+
+2. Main Area & Accent colors
+Fondo Main: Blanco #FFFFFF sobre fondo de página #F4F5F9.
+
+Cards: Siempre blancas con borde sutil rgba(0,0,0,0.05). NO usar cards oscuras en el contenido.
+
+Acento Primario: Naranja FitGrowX #F97316 (Solo botones, badges y estados activos).
+
+Acento Secundario: Azul #4B6BFB (Solo para líneas de gráficos y elementos interactivos).
+
+NO Violeta: Eliminar púrpura/violeta de toda la interfaz base (excepto el card PRO del sidebar).
+
+3. Modals (Fix de Usabilidad)
+Cierre: Cada modal DEBE tener un botón X arriba a la derecha (círculo #F0F2F8).
+
+Overlay: backdrop-filter: blur(6px) + rgba(0,0,0,0.40). El click fuera debe cerrar el modal.
+
+Exact Color Tokens
+CSS
+:root {
+  /* ── SIDEBAR ── */
+  --s-bg:          #151515;
+  --s-radius:      24px;
+  --s-margin:      12px;
+  --s-active-bg:   rgba(255,255,255,0.10);
+  --s-text:        rgba(255,255,255,0.60);
+  --s-text-active: #FFFFFF;
+  --s-divider:     rgba(255,255,255,0.08);
+
+  /* ── MAIN AREA ── */
+  --m-bg:           #F4F5F9;
+  --m-card:         #FFFFFF;
+  --m-border:       rgba(0,0,0,0.05);
+  --m-shadow:       0 2px 8px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04);
+  --m-shadow-hover: 0 6px 24px rgba(0,0,0,0.10);
+
+  /* ── TEXT ── */
+  --t-primary:   #1A1D23;
+  --t-secondary: #6B7280;
+  --t-muted:     #9CA3AF;
+
+  /* ── ACCENTS ── */
+  --a-orange: #F97316;
+  --a-blue:   #4B6BFB;
+  --a-green:  #22C55E;
+  --a-red:    #F87171;
+
+  /* ── FONTS ── */
+  --f-display: 'Nunito', sans-serif;
+  --f-body:    'Inter', sans-serif;
+}
+Font imports:
+
+HTML
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+Component Specs
+1. Sidebar (Floating & Mirror)
+Logo: filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)).
+
+Nav Items: Estilo píldora. Active: background: var(--s-active-bg), backdrop-blur.
+
+PRO Card: Único lugar con gradiente (Purple/Pink) + Glassmorphism. backdrop-filter: blur(12px).
+
+2. Stat / KPI Cards
+Icon container: 30×30px, fondo #151515, icono blanco, border-radius: 8px.
+
+Números: Nunito 800, tamaño ~1.8rem.
+
+Sparklines: SVG simple sin ejes, color según métrica (#F87171, #60A5FA, #4B6BFB).
+
+3. Charts (Body Fat)
+Area chart, curvas suaves, línea #4B6BFB.
+
+Fill: gradiente azul muy suave a transparente.
+
+Tooltip: Bubble oscura #151515 con texto blanco, redondeado.
+
+4. Data Tables (Alumnos)
+Header: Texto uppercase, muy pequeño (0.70rem), color #9CA3AF, letter-spacing: 0.07em.
+
+Status Badges:
+
+Activo: color: #16A34A; background: rgba(22,163,74,0.08).
+
+Vencido: color: #DC2626; background: rgba(220,38,38,0.08).
+
+Pendiente: color: #D97706; background: rgba(217,119,6,0.08).
+
+5. Plan Cards (Membresías)
+Estilo: Cards blancas, borde suave.
+
+Plan Estrella: Badge dorado + estrella (background: linear-gradient(135deg,#FBBF24,#F59E0B)).
+
+Hormozi Insights: Incluir barra de retención (5px alto) horizontal.
+
+Botones: "Analizar Valor" (Ghost) y "Gestionar Plan" (Naranja sólido).
+
+6. Modals
+background: #FFFFFF, border-radius: 20px. NO usar fondos oscuros.
+
+Submit button: background: #F97316.
+
+Close button: width: 32px, height: 32px, border-radius: 50%, background: #F0F2F8.
+
+✅ DO / DON'T — Critical Rules
+✅ DO: Sidebar colapsable con flecha y efecto espejo superior.
+
+✅ DO: Logo con sombra de relieve para dar profundidad.
+
+✅ DO: Modales con botón X físico y cierre por overlay con blur.
+
+✅ DO: Mantener márgenes de 12px para el efecto flotante.
+
+❌ DON'T: Usar violeta en botones, headers o fondos de página.
+
+❌ DON'T: Dejar el sidebar pegado al borde izquierdo de la pantalla.
+
+❌ DON'T: Usar cards oscuras en el área de contenido principal.

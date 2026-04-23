@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "frontend-design-ultimate": {
+      "source": "kesslerio/frontend-design-ultimate-clawhub-skill",
+      "sourceType": "github",
+      "computedHash": "4afb770ed28de2b9c675304536270f83f7cee97364c797bfe52f8866b231bbea"
+    },
+    "tailwind-css": {
+      "source": "bobmatnyc/claude-mpm-skills",
+      "sourceType": "github",
+      "computedHash": "d4d19f6b1d60306895b5c0f5bb57a4640b54ed2b6ef74121781413fc16c1bf3f"
+    },
+    "vercel-react-best-practices": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "computedHash": "43ca6c197f8ec13055079da7053232d477068b03ca443f9ac1bc819b95cdd432"
+    }
+  }
+}

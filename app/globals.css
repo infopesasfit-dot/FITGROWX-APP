@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* ── KEYFRAMES ── */
+@keyframes beam {
+  0%   { transform: translateY(-100%) translateX(0); opacity: 0; }
+  10%  { opacity: 0.85; }
+  90%  { opacity: 0.85; }
+  100% { transform: translateY(900%) translateX(80px); opacity: 0; }
+}
+
+@keyframes beam-slow {
+  0%   { transform: translateY(-100%) translateX(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(900%) translateX(-60px); opacity: 0; }
+}
+
+@keyframes beam-alt {
+  0%   { transform: translateY(-100%) translateX(0); opacity: 0; }
+  12%  { opacity: 0.5; }
+  88%  { opacity: 0.5; }
+  100% { transform: translateY(900%) translateX(40px); opacity: 0; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.18; transform: scale(1); }
+  50%       { opacity: 0.30; transform: scale(1.08); }
+}
+
+@keyframes neon-line-fwd {
+  0%   { transform: translateX(-100px); opacity: 0; }
+  4%   { opacity: 1; }
+  96%  { opacity: 1; }
+  100% { transform: translateX(calc(100vw + 100px)); opacity: 0; }
+}
+
+@keyframes neon-line-rev {
+  0%   { transform: translateX(calc(100vw + 100px)); opacity: 0; }
+  4%   { opacity: 0.7; }
+  96%  { opacity: 0.7; }
+  100% { transform: translateX(-100px); opacity: 0; }
+}
+
+/* ── ANIMACIONES CUSTOM (Tailwind v4 @theme) ── */
+@theme {
+  --animate-beam:          beam          5s  linear            infinite;
+  --animate-beam-slow:     beam-slow     8s  linear   2s       infinite;
+  --animate-beam-alt:      beam-alt      11s linear   4.5s     infinite;
+  --animate-pulse-glow:    pulse-glow    3.5s ease-in-out      infinite;
+  --animate-neon-line-fwd: neon-line-fwd 9s  ease-in-out       infinite;
+  --animate-neon-line-rev: neon-line-rev 14s ease-in-out  5s   infinite;
+}
+
+:root {
+  --accent: #f06418;
+  --accent-soft: #ffb07d;
+}
+
+@theme inline {
+  --color-background: #050505;
+  --color-foreground: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Fondo oscuro pintado antes de cualquier JS — evita el flash al navegar */
+html,
+body {
+  background-color: #050505;
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  color: #ffffff;
+  font-family: var(--font-inter), "Inter", "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-inter), "Inter", "Segoe UI", sans-serif;
+  letter-spacing: -0.04em;
+}
+
+a,
+button,
+input,
+textarea {
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+::selection {
+  background: rgba(240, 100, 24, 0.18);
+  color: white;
+}

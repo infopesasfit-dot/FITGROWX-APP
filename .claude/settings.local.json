@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"exit:$?\")",
+      "Bash(echo \"EXIT:$?\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s https://raw.githubusercontent.com/Hainrixz/humanizalo/main/SKILL.md)",
+      "Bash(npm run:*)",
+      "Bash(pkill -f \"next dev\")",
+      "Bash(cat /Users/eliydan/Desktop/fitgrowx/supabase/migrations/*.sql)",
+      "Bash(curl -s 'https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/whatsapp_sessions?select=*&limit=1' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Accept-Profile: public')",
+      "Bash(curl -s 'https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/gym_settings?gym_id=eq.42ddb4b7-cc18-4d4f-94c9-b6efea21726e&select=*' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM')",
+      "Bash(curl -s 'https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/gyms?id=eq.42ddb4b7-cc18-4d4f-94c9-b6efea21726e&select=*' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM')",
+      "Bash(supabase --version)",
+      "Bash(osascript)",
+      "Bash(osascript -e 'tell application \"Google Chrome\" to open location \"http://localhost:3000/alumno/panel\"')",
+      "Bash(osascript -e 'tell application \"Google Chrome\" to open location \"http://localhost:3000/alumno/dev-login\"')",
+      "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/rpc/query -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT 1\"}')",
+      "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/pg/query -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT 1\"}')"
+    ]
+  }
+}
