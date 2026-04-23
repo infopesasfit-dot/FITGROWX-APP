@@ -1,65 +1,22 @@
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { BentoBackground } from "@/components/bento-background";
 import { HeroSection } from "@/components/hero-section";
 import { BenefitsSection } from "@/components/benefits-section";
 import { DemoSection } from "@/components/demo-section";
 import { PricingSection } from "@/components/pricing-section";
+import { LandingHeader } from "@/components/landing-header";
+import { FITGROWX_PLANS, formatArs } from "@/lib/fitgrowx-plans";
 
-const GESTION_MP_LINK    = process.env.NEXT_PUBLIC_FITGROWX_GESTION_MP_LINK    ?? "#";
-const CRECIMIENTO_MP_LINK = process.env.NEXT_PUBLIC_FITGROWX_CRECIMIENTO_MP_LINK ?? "#";
-const FULLMARCA_MP_LINK   = process.env.NEXT_PUBLIC_FITGROWX_FULLMARCA_MP_LINK   ?? "#";
-
-const plans = [
-  {
-    name: "Plan Gestión",
-    price: "$49",
-    period: "USD / mes",
-    label: "Arrancá sin caos",
-    paymentLink: GESTION_MP_LINK,
-    description: "Dejá atrás las planillas y el \"¿quién me debe?\". Membresías, pagos, asistencia y WhatsApp en un solo lugar. Tu operación, ordenada de una vez.",
-    features: [
-      "Alumnos ilimitados",
-      "Membresías con vencimiento automático",
-      "Registro y validación de pagos",
-      "Escáner QR de asistencia",
-      "Integración WhatsApp",
-      "Egresos y métricas financieras",
-    ],
-  },
-  {
-    name: "Plan Crecimiento",
-    price: "$65",
-    period: "USD / mes",
-    label: "Más elegido",
-    featured: true,
-    paymentLink: CRECIMIENTO_MP_LINK,
-    description: "Tu gym crece solo mientras vos entrenás. Captá prospectos 24/7 con tu landing propia, convertílos con WhatsApp automatizado y medí cada resultado.",
-    features: [
-      "Todo lo del Plan Gestión",
-      "Landing de captación propia",
-      "Gestión de prospectos e interesados",
-      "Campañas de WhatsApp automáticas",
-      "Publicidad y métricas de conversión",
-    ],
-  },
-  {
-    name: "Plan Full Marca",
-    price: "$79",
-    period: "USD / mes",
-    label: "15 días gratis",
-    paymentLink: FULLMARCA_MP_LINK,
-    description: "Tu gimnasio, tu identidad. Ni rastro de FitGrowX. Tu logo, tu nombre y tus colores en toda la plataforma. Tus alumnos ven TU marca desde el primer segundo.",
-    features: [
-      "Todo lo del Plan Crecimiento",
-      "Logo y nombre propio en toda la UI",
-      "Panel del alumno 100% con tu marca",
-      "Sin ninguna mención a FitGrowX",
-      "Dominio personalizado (próximamente)",
-    ],
-  },
-];
+const plans = FITGROWX_PLANS.map((plan) => ({
+  name: plan.name,
+  price: `$${formatArs(plan.priceMonthly)}`,
+  period: "ARS / mes",
+  badge: plan.badge,
+  featured: plan.highlight,
+  studentLimit: plan.studentLimit,
+  description: plan.description,
+  features: plan.features,
+}));
 
 export default function Home() {
   return (
@@ -76,22 +33,7 @@ export default function Home() {
 
       <BentoBackground />
 
-      {/* HEADER ORIGINAL */}
-      <header className="sticky top-0 z-50 border-b border-white/[0.04] bg-[#050505]/40 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
-          <Link href="/" className="flex items-center gap-3">
-            <Image src="/images/logo-fitgrowx.png" alt="FitGrowX" width={150} height={45} className="h-8 w-auto opacity-90" priority />
-          </Link>
-          <nav className="hidden items-center gap-7 text-[13px] font-normal tracking-[-0.01em] text-white/45 md:flex">
-            <a href="#beneficios" className="transition-colors duration-200 hover:text-white/85">Beneficios</a>
-            <a href="#demo" className="transition-colors duration-200 hover:text-white/85">Demo</a>
-            <a href="#planes" className="transition-colors duration-200 hover:text-white/85">Planes</a>
-          </nav>
-          <a href="/start" className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] px-5 py-2 text-[13px] font-semibold tracking-[-0.01em] text-white/80 transition-all duration-200 hover:bg-white/[0.06] hover:text-white/95">
-            Prueba gratis <ArrowRight className="h-3.5 w-3.5" />
-          </a>
-        </div>
-      </header>
+      <LandingHeader actionType="link" actionLabel="Prueba gratis" actionHref="/start" />
 
       <div className="relative z-10">
         <HeroSection />

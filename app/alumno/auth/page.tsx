@@ -34,6 +34,7 @@ function AuthInner() {
           plan:        getPlanNombre(data.alumno.planes),
           expiration:  data.alumno.next_expiration_date ?? null,
           dni:         data.alumno.dni ?? null,
+          token,
         }));
         router.replace("/alumno/panel");
       })

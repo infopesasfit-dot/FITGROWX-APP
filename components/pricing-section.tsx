@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useInView, type Variants } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { useRef } from "react";
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -31,36 +30,36 @@ interface Plan {
   name: string;
   price: string;
   period: string;
-  label: string;
+  badge: string | null;
   featured?: boolean;
-  paymentLink: string;
+  studentLimit: string;
   description: string;
   features: string[];
 }
 
 export function PricingSection({ plans }: { plans: Plan[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-
   return (
-    <div ref={ref} className="mx-auto max-w-7xl px-6 lg:px-10">
+    <div className="mx-auto max-w-7xl px-6 lg:px-10">
       <motion.div
         className="mx-auto max-w-3xl text-center mb-10 lg:mb-16"
         variants={headVariant}
-        initial="hidden"
-        animate={isInView ? "visible" : "hidden"}
+        initial={false}
+        animate="visible"
       >
         <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-4">Membresías</h2>
         <p className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.1]">
           Elegí la potencia de <span className="italic font-normal text-[#FF8C3A]">tu crecimiento</span>.
+        </p>
+        <p className="mt-5 text-sm sm:text-[15px] font-light text-white/45">
+          15 días gratis para probar FitGrowX, sin tarjeta y con activación simple desde el primer ingreso.
         </p>
       </motion.div>
 
       <motion.div
         className="grid gap-6 lg:grid-cols-3 mb-12 lg:mb-20"
         variants={container}
-        initial="hidden"
-        animate={isInView ? "visible" : "hidden"}
+        initial={false}
+        animate="visible"
       >
         {plans.map((plan, i) => (
           <motion.article
@@ -72,15 +71,18 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
                 : "border-white/[0.06] bg-transparent hover:border-[#FF6A00]/40 hover:shadow-[0_0_40px_rgba(255,106,0,0.06)]"
             }`}
           >
-            {plan.featured && (
+            {plan.featured && plan.badge && (
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-[#FF6A00] px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-black shadow-lg">
-                {plan.label}
+                {plan.badge}
               </div>
             )}
             <h3 className="text-2xl font-light tracking-tight text-white/90">{plan.name}</h3>
             <div className="mt-6 flex items-baseline gap-1">
               <span className="text-4xl lg:text-5xl font-extralight tracking-tighter">{plan.price}</span>
               <span className="text-white/30 font-light text-sm">{plan.period}</span>
+            </div>
+            <div className="mt-4 inline-flex w-fit items-center rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] font-medium tracking-[0.04em] text-white/55">
+              {plan.studentLimit}
             </div>
             <p className="mt-6 min-h-[50px] text-[0.95rem] font-light leading-relaxed text-white/50">{plan.description}</p>
             <div className="mt-10 space-y-4">
@@ -98,8 +100,8 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
       <motion.div
         className="flex flex-col items-center justify-center gap-3 mt-16"
         variants={ctaVariant}
-        initial="hidden"
-        animate={isInView ? "visible" : "hidden"}
+        initial={false}
+        animate="visible"
       >
         <Link
           href="/start"
@@ -114,7 +116,8 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
           <ArrowRight className="relative z-10 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
         </Link>
-        <p className="text-[11px] text-white/25 tracking-wide">Sin tarjeta de crédito · Cancelás cuando quieras</p>
+        <p className="text-[11px] text-white/25 tracking-wide">Probás 15 días gratis el plan completo · Luego elegís cómo seguir</p>
+        <p className="text-[11px] text-white/20 tracking-wide">Sin tarjeta de crédito · Activación en minutos · Cancelás cuando quieras</p>
       </motion.div>
     </div>
   );

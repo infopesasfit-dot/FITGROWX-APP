@@ -16,6 +16,7 @@ interface Session {
   plan:       string | null;
   expiration: string | null;
   dni:        string | null;
+  token?:     string | null;
 }
 
 interface GymClass {
@@ -89,12 +90,15 @@ export default function AlumnoPanelPage() {
     if (!raw) { router.replace("/alumno/login"); return; }
     let parsed: Session;
     try { parsed = JSON.parse(raw); } catch { router.replace("/alumno/login"); return; }
+    if (!parsed.token) { router.replace("/alumno/login"); return; }
     setSession(parsed);
-    fetch(`/api/alumno/me?alumno_id=${parsed.alumno_id}`)
+    fetch(`/api/alumno/me?alumno_id=${parsed.alumno_id}`, {
+      headers: { Authorization: `Bearer ${parsed.token}` },
+    })
       .then(r => r.json())
       .then(d => {
         if (d.error) return;
-        const fresh: Session = { alumno_id: d.alumno_id, gym_id: d.gym_id, full_name: d.full_name, status: d.status, plan: d.plan, expiration: d.expiration, dni: d.dni ?? null };
+        const fresh: Session = { alumno_id: d.alumno_id, gym_id: d.gym_id, full_name: d.full_name, status: d.status, plan: d.plan, expiration: d.expiration, dni: d.dni ?? null, token: parsed.token };
         localStorage.setItem("fitgrowx_alumno", JSON.stringify(fresh));
         setSession(fresh);
       })
@@ -102,7 +106,9 @@ export default function AlumnoPanelPage() {
   }, [router]);
 
   const fetchClases = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/clases?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}`);
+    const r = await fetch(`/api/alumno/clases?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}`, {
+      headers: { Authorization: `Bearer ${s.token}` },
+    });
     const d = await r.json();
     setClases(d.clases ?? []);
     setReservas(d.reservas ?? []);
@@ -110,19 +116,25 @@ export default function AlumnoPanelPage() {
   }, []);
 
   const fetchRutina = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/rutina?alumno_id=${s.alumno_id}`);
+    const r = await fetch(`/api/alumno/rutina?alumno_id=${s.alumno_id}`, {
+      headers: { Authorization: `Bearer ${s.token}` },
+    });
     const d = await r.json();
     setRutina(d.rutina);
   }, []);
 
   const fetchPesos = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/pesos?alumno_id=${s.alumno_id}`);
+    const r = await fetch(`/api/alumno/pesos?alumno_id=${s.alumno_id}`, {
+      headers: { Authorization: `Bearer ${s.token}` },
+    });
     const d = await r.json();
     setPesos(d.pesos ?? []);
   }, []);
 
   const fetchGymInfo = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/gym-info?gym_id=${s.gym_id}`);
+    const r = await fetch(`/api/alumno/gym-info?gym_id=${s.gym_id}`, {
+      headers: { Authorization: `Bearer ${s.token}` },
+    });
     const d = await r.json();
     setGymInfo({ gym_name: d.gym_name, logo_url: d.logo_url, accent_color: d.accent_color, plan_type: d.plan_type ?? null });
   }, []);
@@ -140,12 +152,12 @@ export default function AlumnoPanelPage() {
     try {
       const isReserved = reservas.some(r => r.clase_id === clase_id && r.fecha === fecha);
       if (isReserved) {
-        const res = await fetch("/api/alumno/reservar", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alumno_id: session.alumno_id, clase_id, fecha }) });
+        const res = await fetch("/api/alumno/reservar", { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ alumno_id: session.alumno_id, clase_id, fecha }) });
         const d = await res.json();
         if (d.ok) { setReservas(prev => prev.filter(r => !(r.clase_id === clase_id && r.fecha === fecha))); showToast("Reserva cancelada."); }
         else showToast(d.error ?? "Error.", false);
       } else {
-        const res = await fetch("/api/alumno/reservar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, clase_id, fecha }) });
+        const res = await fetch("/api/alumno/reservar", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, clase_id, fecha }) });
         const d = await res.json();
         if (d.ok) { setReservas(prev => [...prev, { clase_id, fecha }]); showToast("Reserva confirmada!"); }
         else showToast(d.error ?? "Error.", false);
@@ -165,7 +177,7 @@ export default function AlumnoPanelPage() {
     try {
       const res = await fetch("/api/alumno/pesos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
         body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, ejercicio, peso: parseFloat(val), notas: null }),
       });
       const d = await res.json();

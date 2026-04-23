@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, skipped: "platform_owner" });
     }
 
-    await supabase.from("profiles").upsert(
+    const { error: profileUpsertError } = await supabase.from("profiles").upsert(
       {
         id: user.id,
         gym_id: existingProfile?.gym_id ?? user.id,
@@ -89,8 +89,11 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "id" },
     );
+    if (profileUpsertError) {
+      return NextResponse.json({ error: profileUpsertError.message }, { status: 500 });
+    }
 
-    await supabase.from("gym_settings").upsert(
+    const { error: gymSettingsUpsertError } = await supabase.from("gym_settings").upsert(
       {
         gym_id: user.id,
         gym_name: gymSettings?.gym_name ?? existingGym?.gym_name ?? existingGym?.name ?? companyName,
@@ -100,11 +103,14 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "gym_id" },
     );
+    if (gymSettingsUpsertError) {
+      return NextResponse.json({ error: gymSettingsUpsertError.message }, { status: 500 });
+    }
 
     const now = new Date();
     const defaultTrialEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString();
 
-    await supabase.from("gyms").upsert(
+    const { error: gymUpsertError } = await supabase.from("gyms").upsert(
       {
         id: user.id,
         user_id: user.id,
@@ -121,6 +127,9 @@ export async function POST(req: NextRequest) {
       },
       { onConflict: "id" },
     );
+    if (gymUpsertError) {
+      return NextResponse.json({ error: gymUpsertError.message }, { status: 500 });
+    }
 
     const { data: existingLead } = await supabase
       .from("platform_leads")
@@ -133,7 +142,7 @@ export async function POST(req: NextRequest) {
     let platformLeadId = existingLead?.id ?? null;
 
     if (platformLeadId) {
-      await supabase
+      const { error: leadUpdateError } = await supabase
         .from("platform_leads")
         .update({
           full_name: valueOrNull(normalizedName),
@@ -145,6 +154,9 @@ export async function POST(req: NextRequest) {
           last_contact_at: now.toISOString(),
         })
         .eq("id", platformLeadId);
+      if (leadUpdateError) {
+        return NextResponse.json({ error: leadUpdateError.message }, { status: 500 });
+      }
     } else {
       const { data: insertedLead, error: leadError } = await supabase
         .from("platform_leads")

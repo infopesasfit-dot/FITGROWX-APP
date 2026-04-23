@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, useInView, type Variants } from "framer-motion";
-import { MessageCircleMore, Radar, WalletCards, Zap, type LucideIcon } from "lucide-react";
+import { motion, type Variants } from "framer-motion";
+import { MessageCircleMore, Radar, Zap, type LucideIcon } from "lucide-react";
 import { useRef } from "react";
 
 const benefits: { title: string; description: string; icon: LucideIcon }[] = [
@@ -41,7 +41,6 @@ const headVariant: Variants = {
 
 export function BenefitsSection() {
   const ref = useRef<HTMLElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
     <section
@@ -56,8 +55,8 @@ export function BenefitsSection() {
         <motion.div
           className="flex flex-col items-center mb-10 lg:mb-20"
           variants={headVariant}
-          initial="hidden"
-          animate={isInView ? "visible" : "hidden"}
+          initial={false}
+          animate="visible"
         >
           <div className="inline-flex items-center gap-2 rounded-full border border-[#FF6A00]/20 bg-[#FF6A00]/5 px-4 py-1 mb-6">
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#FF6A00]">Beneficios</span>
@@ -70,8 +69,8 @@ export function BenefitsSection() {
         <motion.div
           className="relative grid gap-6 md:grid-cols-3"
           variants={container}
-          initial="hidden"
-          animate={isInView ? "visible" : "hidden"}
+          initial={false}
+          animate="visible"
         >
           {benefits.map((b, i) => (
             <motion.article

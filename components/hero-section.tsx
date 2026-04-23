@@ -94,7 +94,7 @@ function AtmosphericBackground({
 
       {/* Orange-burnt center blob */}
       <motion.div
-        className="absolute"
+        className="absolute hero-orange-orbit"
         style={{
           x: orangeX,
           y: orangeY,
@@ -112,7 +112,7 @@ function AtmosphericBackground({
 
       {/* Secondary warm accent — upper-center fade */}
       <motion.div
-        className="absolute"
+        className="absolute hero-orange-orbit"
         style={{
           x: orangeX,
           y: orangeY,
@@ -271,7 +271,7 @@ export function HeroSection() {
 
       <div className="relative mx-auto max-w-5xl px-6 lg:px-10">
         {/* Badge */}
-        <motion.div variants={fadeUp(0)} initial="hidden" animate="visible">
+        <motion.div variants={fadeUp(0)} initial={false} animate="visible">
           <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
             Sistema para gimnasios y centros de entrenamiento
@@ -282,7 +282,7 @@ export function HeroSection() {
         <motion.h1
           className="mx-auto mt-10 max-w-4xl text-[2rem] font-semibold leading-[1.15] tracking-[-0.04em] sm:text-5xl lg:text-[4.5rem]"
           variants={headlineContainer}
-          initial="hidden"
+          initial={false}
           animate="visible"
         >
           {WHITE_WORDS.map((word, i) => (
@@ -321,23 +321,34 @@ export function HeroSection() {
         <motion.p
           className="mx-auto mt-8 max-w-2xl text-base lg:text-lg font-light leading-relaxed text-white/40 tracking-tight"
           variants={fadeUp(subtitleDelay)}
-          initial="hidden"
+          initial={false}
           animate="visible"
         >
           FitGrowX ordena cobros, seguimiento y captación para que{" "}
           <br className="hidden md:block" />
-          <span className="text-white/70 font-medium">recuperes el control total de tu negocio.</span>
+          <span className="text-white/70 font-medium">recuperes el control total de tu negocio y actives una operación mucho más predecible.</span>
         </motion.p>
 
         {/* CTAs */}
         <motion.div
           className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
           variants={fadeUp(ctaDelay)}
-          initial="hidden"
+          initial={false}
           animate="visible"
         >
           <PrimaryButton />
           <GhostButton />
+        </motion.div>
+
+        <motion.div
+          className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[11px] font-medium tracking-[0.05em] text-white/35"
+          variants={fadeUp(ctaDelay + 0.08)}
+          initial={false}
+          animate="visible"
+        >
+          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">15 días gratis</span>
+          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">Sin tarjeta</span>
+          <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">Setup simple</span>
         </motion.div>
       </div>
     </section>

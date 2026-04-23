@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getValidAlumnoToken } from "@/lib/alumno-token";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest) {
   const alumno_id = searchParams.get("alumno_id");
   const ejercicio = searchParams.get("ejercicio");
   if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
+  const tokenRow = await getValidAlumnoToken(req);
+  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
   let query = supabase.from("progreso_pesos").select("id, ejercicio, peso, fecha, notas").eq("alumno_id", alumno_id).order("fecha", { ascending: false });
   if (ejercicio) query = query.eq("ejercicio", ejercicio);
@@ -22,6 +26,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { alumno_id, gym_id, ejercicio, peso, notas } = await req.json();
   if (!alumno_id || !gym_id || !ejercicio || peso == null) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  const tokenRow = await getValidAlumnoToken(req);
+  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
+    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+  }
 
   const { error } = await supabase.from("progreso_pesos").insert({ alumno_id, gym_id, ejercicio, peso: Number(peso), notas: notas ?? null, fecha: new Date().toISOString().slice(0, 10) });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

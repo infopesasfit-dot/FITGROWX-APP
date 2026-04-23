@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getPlanNombre } from "@/lib/supabase-relations";
+import { getValidAlumnoToken } from "@/lib/alumno-token";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,18 +12,8 @@ export async function GET(req: NextRequest) {
   const alumno_id = new URL(req.url).searchParams.get("alumno_id");
   if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
 
-  const token = req.headers.get("authorization")?.replace("Bearer ", "");
-  if (!token) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-
-  // Verificar que el token existe en alumno_tokens y corresponde al alumno_id solicitado
-  const { data: tokenRow, error: tokenError } = await supabase
-    .from("alumno_tokens")
-    .select("alumno_id, expires_at")
-    .eq("token", token)
-    .single();
-
-  if (tokenError || !tokenRow) return NextResponse.json({ error: "Token inválido." }, { status: 401 });
-  if (new Date(tokenRow.expires_at) < new Date()) return NextResponse.json({ error: "Token expirado." }, { status: 401 });
+  const tokenRow = await getValidAlumnoToken(req);
+  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
   const { data, error } = await supabase

@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2, Lock, Mail, MessageCircleMore, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { LandingHeader } from "@/components/landing-header";
 
 type Screen = "form" | "setup" | "dashboard";
 
@@ -72,14 +72,14 @@ const [authError, setAuthError] = useState<string | null>(null);
 
   const validity = useMemo(() => ({
     fullName: fullName.trim().length >= 3,
-    whatsApp: whatsApp.trim().length >= 8,
+    whatsApp: whatsApp.trim().length === 0 || whatsApp.trim().length >= 8,
     email: /\S+@\S+\.\S+/.test(email),
     password: password.length >= 6,
   }), [fullName, whatsApp, email, password]);
 
   const canSubmit = isLogin
     ? validity.email && validity.password && !isSubmitting
-    : validity.fullName && validity.whatsApp && validity.email && validity.password && !isSubmitting;
+    : validity.fullName && validity.email && validity.password && !isSubmitting;
 
   const resolveDestinationForUser = async (userId: string) => {
     const { data: profile } = await supabase
@@ -90,6 +90,25 @@ const [authError, setAuthError] = useState<string | null>(null);
       .maybeSingle();
 
     return profile?.role === "platform_owner" ? "/platform" : "/dashboard";
+  };
+
+  const syncPlatformSignup = async (
+    accessToken: string,
+    payload: Record<string, string>,
+  ) => {
+    const response = await fetch("/api/platform/sync-signup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(data?.error ?? "No se pudo completar la configuración inicial.");
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -105,15 +124,8 @@ const [authError, setAuthError] = useState<string | null>(null);
         if (!data.user) throw new Error("No se pudo obtener el usuario autenticado.");
 
         if (data.session?.access_token) {
-          await fetch("/api/platform/sync-signup", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${data.session.access_token}`,
-            },
-            body: JSON.stringify({
-              email,
-            }),
+          await syncPlatformSignup(data.session.access_token, {
+            email,
           });
         }
 
@@ -124,7 +136,7 @@ const [authError, setAuthError] = useState<string | null>(null);
         if (signUpError) throw signUpError;
         if (!signUpData.user) throw new Error("No se pudo crear el usuario.");
 
-        await supabase
+        const { error: gymSettingsError } = await supabase
           .from("gym_settings")
           .upsert({
             gym_id: signUpData.user.id,
@@ -133,19 +145,13 @@ const [authError, setAuthError] = useState<string | null>(null);
             email,
             onboarding_completed: false,
           }, { onConflict: "gym_id" });
+        if (gymSettingsError) throw gymSettingsError;
 
         if (signUpData.session?.access_token) {
-          await fetch("/api/platform/sync-signup", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${signUpData.session.access_token}`,
-            },
-            body: JSON.stringify({
-              fullName,
-              whatsApp,
-              email,
-            }),
+          await syncPlatformSignup(signUpData.session.access_token, {
+            fullName,
+            whatsApp,
+            email,
           });
         }
 
@@ -194,24 +200,11 @@ const [authError, setAuthError] = useState<string | null>(null);
 
         <GrainOverlay />
 
-        <header className="sticky top-0 z-50 border-b border-white/[0.04] bg-[#050505]/40 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
-            <Link href="/">
-              <Image src="/images/logo-fitgrowx.png" alt="FitGrowX" width={150} height={45} className="h-8 w-auto opacity-90" priority />
-            </Link>
-            <nav className="hidden items-center gap-7 text-[13px] font-normal tracking-[-0.01em] text-white/45 md:flex">
-              <Link href="/#beneficios" className="transition-colors duration-200 hover:text-white/85">Beneficios</Link>
-              <Link href="/#demo" className="transition-colors duration-200 hover:text-white/85">Demo</Link>
-              <Link href="/#planes" className="transition-colors duration-200 hover:text-white/85">Planes</Link>
-            </nav>
-            <button
-              onClick={() => { setIsLogin((v) => !v); setAuthError(null); }}
-              className="inline-flex items-center gap-2 rounded-full border border-white/[0.09] bg-white/[0.03] px-5 py-2 text-[13px] font-semibold tracking-[-0.01em] text-white/80 transition-all duration-200 hover:bg-white/[0.06] hover:text-white/95"
-            >
-              {isLogin ? "Crear cuenta" : "Iniciar sesión"}
-            </button>
-          </div>
-        </header>
+        <LandingHeader
+          actionType="button"
+          actionLabel={isLogin ? "Crear cuenta" : "Iniciar sesión"}
+          onAction={() => { setIsLogin((v) => !v); setAuthError(null); }}
+        />
 
         {screen === "form" && (
           <section className="relative z-10 flex min-h-[calc(100vh-3.5rem)] items-center">
@@ -276,8 +269,20 @@ const [authError, setAuthError] = useState<string | null>(null);
                     <p className="mt-6 text-base font-light leading-relaxed text-white/40 tracking-tight">
                       {isLogin
                         ? "Accedé a tu panel y retomá el control de tu gimnasio."
-                        : "Obtené acceso total al sistema y configurá tu gimnasio en minutos."}
+                        : "Obtené acceso total al sistema, activá tu prueba gratis y configurá tu gimnasio en minutos."}
                     </p>
+                    {!isLogin && (
+                      <div className="mt-6 flex flex-wrap gap-2">
+                        {["15 días gratis", "Sin tarjeta", "Setup guiado"].map((item) => (
+                          <span
+                            key={item}
+                            className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium tracking-[0.05em] text-white/45"
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="relative mx-auto w-full max-w-[31rem]">
@@ -297,6 +302,11 @@ const [authError, setAuthError] = useState<string | null>(null);
                             </>
                           )}
                         </p>
+                        {!isLogin && (
+                          <p className="mt-3 text-[12px] leading-relaxed text-white/38">
+                            Empezás con 15 días gratis, sin tarjeta. Después elegís el plan que mejor se adapte a tu gimnasio.
+                          </p>
+                        )}
                       </div>
 
                       <form onSubmit={handleSubmit} className="grid gap-3.5">
@@ -320,11 +330,13 @@ const [authError, setAuthError] = useState<string | null>(null);
                                 type="tel"
                                 value={whatsApp}
                                 onChange={(e) => setWhatsApp(e.target.value)}
-                                placeholder="WhatsApp"
+                                placeholder="WhatsApp (opcional)"
                                 className="h-14 w-full rounded-2xl border border-white/10 bg-[#131417] pl-14 pr-5 text-white outline-none focus:border-[#FF6A00]"
-                                required
                               />
                             </div>
+                            <p className="-mt-1 px-1 text-[11px] leading-relaxed text-white/28">
+                              Si lo dejás, nos sirve para ayudarte más rápido con el setup inicial.
+                            </p>
                           </>
                         )}
 
@@ -382,6 +394,12 @@ const [authError, setAuthError] = useState<string | null>(null);
                           <ArrowRight className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                         </button>
+
+                        {!isLogin && (
+                          <p className="text-center text-[11px] leading-relaxed text-white/28">
+                            Vas a entrar directo a tu prueba gratis y después podés elegir Gestión, Crecimiento o Full Marca.
+                          </p>
+                        )}
                       </form>
                     </div>
                   </div>

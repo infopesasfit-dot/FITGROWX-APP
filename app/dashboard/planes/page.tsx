@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Zap, CheckCircle, Clock, Copy, Bitcoin, TrendingUp, Star, X, CreditCard } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getGymSummary } from "@/lib/supabase-relations";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -28,70 +29,17 @@ function daysLeft(expiresAt: string | null): number {
   return Math.max(0, Math.ceil(diff / 86_400_000));
 }
 
-const PLANS = [
-  {
-    key: "gestion",
-    label: "Plan Gestión",
-    Icon: Zap,
-    priceMonthly: 49000,
-    priceAnnual:  39200,
-    tagline: "Dejá atrás las planillas. Para siempre.",
-    description: "¿Todavía manejás alumnos con Excel y pagos por WhatsApp? Todo centralizado en un solo tablero.",
-    highlight: false,
-    studentLimit: "Hasta 50 alumnos",
-    features: [
-      "Hasta 50 alumnos",
-      "Membresías con vencimiento automático",
-      "Registro y validación de pagos",
-      "Egresos y métricas financieras",
-      "Escáner QR de asistencia",
-      "Integración WhatsApp",
-      "Automatizaciones y seguimiento",
-    ],
-    ctaLabel: "Contratar Gestión",
-  },
-  {
-    key: "crecimiento",
-    label: "Plan Crecimiento",
-    Icon: TrendingUp,
-    priceMonthly: 65000,
-    priceAnnual:  52000,
-    tagline: "Tu gym capta alumnos solo, mientras vos entrenás.",
-    description: "Captación activa 24/7, prospectos gestionados automáticamente y WhatsApp que convierte curiosos en pagantes.",
-    highlight: true,
-    studentLimit: "Hasta 200 alumnos",
-    features: [
-      "Hasta 200 alumnos",
-      "Todo lo del Plan Gestión",
-      "Landing de captación propia",
-      "Gestión de prospectos e interesados",
-      "Campañas de WhatsApp automáticas",
-      "Publicidad integrada",
-      "Métricas de conversión",
-    ],
-    ctaLabel: "Contratar Crecimiento",
-  },
-  {
-    key: "full_marca",
-    label: "Plan Full Marca",
-    Icon: Star,
-    priceMonthly: 85000,
-    priceAnnual:  68000,
-    tagline: "Tu gym, tu identidad. Ni rastro de FitGrowX.",
-    description: "White-label total. Tu logo, tu nombre y tus colores en toda la plataforma. Tus alumnos ven TU marca desde el primer segundo.",
-    highlight: false,
-    studentLimit: "Alumnos ilimitados",
-    features: [
-      "Alumnos ilimitados",
-      "Todo lo del Plan Crecimiento",
-      "Logo y nombre propio en toda la UI",
-      "Panel del alumno 100% con tu marca",
-      "Sin ninguna mención a FitGrowX",
-      "Dominio personalizado propio",
-    ],
-    ctaLabel: "Contratar Full Marca",
-  },
-];
+const PLAN_ICONS = {
+  gestion: Zap,
+  crecimiento: TrendingUp,
+  full_marca: Star,
+} as const;
+
+const PLANS = FITGROWX_PLANS.map((plan) => ({
+  ...plan,
+  label: plan.name,
+  Icon: PLAN_ICONS[plan.key],
+}));
 
 type PlanDef = typeof PLANS[number];
 

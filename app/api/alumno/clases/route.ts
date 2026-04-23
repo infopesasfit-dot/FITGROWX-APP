@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getValidAlumnoToken } from "@/lib/alumno-token";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,6 +13,11 @@ export async function GET(req: NextRequest) {
   const gym_id    = searchParams.get("gym_id");
 
   if (!alumno_id || !gym_id) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  const tokenRow = await getValidAlumnoToken(req);
+  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
+    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+  }
 
   const today = new Date();
   const dates = Array.from({ length: 7 }, (_, i) => {

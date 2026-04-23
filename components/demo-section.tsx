@@ -7,7 +7,6 @@ import {
   useMotionValue,
   useTransform,
   useSpring,
-  useInView,
   type Variants,
 } from "framer-motion";
 
@@ -21,7 +20,6 @@ const fadeUp = (delay = 0): Variants => ({
 export function DemoSection() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const copyRef  = useRef<HTMLDivElement>(null);
-  const isInView = useInView(copyRef, { once: true, margin: "-80px" });
 
   // Normalized pointer position (0–1). Default center = 0.5
   const pointerX = useMotionValue(0.5);
@@ -36,8 +34,8 @@ export function DemoSection() {
   // ── Phone layer: floaty independent (±70px) ──
   const phoneRawX = useTransform(pointerX, [0, 1], [-70, 70]);
   const phoneRawY = useTransform(pointerY, [0, 1], [-55, 55]);
-  const phoneX = useSpring(phoneRawX, { stiffness: 45, damping: 14 });
-  const phoneY = useSpring(phoneRawY, { stiffness: 45, damping: 14 });
+  useSpring(phoneRawX, { stiffness: 45, damping: 14 });
+  useSpring(phoneRawY, { stiffness: 45, damping: 14 });
 
   // ── Phone tilt (rotateX/Y for 3-D feel) ──
   const phoneTiltXRaw = useTransform(pointerY, [0, 1], [12, -12]);
@@ -158,8 +156,8 @@ export function DemoSection() {
               backgroundClip: "text",
             }}
             variants={fadeUp(0)}
-            initial="hidden"
-            animate={isInView ? "visible" : "hidden"}
+            initial={false}
+            animate="visible"
           >
             Tu gym,{" "}
             <br />
@@ -175,8 +173,8 @@ export function DemoSection() {
           <motion.p
             className="mt-8 max-w-md text-[1.05rem] font-light leading-[1.85] text-white/40"
             variants={fadeUp(0.18)}
-            initial="hidden"
-            animate={isInView ? "visible" : "hidden"}
+            initial={false}
+            animate="visible"
           >
             Interfaz diseñada para la claridad absoluta. Gestioná tu centro
             desde el dashboard profesional o tomá el control total desde tu
@@ -187,8 +185,8 @@ export function DemoSection() {
           <motion.div
             className="mt-10 flex flex-wrap gap-4"
             variants={fadeUp(0.32)}
-            initial="hidden"
-            animate={isInView ? "visible" : "hidden"}
+            initial={false}
+            animate="visible"
           >
             <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] uppercase tracking-[0.15em] text-white/50">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
@@ -205,8 +203,8 @@ export function DemoSection() {
         <motion.div
           className="relative flex justify-center lg:justify-end pb-16 sm:pb-8 lg:pb-0"
           variants={fadeUp(0.12)}
-          initial="hidden"
-          animate={isInView ? "visible" : "hidden"}
+          initial={false}
+          animate="visible"
         >
           {/* Halo de calor local */}
           <div

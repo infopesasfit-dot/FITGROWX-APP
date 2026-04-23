@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
 
 function maskPhone(phone: string) {
   const digits = phone.replace(/\D/g, "");
@@ -13,9 +20,34 @@ export async function POST(req: NextRequest) {
   const phoneRef = typeof phone === "string" ? maskPhone(phone) : "unknown";
   const messageLength = typeof message === "string" ? message.length : 0;
 
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error auth request_id=${requestId} gym_id=${gym_id ?? "missing"} phone=${phoneRef} reason=unauthenticated`);
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
   if (!gym_id || !phone || !message) {
     console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error validation request_id=${requestId} gym_id=${gym_id ?? "missing"} phone=${phoneRef}`);
     return NextResponse.json({ error: "gym_id, phone y message son requeridos" }, { status: 400 });
+  }
+
+  const { data: profile, error: profileError } = await supabaseAdmin
+    .from("profiles")
+    .select("role, gym_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError || !profile) {
+    console.error(`[WA SEND] ${new Date().toISOString()} ${endpoint} error authz request_id=${requestId} gym_id=${gym_id} phone=${phoneRef} reason=profile_lookup_failed`);
+    return NextResponse.json({ error: "No se pudo validar el usuario" }, { status: 403 });
+  }
+
+  const allowed = profile.role === "platform_owner" || profile.gym_id === gym_id;
+  if (!allowed) {
+    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error authz request_id=${requestId} gym_id=${gym_id} phone=${phoneRef} reason=gym_mismatch`);
+    return NextResponse.json({ error: "No autorizado para este gimnasio" }, { status: 403 });
   }
 
   const baseUrl = process.env.WA_MOTOR_URL;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle, CreditCard, Bitcoin, Clock, Zap, Shield, Copy, ExternalLink, Star, TrendingUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getGymSummary } from "@/lib/supabase-relations";
+import { FITGROWX_PLANS, formatArs } from "@/lib/fitgrowx-plans";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -29,63 +30,18 @@ function daysLeft(expiresAt: string | null): number {
   return Math.max(0, Math.ceil(diff / 86_400_000));
 }
 
-const PLANS = [
-  {
-    key: "gestion" as const,
-    name: "Plan Gestión",
-    price: "$49",
-    period: "USD / mes",
-    tagline: "Dejá atrás las planillas. Para siempre.",
-    description: "¿Todavía manejás alumnos con Excel y pagos por WhatsApp? Esto termina hoy. Todo centralizado: membresías, cobros, asistencia y automatizaciones en un solo tablero.",
-    badge: null,
-    Icon: Zap,
-    features: [
-      "Alumnos ilimitados",
-      "Membresías con vencimiento automático",
-      "Registro y validación de pagos",
-      "Egresos y métricas financieras",
-      "Escáner QR de asistencia",
-      "Integración WhatsApp",
-      "Automatizaciones y seguimiento",
-      "Soporte prioritario",
-    ],
-  },
-  {
-    key: "crecimiento" as const,
-    name: "Plan Crecimiento",
-    price: "$65",
-    period: "USD / mes",
-    tagline: "Tu gym capta alumnos solo, mientras vos entrenás.",
-    description: "Captación activa 24/7 con tu landing propia, prospectos gestionados automáticamente y campañas de WhatsApp que convierten curiosos en alumnos pagantes. Sin esfuerzo extra de tu parte.",
-    badge: "Más elegido",
-    Icon: TrendingUp,
-    features: [
-      "Todo lo del Plan Gestión",
-      "Landing de captación propia",
-      "Gestión de prospectos e interesados",
-      "Campañas de WhatsApp automáticas",
-      "Publicidad integrada",
-      "Métricas de conversión",
-    ],
-  },
-  {
-    key: "full_marca" as const,
-    name: "Plan Full Marca",
-    price: "$79",
-    period: "USD / mes",
-    tagline: "Tu gym, tu identidad. Ni rastro de FitGrowX.",
-    description: "White-label total. Tu logo, tu nombre y tus colores en toda la plataforma. Tus alumnos abren la app y ven TU marca desde el primer segundo. La herramienta que proyecta seriedad y profesionalismo antes de que digan una palabra.",
-    badge: "15 días gratis",
-    Icon: Star,
-    features: [
-      "Todo lo del Plan Crecimiento",
-      "Logo y nombre propio en toda la UI",
-      "Panel del alumno 100% con tu marca",
-      "Sin ninguna mención a FitGrowX",
-      "Dominio personalizado (próximamente)",
-    ],
-  },
-];
+const PLAN_ICONS = {
+  gestion: Zap,
+  crecimiento: TrendingUp,
+  full_marca: Star,
+} as const;
+
+const PLANS = FITGROWX_PLANS.map((plan) => ({
+  ...plan,
+  Icon: PLAN_ICONS[plan.key],
+  price: `$${formatArs(plan.priceMonthly)}`,
+  period: "ARS / mes",
+}));
 
 type PlanKey = "gestion" | "crecimiento" | "full_marca";
 
@@ -301,7 +257,7 @@ export default function SuscripcionPage() {
                 </div>
                 <div>
                   <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>
-                    {PLANS.find(p => p.key === selectedPlan)?.name} — {PLANS.find(p => p.key === selectedPlan)?.price} USD/mes
+                    {PLANS.find(p => p.key === selectedPlan)?.name} — {PLANS.find(p => p.key === selectedPlan)?.price} ARS/mes
                   </p>
                   <p style={{ font: `400 0.72rem/1 ${fb}`, color: t2, marginTop: 3 }}>Completá el pago y notificanos.</p>
                 </div>
@@ -326,7 +282,7 @@ export default function SuscripcionPage() {
                   </div>
                   <a href={MP_LINK} target="_blank" rel="noreferrer"
                     style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 12, background: ORANGE, color: "white", font: `700 0.9rem/1 ${fd}`, textDecoration: "none", boxShadow: "0 4px 14px rgba(249,115,22,0.28)" }}>
-                    <ExternalLink size={15} /> Pagar — {PLANS.find(p => p.key === selectedPlan)?.price} USD/mes
+                    <ExternalLink size={15} /> Pagar — {PLANS.find(p => p.key === selectedPlan)?.price} ARS/mes
                   </a>
                 </div>
               )}
@@ -335,7 +291,7 @@ export default function SuscripcionPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   <div style={{ padding: "13px 16px", background: "rgba(249,115,22,0.04)", border: "1px solid rgba(249,115,22,0.14)", borderRadius: 11 }}>
                     <p style={{ font: `500 0.8rem/1.5 ${fb}`, color: t2 }}>
-                      Enviá exactamente <strong style={{ color: t1 }}>{PLANS.find(p => p.key === selectedPlan)?.price} USDT</strong> (red TRC-20) o su equivalente en BTC.
+                      Si preferís pagar en crypto, copiá la wallet y coordiná con soporte el equivalente actualizado antes de transferir.
                     </p>
                   </div>
                   {[
