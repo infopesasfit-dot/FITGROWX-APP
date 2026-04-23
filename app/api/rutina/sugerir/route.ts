@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROW_EMILIO });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
 
 export async function POST(req: NextRequest) {
   const { objetivo, alumno_name, notas } = await req.json();

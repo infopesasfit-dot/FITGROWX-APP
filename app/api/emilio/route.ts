@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY_FITGROW_EMILIO,
+  apiKey: process.env.OPENAI_API_KEY_FITGROWX,
 });
 
 const SYSTEM_PROMPT = `Sos Emilio. Ex dueño de gym en Argentina. Hoy ayudás a dueños a vender mejor. Hablás como un socio que ya pasó por eso, no como consultor.

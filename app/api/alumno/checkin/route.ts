@@ -6,6 +6,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+function getPlanNombre(planes: unknown): string | null {
+  if (!planes) return null;
+  if (Array.isArray(planes)) return (planes[0] as { nombre: string })?.nombre ?? null;
+  return (planes as { nombre: string }).nombre;
+}
+
 export async function POST(req: NextRequest) {
   const { qr_data } = await req.json();
 
@@ -44,7 +50,7 @@ export async function POST(req: NextRequest) {
       already: true,
       alumno: {
         full_name: alumno.full_name,
-        plan: (alumno.planes as { nombre: string } | null)?.nombre ?? null,
+        plan: getPlanNombre(alumno.planes),
         status: alumno.status,
         expiration: alumno.next_expiration_date,
       },
@@ -71,7 +77,7 @@ export async function POST(req: NextRequest) {
     already: false,
     alumno: {
       full_name: alumno.full_name,
-      plan: (alumno.planes as { nombre: string } | null)?.nombre ?? null,
+      plan: getPlanNombre(alumno.planes),
       status: alumno.status,
       expiration: alumno.next_expiration_date,
     },
