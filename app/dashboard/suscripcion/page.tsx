@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircle, CreditCard, Bitcoin, Clock, Zap, Shield, Copy, ExternalLink, Star, TrendingUp } from "lucide-react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { getGymSummary } from "@/lib/supabase-relations";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -114,7 +114,7 @@ export default function SuscripcionPage() {
         .eq("id", user.id)
         .maybeSingle();
 
-      const gym = profile?.gyms as { trial_expires_at: string | null; is_subscription_active: boolean; plan_type: string | null } | null;
+      const gym = getGymSummary(profile?.gyms);
       setTrialExpiresAt(gym?.trial_expires_at ?? null);
       setIsSubscribed(gym?.is_subscription_active ?? false);
       setCurrentPlan(gym?.plan_type ?? null);

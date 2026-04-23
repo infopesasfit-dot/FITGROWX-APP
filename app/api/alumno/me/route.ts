@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getPlanNombre } from "@/lib/supabase-relations";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
     gym_id:     data.gym_id,
     full_name:  data.full_name,
     status:     data.status,
-    plan:       (data.planes as { nombre: string } | null)?.nombre ?? null,
+    plan:       getPlanNombre(data.planes),
     expiration: data.next_expiration_date ?? null,
   });
 }

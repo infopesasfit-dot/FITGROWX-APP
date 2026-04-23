@@ -6,6 +6,7 @@ import {
   ArrowUpRight, ArrowDownRight, Send, Target,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getPlanNombre, getRelationRecord } from "@/lib/supabase-relations";
 
 const accent = "#FF6A00";
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -23,6 +24,10 @@ const cardBase: React.CSSProperties = {
 
 interface RecenteAlumno { id: string; full_name: string; created_at: string; }
 interface PlanDist { nombre: string; count: number; }
+interface EgresoMontoRow { monto: number | null; }
+interface CreatedAtRow { created_at: string; }
+interface PlanPrecioRow { planes: unknown; }
+interface PlanNombreRow { planes: unknown; }
 
 function initials(name: string) {
   if (!name) return "?";
@@ -151,24 +156,27 @@ export default function DashboardPage() {
 
     setTotalCount(total ?? 0);
     setActivosCount(activos ?? 0);
-    const proyectado = (activosConPlan ?? []).reduce((s: number, r: any) => s + (r.planes?.precio ?? 0), 0);
+    const proyectado = (activosConPlan ?? []).reduce((sum, row) => {
+      const plan = getRelationRecord((row as PlanPrecioRow).planes);
+      return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
+    }, 0);
     setIngresoProyectado(proyectado);
-    setGastosTotal((egresosData ?? []).reduce((s, r) => s + ((r as any).monto ?? 0), 0));
+    setGastosTotal((egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0));
     setChurnCount(churn ?? 0);
     setRecientes((recientesData ?? []) as RecenteAlumno[]);
     setProspectos(prospectosPendientes ?? 0);
 
     const months = last5Months();
     const captMap: Record<string, number> = {};
-    (todasCreatedAt ?? []).forEach((r: any) => {
-      const m = (r.created_at as string).slice(0, 7);
+    (todasCreatedAt ?? []).forEach((row) => {
+      const m = (row as CreatedAtRow).created_at.slice(0, 7);
       captMap[m] = (captMap[m] || 0) + 1;
     });
     setCaptacion5(months.map(m => captMap[m.key] || 0));
 
     const planMap: Record<string, number> = {};
-    (activosConNombrePlan ?? []).forEach((r: any) => {
-      const nombre = r.planes?.nombre ?? "Sin plan";
+    (activosConNombrePlan ?? []).forEach((row) => {
+      const nombre = getPlanNombre((row as PlanNombreRow).planes) ?? "Sin plan";
       planMap[nombre] = (planMap[nombre] || 0) + 1;
     });
     const dist = Object.entries(planMap)
@@ -179,7 +187,12 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(dateFilter); }, [dateFilter]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchData(dateFilter);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [dateFilter]);
 
   const sinEgresos  = gastosTotal === 0;
   const balanceNeto = sinEgresos ? ingresoProyectado : ingresoProyectado - gastosTotal;

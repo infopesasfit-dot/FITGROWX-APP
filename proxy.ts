@@ -1,9 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getGymSummary } from '@/lib/supabase-relations'
 
 // Rutas por rol
 const ADMIN_ONLY   = ['/dashboard/ajustes', '/dashboard/pagos', '/dashboard/automatizaciones', '/dashboard/prospectos']
-const STAFF_UP     = ['/dashboard/alumnos', '/dashboard/asistencia', '/dashboard/membresias']
 const STUDENT_ONLY = ['/dashboard/mi-progreso']
 
 function matchesAny(pathname: string, routes: string[]) {
@@ -76,13 +76,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // ── Trial / subscription gate ────────────────────────────────────────────
-    const gym = profile?.gyms as {
-      trial_expires_at: string | null
-      is_subscription_active: boolean
-      gym_status: string | null
-      plan_type: string | null
-      trial_start_date: string | null
-    } | null
+    const gym = getGymSummary(profile?.gyms)
     const blocked =
       (gym?.gym_status === 'trial_expired' ||
         (gym?.trial_expires_at ? new Date(gym.trial_expires_at) < new Date() : false)) &&

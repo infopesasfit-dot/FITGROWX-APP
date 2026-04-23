@@ -6,6 +6,7 @@ import {
   Plus, Upload, X, Smartphone, DollarSign, Building2, Settings,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getPagoAlumnoSummary, getPlanPeriodo } from "@/lib/supabase-relations";
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -22,7 +23,6 @@ const card: React.CSSProperties = {
 const ORANGE = "#F97316";
 const BLUE   = "#4B6BFB";
 const GREEN  = "#22C55E";
-const RED    = "#F87171";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Method     = "efectivo" | "transferencia" | "mercadopago" | "debito";
@@ -39,6 +39,18 @@ interface Pago {
   alumno_id: string;
   alumnos: { full_name: string; phone: string | null } | null;
 }
+
+type PagoRow = {
+  id: string;
+  amount: number;
+  date: string;
+  method: Method;
+  status: PagoStatus;
+  comprobante_url: string | null;
+  notes: string | null;
+  alumno_id: string;
+  alumnos: unknown;
+};
 
 interface AlumnoOption {
   id: string;
@@ -73,6 +85,20 @@ function initials(name: string) {
 
 function fmtARS(n: number) {
   return "$" + n.toLocaleString("es-AR");
+}
+
+function mapPagoRow(row: PagoRow): Pago {
+  return {
+    id: row.id,
+    amount: row.amount,
+    date: row.date,
+    method: row.method,
+    status: row.status,
+    comprobante_url: row.comprobante_url,
+    notes: row.notes,
+    alumno_id: row.alumno_id,
+    alumnos: getPagoAlumnoSummary(row.alumnos),
+  };
 }
 
 // ── Chip ──────────────────────────────────────────────────────────────────────
@@ -144,7 +170,7 @@ export default function PagosPage() {
     const PERIOD_DAYS: Record<string, number> = {
       mensual: 30, trimestral: 90, anual: 365, semanal: 7,
     };
-    const periodo = (alumno.planes as { periodo?: string } | null)?.periodo ?? "mensual";
+    const periodo = getPlanPeriodo(alumno.planes) ?? "mensual";
     const days    = PERIOD_DAYS[periodo] ?? 30;
 
     // Extender desde la fecha actual de vencimiento si todavía no venció; si no, desde hoy
@@ -208,7 +234,7 @@ export default function PagosPage() {
         .order("full_name"),
     ]);
 
-    setPagos((pagosData ?? []) as Pago[]);
+    setPagos((pagosData ?? []).map((row) => mapPagoRow(row)));
     setCuentas((cuentasData ?? []) as Cuenta[]);
     setAlumnos((alumnosData ?? []) as AlumnoOption[]);
     setLoading(false);

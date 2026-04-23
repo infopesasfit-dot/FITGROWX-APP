@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { QrCode, CheckCircle, XCircle, RefreshCw, Scan } from "lucide-react";
+
+type DetectedBarcode = {
+  rawValue?: string;
+};
+
+type BarcodeDetectorConstructor = new (options?: {
+  formats?: string[];
+}) => {
+  detect(source: HTMLVideoElement | ImageBitmap): Promise<DetectedBarcode[]>;
+};
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 
@@ -36,11 +46,10 @@ export default function ScannerPage() {
   const [result,     setResult]     = useState<CheckinResult | null>(null);
   const [loading,    setLoading]    = useState(false);
   const [camError,   setCamError]   = useState<string | null>(null);
-  const [hasDetector, setHasDetector] = useState(false);
+  const hasDetector = typeof window !== "undefined" && Boolean(getBarcodeDetector());
 
-  useEffect(() => {
-    setHasDetector("BarcodeDetector" in window);
-  }, []);
+  const getBarcodeDetector = () =>
+    (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
 
   const processQR = useCallback(async (qr_data: string) => {
     if (cooldownRef.current || qr_data === lastQR.current) return;
@@ -82,7 +91,11 @@ export default function ScannerPage() {
       await videoRef.current.play();
       setScanning(true);
 
-      // @ts-expect-error BarcodeDetector is not in TS lib yet
+      const BarcodeDetector = getBarcodeDetector();
+      if (!BarcodeDetector) {
+        setCamError("Tu navegador no soporta lectura de QR en vivo.");
+        return;
+      }
       const detector = new BarcodeDetector({ formats: ["qr_code"] });
       const scan = async () => {
         if (!videoRef.current || videoRef.current.readyState < 2) {
@@ -90,10 +103,10 @@ export default function ScannerPage() {
           return;
         }
         try {
-          // @ts-expect-error detector type
           const codes = await detector.detect(videoRef.current);
-          if (codes.length > 0) {
-            await processQR(codes[0].rawValue);
+          const qrValue = codes[0]?.rawValue;
+          if (typeof qrValue === "string" && qrValue.length > 0) {
+            await processQR(qrValue);
           }
         } catch { /* ignore */ }
         animRef.current = requestAnimationFrame(scan);
@@ -123,19 +136,19 @@ export default function ScannerPage() {
     if (!file) return;
     e.target.value = "";
 
-    if (!("BarcodeDetector" in window)) {
+    const BarcodeDetector = getBarcodeDetector();
+    if (!BarcodeDetector) {
       setResult({ ok: false, error: "Tu dispositivo no soporta lectura de QR automática. Usá la entrada manual." });
       return;
     }
 
     try {
       const imageBitmap = await createImageBitmap(file);
-      // @ts-expect-error BarcodeDetector
       const detector = new BarcodeDetector({ formats: ["qr_code"] });
-      // @ts-expect-error detector
       const codes = await detector.detect(imageBitmap);
-      if (codes.length > 0) {
-        await processQR(codes[0].rawValue);
+      const qrValue = codes[0]?.rawValue;
+      if (typeof qrValue === "string" && qrValue.length > 0) {
+        await processQR(qrValue);
       } else {
         setResult({ ok: false, error: "No se detectó ningún QR en la imagen." });
       }

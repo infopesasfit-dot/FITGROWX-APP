@@ -13,13 +13,7 @@ import {
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import FloatingSupport from "@/components/FloatingSupport";
-
-const MP_LINK   = process.env.NEXT_PUBLIC_FITGROWX_MP_LINK   ?? "#";
-const USDT_ADDR = process.env.NEXT_PUBLIC_FITGROWX_USDT_ADDR ?? "";
-const BTC_ADDR  = process.env.NEXT_PUBLIC_FITGROWX_BTC_ADDR  ?? "";
-const t1 = "#1A1D23";
-const t2 = "#6B7280";
-const t3 = "#9CA3AF";
+import { getGymSummary } from "@/lib/supabase-relations";
 
 const NAV_TOP = [
   { href: "/dashboard",                   label: "Inicio",          icon: Home },
@@ -95,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setGymLogoUrl(settings?.logo_url ?? null);
       setGymDisplayName(settings?.gym_name ?? null);
 
-      const gym = profile?.gyms as { trial_expires_at: string | null; is_subscription_active: boolean; plan_type: string | null; gym_status: string | null } | null;
+      const gym = getGymSummary(profile?.gyms);
       setPlanType(gym?.plan_type ?? null);
 
       if (gym && !gym.is_subscription_active && gym.trial_expires_at) {
@@ -131,6 +125,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [gymId]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
+  const notificationsNowMs = notifs.length > 0 ? new Date(notifs[0].created_at).getTime() : 0;
 
   const handleOpenNotifs = () => {
     setNotifOpen(o => !o);
@@ -149,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const timeAgo = (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
+    const diff = notificationsNowMs - new Date(iso).getTime();
     const m = Math.floor(diff / 60000);
     if (m < 1) return "ahora";
     if (m < 60) return `hace ${m}m`;

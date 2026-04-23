@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getPlanNombre } from "@/lib/supabase-relations";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
-
-function getPlanNombre(planes: unknown): string | null {
-  if (!planes) return null;
-  if (Array.isArray(planes)) return (planes[0] as { nombre: string })?.nombre ?? null;
-  return (planes as { nombre: string }).nombre;
-}
 
 export async function POST(req: NextRequest) {
   const { qr_data } = await req.json();

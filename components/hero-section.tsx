@@ -5,10 +5,11 @@ import {
   useMotionValue,
   useSpring,
   useTransform,
+  type MotionValue,
   type Variants,
 } from "framer-motion";
 import { ArrowRight, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef } from "react";
 
 // ─────────────────────────────────────────────────────────────────
 // Config
@@ -74,10 +75,10 @@ function GrainOverlay({ filterId }: { filterId: string }) {
 function AtmosphericBackground({
   orangeX, orangeY, blueX, blueY, filterId,
 }: {
-  orangeX: ReturnType<typeof useTransform>;
-  orangeY: ReturnType<typeof useTransform>;
-  blueX:   ReturnType<typeof useTransform>;
-  blueY:   ReturnType<typeof useTransform>;
+  orangeX: MotionValue<number>;
+  orangeY: MotionValue<number>;
+  blueX: MotionValue<number>;
+  blueY: MotionValue<number>;
   filterId: string;
 }) {
   return (
@@ -229,8 +230,6 @@ function GhostButton() {
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null);
   const filterId   = useId().replace(/:/g, "");
-  const [ready, setReady] = useState(false);
-  useEffect(() => { setReady(true); }, []);
 
   const rawX = useMotionValue(50);
   const rawY = useMotionValue(48);
@@ -272,7 +271,7 @@ export function HeroSection() {
 
       <div className="relative mx-auto max-w-5xl px-6 lg:px-10">
         {/* Badge */}
-        <motion.div variants={fadeUp(0)} initial="hidden" animate={ready ? "visible" : "hidden"}>
+        <motion.div variants={fadeUp(0)} initial="hidden" animate="visible">
           <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
             Sistema para gimnasios y centros de entrenamiento
@@ -284,7 +283,7 @@ export function HeroSection() {
           className="mx-auto mt-10 max-w-4xl text-[2rem] font-semibold leading-[1.15] tracking-[-0.04em] sm:text-5xl lg:text-[4.5rem]"
           variants={headlineContainer}
           initial="hidden"
-          animate={ready ? "visible" : "hidden"}
+          animate="visible"
         >
           {WHITE_WORDS.map((word, i) => (
             <motion.span
@@ -323,7 +322,7 @@ export function HeroSection() {
           className="mx-auto mt-8 max-w-2xl text-base lg:text-lg font-light leading-relaxed text-white/40 tracking-tight"
           variants={fadeUp(subtitleDelay)}
           initial="hidden"
-          animate={ready ? "visible" : "hidden"}
+          animate="visible"
         >
           FitGrowX ordena cobros, seguimiento y captación para que{" "}
           <br className="hidden md:block" />
@@ -335,7 +334,7 @@ export function HeroSection() {
           className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
           variants={fadeUp(ctaDelay)}
           initial="hidden"
-          animate={ready ? "visible" : "hidden"}
+          animate="visible"
         >
           <PrimaryButton />
           <GhostButton />

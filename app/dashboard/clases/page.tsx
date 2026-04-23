@@ -106,7 +106,11 @@ export default function ClasesPage() {
   }, []);
 
   useEffect(() => {
-    if (gymId) fetchClases(gymId);
+    if (!gymId) return;
+    const timer = window.setTimeout(() => {
+      void fetchClases(gymId);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [gymId, fetchClases]);
 
   const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setFormError(null); setModalOpen(true); };
@@ -181,7 +185,7 @@ export default function ClasesPage() {
       .eq("estado", "confirmada")
       .in("fecha", dates)
       .order("fecha");
-    setReservas(prev => ({ ...prev, [id]: (data as unknown as Reserva[]) ?? [] }));
+    setReservas(prev => ({ ...prev, [id]: (data ?? []) as Reserva[] }));
     setLoadingRes(null);
   };
 

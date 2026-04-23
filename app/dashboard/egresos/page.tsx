@@ -68,7 +68,12 @@ export default function EgresosPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchEgresos(); }, [fetchEgresos]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchEgresos();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchEgresos]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

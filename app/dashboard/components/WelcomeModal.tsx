@@ -27,6 +27,14 @@ Por favor convertí mis contactos a ese formato CSV.`;
 
 interface ManualRow { full_name: string; phone_number: string; }
 type Tab = "manual" | "csv";
+type CsvInputRow = {
+  full_name?: string;
+  nombre_completo?: string;
+  phone_number?: string;
+  whatsapp?: string;
+  phone?: string;
+  telefono?: string;
+};
 
 export default function WelcomeModal() {
   const [show, setShow]           = useState(false);
@@ -72,10 +80,11 @@ export default function WelcomeModal() {
       transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
       complete: (results) => {
         const parsed: ManualRow[] = results.data
-          .filter((r: any) =>
+          .filter((r): r is CsvInputRow =>
+            typeof r === "object" && r !== null && (
             r.full_name || r.nombre_completo || r.phone_number || r.whatsapp
-          )
-          .map((r: any) => ({
+          ))
+          .map((r) => ({
             full_name: String(
               r.full_name ?? r.nombre_completo ?? ""
             ).trim(),
@@ -122,8 +131,8 @@ export default function WelcomeModal() {
         .eq("gym_id", gymId);
 
       setShow(false);
-    } catch (e: any) {
-      setError(e?.message ?? "Ocurrió un error. Intentá de nuevo.");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }

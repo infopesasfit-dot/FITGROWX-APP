@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 function normalizeArgPhone(raw: string): string {
-  let p = raw.replace(/\D/g, "");
+  const p = raw.replace(/\D/g, "");
   if (p.startsWith("549") && p.length === 13) return p;
   if (p.startsWith("54") && p.length === 12) return "549" + p.slice(2);
   if (p.startsWith("9") && p.length === 11) return "54" + p;

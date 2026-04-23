@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Normaliza teléfonos argentinos al formato E.164 para WhatsApp (549XXXXXXXXXX)
 function normalizeArgPhone(raw: string): string {
-  let p = raw.replace(/\D/g, "");
+  const p = raw.replace(/\D/g, "");
 
   // Ya correcto: 549 + 10 dígitos = 13 dígitos
   if (p.startsWith("549") && p.length === 13) return p;

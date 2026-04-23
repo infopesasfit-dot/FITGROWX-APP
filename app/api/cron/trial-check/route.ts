@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getGymSettingsSummary } from "@/lib/supabase-relations";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
     ]);
 
   for (const gym of gymsToNotify ?? []) {
-    const settings = gym.gym_settings as { gym_name: string | null; whatsapp: string | null } | null;
+    const settings = getGymSettingsSummary(gym.gym_settings);
     const phone = settings?.whatsapp;
     const gymName = settings?.gym_name ?? "tu gimnasio";
 

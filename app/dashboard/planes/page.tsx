@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Zap, CheckCircle, Clock, Copy, Bitcoin, TrendingUp, Star, X, CreditCard } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getGymSummary } from "@/lib/supabase-relations";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -118,7 +119,7 @@ export default function PlanesPage() {
         .select("gyms(trial_expires_at, is_subscription_active, plan_type)")
         .eq("id", user.id)
         .maybeSingle();
-      const gym = (profile as { gyms?: { trial_expires_at: string | null; is_subscription_active: boolean; plan_type: string | null } | null } | null)?.gyms;
+      const gym = getGymSummary(profile?.gyms);
       setTrialExpiresAt(gym?.trial_expires_at ?? null);
       setIsSubscribed(gym?.is_subscription_active ?? false);
       setCurrentPlan(gym?.plan_type ?? null);

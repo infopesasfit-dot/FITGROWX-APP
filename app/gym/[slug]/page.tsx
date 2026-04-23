@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -17,7 +18,9 @@ type GymData = {
   landing_desc: string | null;
 };
 
-export default function GymLandingPage({ params }: { params: { slug: string } }) {
+export default function GymLandingPage() {
+  const params = useParams<{ slug: string }>();
+  const slug = typeof params?.slug === "string" ? params.slug : "";
   const [gym,      setGym]      = useState<GymData | null>(null);
   const [loading,  setLoading]  = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -30,18 +33,19 @@ export default function GymLandingPage({ params }: { params: { slug: string } })
   const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
+    if (!slug) return;
     (async () => {
       const { data } = await supabase
         .from("gym_settings")
         .select("gym_id, gym_name, logo_url, accent_color, landing_title, landing_desc")
-        .eq("slug", params.slug)
+        .eq("slug", slug)
         .maybeSingle();
 
       if (!data) { setNotFound(true); setLoading(false); return; }
       setGym(data);
       setLoading(false);
     })();
-  }, [params.slug]);
+  }, [slug]);
 
   const ACCENT = gym?.accent_color ?? "#F97316";
 

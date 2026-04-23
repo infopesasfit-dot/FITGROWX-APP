@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, ChevronDown, Clock, Trash2, CheckCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Clock, Trash2, CheckCircle } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
 
@@ -56,8 +55,6 @@ function openWhatsApp(phone: string, full_name: string) {
 const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: "" };
 
 export default function AlumnosPage() {
-  const router = useRouter();
-
   const [alumnos,         setAlumnos]         = useState<Alumno[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [search,          setSearch]          = useState("");
@@ -68,7 +65,6 @@ export default function AlumnosPage() {
   const [formError,       setFormError]       = useState<string | null>(null);
   const [planes,          setPlanes]          = useState<PlanOption[]>([]);
   const [planesLoading,   setPlanesLoading]   = useState(false);
-  const [noPlanesWarning, setNoPlanesWarning] = useState(false);
   const [totalCount,      setTotalCount]      = useState(0);
   const [menuOpenId,      setMenuOpenId]      = useState<string | null>(null);
   const [menuPos,         setMenuPos]         = useState<{ top: number; right: number } | null>(null);
@@ -116,13 +112,17 @@ export default function AlumnosPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchAlumnos(); }, [fetchAlumnos]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void fetchAlumnos();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchAlumnos]);
 
   // ── Open modal + fetch planes ─────────────────────────────────────
   const openModal = async () => {
     setForm(EMPTY_FORM);
     setFormError(null);
-    setNoPlanesWarning(false);
     setModalOpen(true);
 
     setPlanesLoading(true);
@@ -139,9 +139,7 @@ export default function AlumnosPage() {
     setPlanes(list);
     setPlanesLoading(false);
 
-    if (list.length === 0) {
-      setNoPlanesWarning(true);
-    } else {
+    if (list.length > 0) {
       setForm(f => ({ ...f, plan_id: list[0].id }));
     }
   };
@@ -997,7 +995,6 @@ export default function AlumnosPage() {
                 background: aiLoading ? "rgba(249,115,22,0.12)" : "#1C1F26",
                 color: aiLoading ? "rgba(255,255,255,0.5)" : "white", font: `700 0.875rem/1 ${fd}`, cursor: aiLoading ? "not-allowed" : "pointer",
                 boxShadow: aiLoading ? "none" : "0 4px 16px rgba(0,0,0,0.4)",
-                border: `1px solid ${aiLoading ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.1)"}`,
                 transition: "all 0.2s", position: "relative", zIndex: 1,
                 letterSpacing: "0.01em",
               }}

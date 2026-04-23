@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { BookOpen, FolderOpen } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getRelationRecord, getVaultCategorySummary } from "@/lib/supabase-relations";
 import {
   getResourcesByCategory,
   getVaultCategory,
@@ -36,11 +37,7 @@ type DbResourceRow = {
   content: unknown;
   meta: unknown;
   updated_at: string;
-  vault_categories: {
-    slug: string;
-    title: string;
-    description: string | null;
-  } | null;
+  vault_categories: unknown;
 };
 
 function getCategoryIcon(slug: string) {
@@ -147,7 +144,8 @@ function mapDbCategory(row: DbCategoryRow): VaultCategoryView {
 }
 
 function mapDbResource(row: DbResourceRow): VaultResourceView {
-  const categorySlug = row.vault_categories?.slug ?? getVaultResource(row.slug)?.category ?? "tutoriales-fitgrowx";
+  const relatedCategory = getVaultCategorySummary(row.vault_categories);
+  const categorySlug = relatedCategory?.slug ?? getVaultResource(row.slug)?.category ?? "tutoriales-fitgrowx";
   const fallback = getVaultResource(row.slug);
   const contentParts = parseContentParts(row.content, fallback);
 
@@ -181,6 +179,58 @@ function mapDbResource(row: DbResourceRow): VaultResourceView {
   };
 }
 
+function mapDbCategoryRow(input: unknown): DbCategoryRow | null {
+  const row = getRelationRecord(input);
+  if (
+    !row ||
+    typeof row.id !== "string" ||
+    typeof row.slug !== "string" ||
+    typeof row.title !== "string" ||
+    typeof row.is_active !== "boolean"
+  ) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    description: typeof row.description === "string" ? row.description : null,
+    is_active: row.is_active,
+  };
+}
+
+function mapDbResourceRow(input: unknown): DbResourceRow | null {
+  const row = getRelationRecord(input);
+  if (
+    !row ||
+    typeof row.id !== "string" ||
+    typeof row.slug !== "string" ||
+    typeof row.title !== "string" ||
+    typeof row.status !== "string" ||
+    typeof row.updated_at !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    slug: row.slug,
+    category_id: typeof row.category_id === "string" ? row.category_id : null,
+    title: row.title,
+    description: typeof row.description === "string" ? row.description : null,
+    format: typeof row.format === "string" ? row.format : null,
+    read_time_minutes: typeof row.read_time_minutes === "number" ? row.read_time_minutes : null,
+    status: row.status,
+    objective: typeof row.objective === "string" ? row.objective : null,
+    outcome: typeof row.outcome === "string" ? row.outcome : null,
+    content: row.content,
+    meta: row.meta,
+    updated_at: row.updated_at,
+    vault_categories: row.vault_categories,
+  };
+}
+
 const getDbVaultData = cache(async () => {
   try {
     const supabase = await createSupabaseServerClient();
@@ -205,8 +255,14 @@ const getDbVaultData = cache(async () => {
     }
 
     return {
-      categories: (categoryRows ?? []).map((row) => mapDbCategory(row as DbCategoryRow)),
-      resources: (resourceRows ?? []).map((row) => mapDbResource(row as DbResourceRow)),
+      categories: (categoryRows ?? [])
+        .map((row) => mapDbCategoryRow(row))
+        .filter((row): row is DbCategoryRow => row !== null)
+        .map((row) => mapDbCategory(row)),
+      resources: (resourceRows ?? [])
+        .map((row) => mapDbResourceRow(row))
+        .filter((row): row is DbResourceRow => row !== null)
+        .map((row) => mapDbResource(row)),
     };
   } catch {
     return { categories: [] as VaultCategoryView[], resources: [] as VaultResourceView[] };

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { getPlanNombre } from "@/lib/supabase-relations";
 
 const fd = "'Inter', sans-serif";
 
@@ -11,11 +12,11 @@ function AuthInner() {
   const searchParams = useSearchParams();
   const token        = searchParams.get("token");
 
-  const [status, setStatus] = useState<"verifying" | "error">("verifying");
-  const [error,  setError]  = useState<string | null>(null);
+  const [status, setStatus] = useState<"verifying" | "error">(token ? "verifying" : "error");
+  const [error,  setError]  = useState<string | null>(token ? null : "Token no encontrado.");
 
   useEffect(() => {
-    if (!token) { setError("Token no encontrado."); setStatus("error"); return; }
+    if (!token) return;
 
     fetch("/api/alumno/verify-token", {
       method: "POST",
@@ -30,7 +31,7 @@ function AuthInner() {
           gym_id:      data.gym_id,
           full_name:   data.alumno.full_name,
           status:      data.alumno.status,
-          plan:        data.alumno.planes?.nombre ?? null,
+          plan:        getPlanNombre(data.alumno.planes),
           expiration:  data.alumno.next_expiration_date ?? null,
           dni:         data.alumno.dni ?? null,
         }));
