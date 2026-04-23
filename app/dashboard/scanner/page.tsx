@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { QrCode, CheckCircle, XCircle, RefreshCw, Scan } from "lucide-react";
 
 type DetectedBarcode = {
@@ -42,14 +42,14 @@ export default function ScannerPage() {
   const lastQR       = useRef<string | null>(null);
   const cooldownRef  = useRef(false);
 
+  const getBarcodeDetector = () =>
+    (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
+
   const [scanning,   setScanning]   = useState(false);
   const [result,     setResult]     = useState<CheckinResult | null>(null);
   const [loading,    setLoading]    = useState(false);
   const [camError,   setCamError]   = useState<string | null>(null);
   const hasDetector = typeof window !== "undefined" && Boolean(getBarcodeDetector());
-
-  const getBarcodeDetector = () =>
-    (window as Window & { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
 
   const processQR = useCallback(async (qr_data: string) => {
     if (cooldownRef.current || qr_data === lastQR.current) return;

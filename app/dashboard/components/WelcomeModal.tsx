@@ -74,16 +74,17 @@ export default function WelcomeModal() {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    Papa.parse<ManualRow>(file, {
+    Papa.parse<CsvInputRow>(file, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
       complete: (results) => {
         const parsed: ManualRow[] = results.data
           .filter((r): r is CsvInputRow =>
-            typeof r === "object" && r !== null && (
-            r.full_name || r.nombre_completo || r.phone_number || r.whatsapp
-          ))
+            typeof r === "object" &&
+            r !== null &&
+            Boolean(r.full_name || r.nombre_completo || r.phone_number || r.whatsapp)
+          )
           .map((r) => ({
             full_name: String(
               r.full_name ?? r.nombre_completo ?? ""
