@@ -14,13 +14,13 @@ const card = { background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.05)", bord
 const CATEGORIAS = ["Alquiler", "Servicios", "Sueldos", "Equipamiento", "Marketing", "Mantenimiento", "Otros"];
 
 const CAT_COLOR: Record<string, { color: string; bg: string }> = {
-  Alquiler:      { color: "#7C3AED", bg: "rgba(124,58,237,0.08)" },
-  Servicios:     { color: "#0EA5E9", bg: "rgba(14,165,233,0.08)" },
+  Alquiler:      { color: "#1E50F0", bg: "rgba(30,80,240,0.08)" },
+  Servicios:     { color: "#6ea8fe", bg: "rgba(110,168,254,0.08)" },
   Sueldos:       { color: "#F97316", bg: "rgba(249,115,22,0.08)" },
-  Equipamiento:  { color: "#10B981", bg: "rgba(16,185,129,0.08)" },
-  Marketing:     { color: "#EC4899", bg: "rgba(236,72,153,0.08)" },
+  Equipamiento:  { color: "#FF6A00", bg: "rgba(255,106,0,0.08)" },
+  Marketing:     { color: "#D97706", bg: "rgba(217,119,6,0.08)" },
   Mantenimiento: { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-  Otros:         { color: "#6B7280", bg: "rgba(107,114,128,0.08)" },
+  Otros:         { color: "#64748B", bg: "rgba(100,116,139,0.08)" },
 };
 
 interface Egreso {

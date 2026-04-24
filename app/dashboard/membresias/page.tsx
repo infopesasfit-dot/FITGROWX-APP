@@ -615,7 +615,7 @@ export default function MembresiasPage() {
                           <span style={{ font: `500 0.85rem/1 ${fb}`, color: t3, marginLeft: 2 }}>/{draft.periodo}</span>
                         </div>
                         {draft.periodo === "año" && (
-                          <span style={{ font: `500 0.72rem/1 ${fb}`, color: "#16A34A", background: "rgba(22,163,74,0.09)", padding: "3px 8px", borderRadius: 9999, display: "inline-block", marginTop: 6 }}>
+                          <span style={{ font: `500 0.72rem/1 ${fb}`, color: "#FF6A00", background: "rgba(255,106,0,0.09)", padding: "3px 8px", borderRadius: 9999, display: "inline-block", marginTop: 6 }}>
                             ${Math.round(mensualDraft).toLocaleString("es-AR")}/mes
                           </span>
                         )}
@@ -650,13 +650,13 @@ export default function MembresiasPage() {
                           <button
                             onClick={() => saveCard(p.id)}
                             disabled={isSaving}
-                            style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", font: `700 0.82rem/1 ${fd}`, cursor: isSaving ? "wait" : "pointer", background: isSaving ? "#9CA3AF" : "#16A34A", color: "white", transition: "all 0.14s", boxShadow: isSaving ? "none" : "0 3px 10px rgba(22,163,74,0.28)" }}
+                            style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", font: `700 0.82rem/1 ${fd}`, cursor: isSaving ? "wait" : "pointer", background: isSaving ? "#9CA3AF" : "#FF6A00", color: "white", transition: "all 0.14s", boxShadow: isSaving ? "none" : "0 3px 10px rgba(255,106,0,0.28)" }}
                           >
                             {isSaving ? "Guardando..." : "Guardar cambios"}
                           </button>
                         ) : (
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px", borderRadius: 10, background: "#F9FAFB", font: `500 0.75rem/1 ${fb}`, color: t3, gap: 6 }}>
-                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#16A34A", display: "inline-block" }} />
+                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF6A00", display: "inline-block" }} />
                             Guardado
                           </div>
                         )}
@@ -754,7 +754,7 @@ export default function MembresiasPage() {
                   <div>
                     <p style={{ font: `700 0.95rem/1 ${fd}`, color: "white" }}>Emilio</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#FF6A00", display: "inline-block" }} />
                       <span style={{ font: `400 0.7rem/1 ${fb}`, color: "rgba(255,255,255,0.45)" }}>Consultor IA · Grand Slam Offers</span>
                     </div>
                   </div>
@@ -847,7 +847,7 @@ export default function MembresiasPage() {
 
         {/* ── Toast ── */}
         {toast && (
-          <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100, display: "flex", alignItems: "center", gap: 10, background: toast.type === "ok" ? "#16A34A" : "#DC2626", color: "white", padding: "13px 20px", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", font: `600 0.875rem/1 ${fb}`, minWidth: 260, animation: "slideUp 0.22s ease" }}>
+          <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100, display: "flex", alignItems: "center", gap: 10, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", padding: "13px 20px", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", font: `600 0.875rem/1 ${fb}`, minWidth: 260, animation: "slideUp 0.22s ease" }}>
             <span style={{ fontSize: "1.1rem" }}>{toast.type === "ok" ? "✓" : "✕"}</span>
             {toast.msg}
           </div>

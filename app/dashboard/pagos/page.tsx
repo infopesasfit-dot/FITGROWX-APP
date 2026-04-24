@@ -22,7 +22,7 @@ const card: React.CSSProperties = {
 };
 const ORANGE = "#F97316";
 const BLUE   = "#4B6BFB";
-const GREEN  = "#22C55E";
+const GREEN  = "#FF6A00";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Method     = "efectivo" | "transferencia" | "mercadopago" | "debito";
@@ -67,15 +67,15 @@ interface Cuenta {
 }
 
 const METHOD_META: Record<Method, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  efectivo:      { label: "Efectivo",      color: "#16A34A", bg: "rgba(22,163,74,0.08)",   icon: <DollarSign size={14} /> },
+  efectivo:      { label: "Efectivo",      color: "#FF6A00", bg: "rgba(255,106,0,0.08)",   icon: <DollarSign size={14} /> },
   transferencia: { label: "Transferencia", color: BLUE,      bg: "rgba(75,107,251,0.08)",  icon: <Building2 size={14} /> },
-  mercadopago:   { label: "Mercado Pago",  color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  icon: <Smartphone size={14} /> },
-  debito:        { label: "Débito",        color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  icon: <Wallet size={14} /> },
+  mercadopago:   { label: "Mercado Pago",  color: "#1E50F0", bg: "rgba(30,80,240,0.08)",   icon: <Smartphone size={14} /> },
+  debito:        { label: "Débito",        color: "#1E50F0", bg: "rgba(30,80,240,0.08)",  icon: <Wallet size={14} /> },
 };
 
 const STATUS_META: Record<PagoStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   pendiente: { label: "Pendiente", color: "#D97706", bg: "rgba(217,119,6,0.08)",   icon: <Clock size={11} /> },
-  validado:  { label: "Validado",  color: "#16A34A", bg: "rgba(22,163,74,0.08)",   icon: <CheckCircle size={11} /> },
+  validado:  { label: "Validado",  color: "#FF6A00", bg: "rgba(255,106,0,0.08)",   icon: <CheckCircle size={11} /> },
   rechazado: { label: "Rechazado", color: "#DC2626", bg: "rgba(220,38,38,0.08)",   icon: <XCircle size={11} /> },
 };
 
@@ -552,7 +552,7 @@ export default function PagosPage() {
                           <button
                             onClick={() => validarPago(p.id)}
                             disabled={isValidating}
-                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.25)", borderRadius: 9, font: `700 0.78rem/1 ${fb}`, color: "#16A34A", cursor: isValidating ? "wait" : "pointer" }}>
+                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.25)", borderRadius: 9, font: `700 0.78rem/1 ${fb}`, color: "#FF6A00", cursor: isValidating ? "wait" : "pointer" }}>
                             <CheckCircle size={13} /> {isValidating ? "Validando..." : "Validar"}
                           </button>
                           <button
@@ -772,7 +772,7 @@ export default function PagosPage() {
                   <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>Comprobante</label>
                   <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: "none" }} onChange={e => setComproFile(e.target.files?.[0] ?? null)} />
                   <button onClick={() => fileRef.current?.click()}
-                    style={{ width: "100%", padding: "12px", borderRadius: 10, border: `1px dashed ${comproFile ? "rgba(22,163,74,0.40)" : "rgba(0,0,0,0.15)"}`, background: comproFile ? "rgba(22,163,74,0.05)" : "#FAFBFD", color: comproFile ? "#16A34A" : t3, font: `500 0.82rem/1 ${fb}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
+                    style={{ width: "100%", padding: "12px", borderRadius: 10, border: `1px dashed ${comproFile ? "rgba(255,106,0,0.40)" : "rgba(0,0,0,0.15)"}`, background: comproFile ? "rgba(255,106,0,0.05)" : "#FAFBFD", color: comproFile ? "#FF6A00" : t3, font: `500 0.82rem/1 ${fb}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
                     <Upload size={14} />
                     {comproFile ? comproFile.name : "Subir imagen o PDF"}
                   </button>
@@ -816,7 +816,7 @@ export default function PagosPage() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 99, padding: "12px 20px", borderRadius: 12, background: toast.type === "ok" ? "#16A34A" : "#DC2626", color: "white", font: `600 0.85rem/1 ${fb}`, boxShadow: "0 8px 28px rgba(0,0,0,0.20)", animation: "fadeUp 0.2s ease both" }}>
+        <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 99, padding: "12px 20px", borderRadius: 12, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", font: `600 0.85rem/1 ${fb}`, boxShadow: "0 8px 28px rgba(0,0,0,0.20)", animation: "fadeUp 0.2s ease both" }}>
           {toast.msg}
         </div>
       )}

@@ -33,7 +33,7 @@ interface Prospecto {
 
 const STATUS_CFG: Record<Status, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
   pendiente:  { label: "Nuevo",       color: "#D97706", bg: "rgba(217,119,6,0.09)",   border: "rgba(217,119,6,0.22)",   icon: <Clock size={10} color="#D97706" /> },
-  contactado: { label: "Contactado",  color: "#16A34A", bg: "rgba(22,163,74,0.09)",   border: "rgba(22,163,74,0.22)",   icon: <CheckCircle size={10} color="#16A34A" /> },
+  contactado: { label: "Contactado",  color: "#FF6A00", bg: "rgba(255,106,0,0.09)",   border: "rgba(255,106,0,0.22)",   icon: <CheckCircle size={10} color="#FF6A00" /> },
   descartado: { label: "Descartado",  color: "#9CA3AF", bg: "rgba(156,163,175,0.12)", border: "rgba(156,163,175,0.25)", icon: <X size={10} color="#9CA3AF" /> },
 };
 
@@ -156,8 +156,8 @@ export default function ProspectosPage() {
 
         {!loading && filtered.length === 0 && (
           <div style={{ padding: "52px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(139,92,246,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Target size={22} color="#8B5CF6" />
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(30,80,240,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Target size={22} color="#1E50F0" />
             </div>
             <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>
               {search || filter !== "todos" ? "Sin resultados" : "Todavía no hay prospectos"}
@@ -190,7 +190,7 @@ export default function ProspectosPage() {
             >
               {/* Name */}
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#8B5CF6,#EC4899)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#FF6A00,#1E50F0)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <span style={{ font: `700 0.62rem/1 ${fd}`, color: "white" }}>
                     {p.full_name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()}
                   </span>

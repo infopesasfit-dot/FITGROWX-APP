@@ -139,8 +139,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const notifIconMap: Record<string, React.ReactNode> = {
     new_alumno:   <UserPlus size={13} color="#F97316" />,
-    new_payment:  <DollarSign size={13} color="#22c55e" />,
-    new_prospecto: <Inbox size={13} color="#6366f1" />,
+    new_payment:  <DollarSign size={13} color="#FF6A00" />,
+    new_prospecto: <Inbox size={13} color="#6ea8fe" />,
   };
 
   const timeAgo = (iso: string) => {
@@ -420,7 +420,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           background: n.read ? "transparent" : "rgba(249,115,22,0.03)",
                           transition: "background 0.12s",
                         }}>
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: n.type === "new_alumno" ? "rgba(249,115,22,0.1)" : n.type === "new_payment" ? "rgba(34,197,94,0.1)" : "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: n.type === "new_alumno" ? "rgba(249,115,22,0.1)" : n.type === "new_payment" ? "rgba(255,106,0,0.1)" : "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                             {notifIconMap[n.type] ?? <Bell size={13} color="#6B7280" />}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>

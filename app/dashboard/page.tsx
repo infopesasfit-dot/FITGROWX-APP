@@ -79,7 +79,7 @@ function captacionPath(data: number[]) {
   return { line, area: line + " L400,130 L0,130 Z" };
 }
 
-const PLAN_COLORS = ["#FF6A00", "#6366F1", "#22C55E", "#F59E0B", "#EC4899", "#14B8A6"];
+const PLAN_COLORS = ["#FF6A00", "#1E50F0", "#F59E0B", "#64748B", "#94A3B8", "#334155"];
 
 const DONUT_R    = 52;
 const DONUT_CX   = 74;
@@ -197,7 +197,7 @@ export default function DashboardPage() {
   const sinEgresos  = gastosTotal === 0;
   const balanceNeto = sinEgresos ? ingresoProyectado : ingresoProyectado - gastosTotal;
   const churnRate   = activosCount > 0 ? (churnCount / activosCount) * 100 : 0;
-  const churnColor  = churnRate <= 5 ? "#22C55E" : churnRate <= 9 ? "#EAB308" : "#EF4444";
+  const churnColor  = churnRate <= 5 ? "#FF6A00" : churnRate <= 9 ? "#EAB308" : "#EF4444";
   const churnLabel  = churnRate <= 5 ? "Excelente retención" : churnRate <= 9 ? "Revisar servicio" : "Crítico: fuga";
   const months5     = last5Months();
   const hasCapt     = captacion5.some(v => v > 0);
@@ -268,7 +268,7 @@ export default function DashboardPage() {
             <span style={{ font: `400 0.78rem/1 ${fb}`, color: t3 }}>/ mes</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <ArrowUpRight size={13} color="#22C55E" />
+            <ArrowUpRight size={13} color="#FF6A00" />
             <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>Suma de planes activos</span>
           </div>
         </div>
@@ -289,7 +289,7 @@ export default function DashboardPage() {
             <span style={{ font: `400 0.75rem/1 ${fb}`, color: t3 }}>miembros</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
-            <ArrowUpRight size={12} color="#22C55E" />
+            <ArrowUpRight size={12} color="#FF6A00" />
             <span style={{ font: `400 0.7rem/1 ${fb}`, color: t3 }}>{loading ? "" : `${totalCount} totales`}</span>
           </div>
           {/* mini barra de ocupación */}
@@ -493,12 +493,12 @@ export default function DashboardPage() {
 
         {/* Balance Neto */}
         <div
-          style={{ ...cardBase, padding: "22px 24px", borderLeft: sinEgresos ? "none" : `3px solid ${balanceNeto >= 0 ? "#22C55E" : "#EF4444"}` }}
+          style={{ ...cardBase, padding: "22px 24px", borderLeft: sinEgresos ? "none" : `3px solid ${balanceNeto >= 0 ? "#FF6A00" : "#EF4444"}` }}
           onMouseEnter={hoverOn} onMouseLeave={hoverOff}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <TrendingDown size={15} color={sinEgresos ? "white" : balanceNeto >= 0 ? "#22C55E" : "#EF4444"} />
+              <TrendingDown size={15} color={sinEgresos ? "white" : balanceNeto >= 0 ? "#FF6A00" : "#EF4444"} />
             </div>
             <span style={{ font: `500 0.78rem/1 ${fb}`, color: t2 }}>Balance Neto</span>
           </div>
@@ -516,18 +516,18 @@ export default function DashboardPage() {
           ) : (
             <div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginBottom: 8 }}>
-                <span style={{ font: `800 2rem/1 ${fd}`, color: balanceNeto >= 0 ? "#22C55E" : "#EF4444", letterSpacing: "-0.03em" }}>
+                <span style={{ font: `800 2rem/1 ${fd}`, color: balanceNeto >= 0 ? "#FF6A00" : "#EF4444", letterSpacing: "-0.03em" }}>
                   {loading ? "—" : fmt(Math.abs(balanceNeto))}
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 14 }}>
-                {balanceNeto >= 0 ? <ArrowUpRight size={13} color="#22C55E" /> : <ArrowDownRight size={13} color="#EF4444" />}
+                {balanceNeto >= 0 ? <ArrowUpRight size={13} color="#FF6A00" /> : <ArrowDownRight size={13} color="#EF4444" />}
                 <span style={{ font: `500 0.72rem/1 ${fb}`, color: t2 }}>{balanceNeto >= 0 ? "Superávit" : "Déficit"}</span>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div style={{ background: "rgba(34,197,94,0.06)", borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ background: "rgba(255,106,0,0.06)", borderRadius: 10, padding: "10px 12px" }}>
                   <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.07em" }}>Ingresos</p>
-                  <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#22C55E" }}>{fmt(ingresoProyectado)}</p>
+                  <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#FF6A00" }}>{fmt(ingresoProyectado)}</p>
                 </div>
                 <div style={{ background: "rgba(239,68,68,0.06)", borderRadius: 10, padding: "10px 12px" }}>
                   <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.07em" }}>Egresos</p>

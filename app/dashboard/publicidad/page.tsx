@@ -150,18 +150,18 @@ export default function PublicidadPage() {
       value: String(totalLeads),
       sub: "Esta semana",
       icon: Users,
-      iconBg: "#6366F1",
+      iconBg: "#1E50F0",
       iconColor: "white",
-      accent: "#6366F1",
+      accent: "#1E50F0",
     },
     {
       label: "Costo por Lead",
       value: cpl === "—" ? "—" : `$${cpl}`,
       sub: "Promedio semanal",
       icon: Target,
-      iconBg: "#22C55E",
+      iconBg: "#FF6A00",
       iconColor: "white",
-      accent: "#22C55E",
+      accent: "#FF6A00",
     },
     {
       label: "ROAS",
@@ -228,7 +228,7 @@ export default function PublicidadPage() {
                 <span style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Inversión</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ width: 10, height: 3, borderRadius: 9999, background: "#6366F1" }} />
+                <div style={{ width: 10, height: 3, borderRadius: 9999, background: "#1E50F0" }} />
                 <span style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Leads</span>
               </div>
             </div>
@@ -241,8 +241,8 @@ export default function PublicidadPage() {
                 <stop offset="100%" stopColor={accent} stopOpacity="0" />
               </linearGradient>
               <linearGradient id="leadsGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#6366F1" stopOpacity="0.15" />
-                <stop offset="100%" stopColor="#6366F1" stopOpacity="0" />
+                <stop offset="0%" stopColor="#1E50F0" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="#1E50F0" stopOpacity="0" />
               </linearGradient>
             </defs>
             {[30, 65, 100].map(y => (
@@ -256,9 +256,9 @@ export default function PublicidadPage() {
             ))}
             {/* Leads area + line */}
             <path d={leadsChart.area} fill="url(#leadsGrad)" />
-            <path d={leadsChart.line} stroke="#6366F1" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={leadsChart.line} stroke="#1E50F0" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             {leadsChart.pts.map((pt, i) => (
-              <circle key={`leads-${i}`} cx={pt.x} cy={pt.y} r="4" fill="white" stroke="#6366F1" strokeWidth="2" />
+              <circle key={`leads-${i}`} cx={pt.x} cy={pt.y} r="4" fill="white" stroke="#1E50F0" strokeWidth="2" />
             ))}
           </svg>
 
@@ -272,8 +272,8 @@ export default function PublicidadPage() {
           <div style={{ display: "flex", gap: 12, marginTop: 18 }}>
             {[
               { label: "Mejor día", value: "Sábado", sub: "12 leads", color: accent },
-              { label: "CTR promedio", value: "4.3%", sub: "Tasa de clic", color: "#6366F1" },
-              { label: "Impresiones", value: "28.4k", sub: "Esta semana", color: "#22C55E" },
+              { label: "CTR promedio", value: "4.3%", sub: "Tasa de clic", color: "#1E50F0" },
+              { label: "Impresiones", value: "28.4k", sub: "Esta semana", color: "#FF6A00" },
             ].map(s => (
               <div key={s.label} style={{ flex: 1, background: "#F8FAFC", borderRadius: 12, padding: "12px 14px" }}>
                 <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
@@ -300,7 +300,7 @@ export default function PublicidadPage() {
             <p style={{ font: `600 0.78rem/1.3 ${fd}`, color: t1, wordBreak: "break-all", marginBottom: 10 }}>{landingUrl}</p>
             <button
               onClick={handleCopy}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: copied ? "#22C55E" : "#1A1D23", color: "white", border: "none", borderRadius: 8, padding: "7px 14px", font: `600 0.72rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s", width: "100%" }}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: copied ? "#FF6A00" : "#1A1D23", color: "white", border: "none", borderRadius: 8, padding: "7px 14px", font: `600 0.72rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s", width: "100%" }}
             >
               {copied ? <Check size={13} /> : <Copy size={13} />}
               {copied ? "¡Copiado!" : "Copiar Enlace"}
@@ -311,13 +311,13 @@ export default function PublicidadPage() {
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <Activity size={14} color="#22C55E" />
+                <Activity size={14} color="#FF6A00" />
                 <span style={{ font: `600 0.78rem/1 ${fd}`, color: t1 }}>Salud de la Landing</span>
               </div>
-              <span style={{ font: `800 1.1rem/1 ${fd}`, color: "#22C55E" }}>{healthPct}%</span>
+              <span style={{ font: `800 1.1rem/1 ${fd}`, color: "#FF6A00" }}>{healthPct}%</span>
             </div>
             <div style={{ height: 7, borderRadius: 9999, background: "#F1F2F6", overflow: "hidden", marginBottom: 8 }}>
-              <div style={{ height: "100%", width: `${healthPct}%`, background: "linear-gradient(90deg, #22C55E, #16A34A)", borderRadius: 9999, transition: "width 0.8s ease" }} />
+              <div style={{ height: "100%", width: `${healthPct}%`, background: "linear-gradient(90deg, #FF6A00, #FF6A00)", borderRadius: 9999, transition: "width 0.8s ease" }} />
             </div>
             <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3 }}>Tasa de conversión estimada</p>
           </div>
@@ -331,8 +331,8 @@ export default function PublicidadPage() {
               { label: "Pruebas A/B activas", ok: false },
             ].map(item => (
               <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", background: item.ok ? "rgba(34,197,94,0.1)" : "rgba(156,163,175,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Check size={10} color={item.ok ? "#22C55E" : t3} />
+                <div style={{ width: 18, height: 18, borderRadius: "50%", background: item.ok ? "rgba(255,106,0,0.1)" : "rgba(156,163,175,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Check size={10} color={item.ok ? "#FF6A00" : t3} />
                 </div>
                 <span style={{ font: `400 0.72rem/1 ${fb}`, color: item.ok ? t2 : t3 }}>{item.label}</span>
               </div>
@@ -393,7 +393,7 @@ export default function PublicidadPage() {
         >
           {/* glow */}
           <div style={{ position: "absolute", top: -30, right: -30, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,106,0,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -20, left: -20, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -20, left: -20, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(30,80,240,0.08) 0%, transparent 70%)", pointerEvents: "none" }} />
 
           {/* header */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, position: "relative", zIndex: 1 }}>
@@ -404,9 +404,9 @@ export default function PublicidadPage() {
               <p style={{ font: `800 0.95rem/1 ${fd}`, color: "white", marginBottom: 2 }}>Análisis Estratégico de Emilio</p>
               <p style={{ font: `400 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.38)" }}>Basado en tus métricas de esta semana</p>
             </div>
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.22)", borderRadius: 9999, padding: "4px 10px" }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E", boxShadow: "0 0 5px #22C55E" }} />
-              <span style={{ font: `600 0.62rem/1 ${fb}`, color: "#22C55E" }}>En vivo</span>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, background: "rgba(255,106,0,0.12)", border: "1px solid rgba(255,106,0,0.22)", borderRadius: 9999, padding: "4px 10px" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#FF6A00", boxShadow: "0 0 5px #FF6A00" }} />
+              <span style={{ font: `600 0.62rem/1 ${fb}`, color: "#FF6A00" }}>En vivo</span>
             </div>
           </div>
 
@@ -414,9 +414,9 @@ export default function PublicidadPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10, position: "relative", zIndex: 1 }}>
             {insights.map((ins, i) => {
               const colors = {
-                good:   { bg: "rgba(34,197,94,0.08)",   border: "rgba(34,197,94,0.20)",   icon: "#22C55E",   dot: "#22C55E" },
+                good:   { bg: "rgba(255,106,0,0.08)",   border: "rgba(255,106,0,0.20)",   icon: "#FF6A00",   dot: "#FF6A00" },
                 warn:   { bg: "rgba(245,158,11,0.08)",  border: "rgba(245,158,11,0.22)",  icon: "#F59E0B",   dot: "#F59E0B" },
-                action: { bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.20)",  icon: "#6366F1",   dot: "#6366F1" },
+                action: { bg: "rgba(30,80,240,0.08)",  border: "rgba(30,80,240,0.20)",  icon: "#1E50F0",   dot: "#1E50F0" },
               }[ins.type];
               const Icon = ins.type === "warn" ? AlertTriangle : ins.type === "action" ? ArrowRight : ChevronRight;
               return (
@@ -445,7 +445,7 @@ export default function PublicidadPage() {
           {/* bars */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {[
-              { label: "Tu gimnasio",  value: cplVal,        color: cplBetter ? "#22C55E" : "#EF4444", max: INDUSTRY_CPL * 1.3 },
+              { label: "Tu gimnasio",  value: cplVal,        color: cplBetter ? "#FF6A00" : "#EF4444", max: INDUSTRY_CPL * 1.3 },
               { label: "Industria",    value: INDUSTRY_CPL,  color: "#9CA3AF",                         max: INDUSTRY_CPL * 1.3 },
             ].map(bar => (
               <div key={bar.label}>
@@ -461,8 +461,8 @@ export default function PublicidadPage() {
           </div>
 
           {/* verdict */}
-          <div style={{ marginTop: 20, background: cplBetter ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.06)", border: `1px solid ${cplBetter ? "rgba(34,197,94,0.18)" : "rgba(239,68,68,0.18)"}`, borderRadius: 12, padding: "12px 14px" }}>
-            <p style={{ font: `700 0.78rem/1 ${fd}`, color: cplBetter ? "#22C55E" : "#EF4444", marginBottom: 4 }}>
+          <div style={{ marginTop: 20, background: cplBetter ? "rgba(255,106,0,0.06)" : "rgba(239,68,68,0.06)", border: `1px solid ${cplBetter ? "rgba(255,106,0,0.18)" : "rgba(239,68,68,0.18)"}`, borderRadius: 12, padding: "12px 14px" }}>
+            <p style={{ font: `700 0.78rem/1 ${fd}`, color: cplBetter ? "#FF6A00" : "#EF4444", marginBottom: 4 }}>
               {cplBetter ? `$${cplDiff} más barato que el mercado` : `$${Math.abs(cplDiff)} más caro que el mercado`}
             </p>
             <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t3 }}>
@@ -518,7 +518,7 @@ export default function PublicidadPage() {
             {copies.map((c, i) => {
               const styleColors = [
                 { bg: "rgba(255,106,0,0.04)", border: "rgba(255,106,0,0.14)", label: accent, badge: "rgba(255,106,0,0.10)" },
-                { bg: "rgba(99,102,241,0.04)", border: "rgba(99,102,241,0.14)", label: "#6366F1", badge: "rgba(99,102,241,0.10)" },
+                { bg: "rgba(30,80,240,0.04)", border: "rgba(30,80,240,0.14)", label: "#1E50F0", badge: "rgba(30,80,240,0.10)" },
                 { bg: "rgba(239,68,68,0.04)", border: "rgba(239,68,68,0.12)", label: "#EF4444", badge: "rgba(239,68,68,0.10)" },
               ][i] ?? { bg: "#F8FAFC", border: "rgba(0,0,0,0.06)", label: t1, badge: "#F1F2F6" };
               return (
@@ -529,7 +529,7 @@ export default function PublicidadPage() {
                   <p style={{ font: `400 0.82rem/1.6 ${fb}`, color: t1, marginBottom: 14, minHeight: 60 }}>{c.texto}</p>
                   <button
                     onClick={() => handleCopyText(c.texto, i)}
-                    style={{ display: "flex", alignItems: "center", gap: 6, background: copiedIdx === i ? "#22C55E" : "#1A1D23", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", font: `600 0.68rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s", width: "100%" }}
+                    style={{ display: "flex", alignItems: "center", gap: 6, background: copiedIdx === i ? "#FF6A00" : "#1A1D23", color: "white", border: "none", borderRadius: 8, padding: "7px 12px", font: `600 0.68rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s", width: "100%" }}
                   >
                     {copiedIdx === i ? <Check size={12} /> : <Copy size={12} />}
                     {copiedIdx === i ? "¡Copiado!" : "Copiar texto"}

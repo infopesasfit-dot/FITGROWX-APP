@@ -64,15 +64,15 @@ function LockedCard({ icon, color, bg, title, desc, badge }: { icon: React.React
 type WaStatus = "unknown" | "connected" | "disconnected";
 
 function BatteryIcon({ value, plugged }: { value: number; plugged?: boolean }) {
-  if (plugged) return <BatteryCharging size={13} color="#16A34A" />;
+  if (plugged) return <BatteryCharging size={13} color="#FF6A00" />;
   if (value <= 20) return <BatteryLow size={13} color="#DC2626" />;
   if (value <= 60) return <BatteryMedium size={13} color="#F97316" />;
-  return <BatteryFull size={13} color="#16A34A" />;
+  return <BatteryFull size={13} color="#FF6A00" />;
 }
 
 function SignalIcon({ bars }: { bars: number }) {
   if (bars === 0) return <WifiOff size={13} color="#DC2626" />;
-  return <Signal size={13} color={bars >= 3 ? "#16A34A" : "#F97316"} />;
+  return <Signal size={13} color={bars >= 3 ? "#FF6A00" : "#F97316"} />;
 }
 
 // --- Componente de la Página ---
@@ -305,8 +305,8 @@ export default function AutomatizacionesPage() {
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: "#F9FAFB", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: waStatus === "connected" ? "rgba(22,163,74,0.10)" : "#F0F2F8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Smartphone size={17} color={waStatus === "connected" ? "#16A34A" : t3} />
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: waStatus === "connected" ? "rgba(255,106,0,0.10)" : "#F0F2F8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Smartphone size={17} color={waStatus === "connected" ? "#FF6A00" : t3} />
             </div>
             <div>
               <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, marginBottom: 3 }}>
@@ -328,9 +328,9 @@ export default function AutomatizacionesPage() {
           </div>
           {waStatus === "connected" ? (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(22,163,74,0.09)", border: "1px solid rgba(22,163,74,0.22)", borderRadius: 9999, padding: "7px 14px" }}>
-                <CheckCircle size={14} color="#16A34A" />
-                <span style={{ font: `700 0.78rem/1 ${fb}`, color: "#16A34A" }}>Conectado</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,106,0,0.09)", border: "1px solid rgba(255,106,0,0.22)", borderRadius: 9999, padding: "7px 14px" }}>
+                <CheckCircle size={14} color="#FF6A00" />
+                <span style={{ font: `700 0.78rem/1 ${fb}`, color: "#FF6A00" }}>Conectado</span>
               </div>
               <button
                 onClick={disconnectWA}
@@ -446,7 +446,7 @@ export default function AutomatizacionesPage() {
             <button
               onClick={saveSettings}
               disabled={saving}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, border: "none", background: savedOk ? "#16A34A" : ORANGE, color: "white", font: `700 0.82rem/1 ${fd}`, cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, border: "none", background: savedOk ? "#FF6A00" : ORANGE, color: "white", font: `700 0.82rem/1 ${fd}`, cursor: "pointer" }}
             >
               <Save size={13} /> {savedOk ? "Guardado ✓" : saving ? "Guardando..." : "Guardar mensaje"}
             </button>
@@ -501,7 +501,7 @@ export default function AutomatizacionesPage() {
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: 9, background: leadAutoWelcome ? "rgba(16,185,129,0.10)" : "#F0F2F8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Zap size={16} color={leadAutoWelcome ? "#10B981" : t3} />
+                <Zap size={16} color={leadAutoWelcome ? "#FF6A00" : t3} />
               </div>
               <div>
                 <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Bienvenida Automática a Leads</p>
@@ -590,14 +590,14 @@ export default function AutomatizacionesPage() {
                 <button
                   onClick={saveSettings}
                   disabled={saving}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, border: "none", background: savedOk ? "#16A34A" : ORANGE, color: "white", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, border: "none", background: savedOk ? "#FF6A00" : ORANGE, color: "white", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
                 >
                   <Save size={13} /> {savedOk ? "Guardado ✓" : "Guardar"}
                 </button>
               </div>
 
               {reactivacionResult && (
-                <p style={{ font: `500 0.75rem/1 ${fb}`, color: reactivacionResult.ok ? "#16A34A" : "#DC2626", textAlign: "right" }}>
+                <p style={{ font: `500 0.75rem/1 ${fb}`, color: reactivacionResult.ok ? "#FF6A00" : "#DC2626", textAlign: "right" }}>
                   {reactivacionResult.msg}
                 </p>
               )}
@@ -615,7 +615,7 @@ export default function AutomatizacionesPage() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
               <h2 style={{ font: `700 1rem/1 ${fd}`, color: t1 }}>Generador de Leads</h2>
-              <span style={{ font: `700 0.62rem/1 ${fd}`, color: "#8B5CF6", background: "rgba(139,92,246,0.10)", border: "1px solid rgba(139,92,246,0.22)", borderRadius: 9999, padding: "3px 8px" }}>Plan Elite</span>
+              <span style={{ font: `700 0.62rem/1 ${fd}`, color: "#1E50F0", background: "rgba(30,80,240,0.10)", border: "1px solid rgba(30,80,240,0.22)", borderRadius: 9999, padding: "3px 8px" }}>Plan Elite</span>
             </div>
             <p style={{ font: `400 0.82rem/1.4 ${fb}`, color: t2 }}>Tu landing page pública para captar alumnos.</p>
           </div>
@@ -624,7 +624,7 @@ export default function AutomatizacionesPage() {
         {/* Landing status */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#F9FAFB", borderRadius: 12, border: "1px solid rgba(0,0,0,0.06)", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: landingActive ? "#16A34A" : "#D1D5DB" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: landingActive ? "#FF6A00" : "#D1D5DB" }} />
             <div>
               <p style={{ font: `600 0.83rem/1 ${fd}`, color: t1, marginBottom: 2 }}>Landing Page — {landingActive ? "Activa" : "Inactiva"}</p>
               <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{slugUrl}</p>
@@ -647,7 +647,7 @@ export default function AutomatizacionesPage() {
             <button
               onClick={saveSettings}
               disabled={saving}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "none", background: savedOk ? "#16A34A" : accentColor, color: "white", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "none", background: savedOk ? "#FF6A00" : accentColor, color: "white", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
             >
               <Save size={13} /> {savedOk ? "Guardado" : saving ? "Guardando..." : "Guardar"}
             </button>
@@ -672,7 +672,7 @@ export default function AutomatizacionesPage() {
             <div>
               <label style={{ display: "block", font: `500 0.72rem/1 ${fb}`, color: t3, marginBottom: 7 }}>Color de Acento</label>
               <div style={{ display: "flex", gap: 8 }}>
-                {["#F97316","#4B6BFB","#16A34A","#8B5CF6","#EC4899","#EF4444"].map(c => (
+                {["#FF6A00","#1E50F0","#F59E0B","#64748B","#D97706","#EF4444"].map(c => (
                   <button 
                     key={c} 
                     onClick={() => setAccentColor(c)} 

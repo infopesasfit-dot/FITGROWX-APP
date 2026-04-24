@@ -237,7 +237,7 @@ export default function ClasesPage() {
         {[
           { label: "Clases activas", value: clases.length, icon: Calendar, color: "#4B6BFB" },
           { label: "Clases hoy", value: clasesHoy, icon: Clock, color: "#F97316" },
-          { label: "Reservas (7 días)", value: totalReservas, icon: Users, color: "#16A34A" },
+          { label: "Reservas (7 días)", value: totalReservas, icon: Users, color: "#FF6A00" },
         ].map(k => (
           <div key={k.label} style={{ ...card, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: `${k.color}14`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -306,7 +306,7 @@ export default function ClasesPage() {
                               {(c.reservas_count ?? 0) > 0 && (
                                 <>
                                   <span style={{ font: `400 0.72rem/1 ${fd}`, color: "#CBD5E1" }}>·</span>
-                                  <span style={{ font: `600 0.72rem/1 ${fd}`, color: "#16A34A" }}>{c.reservas_count} reservas</span>
+                                  <span style={{ font: `600 0.72rem/1 ${fd}`, color: "#FF6A00" }}>{c.reservas_count} reservas</span>
                                 </>
                               )}
                             </div>

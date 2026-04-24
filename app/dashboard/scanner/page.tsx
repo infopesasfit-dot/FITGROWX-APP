@@ -32,7 +32,7 @@ const STATUS_LABEL: Record<string, string> = {
   activo: "Activo", vencido: "Vencido", pendiente: "Pendiente", pausado: "Pausado",
 };
 const STATUS_COLOR: Record<string, string> = {
-  activo: "#16A34A", vencido: "#DC2626", pendiente: "#D97706", pausado: "#6366F1",
+  activo: "#FF6A00", vencido: "#DC2626", pendiente: "#D97706", pausado: "#64748B",
 };
 
 export default function ScannerPage() {
@@ -260,7 +260,7 @@ export default function ScannerPage() {
             <>
               {/* Big status banner */}
               {result.alumno.status === "activo" ? (
-                <div style={{ background: "#16A34A", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                <div style={{ background: "#FF6A00", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
                   <CheckCircle size={56} color="white" strokeWidth={2} />
                   <p style={{ font: `900 1.6rem/1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>AL DÍA ✓</p>
                   {result.hora && <p style={{ font: `400 0.75rem/1 ${fd}`, color: "rgba(255,255,255,0.7)" }}>{result.hora.slice(0, 5)}h · {result.already ? "Ya registrado hoy" : "Entrada registrada"}</p>}

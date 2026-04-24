@@ -201,7 +201,7 @@ export default function WelcomeModal() {
           >
             {/* Decorative glow */}
             <div style={{ position: "absolute", top: -40, right: -40, width: 180, height: 180, borderRadius: "50%", background: `radial-gradient(circle, ${accent}33 0%, transparent 70%)`, pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -60, left: -20, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -60, left: -20, width: 140, height: 140, borderRadius: "50%", background: "radial-gradient(circle, rgba(30,80,240,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
 
             <div style={{ position: "relative", zIndex: 1 }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
@@ -297,8 +297,8 @@ export default function WelcomeModal() {
                 <div style={{ background: "#F8F4FF", border: "1px solid #E9D5FF", borderRadius: 14, padding: 16 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 10 }}>
                     <div>
-                      <p style={{ font: `700 0.82rem/1 ${fd}`, color: "#6D28D9", marginBottom: 4 }}>Paso 1 — Generá tu CSV con IA</p>
-                      <p style={{ font: `400 0.76rem/1.5 ${fb}`, color: "#7C3AED" }}>
+                      <p style={{ font: `700 0.82rem/1 ${fd}`, color: "#1E50F0", marginBottom: 4 }}>Paso 1 — Generá tu CSV con IA</p>
+                      <p style={{ font: `400 0.76rem/1.5 ${fb}`, color: "#1E50F0" }}>
                         Copiá este prompt y pegalo en ChatGPT o Claude con tu lista de contactos.
                       </p>
                     </div>
@@ -307,7 +307,7 @@ export default function WelcomeModal() {
                       style={{
                         display: "flex", alignItems: "center", gap: 6,
                         padding: "8px 14px", borderRadius: 9999, border: "none", cursor: "pointer",
-                        background: copied ? "#22C55E" : "#6D28D9",
+                        background: copied ? "#FF6A00" : "#1E50F0",
                         color: "white",
                         font: `700 0.75rem/1 ${fb}`,
                         transition: "background 0.2s",

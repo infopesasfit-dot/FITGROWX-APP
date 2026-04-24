@@ -35,10 +35,10 @@ interface Alumno {
 }
 
 const STATUS_STYLE: Record<Status, { color: string; bg: string; label: string }> = {
-  activo:    { color: "#16A34A", bg: "rgba(22,163,74,0.08)",   label: "Activo" },
+  activo:    { color: "#FF6A00", bg: "rgba(255,106,0,0.08)",   label: "Activo" },
   vencido:   { color: "#DC2626", bg: "rgba(220,38,38,0.08)",   label: "Vencido" },
   pendiente: { color: "#D97706", bg: "rgba(217,119,6,0.08)",   label: "Pendiente" },
-  pausado:   { color: "#6366F1", bg: "rgba(99,102,241,0.08)",  label: "Pausado" },
+  pausado:   { color: "#64748B", bg: "rgba(100,116,139,0.08)", label: "Pausado" },
 };
 
 function initials(full_name: string) {
@@ -751,11 +751,11 @@ export default function AlumnosPage() {
         return (
           <div onClick={e => e.stopPropagation()} style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
             {[
-              { label: "Asignar Rutina", color: "#7C3AED", action: () => { openRutinaModal(target); setMenuOpenId(null); setMenuPos(null); } },
+              { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(target); setMenuOpenId(null); setMenuPos(null); } },
               { label: "Editar Datos", color: t1, action: () => { openEditModal(target); setMenuOpenId(null); setMenuPos(null); } },
               target.status === "pausado"
-                ? { label: "Reanudar Membresía", color: "#16A34A", action: () => { handleReanudar(target.id); setMenuOpenId(null); setMenuPos(null); } }
-                : { label: "Pausar Membresía",   color: "#6366F1", action: () => { handlePausar(target.id);   setMenuOpenId(null); setMenuPos(null); } },
+                ? { label: "Reanudar Membresía", color: "#FF6A00", action: () => { handleReanudar(target.id); setMenuOpenId(null); setMenuPos(null); } }
+                : { label: "Pausar Membresía",   color: "#64748B", action: () => { handlePausar(target.id);   setMenuOpenId(null); setMenuPos(null); } },
               { label: "Eliminar Alumno", color: "#DC2626", action: () => { handleEliminar(target.id, target.full_name); setMenuOpenId(null); setMenuPos(null); } },
             ].map(item => (
               <button key={item.label} onClick={item.action}
@@ -902,7 +902,7 @@ export default function AlumnosPage() {
               <div style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9, padding: "10px 14px", font: `400 0.8rem/1.4 ${fb}`, color: "#DC2626" }}>{pagoError}</div>
             )}
             <button type="submit" disabled={pagoSaving}
-              style={{ width: "100%", padding: "13px", background: pagoSaving ? "#9CA3AF" : "#16A34A", color: "white", border: "none", borderRadius: 12, font: `700 0.95rem/1 ${fd}`, cursor: pagoSaving ? "not-allowed" : "pointer", boxShadow: pagoSaving ? "none" : "0 4px 16px rgba(22,163,74,0.25)", transition: "opacity 0.14s", marginTop: 4 }}
+              style={{ width: "100%", padding: "13px", background: pagoSaving ? "#9CA3AF" : "#FF6A00", color: "white", border: "none", borderRadius: 12, font: `700 0.95rem/1 ${fd}`, cursor: pagoSaving ? "not-allowed" : "pointer", boxShadow: pagoSaving ? "none" : "0 4px 16px rgba(255,106,0,0.25)", transition: "opacity 0.14s", marginTop: 4 }}
               onMouseEnter={e => { if (!pagoSaving) (e.currentTarget.style.opacity = "0.9"); }}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >{pagoSaving ? "Registrando..." : "Confirmar Pago"}</button>
@@ -1125,9 +1125,9 @@ export default function AlumnosPage() {
           {/* ── Footer ── */}
           <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(0,0,0,0.07)", background: "white", flexShrink: 0 }}>
             {publicado ? (
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "14px", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 12, animation: "publishPop 0.4s cubic-bezier(0.22,1,0.36,1)" }}>
-                <CheckCircle size={20} color="#16A34A" />
-                <span style={{ font: `700 0.9rem/1 ${fd}`, color: "#16A34A" }}>¡Enviado al Alumno!</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "14px", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)", borderRadius: 12, animation: "publishPop 0.4s cubic-bezier(0.22,1,0.36,1)" }}>
+                <CheckCircle size={20} color="#FF6A00" />
+                <span style={{ font: `700 0.9rem/1 ${fd}`, color: "#FF6A00" }}>¡Enviado al Alumno!</span>
               </div>
             ) : (
               <button
@@ -1155,7 +1155,7 @@ export default function AlumnosPage() {
 
     {/* ── Toast ── */}
     {toast && (
-      <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 10000, background: "#16A34A", color: "white", padding: "12px 22px", borderRadius: 12, font: `600 0.875rem/1 ${fb}`, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", pointerEvents: "none", whiteSpace: "nowrap" }}>
+      <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 10000, background: "#FF6A00", color: "white", padding: "12px 22px", borderRadius: 12, font: `600 0.875rem/1 ${fb}`, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", pointerEvents: "none", whiteSpace: "nowrap" }}>
         {toast}
       </div>
     )}
