@@ -72,6 +72,30 @@
   100% { transform: translate3d(-7%, -3%, 0) scale(0.96); opacity: 0.5; }
 }
 
+@keyframes title-glow-drift {
+  0%   { transform: translate3d(-18%, 0, 0) scaleX(0.88); opacity: 0.6; }
+  30%  { transform: translate3d(14%, -8%, 0) scaleX(1.12); opacity: 1; }
+  60%  { transform: translate3d(-6%, 6%, 0) scaleX(0.95); opacity: 0.78; }
+  100% { transform: translate3d(-18%, 0, 0) scaleX(0.88); opacity: 0.6; }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes particle-rise {
+  0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-340px) translateX(30px) scale(0.4); opacity: 0; }
+}
+
+@keyframes nav-entrance {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── ANIMACIONES CUSTOM (Tailwind v4 @theme) ── */
 @theme {
   --animate-beam:          beam          5s  linear            infinite;
@@ -82,6 +106,10 @@
   --animate-neon-line-rev: neon-line-rev 14s ease-in-out  5s   infinite;
   --animate-header-glow-drift: header-glow-drift 8.5s ease-in-out infinite;
   --animate-text-sheen: text-sheen 4.8s ease-in-out infinite;
+  --animate-title-glow: title-glow-drift 10s ease-in-out infinite;
+  --animate-float-gentle: float-gentle 4.5s ease-in-out infinite;
+  --animate-particle-rise: particle-rise 7s ease-in-out infinite;
+  --animate-nav-entrance: nav-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 :root {
@@ -140,36 +168,48 @@ textarea {
 
 .landing-header {
   pointer-events: none;
+  animation: nav-entrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
+/* ── Estado inicial: transparente, pegado al top ── */
 .landing-header-shell {
   pointer-events: auto;
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: rgba(8, 8, 10, 0.22);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow:
-    inset 0 -1px 0 rgba(255, 255, 255, 0.02),
-    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
   transform: translateY(0);
   transition:
-    transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
-    background-color 320ms ease,
-    border-color 320ms ease,
-    box-shadow 320ms ease,
-    max-width 320ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 420ms ease,
+    border-color 420ms ease,
+    box-shadow 420ms ease,
+    backdrop-filter 420ms ease,
+    max-width 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* ── Estado scrolled: floating pill glassmorphism ── */
 .landing-header[data-scrolled="true"] .landing-header-shell {
-  transform: translateY(8px);
-  background: rgba(16, 16, 20, 0.52);
-  border-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(10px);
+  background: rgba(8, 8, 12, 0.78);
+  border-color: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow:
-    0 18px 40px rgba(0, 0, 0, 0.32),
-    0 4px 14px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.14);
+    0 32px 56px rgba(0, 0, 0, 0.44),
+    0 8px 22px rgba(0, 0, 0, 0.30),
+    0 2px 6px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.22);
+}
+
+/* En mobile, el pill flota con menos margin top */
+@media (max-width: 767px) {
+  .landing-header[data-scrolled="true"] .landing-header-shell {
+    transform: translateY(6px);
+  }
 }
 
 .landing-brand-text {
@@ -353,4 +393,20 @@ textarea {
 
 .hero-orange-orbit {
   animation: hero-orange-drift 9.5s ease-in-out infinite;
+}
+
+/* ── Glow detrás del título ── */
+.title-glow {
+  animation: title-glow-drift 10s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* ── Partícula flotante ── */
+.hero-particle {
+  will-change: transform, opacity;
+}
+
+/* ── Float sutil para badge ── */
+.hero-badge-float {
+  animation: float-gentle 5s ease-in-out infinite;
 }

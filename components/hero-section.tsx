@@ -43,6 +43,49 @@ function fadeUp(delay: number): Variants {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// Floating particles
+// ─────────────────────────────────────────────────────────────────
+const PARTICLES = [
+  { x: "18%",  delay: 0,    dur: 9,   size: 2.5, opacity: 0.55 },
+  { x: "42%",  delay: 1.8,  dur: 11,  size: 1.8, opacity: 0.40 },
+  { x: "67%",  delay: 0.6,  dur: 8.5, size: 3,   opacity: 0.50 },
+  { x: "81%",  delay: 3.2,  dur: 13,  size: 1.5, opacity: 0.35 },
+  { x: "30%",  delay: 5.0,  dur: 10,  size: 2,   opacity: 0.45 },
+  { x: "55%",  delay: 2.4,  dur: 12,  size: 2.2, opacity: 0.38 },
+];
+
+function FloatingParticles() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {PARTICLES.map((p, i) => (
+        <motion.span
+          key={i}
+          className="absolute bottom-0 rounded-full"
+          style={{
+            left: p.x,
+            width: p.size,
+            height: p.size,
+            background: `radial-gradient(circle, rgba(255,130,30,${p.opacity}) 0%, transparent 70%)`,
+          }}
+          animate={{
+            y: [0, -360],
+            x: [0, Math.sin(i) * 40],
+            opacity: [0, p.opacity, p.opacity * 0.8, 0],
+            scale: [1, 0.7, 0.4],
+          }}
+          transition={{
+            duration: p.dur,
+            delay: p.delay,
+            repeat: Infinity,
+            ease: "easeOut",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
 // Grain overlay (SVG feTurbulence noise)
 // ─────────────────────────────────────────────────────────────────
 function GrainOverlay({ filterId }: { filterId: string }) {
@@ -269,17 +312,58 @@ export function HeroSection() {
         filterId={`grain-${filterId}`}
       />
 
+      <FloatingParticles />
+
       <div className="relative mx-auto max-w-5xl px-6 lg:px-10">
-        {/* Badge */}
-        <motion.div variants={fadeUp(0)} initial={false} animate="visible">
+        {/* Badge — flota sutilmente */}
+        <motion.div
+          className="hero-badge-float"
+          variants={fadeUp(0)}
+          initial={false}
+          animate="visible"
+        >
           <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
             Sistema para gimnasios y centros de entrenamiento
           </span>
         </motion.div>
 
+        {/* Glow naranja animado detrás del título */}
+        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2" style={{ top: 56, width: "min(760px, 100%)", height: 200, zIndex: 0 }}>
+          <motion.div
+            className="title-glow absolute inset-0"
+            style={{
+              background: "radial-gradient(ellipse 60% 75% at 50% 55%, rgba(255,90,5,0.32) 0%, rgba(255,65,0,0.14) 46%, transparent 74%)",
+              filter: "blur(52px)",
+              mixBlendMode: "screen",
+            }}
+            animate={{
+              x: ["0%", "18%", "-12%", "8%", "0%"],
+              scaleX: [1, 1.18, 0.88, 1.08, 1],
+              opacity: [0.7, 1, 0.75, 0.95, 0.7],
+            }}
+            transition={{ duration: 10, ease: "easeInOut", repeat: Infinity, repeatType: "mirror" }}
+          />
+          {/* Segundo blob más pequeño — movimiento contrario */}
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              background: "radial-gradient(ellipse 40% 50% at 50% 50%, rgba(255,140,20,0.18) 0%, transparent 65%)",
+              filter: "blur(36px)",
+              mixBlendMode: "screen",
+            }}
+            animate={{
+              x: ["0%", "-16%", "12%", "-6%", "0%"],
+              scaleY: [1, 1.3, 0.85, 1.1, 1],
+              opacity: [0.5, 0.8, 0.55, 0.75, 0.5],
+            }}
+            transition={{ duration: 13, ease: "easeInOut", repeat: Infinity, repeatType: "mirror", delay: 1.5 }}
+          />
+        </div>
+
         {/* Headline — word-by-word stagger */}
         <motion.h1
+          style={{ position: "relative", zIndex: 1 }}
           className="mx-auto mt-10 max-w-4xl text-[2rem] font-semibold leading-[1.15] tracking-[-0.04em] sm:text-5xl lg:text-[4.5rem]"
           variants={headlineContainer}
           initial={false}
