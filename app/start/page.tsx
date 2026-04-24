@@ -208,9 +208,9 @@ const [authError, setAuthError] = useState<string | null>(null);
 
         {screen === "form" && (
           <section className="relative z-10 flex min-h-[calc(100vh-3.5rem)] items-center">
-            <div className="mx-auto w-full max-w-7xl px-6 py-12 lg:px-10">
+            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
               <div
-                className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.8rem] px-5 py-10 sm:px-8 lg:px-12 lg:py-14"
+                className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl px-4 py-6 sm:rounded-[2.8rem] sm:px-8 sm:py-10 lg:px-12 lg:py-14"
                 style={{
                   background: "linear-gradient(160deg, rgba(22,22,26,0.96) 0%, rgba(10,10,13,0.98) 60%, rgba(6,6,8,1) 100%)",
                   boxShadow:
@@ -241,9 +241,11 @@ const [authError, setAuthError] = useState<string | null>(null);
                 <DotField className="left-[8%] top-24 hidden h-32 w-28 lg:block opacity-12" />
                 <DotField className="right-[8%] top-24 hidden h-32 w-28 lg:block opacity-12" />
 
-                <div className="relative grid gap-10 lg:grid-cols-[0.86fr_1fr] lg:items-center lg:gap-16">
-                  <div className="max-w-md px-2 lg:px-4">
-                    <h1 className="text-4xl font-semibold leading-[1.05] tracking-[-0.05em] sm:text-5xl lg:text-[3.6rem]">
+                <div className="relative grid gap-6 lg:grid-cols-[0.86fr_1fr] lg:items-center lg:gap-16">
+
+                  {/* Columna izquierda — solo desktop */}
+                  <div className="hidden max-w-md px-4 lg:block">
+                    <h1 className="text-[3.6rem] font-semibold leading-[1.05] tracking-[-0.05em]">
                       <span
                         style={{
                           backgroundImage: "linear-gradient(180deg, #f0f0f0 15%, #7a7a8a 100%)",
@@ -266,10 +268,10 @@ const [authError, setAuthError] = useState<string | null>(null);
                         {isLogin ? "vuelta." : "sin excusas."}
                       </span>
                     </h1>
-                    <p className="mt-6 text-base font-light leading-relaxed text-white/40 tracking-tight">
+                    <p className="mt-6 text-base font-light leading-relaxed tracking-tight text-white/40">
                       {isLogin
-                        ? "Accedé a tu panel y retomá el control de tu gimnasio."
-                        : "Obtené acceso total al sistema, activá tu prueba gratis y configurá tu gimnasio en minutos."}
+                        ? "Retomá el control de tu gimnasio."
+                        : "Configurá tu gimnasio en minutos y activá el control total."}
                     </p>
                     {!isLogin && (
                       <div className="mt-6 flex flex-wrap gap-2">
@@ -285,28 +287,32 @@ const [authError, setAuthError] = useState<string | null>(null);
                     )}
                   </div>
 
+                  {/* Columna del form */}
                   <div className="relative mx-auto w-full max-w-[31rem]">
-                    <div className="relative rounded-[2.2rem] border border-white/[0.08] bg-[linear-gradient(180deg,rgba(21,21,24,0.99),rgba(14,14,17,0.998))] p-7 shadow-2xl sm:p-10">
-                      <div className="mb-8">
-                        <h2 className="text-2xl font-semibold tracking-[-0.04em]">
+                    <div className="relative rounded-2xl border border-white/[0.08] bg-[linear-gradient(180deg,rgba(21,21,24,0.99),rgba(14,14,17,0.998))] p-6 shadow-2xl sm:rounded-[2.2rem] sm:p-10">
+                      <div className="mb-7">
+                        <h2 className="text-xl font-semibold tracking-[-0.04em] sm:text-2xl">
                           {isLogin ? "Iniciá sesión" : "Creá tu acceso"}
                         </h2>
-                        <p className="mt-1 text-[13px] text-white/35">
-                          {isLogin ? (
-                            <>¿No tenés cuenta?{" "}
-                              <button onClick={() => { setIsLogin(false); setAuthError(null); }} className="text-[#FF6A00] hover:underline">Registrate gratis</button>
-                            </>
-                          ) : (
-                            <>¿Ya tenés cuenta?{" "}
-                              <button onClick={() => { setIsLogin(true); setAuthError(null); }} className="text-[#FF6A00] hover:underline">Iniciá sesión</button>
-                            </>
-                          )}
-                        </p>
-                        {!isLogin && (
-                          <p className="mt-3 text-[12px] leading-relaxed text-white/38">
-                            Empezás con 15 días gratis, sin tarjeta. Después elegís el plan que mejor se adapte a tu gimnasio.
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <p className="text-[13px] text-white/35">
+                            {isLogin ? (
+                              <>¿No tenés cuenta?{" "}
+                                <button onClick={() => { setIsLogin(false); setAuthError(null); }} className="text-[#FF6A00] hover:underline">Registrate gratis</button>
+                              </>
+                            ) : (
+                              <>¿Ya tenés cuenta?{" "}
+                                <button onClick={() => { setIsLogin(true); setAuthError(null); }} className="text-[#FF6A00] hover:underline">Iniciá sesión</button>
+                              </>
+                            )}
                           </p>
-                        )}
+                          {/* Trust pills — solo mobile */}
+                          {!isLogin && (
+                            <span className="lg:hidden text-[10px] text-white/22 tracking-[0.06em]">
+                              · 15 días gratis · Sin tarjeta
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       <form onSubmit={handleSubmit} className="grid gap-3.5">
@@ -334,8 +340,8 @@ const [authError, setAuthError] = useState<string | null>(null);
                                 className="h-14 w-full rounded-2xl border border-white/10 bg-[#131417] pl-14 pr-5 text-white outline-none focus:border-[#FF6A00]"
                               />
                             </div>
-                            <p className="-mt-1 px-1 text-[11px] leading-relaxed text-white/28">
-                              Si lo dejás, nos sirve para ayudarte más rápido con el setup inicial.
+                            <p className="-mt-1 px-1 text-[11px] text-white/28">
+                              Opcional · para ayudarte en el setup
                             </p>
                           </>
                         )}
@@ -395,11 +401,6 @@ const [authError, setAuthError] = useState<string | null>(null);
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                         </button>
 
-                        {!isLogin && (
-                          <p className="text-center text-[11px] leading-relaxed text-white/28">
-                            Vas a entrar directo a tu prueba gratis y después podés elegir Gestión, Crecimiento o Full Marca.
-                          </p>
-                        )}
                       </form>
                     </div>
                   </div>
