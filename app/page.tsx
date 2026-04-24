@@ -5,6 +5,7 @@ import { BenefitsSection } from "@/components/benefits-section";
 import { DemoSection } from "@/components/demo-section";
 import { PricingSection } from "@/components/pricing-section";
 import { LandingHeader } from "@/components/landing-header";
+import { LogosSection } from "@/components/logos-section";
 import { FITGROWX_PLANS, formatArs } from "@/lib/fitgrowx-plans";
 
 const plans = FITGROWX_PLANS.map((plan) => ({
@@ -37,6 +38,9 @@ export default function Home() {
 
       <div className="relative z-10">
         <HeroSection />
+
+        {/* SECCIÓN LOGOS / SOCIAL PROOF */}
+        <LogosSection />
 
         {/* SECCIÓN BENEFICIOS */}
         <div id="beneficios" className="relative z-10 scroll-mt-24 overflow-hidden">

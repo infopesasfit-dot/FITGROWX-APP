@@ -96,6 +96,16 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes marquee-reverse {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+
 /* ── ANIMACIONES CUSTOM (Tailwind v4 @theme) ── */
 @theme {
   --animate-beam:          beam          5s  linear            infinite;
@@ -110,6 +120,24 @@
   --animate-float-gentle: float-gentle 4.5s ease-in-out infinite;
   --animate-particle-rise: particle-rise 7s ease-in-out infinite;
   --animate-nav-entrance: nav-entrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-marquee: marquee 28s linear infinite;
+  --animate-marquee-reverse: marquee-reverse 32s linear infinite;
+}
+
+/* ── Marquee track ── */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: var(--animate-marquee);
+}
+.marquee-track-reverse {
+  display: flex;
+  width: max-content;
+  animation: var(--animate-marquee-reverse);
+}
+.marquee-outer:hover .marquee-track,
+.marquee-outer:hover .marquee-track-reverse {
+  animation-play-state: paused;
 }
 
 :root {
@@ -127,6 +155,10 @@
 }
 
 /* Fondo oscuro pintado antes de cualquier JS — evita el flash al navegar */
+html {
+  overflow-x: hidden;
+}
+
 html,
 body {
   background-color: #050505;
@@ -135,6 +167,7 @@ body {
 }
 
 body {
+  overflow-x: hidden;
   min-height: 100vh;
   color: #ffffff;
   font-family: var(--font-inter), "Inter", "Segoe UI", sans-serif;
