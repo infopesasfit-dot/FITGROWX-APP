@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   Home, Users, CreditCard, Wallet, TrendingDown, Settings, LogOut,
-  Search, Bell, Mail, ChevronLeft, ChevronRight,
+  Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, MessageSquare, Target, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen,
 } from "lucide-react";
@@ -41,6 +41,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const isVaultRoute = pathname.startsWith("/dashboard/boveda");
 
+  const [isMobile,         setIsMobile]         = useState(false);
+  const [mobileNavOpen,    setMobileNavOpen]    = useState(false);
   const [collapsed,        setCollapsed]        = useState(false);
   const [menuOpen,         setMenuOpen]         = useState(false);
   const [userName,         setUserName]         = useState("Admin");
@@ -67,6 +69,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Close mobile nav on route change
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   // Fetch user + trial info once
   useEffect(() => {
@@ -167,10 +181,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const navItemStyle = (href: string): React.CSSProperties => ({
     borderRadius: 10,
-    padding: collapsed ? "10px 0" : "10px 14px",
+    padding: (!isMobile && collapsed) ? "10px 0" : "10px 14px",
     display: "flex",
     alignItems: "center",
-    justifyContent: collapsed ? "center" : "flex-start",
+    justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
     gap: 11,
     fontSize: "0.875rem",
     fontWeight: isActive(href) ? 600 : 500,
@@ -186,10 +200,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const logoutStyle: React.CSSProperties = {
     borderRadius: 10,
-    padding: collapsed ? "10px 0" : "10px 14px",
+    padding: (!isMobile && collapsed) ? "10px 0" : "10px 14px",
     display: "flex",
     alignItems: "center",
-    justifyContent: collapsed ? "center" : "flex-start",
+    justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
     gap: 11,
     fontSize: "0.875rem",
     fontWeight: 500,
@@ -209,28 +223,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0D0F12" }}>
 
+      {/* ── Mobile backdrop ── */}
+      {isMobile && mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 90,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+        />
+      )}
+
       {/* ── Sidebar ── */}
       <aside style={{
         background: SB_BG,
-        width: w,
-        height: "calc(100vh - 24px)",
-        minHeight: "calc(100vh - 24px)",
-        position: "sticky",
-        top: 12,
+        width: isMobile ? 260 : w,
+        height: isMobile ? "100vh" : "calc(100vh - 24px)",
+        minHeight: isMobile ? "100vh" : "calc(100vh - 24px)",
+        position: isMobile ? "fixed" : "sticky",
+        top: isMobile ? 0 : 12,
+        left: 0,
+        zIndex: isMobile ? 100 : undefined,
         flexShrink: 0,
-        margin: "12px 0 12px 12px",
-        borderRadius: 20,
+        margin: isMobile ? 0 : "12px 0 12px 12px",
+        borderRadius: isMobile ? "0 20px 20px 0" : 20,
         boxShadow: "0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06)",
-        display: "flex",
+        display: isMobile ? (mobileNavOpen ? "flex" : "none") : "flex",
         flexDirection: "column",
-        padding: collapsed ? "26px 8px" : "26px 16px",
+        padding: (!isMobile && collapsed) ? "26px 8px" : "26px 16px",
         overflow: "hidden",
         transition: "width 0.22s cubic-bezier(0.4,0,0.2,1), padding 0.22s cubic-bezier(0.4,0,0.2,1)",
       }}>
 
-        {/* Logo + collapse toggle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40 }}>
-          {!collapsed && (
+        {/* Logo + collapse/close toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40 }}>
+          {(isMobile || !collapsed) && (
             <div style={{
               borderRadius: 12, padding: "6px 10px",
               background: "linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
@@ -245,22 +274,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           )}
           <button
-            onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? "Expandir" : "Colapsar"}
+            onClick={() => isMobile ? setMobileNavOpen(false) : setCollapsed(c => !c)}
+            title={isMobile ? "Cerrar" : (collapsed ? "Expandir" : "Colapsar")}
             style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.14s" }}
             onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "white"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
           >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            {isMobile ? <X size={14} /> : (collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />)}
           </button>
         </div>
 
         {/* Nav top */}
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {NAV_TOP.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} style={navItemStyle(href)} title={collapsed ? label : undefined}>
+            <Link key={href} href={href} style={navItemStyle(href)} title={(!isMobile && collapsed) ? label : undefined}>
               <Icon size={16} style={{ opacity: isActive(href) ? 1 : 0.65, flexShrink: 0 }} />
-              {!collapsed && (
+              {(isMobile || !collapsed) && (
                 <>
                   <span style={{ flex: 1 }}>{label}</span>
                   {href === "/dashboard/prospectos" && prospectBadge > 0 && (
@@ -278,14 +307,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Nav bottom — logout only */}
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <button onClick={handleSignOut} style={logoutStyle} title={collapsed ? "Salir" : undefined}>
+          <button onClick={handleSignOut} style={logoutStyle} title={(!isMobile && collapsed) ? "Salir" : undefined}>
             <LogOut size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
-            {!collapsed && "Salir"}
+            {(isMobile || !collapsed) && "Salir"}
           </button>
         </div>
 
         {/* Soporte Banner */}
-        {!collapsed && (
+        {(isMobile || !collapsed) && (
           <>
             <style>{`
               @keyframes borderBreath {
@@ -350,31 +379,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : "#f8fafc", borderRadius: 20, margin: "12px 12px 12px 8px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : "#f8fafc", borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
 
         {/* Topbar */}
         <header style={{
-          display: "flex", alignItems: "center", gap: 14,
-          padding: "11px 20px",
-          margin: "12px 0 0",
-          position: "sticky", top: 12, zIndex: 10,
+          display: "flex", alignItems: "center", gap: isMobile ? 8 : 14,
+          padding: isMobile ? "10px 14px" : "11px 20px",
+          margin: isMobile ? "0" : "12px 0 0",
+          position: "sticky", top: isMobile ? 0 : 12, zIndex: 10,
           borderRadius: scrolled ? 16 : 0,
-          background: scrolled ? "rgba(248,250,252,0.82)" : "transparent",
-          backdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
-          WebkitBackdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
-          boxShadow: scrolled ? "0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)" : "none",
+          background: isMobile ? "rgba(248,250,252,0.96)" : (scrolled ? "rgba(248,250,252,0.82)" : "transparent"),
+          backdropFilter: (isMobile || scrolled) ? "blur(20px) saturate(180%)" : "none",
+          WebkitBackdropFilter: (isMobile || scrolled) ? "blur(20px) saturate(180%)" : "none",
+          boxShadow: (isMobile || scrolled) ? "0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)" : "none",
           transition: "background 0.25s ease, box-shadow 0.25s ease, backdrop-filter 0.25s ease, border-radius 0.25s ease",
         }}>
-          <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
-            <Search size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-            <input style={{ width: "100%", padding: "9px 18px 9px 36px", background: "rgba(0,0,0,0.06)", border: "none", borderRadius: 9999, fontSize: "0.85rem", color: "#475569", outline: "none", fontFamily: fb }} placeholder="Buscar alumnos, planes..." />
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto" }}>
-            <button style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: "#6B7280", padding: 5, display: "flex", alignItems: "center" }}>
-              <Mail size={19} />
-              <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#EF4444", borderRadius: "50%", border: "2px solid white" }} />
+          {/* Hamburger — mobile only */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7280", padding: 6, display: "flex", alignItems: "center", flexShrink: 0 }}
+            >
+              <Menu size={20} />
             </button>
+          )}
+
+          {/* Search — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
+              <Search size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input style={{ width: "100%", padding: "9px 18px 9px 36px", background: "rgba(0,0,0,0.06)", border: "none", borderRadius: 9999, fontSize: "0.85rem", color: "#475569", outline: "none", fontFamily: fb }} placeholder="Buscar alumnos, planes..." />
+            </div>
+          )}
+
+          {/* Page title on mobile */}
+          {isMobile && (
+            <span style={{ flex: 1, font: `600 0.9rem/1 ${fd}`, color: "#1A1D23" }}>
+              {NAV_TOP.find(n => isActive(n.href))?.label ?? "Dashboard"}
+            </span>
+          )}
+
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, marginLeft: isMobile ? 0 : "auto" }}>
+            {!isMobile && (
+              <button style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: "#6B7280", padding: 5, display: "flex", alignItems: "center" }}>
+                <Mail size={19} />
+                <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#EF4444", borderRadius: "50%", border: "2px solid white" }} />
+              </button>
+            )}
             {/* ── Notification Bell ── */}
             <div ref={notifRef} style={{ position: "relative" }}>
               <button
@@ -390,7 +441,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {notifOpen && (
                 <div style={{
                   position: "absolute", top: "calc(100% + 10px)", right: 0,
-                  width: 340,
+                  width: isMobile ? "calc(100vw - 28px)" : 340,
                   background: "#FFFFFF",
                   border: "1px solid rgba(0,0,0,0.08)",
                   borderRadius: 16,
@@ -449,15 +500,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.65rem", color: "white", flexShrink: 0, fontFamily: fd }}>
                   {userInitials}
                 </div>
-                <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "#1A1D23", whiteSpace: "nowrap", fontFamily: fd }}>{userName}</span>
-                <ChevronDown size={13} color="#9CA3AF" style={{ transition: "transform 0.18s", transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                {!isMobile && <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "#1A1D23", whiteSpace: "nowrap", fontFamily: fd }}>{userName}</span>}
+                {!isMobile && <ChevronDown size={13} color="#9CA3AF" style={{ transition: "transform 0.18s", transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)" }} />}
               </button>
 
               {/* Dropdown */}
               {menuOpen && (
                 <div style={{
                   position: "absolute", top: "calc(100% + 8px)", right: 0,
-                  width: 280,
+                  width: isMobile ? "min(280px, calc(100vw - 28px))" : 280,
                   background: "#FFFFFF",
                   border: "1px solid rgba(0,0,0,0.08)",
                   borderRadius: 14,
@@ -543,7 +594,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
-            gap: 12, padding: "9px 20px",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
             background: trialDaysLeft <= 2 ? "rgba(220,38,38,0.07)" : "rgba(217,119,6,0.07)",
             borderBottom: `1px solid ${trialDaysLeft <= 2 ? "rgba(220,38,38,0.18)" : "rgba(217,119,6,0.18)"}`,
             flexShrink: 0,
@@ -571,7 +622,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: "20px 20px 28px", display: "flex", flexDirection: "column", gap: 18, background: isVaultRoute ? "#ECEFF3" : "transparent" }}>
+        <main style={{ flex: 1, padding: isMobile ? "14px 12px 24px" : "20px 20px 28px", display: "flex", flexDirection: "column", gap: 18, background: isVaultRoute ? "#ECEFF3" : "transparent" }}>
           {children}
         </main>
         <WelcomeModal />
