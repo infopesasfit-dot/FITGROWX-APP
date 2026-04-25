@@ -70,6 +70,11 @@ export default function AjustesPage() {
   const [logoError,     setLogoError]      = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [cancelling,  setCancelling]   = useState(false);
+  const [cancelDone,  setCancelDone]   = useState(false);
+  const [cancelError, setCancelError]  = useState<string | null>(null);
+  const [showConfirm, setShowConfirm]  = useState(false);
+
   // Load user data
   useEffect(() => {
     (async () => {
@@ -180,6 +185,27 @@ export default function AjustesPage() {
   };
 
   const activeLogoSrc = logoPreview ?? logoUrl;
+
+  const handleCancelSubscription = async () => {
+    if (!gymId) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await fetch("/api/mp/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gym_id: gymId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Error al cancelar.");
+      setCancelDone(true);
+      setShowConfirm(false);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Error inesperado.");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -604,7 +630,7 @@ export default function AjustesPage() {
           {/* Cancelación */}
           <div style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.03)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-              <div>
+              <div style={{ flex: 1 }}>
                 <p style={{ font: `600 0.88rem/1 ${fd}`, color: "#DC2626", marginBottom: 4 }}>Cancelar suscripción</p>
                 <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, maxWidth: 380 }}>
                   Podés cancelar en cualquier momento. Tu acceso se mantiene hasta el final del período ya abonado, sin reintegros proporcionales.
@@ -616,22 +642,69 @@ export default function AjustesPage() {
                 >
                   <ExternalLink size={11} /> Ver política de cancelación (sección 5)
                 </Link>
+
+                {cancelDone && (
+                  <p style={{ marginTop: 10, font: `600 0.78rem/1 ${fb}`, color: "#22c55e" }}>
+                    ✓ Suscripción cancelada correctamente.
+                  </p>
+                )}
+                {cancelError && (
+                  <p style={{ marginTop: 10, font: `500 0.78rem/1 ${fb}`, color: "#EF4444" }}>
+                    {cancelError}
+                  </p>
+                )}
               </div>
-              <a
-                href="mailto:soporte@fitgrowx.com?subject=Solicitud%20de%20cancelación%20de%20suscripción"
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "9px 16px", borderRadius: 10, textDecoration: "none", flexShrink: 0,
-                  background: "transparent", color: "#DC2626",
-                  border: "1px solid rgba(239,68,68,0.3)",
-                  font: `600 0.8rem/1 ${fd}`,
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.06)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-              >
-                Solicitar cancelación
-              </a>
+
+              <div style={{ flexShrink: 0 }}>
+                {!showConfirm ? (
+                  <button
+                    onClick={() => setShowConfirm(true)}
+                    disabled={cancelDone}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "9px 16px", borderRadius: 10, flexShrink: 0,
+                      background: "transparent", color: "#DC2626",
+                      border: "1px solid rgba(239,68,68,0.3)",
+                      font: `600 0.8rem/1 ${fd}`, cursor: "pointer",
+                      opacity: cancelDone ? 0.4 : 1,
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={e => { if (!cancelDone) e.currentTarget.style.background = "rgba(239,68,68,0.06)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    Cancelar suscripción
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                    <p style={{ font: `600 0.75rem/1.4 ${fb}`, color: "#DC2626", textAlign: "right", maxWidth: 180 }}>
+                      ¿Confirmás la cancelación?
+                    </p>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => setShowConfirm(false)}
+                        style={{
+                          padding: "7px 12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.1)",
+                          background: "#F0F2F8", color: t2, font: `600 0.78rem/1 ${fb}`, cursor: "pointer",
+                        }}
+                      >
+                        No
+                      </button>
+                      <button
+                        onClick={handleCancelSubscription}
+                        disabled={cancelling}
+                        style={{
+                          padding: "7px 14px", borderRadius: 8, border: "none",
+                          background: "#DC2626", color: "white",
+                          font: `700 0.78rem/1 ${fd}`, cursor: "pointer",
+                          opacity: cancelling ? 0.6 : 1,
+                        }}
+                      >
+                        {cancelling ? "Cancelando..." : "Sí, cancelar"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
