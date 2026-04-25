@@ -60,9 +60,9 @@ export function LandingHeader(props: LandingHeaderProps) {
           <Image
             src="/images/logo-fondo-oscuro.png"
             alt="FitGrowX"
-            width={200}
-            height={56}
-            className="relative z-10 h-16 w-auto object-contain"
+            width={500}
+            height={150}
+            className="relative z-10 h-9 w-auto object-contain"
             priority
             unoptimized
           />
