@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, Mail, Lock, CreditCard, Zap, ChevronRight, Save, ImagePlus, Star, Trash2, Upload } from "lucide-react";
+import Link from "next/link";
+import { Building2, Mail, Lock, CreditCard, Zap, ChevronRight, Save, ImagePlus, Star, Trash2, Upload, AlertTriangle, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -565,6 +566,75 @@ export default function AjustesPage() {
           <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: ORANGE }}>
             Este dato se incluirá automáticamente al final de cada recordatorio de vencimiento enviado a tus alumnos.
           </p>
+        </div>
+      </div>
+
+      {/* ── Bloque 4: Suscripción y Cancelación ── */}
+      <div style={{ ...card, padding: "28px 28px 24px" }}>
+        <SectionHeader
+          icon={<AlertTriangle size={18} color="white" />}
+          title="Suscripción y Cancelación"
+          desc="Gestioná tu plan activo o cancelá tu suscripción."
+        />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Ir a suscripción */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px", borderRadius: 12, background: "#F7F8FC", border: "1px solid rgba(0,0,0,0.06)" }}>
+            <div>
+              <p style={{ font: `600 0.88rem/1 ${fd}`, color: t1, marginBottom: 3 }}>Ver o cambiar plan</p>
+              <p style={{ font: `400 0.75rem/1.4 ${fb}`, color: t2 }}>Consultá tu plan actual o actualizá tu suscripción.</p>
+            </div>
+            <a
+              href="/dashboard/suscripcion"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 16px", borderRadius: 10, textDecoration: "none",
+                background: "#1A1D23", color: "white",
+                font: `600 0.8rem/1 ${fd}`, flexShrink: 0,
+                transition: "opacity 0.15s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >
+              Ver suscripción <ChevronRight size={13} />
+            </a>
+          </div>
+
+          {/* Cancelación */}
+          <div style={{ padding: "16px 18px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.03)" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+              <div>
+                <p style={{ font: `600 0.88rem/1 ${fd}`, color: "#DC2626", marginBottom: 4 }}>Cancelar suscripción</p>
+                <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, maxWidth: 380 }}>
+                  Podés cancelar en cualquier momento. Tu acceso se mantiene hasta el final del período ya abonado, sin reintegros proporcionales.
+                </p>
+                <Link
+                  href="/terminos"
+                  target="_blank"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, font: `500 0.74rem/1 ${fb}`, color: t3, textDecoration: "none" }}
+                >
+                  <ExternalLink size={11} /> Ver política de cancelación (sección 5)
+                </Link>
+              </div>
+              <a
+                href="mailto:soporte@fitgrowx.com?subject=Solicitud%20de%20cancelación%20de%20suscripción"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "9px 16px", borderRadius: 10, textDecoration: "none", flexShrink: 0,
+                  background: "transparent", color: "#DC2626",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  font: `600 0.8rem/1 ${fd}`,
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.06)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                Solicitar cancelación
+              </a>
+            </div>
+          </div>
+
         </div>
       </div>
 
