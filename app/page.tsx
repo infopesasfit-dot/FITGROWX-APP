@@ -7,6 +7,7 @@ import { PricingSection } from "@/components/pricing-section";
 import { LandingHeader } from "@/components/landing-header";
 import { LogosSection } from "@/components/logos-section";
 import { FITGROWX_PLANS, formatArs } from "@/lib/fitgrowx-plans";
+import { LandingWhatsApp } from "@/components/landing-whatsapp";
 
 const plans = FITGROWX_PLANS.map((plan) => ({
   name: plan.name,
@@ -83,6 +84,8 @@ export default function Home() {
 
           <PricingSection plans={plans} />
         </section>
+
+        <LandingWhatsApp />
 
         <footer className="mx-auto max-w-7xl px-6 py-16 lg:px-10 border-t border-white/[0.03]">
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row text-center text-[11px] font-light text-white/20 uppercase tracking-[0.18em]">
