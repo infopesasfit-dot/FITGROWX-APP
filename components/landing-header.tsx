@@ -63,6 +63,7 @@ export function LandingHeader(props: LandingHeaderProps) {
             height={34}
             className="h-8 w-auto object-contain transition-opacity duration-200 group-hover:opacity-80"
             priority
+            unoptimized
           />
         </Link>
 
