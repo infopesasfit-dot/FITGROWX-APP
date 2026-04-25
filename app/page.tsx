@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { BentoBackground } from "@/components/bento-background";
 import { HeroSection } from "@/components/hero-section";
 import { BenefitsSection } from "@/components/benefits-section";
@@ -89,7 +90,7 @@ export default function Home() {
 
         <footer className="mx-auto max-w-7xl px-6 py-12 lg:px-10 border-t border-white/[0.03]">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
-            <Image src="/images/logo-fitgrowx.png" alt="FitGrowX" width={100} height={30} className="opacity-20 grayscale" />
+            <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={110} height={30} className="h-7 w-auto object-contain opacity-25" />
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-light text-white/22 uppercase tracking-[0.16em]">
               <Link href="/terminos" className="hover:text-white/50 transition-colors">Términos y Condiciones</Link>
               <span className="text-white/10">·</span>

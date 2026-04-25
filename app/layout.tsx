@@ -12,6 +12,10 @@ export const metadata: Metadata = {
   title: "FitGrowX | Software y crecimiento para gimnasios",
   description:
     "FitGrowX combina gestion, cobros por WhatsApp y una Boveda de Crecimiento para ayudar a los gimnasios a recuperar el control y escalar.",
+  icons: {
+    icon: "/images/logo-favicon-fitgrowx.png",
+    apple: "/images/logo-favicon-fitgrowx.png",
+  },
 };
 
 export default function RootLayout({

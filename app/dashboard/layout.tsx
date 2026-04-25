@@ -269,7 +269,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {planType === "full_marca" && gymLogoUrl
                 ? // eslint-disable-next-line @next/next/no-img-element
                   <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 32, maxWidth: 130, objectFit: "contain", display: "block" }} />
-                : <Image src="/images/logo-fitgrowx.png" alt="FitGrowX" width={130} height={32} style={{ objectFit: "contain", display: "block" }} priority />
+                : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={130} height={32} style={{ objectFit: "contain", display: "block" }} priority />
               }
             </div>
           )}

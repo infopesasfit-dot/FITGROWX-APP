@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Menu, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -54,11 +55,15 @@ export function LandingHeader(props: LandingHeaderProps) {
       className="landing-header fixed inset-x-0 top-0 z-50 px-4 pt-3 sm:px-6 lg:px-8"
     >
       <div className="landing-header-shell mx-auto flex max-w-6xl items-center justify-between px-5 py-3 lg:px-7">
-        <Link href="/" className="landing-brand group relative inline-flex shrink-0 items-center overflow-hidden rounded-full px-2 py-1">
-          <span className="landing-brand-glow" />
-          <span className="landing-brand-text relative z-10">
-            FITGROW<span className="text-[#FF7A1A]">X</span>
-          </span>
+        <Link href="/" className="group relative inline-flex shrink-0 items-center">
+          <Image
+            src="/images/logo-fondo-oscuro.png"
+            alt="FitGrowX"
+            width={130}
+            height={34}
+            className="h-8 w-auto object-contain transition-opacity duration-200 group-hover:opacity-80"
+            priority
+          />
         </Link>
 
         <nav className="hidden items-center gap-2 md:flex">
