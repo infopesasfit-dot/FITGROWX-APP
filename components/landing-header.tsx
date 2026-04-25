@@ -59,9 +59,9 @@ export function LandingHeader(props: LandingHeaderProps) {
           <Image
             src="/images/logo-fondo-oscuro.png"
             alt="FitGrowX"
-            width={130}
-            height={34}
-            className="h-8 w-auto object-contain transition-opacity duration-200 group-hover:opacity-80"
+            width={200}
+            height={56}
+            className="h-11 w-auto object-contain transition-opacity duration-200 group-hover:opacity-80"
             priority
             unoptimized
           />
