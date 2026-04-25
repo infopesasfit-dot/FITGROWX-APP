@@ -87,10 +87,19 @@ export default function Home() {
 
         <LandingWhatsApp />
 
-        <footer className="mx-auto max-w-7xl px-6 py-16 lg:px-10 border-t border-white/[0.03]">
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row text-center text-[11px] font-light text-white/20 uppercase tracking-[0.18em]">
+        <footer className="mx-auto max-w-7xl px-6 py-12 lg:px-10 border-t border-white/[0.03]">
+          <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
             <Image src="/images/logo-fitgrowx.png" alt="FitGrowX" width={100} height={30} className="opacity-20 grayscale" />
-            <p>© {new Date().getFullYear()} FitGrowX. Todos los derechos reservados.</p>
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-light text-white/22 uppercase tracking-[0.16em]">
+              <Link href="/terminos" className="hover:text-white/50 transition-colors">Términos y Condiciones</Link>
+              <span className="text-white/10">·</span>
+              <Link href="/privacidad" className="hover:text-white/50 transition-colors">Política de Privacidad</Link>
+              <span className="text-white/10">·</span>
+              <span>CUIT 27-39517020-7</span>
+            </div>
+            <p className="text-[11px] font-light text-white/20 uppercase tracking-[0.16em]">
+              © {new Date().getFullYear()} FitGrowX
+            </p>
           </div>
         </footer>
       </div>
