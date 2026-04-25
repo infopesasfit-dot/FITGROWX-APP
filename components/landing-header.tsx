@@ -61,7 +61,7 @@ export function LandingHeader(props: LandingHeaderProps) {
             alt="FitGrowX"
             width={200}
             height={56}
-            className="h-16 w-auto object-contain transition-opacity duration-200 group-hover:opacity-80"
+            className="h-14 w-auto object-contain transition-opacity duration-200 group-hover:opacity-80"
             priority
             unoptimized
           />
