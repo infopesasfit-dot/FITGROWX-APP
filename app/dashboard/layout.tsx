@@ -68,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const notifRef   = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
-  type Notif = { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string };
+  type Notif = { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; link?: string | null };
   const [notifOpen,   setNotifOpen]   = useState(false);
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [gymId,       setGymId]       = useState<string | null>(null);
@@ -161,9 +161,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const notifIconMap: Record<string, React.ReactNode> = {
-    new_alumno:   <UserPlus size={13} color="#F97316" />,
-    new_payment:  <DollarSign size={13} color="#FF6A00" />,
+    new_alumno:    <UserPlus size={13} color="#F97316" />,
+    new_payment:   <DollarSign size={13} color="#FF6A00" />,
     new_prospecto: <Inbox size={13} color="#6ea8fe" />,
+    wa_disconnected: <Bell size={13} color="#EF4444" />,
   };
 
   const timeAgo = (iso: string) => {
@@ -483,7 +484,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, font: `600 0.82rem/1.2 ${fd}`, color: "#1A1D23" }}>{n.title}</p>
-                            {n.body && <p style={{ margin: "2px 0 0", font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280" }}>{n.body}</p>}
+                            {n.body && (
+                              n.link
+                                ? <Link href={n.link} style={{ margin: "2px 0 0", display: "block", font: `400 0.75rem/1.4 ${fd}`, color: "#F97316", textDecoration: "underline" }}>{n.body}</Link>
+                                : <p style={{ margin: "2px 0 0", font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280" }}>{n.body}</p>
+                            )}
                             <p style={{ margin: "4px 0 0", font: `400 0.7rem/1 ${fd}`, color: "#9CA3AF" }}>{timeAgo(n.created_at)}</p>
                           </div>
                           {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#F97316", flexShrink: 0, marginTop: 6 }} />}

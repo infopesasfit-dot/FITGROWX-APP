@@ -110,13 +110,34 @@ export async function GET(req: NextRequest) {
       }
 
       if (!restored) {
-        // No se pudo restaurar → marcar como desconectado en Supabase
-        // El dashboard mostrará el banner "reconectar" la próxima vez que el gym abra automatizaciones
         await supabase
           .from("gym_settings")
           .update({ wa_status: "disconnected", wa_phone: null, wa_battery: null, wa_plugged: null, wa_signal: null })
           .eq("gym_id", gymId);
         log.push(`[${gymId}] ❌ Restauración fallida — wa_status → disconnected`);
+
+        // Evitar spam: solo insertar si no hay una notif wa_disconnected sin leer en las últimas 2h
+        const since = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+        const { data: existing } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("gym_id", gymId)
+          .eq("type", "wa_disconnected")
+          .eq("read", false)
+          .gte("created_at", since)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase.from("notifications").insert([{
+            gym_id: gymId,
+            type:   "wa_disconnected",
+            title:  "⚠️ Atención: tu conexión de WhatsApp se cerró",
+            body:   "Entrá acá para volver a escanear el QR y reconectar tu cuenta.",
+            link:   "/dashboard/scanner",
+            read:   false,
+          }]);
+          log.push(`[${gymId}] 🔔 Notificación wa_disconnected insertada`);
+        }
       }
 
       continue;

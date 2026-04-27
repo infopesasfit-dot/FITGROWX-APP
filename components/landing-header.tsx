@@ -87,15 +87,23 @@ export function LandingHeader(props: LandingHeaderProps) {
 
         <div className="flex items-center gap-2">
           {props.actionType === "link" ? (
-            <Link
-              href={props.actionHref}
-              className="landing-header-cta group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] text-white/85 sm:px-5"
-            >
-              <span className="landing-header-cta-glow" />
-              <span className="relative z-10 hidden sm:inline">{props.actionLabel}</span>
-              <span className="relative z-10 sm:hidden">Probar</span>
-              <ArrowRight className="relative z-10 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
-            </Link>
+            <>
+              <Link
+                href="/start?login=1"
+                className="hidden sm:inline-flex items-center rounded-full px-4 py-2 text-[13px] font-medium text-white/50 transition-colors hover:text-white/80"
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href={props.actionHref}
+                className="landing-header-cta group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] text-white/85 sm:px-5"
+              >
+                <span className="landing-header-cta-glow" />
+                <span className="relative z-10 hidden sm:inline">{props.actionLabel}</span>
+                <span className="relative z-10 sm:hidden">Probar</span>
+                <ArrowRight className="relative z-10 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
+              </Link>
+            </>
           ) : (
             <button
               onClick={props.onAction}

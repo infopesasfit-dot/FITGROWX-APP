@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Lock, Mail, MessageCircleMore, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { LandingHeader } from "@/components/landing-header";
@@ -42,9 +42,10 @@ function DotField({ className }: { className: string }) {
 
 export default function StartPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const nameRef = useRef<HTMLInputElement>(null);
   const [screen, setScreen] = useState<Screen>("form");
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(searchParams.get("login") === "1");
   const [fullName, setFullName] = useState("");
   const [whatsApp, setWhatsApp] = useState("");
   const [email, setEmail] = useState("");
