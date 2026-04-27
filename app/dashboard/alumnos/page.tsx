@@ -99,23 +99,30 @@ export default function AlumnosPage() {
   const [wodModalidad,     setWodModalidad]     = useState("AMRAP");
   const [wodTimeCap,       setWodTimeCap]       = useState("15");
   const [wodMovimientos,   setWodMovimientos]   = useState<{ nombre: string; reps: string }[]>([]);
+  const [gymId,            setGymId]            = useState<string | null>(null);
 
   // ── Fetch alumnos ─────────────────────────────────────────────────
   const fetchAlumnos = useCallback(async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { setLoading(false); return; }
+
+    const { data: profile } = await supabase
+      .from("profiles").select("gym_id").eq("id", session.user.id).single();
+    if (!profile) { setLoading(false); return; }
+
+    setGymId(profile.gym_id);
 
     const [{ data }, { count }] = await Promise.all([
       supabase
         .from("alumnos")
         .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio)")
-        .eq("gym_id", user.id)
+        .eq("gym_id", profile.gym_id)
         .order("full_name"),
       supabase
         .from("alumnos")
         .select("id", { count: "exact", head: true })
-        .eq("gym_id", user.id),
+        .eq("gym_id", profile.gym_id),
     ]);
 
     setAlumnos((data as unknown as Alumno[]) ?? []);
@@ -142,13 +149,12 @@ export default function AlumnosPage() {
     setModalOpen(true);
 
     setPlanesLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setPlanesLoading(false); return; }
+    if (!gymId) { setPlanesLoading(false); return; }
 
     const { data } = await supabase
       .from("planes")
       .select("id, nombre, precio, periodo, accent_color")
-      .eq("gym_id", user.id)
+      .eq("gym_id", gymId)
       .order("created_at");
 
     const list = (data as PlanOption[]) ?? [];
@@ -178,11 +184,10 @@ export default function AlumnosPage() {
     setSaving(true);
     setFormError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setFormError("Sesión expirada."); setSaving(false); return; }
+    if (!gymId) { setFormError("Sesión expirada."); setSaving(false); return; }
 
     const { data: newAlumno, error } = await supabase.from("alumnos").insert([{
-      gym_id:              user.id,
+      gym_id:              gymId,
       full_name:           form.full_name.trim(),
       dni:                 form.dni.trim(),
       phone:               normalizePhone(form.phone.trim()),
@@ -204,7 +209,7 @@ export default function AlumnosPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        gym_id: user.id,
+        gym_id: gymId,
         type: "new_alumno",
         title: `Nuevo alumno: ${form.full_name.trim()}`,
         body: form.phone.trim() ? `Tel: ${form.phone.trim()}` : null,
@@ -257,8 +262,7 @@ export default function AlumnosPage() {
     setPagoSaving(true);
     setPagoError(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setPagoError("Sesión expirada."); setPagoSaving(false); return; }
+    if (!gymId) { setPagoError("Sesión expirada."); setPagoSaving(false); return; }
 
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
@@ -272,7 +276,7 @@ export default function AlumnosPage() {
 
     const [{ error: pagoErr }, { error: alumnoErr }] = await Promise.all([
       supabase.from("pagos").insert([{
-        gym_id:    user.id,
+        gym_id:    gymId,
         alumno_id: pagoTarget.id,
         amount:    monto,
         date:      todayStr,
@@ -291,7 +295,7 @@ export default function AlumnosPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        gym_id: user.id,
+        gym_id: gymId,
         type: "new_payment",
         title: `Pago recibido: ${pagoTarget.full_name}`,
         body: `$${monto.toLocaleString("es-AR")}`,
@@ -307,7 +311,7 @@ export default function AlumnosPage() {
       fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gym_id: user.id, phone: e164, message: msgBody }),
+        body: JSON.stringify({ gym_id: gymId, phone: e164, message: msgBody }),
       }).catch(err => console.warn("[WA Motor] Error al enviar confirmación de pago:", err));
     }
 
@@ -370,12 +374,11 @@ export default function AlumnosPage() {
     }
 
     setRutinaSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setRutinaError("Sesión expirada."); setRutinaSaving(false); return; }
+    if (!gymId) { setRutinaError("Sesión expirada."); setRutinaSaving(false); return; }
     const res = await fetch("/api/alumno/rutina", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gym_id: user.id, alumno_id: rutinaTarget.id, nombre: rutinaNombre.trim(), ejercicios: ejerciciosToSave, notas: notas.trim() || null }),
+      body: JSON.stringify({ gym_id: gymId, alumno_id: rutinaTarget.id, nombre: rutinaNombre.trim(), ejercicios: ejerciciosToSave, notas: notas.trim() || null }),
     });
     const d = await res.json();
     if (!res.ok || d.error) { setRutinaError(d.error ?? "Error al guardar."); setRutinaSaving(false); return; }
@@ -448,11 +451,9 @@ export default function AlumnosPage() {
     setEditForm({ id: a.id, full_name: a.full_name, phone: a.phone ?? "", plan_id: a.plan_id ?? "", next_expiration_date: a.next_expiration_date ?? "" });
     setEditError(null);
     setEditModalOpen(true);
-    if (planes.length === 0) {
+    if (planes.length === 0 && gymId) {
       setPlanesLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setPlanesLoading(false); return; }
-      const { data } = await supabase.from("planes").select("id, nombre, precio, periodo, accent_color").eq("gym_id", user.id).order("created_at");
+      const { data } = await supabase.from("planes").select("id, nombre, precio, periodo, accent_color").eq("gym_id", gymId).order("created_at");
       setPlanes((data as PlanOption[]) ?? []);
       setPlanesLoading(false);
     }
