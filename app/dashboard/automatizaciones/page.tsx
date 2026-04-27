@@ -155,18 +155,20 @@ export default function AutomatizacionesPage() {
     (async () => {
       const { data: s } = await supabase.from("gym_settings").select("*").eq("gym_id", gymId).maybeSingle();
       if (s) {
-        if (s.accent_color)          setAccentColor(s.accent_color);
-        if (s.logo_url)              setLogoUrl(s.logo_url);
-        if (s.landing_title)         setLandingTitle(s.landing_title);
-        if (s.landing_desc)          setLandingDesc(s.landing_desc);
-        if (s.slug)                  setGymSlug(s.slug);
-        if (s.cobro_alias)         { setAliasGym(s.cobro_alias); setCobro(s.cobro_alias); }
-        if (s.welcome_msg)           setWelcomeMsg(s.welcome_msg);
-        if (s.gym_name)              setGymName(s.gym_name);
-        if (s.magiclink_msg)         setMagiclinkMsg(s.magiclink_msg);
+        if (s.accent_color)               setAccentColor(s.accent_color);
+        if (s.logo_url)                   setLogoUrl(s.logo_url);
+        if (s.landing_title)              setLandingTitle(s.landing_title);
+        if (s.landing_desc)              setLandingDesc(s.landing_desc);
+        if (s.slug)                       setGymSlug(s.slug);
+        if (s.cobro_alias)              { setAliasGym(s.cobro_alias); setCobro(s.cobro_alias); }
+        if (s.welcome_msg)                setWelcomeMsg(s.welcome_msg);
+        if (s.gym_name)                   setGymName(s.gym_name);
+        if (s.magiclink_msg)              setMagiclinkMsg(s.magiclink_msg);
         if (s.inactividad_activo != null) setInactividad(s.inactividad_activo);
-        if (s.inactividad_dias)      setInactividadDias(s.inactividad_dias);
-        if (s.inactividad_msg)       setInactividadMsg(s.inactividad_msg);
+        if (s.inactividad_dias)           setInactividadDias(s.inactividad_dias);
+        if (s.inactividad_msg)            setInactividadMsg(s.inactividad_msg);
+        if (s.vencimiento_activo != null) setRecordatorio(s.vencimiento_activo);
+        if (s.lead_auto_welcome != null)  setLeadAutoWelcome(s.lead_auto_welcome);
       }
     })();
   }, [gymId]);
@@ -186,6 +188,8 @@ export default function AutomatizacionesPage() {
       inactividad_activo: inactividad,
       inactividad_dias: inactividadDias,
       inactividad_msg: inactividadMsg.trim() || null,
+      vencimiento_activo: recordatorio,
+      lead_auto_welcome: leadAutoWelcome,
     }, { onConflict: "gym_id" });
     setSaving(false);
     setSavedOk(true);

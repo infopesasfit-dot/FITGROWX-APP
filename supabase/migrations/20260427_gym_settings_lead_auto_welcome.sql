@@ -1,0 +1,2 @@
+ALTER TABLE gym_settings
+  ADD COLUMN IF NOT EXISTS lead_auto_welcome BOOLEAN NOT NULL DEFAULT true;
