@@ -35,20 +35,20 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
   // Sin sesión → login
-  if (!session && (pathname.startsWith('/dashboard') || pathname.startsWith('/platform'))) {
+  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/platform'))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Con sesión en auth pages → dashboard
-  if (session && (pathname === '/login' || pathname === '/register')) {
+  if (user && (pathname === '/login' || pathname === '/register')) {
     const { data: authProfile } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .limit(1)
       .maybeSingle()
 
@@ -57,11 +57,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protección por rol + trial (solo rutas de dashboard con sesión activa)
-  if (session && (pathname.startsWith('/dashboard') || pathname.startsWith('/platform'))) {
+  if (user && (pathname.startsWith('/dashboard') || pathname.startsWith('/platform'))) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, gym_id, gyms(trial_expires_at, is_subscription_active, gym_status, plan_type, trial_start_date)')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .limit(1)
       .maybeSingle()
 

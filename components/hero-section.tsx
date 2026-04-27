@@ -434,6 +434,24 @@ export function HeroSection() {
           <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">Sin tarjeta</span>
           <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">Setup simple</span>
         </motion.div>
+
+        <motion.div
+          className="mt-4 flex items-center justify-center"
+          variants={fadeUp(ctaDelay + 0.14)}
+          initial={false}
+          animate="visible"
+        >
+          <a
+            href="/start?login=1"
+            className="group inline-flex items-center gap-1.5 text-[12px] font-medium text-white/35 transition-colors duration-200 hover:text-white/65"
+          >
+            ¿Ya tenés cuenta?
+            <span className="underline underline-offset-2 decoration-white/20 group-hover:decoration-white/50 transition-colors duration-200">
+              Iniciar sesión
+            </span>
+            <ArrowRight className="h-3 w-3 opacity-50 transition-transform duration-200 group-hover:translate-x-0.5" />
+          </a>
+        </motion.div>
       </div>
     </section>
   );
