@@ -364,8 +364,8 @@ export default function ClasesPage() {
 
       {/* Add/Edit Modal */}
       {modalOpen && typeof window !== "undefined" && createPortal(
-        <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: isMobile ? "20px 20px 0 0" : 18, padding: "28px 24px", width: "100%", maxWidth: isMobile ? "100%" : 440, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", maxHeight: "90vh", overflowY: "auto" }}>
+        <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: isMobile ? "20px 20px 0 0" : 18, padding: "28px 24px", width: "100%", maxWidth: isMobile ? "100%" : 440, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", maxHeight: isMobile ? "calc(90vh - 64px)" : "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
               <h2 style={{ font: `700 1.1rem/1 ${fd}`, color: t1 }}>{editId ? "Editar clase" : "Nueva clase"}</h2>
               <button onClick={() => setModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: t2, display: "flex" }}><X size={18} /></button>

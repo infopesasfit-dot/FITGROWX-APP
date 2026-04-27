@@ -639,22 +639,24 @@ export default function AlumnosPage() {
       <div
         onClick={() => setModalOpen(false)}
         style={{
-          position: "fixed", inset: 0, zIndex: 50,
+          position: "fixed", inset: 0, zIndex: 100,
           background: "rgba(0,0,0,0.40)",
           backdropFilter: "blur(6px)",
           WebkitBackdropFilter: "blur(6px)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: 20,
+          display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center",
+          padding: isMobile ? 0 : 20,
+          paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined,
         }}
       >
         <div
           onClick={e => e.stopPropagation()}
           style={{
             background: "#FFFFFF",
-            borderRadius: 20,
+            borderRadius: isMobile ? "20px 20px 0 0" : 20,
             boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
-            width: "100%", maxWidth: 480,
-            overflow: "hidden",
+            width: "100%", maxWidth: isMobile ? "100%" : 480,
+            maxHeight: isMobile ? "calc(90vh - 64px)" : undefined,
+            overflowY: "auto",
           }}
         >
           {/* Modal header */}
@@ -816,8 +818,8 @@ export default function AlumnosPage() {
 
     {/* ── Modal: Editar Alumno ── */}
     {editModalOpen && (
-      <div onClick={() => setEditModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: 480, overflow: "hidden" }}>
+      <div onClick={() => setEditModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 480, maxHeight: isMobile ? "calc(90vh - 64px)" : undefined, overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div>
               <h2 style={{ font: `800 1.15rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Editar Alumno</h2>
@@ -899,8 +901,8 @@ export default function AlumnosPage() {
     )}
     {/* ── Modal: Registrar Pago ── */}
     {pagoModalOpen && pagoTarget && (
-      <div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        <div style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: 400, overflow: "hidden" }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+        <div style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 400, maxHeight: isMobile ? "calc(90vh - 64px)" : undefined, overflowY: "auto" }}>
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div>
