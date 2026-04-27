@@ -41,7 +41,53 @@ DO $$ BEGIN
 END $$;
 
 
--- ── 1. 20260426_subscription_notif_tracking ──────────────────
+-- ── 1. 20260414_pagos_v2 (columnas faltantes en pagos) ────────
+ALTER TABLE pagos
+  ADD COLUMN IF NOT EXISTS method          TEXT    NOT NULL DEFAULT 'efectivo'
+    CHECK (method IN ('efectivo','transferencia','mercadopago')),
+  ADD COLUMN IF NOT EXISTS status          TEXT    NOT NULL DEFAULT 'validado'
+    CHECK (status IN ('pendiente','validado','rechazado')),
+  ADD COLUMN IF NOT EXISTS comprobante_url TEXT,
+  ADD COLUMN IF NOT EXISTS notes           TEXT,
+  ADD COLUMN IF NOT EXISTS validated_by    UUID REFERENCES profiles(id);
+
+DROP POLICY IF EXISTS "gym owner updates pagos" ON pagos;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='pagos' AND policyname='gym owner updates pagos') THEN
+    CREATE POLICY "gym owner updates pagos" ON pagos FOR UPDATE
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS gym_cuentas (
+  id         UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id     UUID    NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+  tipo       TEXT    NOT NULL CHECK (tipo IN ('alias','cbu','mercadopago')),
+  valor      TEXT    NOT NULL,
+  titular    TEXT,
+  banco      TEXT,
+  activa     BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS gym_cuentas_gym_id ON gym_cuentas(gym_id);
+ALTER TABLE gym_cuentas ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='gym_cuentas' AND policyname='gym reads own cuentas') THEN
+    CREATE POLICY "gym reads own cuentas"   ON gym_cuentas FOR SELECT USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='gym_cuentas' AND policyname='gym inserts own cuentas') THEN
+    CREATE POLICY "gym inserts own cuentas" ON gym_cuentas FOR INSERT WITH CHECK (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='gym_cuentas' AND policyname='gym updates own cuentas') THEN
+    CREATE POLICY "gym updates own cuentas" ON gym_cuentas FOR UPDATE USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='gym_cuentas' AND policyname='gym deletes own cuentas') THEN
+    CREATE POLICY "gym deletes own cuentas" ON gym_cuentas FOR DELETE USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+END $$;
+
+
+-- ── 2. 20260426_subscription_notif_tracking ──────────────────
 ALTER TABLE gyms
   ADD COLUMN IF NOT EXISTS trial_notif_d13_sent_at              TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS trial_notif_d15_sent_at              TIMESTAMPTZ,
