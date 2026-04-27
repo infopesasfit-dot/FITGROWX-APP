@@ -139,6 +139,21 @@ export function LandingHeader(props: LandingHeaderProps) {
                 {item.label}
               </Link>
             ))}
+            <div className="my-1 h-px bg-white/[0.06]" />
+            <Link
+              href="/start?login=1"
+              onClick={() => setMobileOpen(false)}
+              className="rounded-xl px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:bg-white/[0.06] active:bg-white/10"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              href="/start"
+              onClick={() => setMobileOpen(false)}
+              className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80"
+            >
+              Prueba gratis
+            </Link>
           </nav>
         </div>
       )}
