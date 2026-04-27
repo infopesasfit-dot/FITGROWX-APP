@@ -28,6 +28,7 @@ const GREEN  = "#FF6A00";
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Method     = "efectivo" | "transferencia" | "mercadopago" | "debito";
 type PagoStatus = "pendiente" | "validado" | "rechazado";
+type Concepto   = "membresia" | "clase" | "producto";
 
 interface Pago {
   id: string;
@@ -35,6 +36,8 @@ interface Pago {
   date: string;
   method: Method;
   status: PagoStatus;
+  concepto: Concepto;
+  descripcion: string | null;
   comprobante_url: string | null;
   notes: string | null;
   alumno_id: string;
@@ -47,6 +50,8 @@ type PagoRow = {
   date: string;
   method: Method;
   status: PagoStatus;
+  concepto: Concepto;
+  descripcion: string | null;
   comprobante_url: string | null;
   notes: string | null;
   alumno_id: string;
@@ -88,6 +93,12 @@ function fmtARS(n: number) {
   return "$" + n.toLocaleString("es-AR");
 }
 
+const CONCEPTO_META: Record<Concepto, { label: string; color: string; bg: string }> = {
+  membresia: { label: "Membresía",    color: "#FF6A00", bg: "rgba(255,106,0,0.08)" },
+  clase:     { label: "Clase/Evento", color: "#1E50F0", bg: "rgba(30,80,240,0.08)" },
+  producto:  { label: "Producto",     color: "#16A34A", bg: "rgba(22,163,74,0.08)" },
+};
+
 function mapPagoRow(row: PagoRow): Pago {
   return {
     id: row.id,
@@ -95,6 +106,8 @@ function mapPagoRow(row: PagoRow): Pago {
     date: row.date,
     method: row.method,
     status: row.status,
+    concepto: row.concepto ?? "membresia",
+    descripcion: row.descripcion ?? null,
     comprobante_url: row.comprobante_url,
     notes: row.notes,
     alumno_id: row.alumno_id,
@@ -138,12 +151,14 @@ export default function PagosPage() {
   const [toast,       setToast]       = useState<{ msg: string; type: "ok" | "err" } | null>(null);
 
   // Pago form
-  const [newPagoOpen,    setNewPagoOpen]    = useState(false);
-  const [pagoMethod,     setPagoMethod]     = useState<Method>("transferencia");
-  const [pagoMonto,      setPagoMonto]      = useState("");
-  const [pagoNotes,      setPagoNotes]      = useState("");
-  const [comproFile,     setComproFile]     = useState<File | null>(null);
-  const [uploading,      setUploading]      = useState(false);
+  const [newPagoOpen,      setNewPagoOpen]      = useState(false);
+  const [pagoConcepto,     setPagoConcepto]     = useState<Concepto>("membresia");
+  const [pagoDescripcion,  setPagoDescripcion]  = useState("");
+  const [pagoMethod,       setPagoMethod]       = useState<Method>("transferencia");
+  const [pagoMonto,        setPagoMonto]        = useState("");
+  const [pagoNotes,        setPagoNotes]        = useState("");
+  const [comproFile,       setComproFile]       = useState<File | null>(null);
+  const [uploading,        setUploading]        = useState(false);
 
   // Alumno combobox
   const [alumnos,        setAlumnos]        = useState<AlumnoOption[]>([]);
@@ -226,7 +241,7 @@ export default function PagosPage() {
     const [{ data: pagosData }, { data: cuentasData }, { data: alumnosData }] = await Promise.all([
       supabase
         .from("pagos")
-        .select("id, amount, date, method, status, comprobante_url, notes, alumno_id, alumnos(full_name, phone)")
+        .select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)")
         .eq("gym_id", profile.gym_id)
         .order("created_at", { ascending: false })
         .limit(100),
@@ -309,6 +324,7 @@ export default function PagosPage() {
 
   const closePagoModal = () => {
     setNewPagoOpen(false);
+    setPagoConcepto("membresia"); setPagoDescripcion("");
     setPagoMonto(""); setPagoNotes(""); setComproFile(null);
     setSelectedAlumno(null); setAlumnoSearch(""); setShowAlumnoList(false);
   };
@@ -347,6 +363,8 @@ export default function PagosPage() {
         amount:          monto,
         method:          pagoMethod,
         status:          needsValidation ? "pendiente" : "validado",
+        concepto:        pagoConcepto,
+        descripcion:     pagoDescripcion.trim() || null,
         comprobante_url: comprUrl,
         notes:           pagoNotes.trim() || null,
         date:            new Date().toISOString().slice(0, 10),
@@ -366,11 +384,10 @@ export default function PagosPage() {
         }),
       }).catch(() => {});
 
-      // Actualizar membresía pendiente → pagado
-      await updateMembresiaPagada(alumnoId);
-      // Renovar fechas para pagos confirmados
-      if (!needsValidation) {
-        await renewMembership(alumnoId);
+      // Renovar membresía solo si el concepto es membresía
+      if (pagoConcepto === "membresia") {
+        await updateMembresiaPagada(alumnoId);
+        if (!needsValidation) await renewMembership(alumnoId);
       }
       showToast(needsValidation ? "Comprobante enviado. Esperá la validación ✓" : "Pago registrado ✓", "ok");
       closePagoModal();
@@ -522,6 +539,7 @@ export default function PagosPage() {
                     <p style={{ font: `600 0.82rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</p>
                     <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.date}</p>
                   </div>
+                  <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
                   <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
                   <Chip meta={STATUS_META[p.status ?? "validado"]} />
                   <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, minWidth: 80, textAlign: "right" }}>{fmtARS(p.amount)}</span>
@@ -552,6 +570,7 @@ export default function PagosPage() {
                       <div>
                         <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>{p.alumnos?.full_name ?? "Alumno"}</p>
                         <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 3 }}>{p.date} · {METHOD_META[p.method].label}</p>
+                        {p.descripcion && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t1, marginTop: 3 }}>{p.descripcion}</p>}
                         {p.notes && <p style={{ font: `400 0.72rem/1 ${fb}`, color: t2, marginTop: 3, fontStyle: "italic" }}>{p.notes}</p>}
                       </div>
                     </div>
@@ -608,6 +627,7 @@ export default function PagosPage() {
                   <span style={{ font: `500 0.8rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</span>
                 </div>
                 <span style={{ font: `400 0.78rem/1 ${fb}`, color: t2 }}>{p.date}</span>
+                <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
                 <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
                 <Chip meta={STATUS_META[p.status ?? "validado"]} />
                 <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, textAlign: "right" }}>{fmtARS(p.amount)}</span>
@@ -634,7 +654,8 @@ export default function PagosPage() {
                   </div>
                   <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{fmtARS(p.amount)}</span>
                 </div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
                   <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
                   <Chip meta={STATUS_META[p.status ?? "validado"]} />
                 </div>
@@ -732,6 +753,31 @@ export default function PagosPage() {
             </div>
 
             <div style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+              {/* Concepto */}
+              <div>
+                <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 8 }}>Concepto</label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(["membresia", "clase", "producto"] as Concepto[]).map(c => (
+                    <button key={c} onClick={() => { setPagoConcepto(c); setPagoDescripcion(""); }}
+                      style={{ flex: 1, padding: "8px 4px", borderRadius: 10, border: `1.5px solid ${pagoConcepto === c ? CONCEPTO_META[c].color : "rgba(0,0,0,0.09)"}`, background: pagoConcepto === c ? CONCEPTO_META[c].bg : "transparent", color: pagoConcepto === c ? CONCEPTO_META[c].color : t3, font: `600 0.72rem/1 ${fb}`, cursor: "pointer", transition: "all 0.15s" }}>
+                      {CONCEPTO_META[c].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Descripción — para clase o producto */}
+              {pagoConcepto !== "membresia" && (
+                <div>
+                  <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>
+                    {pagoConcepto === "clase" ? "Nombre de la clase / evento *" : "Nombre del producto *"}
+                  </label>
+                  <input type="text" value={pagoDescripcion} onChange={e => setPagoDescripcion(e.target.value)}
+                    placeholder={pagoConcepto === "clase" ? "Ej: Clase de spinning especial" : "Ej: Proteína Whey 1kg"}
+                    style={{ ...inputStyle }} />
+                </div>
+              )}
 
               {/* Combobox alumno — solo admin/staff */}
               {role !== "student" && (

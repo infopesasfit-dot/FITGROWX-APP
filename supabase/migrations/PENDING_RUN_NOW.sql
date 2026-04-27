@@ -47,6 +47,9 @@ ALTER TABLE pagos
     CHECK (method IN ('efectivo','transferencia','mercadopago')),
   ADD COLUMN IF NOT EXISTS status          TEXT    NOT NULL DEFAULT 'validado'
     CHECK (status IN ('pendiente','validado','rechazado')),
+  ADD COLUMN IF NOT EXISTS concepto        TEXT    NOT NULL DEFAULT 'membresia'
+    CHECK (concepto IN ('membresia','clase','producto')),
+  ADD COLUMN IF NOT EXISTS descripcion     TEXT,
   ADD COLUMN IF NOT EXISTS comprobante_url TEXT,
   ADD COLUMN IF NOT EXISTS notes           TEXT,
   ADD COLUMN IF NOT EXISTS validated_by    UUID REFERENCES profiles(id);
