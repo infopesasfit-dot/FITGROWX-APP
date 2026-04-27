@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Receipt, TrendingDown, Tag, Calendar, X, DollarSign } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -44,37 +45,28 @@ export default function EgresosPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [gymId, setGymId]         = useState<string | null>(null);
 
-  const fetchEgresos = useCallback(async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("gym_id")
-      .eq("id", user.id)
-      .single();
-
+  const fetchEgresos = useCallback(async (background = false) => {
+    const profile = await getCachedProfile();
     if (!profile) { setLoading(false); return; }
+    setGymId(profile.gymId);
 
-    setGymId(profile.gym_id);
+    if (!background) {
+      const cached = getPageCache<Egreso[]>(`egresos_${profile.gymId}`);
+      if (cached) { setEgresos(cached); setLoading(false); }
+      else setLoading(true);
+    }
 
     const { data } = await supabase
-      .from("egresos")
-      .select("id, titulo, monto, categoria, fecha, gym_id")
-      .eq("gym_id", profile.gym_id)
-      .order("fecha", { ascending: false });
+      .from("egresos").select("id, titulo, monto, categoria, fecha, gym_id")
+      .eq("gym_id", profile.gymId).order("fecha", { ascending: false }).limit(200);
 
-    setEgresos((data as Egreso[]) ?? []);
+    const rows = (data as Egreso[]) ?? [];
+    setEgresos(rows);
+    setPageCache(`egresos_${profile.gymId}`, rows);
     setLoading(false);
   }, []);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void fetchEgresos();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [fetchEgresos]);
+  useEffect(() => { void fetchEgresos(); }, [fetchEgresos]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -153,7 +145,7 @@ export default function EgresosPage() {
               <span style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
             </div>
-            <p style={{ font: `800 1.8rem/1 ${fd}`, color: t1, marginBottom: 4 }}>
+            <p style={{ font: `800 ${isMobile ? "1.1rem" : "1.8rem"}/1 ${fd}`, color: t1, marginBottom: 4, wordBreak: "break-all" }}>
               {loading ? "—" : s.isCount ? s.value : `$${(s.value as number).toLocaleString("es-AR")}`}
             </p>
             <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{s.sub}</p>

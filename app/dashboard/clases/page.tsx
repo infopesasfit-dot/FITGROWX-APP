@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getPagoAlumnoSummary } from "@/lib/supabase-relations";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const t1 = "#1A1D23";
@@ -81,9 +82,7 @@ export default function ClasesPage() {
   const [deleteId,      setDeleteId]      = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setGymId(user.id);
-    });
+    getCachedProfile().then(p => { if (p) setGymId(p.gymId); });
   }, []);
 
   useEffect(() => {
@@ -93,43 +92,38 @@ export default function ClasesPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  const fetchClases = useCallback(async (gid: string) => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("gym_classes")
-      .select("id, class_name, day_of_week, start_time, max_capacity, event_type, notes, coach_name")
-      .eq("gym_id", gid)
-      .order("day_of_week")
-      .order("start_time");
-    if (!data) { setLoading(false); return; }
+  const fetchClases = useCallback(async (gid: string, background = false) => {
+    if (!background) {
+      const cached = getPageCache<GymClass[]>(`clases_${gid}`);
+      if (cached) { setClases(cached); setLoading(false); }
+      else setLoading(true);
+    }
 
     const today = new Date();
     const dates = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() + i);
-      return d.toISOString().slice(0, 10);
+      const d = new Date(today); d.setDate(d.getDate() + i); return d.toISOString().slice(0, 10);
     });
 
-    const { data: resData } = await supabase
-      .from("reservas")
-      .select("clase_id")
-      .eq("gym_id", gid)
-      .eq("estado", "confirmada")
-      .in("fecha", dates);
+    const [{ data }, { data: resData }] = await Promise.all([
+      supabase.from("gym_classes")
+        .select("id, class_name, day_of_week, start_time, max_capacity, event_type, notes, coach_name")
+        .eq("gym_id", gid).order("day_of_week").order("start_time"),
+      supabase.from("reservas")
+        .select("clase_id").eq("gym_id", gid).eq("estado", "confirmada").in("fecha", dates),
+    ]);
 
+    if (!data) { setLoading(false); return; }
     const countMap: Record<string, number> = {};
     resData?.forEach(r => { countMap[r.clase_id] = (countMap[r.clase_id] ?? 0) + 1; });
-
-    setClases(data.map(c => ({ ...c, event_type: (c.event_type ?? "regular") as "regular" | "especial", reservas_count: countMap[c.id] ?? 0 })));
+    const rows = data.map(c => ({ ...c, event_type: (c.event_type ?? "regular") as "regular" | "especial", reservas_count: countMap[c.id] ?? 0 }));
+    setClases(rows);
+    setPageCache(`clases_${gid}`, rows);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     if (!gymId) return;
-    const timer = window.setTimeout(() => {
-      void fetchClases(gymId);
-    }, 0);
-    return () => window.clearTimeout(timer);
+    void fetchClases(gymId);
   }, [gymId, fetchClases]);
 
   const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setFormError(null); setModalOpen(true); };

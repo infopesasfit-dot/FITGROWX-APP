@@ -6,6 +6,7 @@ import {
   Sparkles, X, Send, Star, Zap,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import MembershipCards, { type EmilioPlan } from "@/components/MembershipCards";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -262,37 +263,44 @@ export default function MembresiasPage() {
   };
 
   // ── Fetch planes ──────────────────────────────────────────────────────────
-  const fetchPlanes = useCallback(async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
+  const fetchPlanes = useCallback(async (background = false) => {
+    const profile = await getCachedProfile();
+    if (!profile) { setLoading(false); return; }
 
-    const { data } = await supabase
-      .from("planes")
-      .select("id, nombre, precio, periodo, features, destacado, accent_color")
-      .eq("gym_id", user.id)
-      .order("created_at");
+    type PlanesCache = { planes: PlanDB[]; alumnosPorPlan: Record<string, number>; activosCount: number };
+    if (!background) {
+      const cached = getPageCache<PlanesCache>(`membresias_${profile.gymId}`);
+      if (cached) {
+        setPlanes(cached.planes);
+        if (cached.planes.length > 0) setShowHero(false);
+        const d: Record<string, Draft> = {};
+        cached.planes.forEach(p => { d[p.id] = planToDraft(p); });
+        setDrafts(d); setDirty(new Set());
+        setAlumnosPorPlan(cached.alumnosPorPlan);
+        setActivosCount(cached.activosCount);
+        setLoading(false);
+      } else setLoading(true);
+    }
+
+    const [{ data }, { data: alumnosData }, { count: activos }] = await Promise.all([
+      supabase.from("planes").select("id, nombre, precio, periodo, features, destacado, accent_color").eq("gym_id", profile.gymId).order("created_at"),
+      supabase.from("alumnos").select("plan_id").eq("gym_id", profile.gymId).not("plan_id", "is", null),
+      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).eq("status", "activo"),
+    ]);
 
     const list: PlanDB[] = data ? (data as PlanDB[]) : [];
     setPlanes(list);
     if (list.length > 0) setShowHero(false);
     const d: Record<string, Draft> = {};
     list.forEach(p => { d[p.id] = planToDraft(p); });
-    setDrafts(d);
-    setDirty(new Set());
-
-    // Count alumnos per plan + total activos
-    const [{ data: alumnosData }, { count: activos }] = await Promise.all([
-      supabase.from("alumnos").select("plan_id").eq("gym_id", user.id).not("plan_id", "is", null),
-      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", user.id).eq("status", "activo"),
-    ]);
+    setDrafts(d); setDirty(new Set());
     const counts: Record<string, number> = {};
     (alumnosData ?? []).forEach((a: { plan_id: string }) => {
       if (a.plan_id) counts[a.plan_id] = (counts[a.plan_id] ?? 0) + 1;
     });
     setAlumnosPorPlan(counts);
     setActivosCount(activos ?? 0);
-
+    setPageCache(`membresias_${profile.gymId}`, { planes: list, alumnosPorPlan: counts, activosCount: activos ?? 0 });
     setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

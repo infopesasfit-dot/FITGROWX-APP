@@ -9,6 +9,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { getPagoAlumnoSummary, getPlanPeriodo } from "@/lib/supabase-relations";
 import { addMonths } from "@/lib/date-utils";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -226,42 +227,46 @@ export default function PagosPage() {
     }
   };
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setLoading(false); return; }
-    setUserId(user.id);
-
-    const { data: profile } = await supabase
-      .from("profiles").select("gym_id, role").eq("id", user.id).single();
+  const fetchAll = useCallback(async (background = false) => {
+    const profile = await getCachedProfile();
     if (!profile) { setLoading(false); return; }
+    setUserId(profile.userId);
+    setRole(profile.role);
+    setGymId(profile.gymId);
 
-    setRole(profile.role ?? "admin");
-    setGymId(profile.gym_id);
+    if (!background) {
+      const cached = getPageCache<{ pagos: Pago[]; cuentas: Cuenta[]; alumnos: AlumnoOption[] }>(`pagos_${profile.gymId}`);
+      if (cached) { setPagos(cached.pagos); setCuentas(cached.cuentas); setAlumnos(cached.alumnos); setLoading(false); }
+      else setLoading(true);
+    }
 
     const [{ data: pagosData }, { data: cuentasData }, { data: alumnosData }] = await Promise.all([
       supabase
         .from("pagos")
         .select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)")
-        .eq("gym_id", profile.gym_id)
+        .eq("gym_id", profile.gymId)
         .order("created_at", { ascending: false })
         .limit(100),
       supabase
         .from("gym_cuentas")
         .select("id, tipo, valor, titular, banco, activa")
-        .eq("gym_id", profile.gym_id)
+        .eq("gym_id", profile.gymId)
         .eq("activa", true)
         .order("created_at"),
       supabase
         .from("alumnos")
         .select("id, full_name")
-        .eq("gym_id", profile.gym_id)
+        .eq("gym_id", profile.gymId)
         .order("full_name"),
     ]);
 
-    setPagos((pagosData ?? []).map((row) => mapPagoRow(row)));
-    setCuentas((cuentasData ?? []) as Cuenta[]);
-    setAlumnos((alumnosData ?? []) as AlumnoOption[]);
+    const pagos    = (pagosData ?? []).map((row) => mapPagoRow(row));
+    const cuentas  = (cuentasData ?? []) as Cuenta[];
+    const alumnos  = (alumnosData ?? []) as AlumnoOption[];
+    setPagos(pagos);
+    setCuentas(cuentas);
+    setAlumnos(alumnos);
+    setPageCache(`pagos_${profile.gymId}`, { pagos, cuentas, alumnos });
     setLoading(false);
   }, []);
 
@@ -866,7 +871,10 @@ export default function PagosPage() {
                     <Upload size={14} />
                     {comproFile ? comproFile.name : "Subir imagen o PDF"}
                   </button>
-                  <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 5 }}>
+                  <p style={{ font: `400 0.7rem/1 ${fb}`, color: "#9CA3AF", marginTop: 4 }}>
+                    JPG, PNG, WebP, GIF o PDF · máx. 10 MB
+                  </p>
+                  <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 3 }}>
                     Quedará en estado <strong style={{ color: "#D97706" }}>Pendiente</strong> hasta que el staff valide.
                   </p>
                 </div>

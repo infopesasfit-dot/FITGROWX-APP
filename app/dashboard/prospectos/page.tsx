@@ -5,6 +5,7 @@ import {
   Target, Phone, Mail, Clock, CheckCircle, X, MessageSquare, Search, Filter,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -60,17 +61,22 @@ export default function ProspectosPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setGymId(user.id);
+      const profile = await getCachedProfile();
+      if (!profile) { setLoading(false); return; }
+      setGymId(profile.gymId);
+
+      const cached = getPageCache<Prospecto[]>(`prospectos_${profile.gymId}`);
+      if (cached) { setProspectos(cached); setLoading(false); }
 
       const { data } = await supabase
         .from("prospectos")
         .select("id, full_name, phone, email, created_at, status")
-        .eq("gym_id", user.id)
+        .eq("gym_id", profile.gymId)
         .order("created_at", { ascending: false });
 
-      setProspectos((data ?? []) as Prospecto[]);
+      const rows = (data ?? []) as Prospecto[];
+      setProspectos(rows);
+      setPageCache(`prospectos_${profile.gymId}`, rows);
       setLoading(false);
     })();
   }, []);

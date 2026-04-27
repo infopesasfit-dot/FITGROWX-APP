@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Clock, Trash2, CheckCircle } from "lucide-react";
 
 import { supabase } from "@/lib/supabase";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -102,31 +103,33 @@ export default function AlumnosPage() {
   const [gymId,            setGymId]            = useState<string | null>(null);
 
   // ── Fetch alumnos ─────────────────────────────────────────────────
-  const fetchAlumnos = useCallback(async () => {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setLoading(false); return; }
-
-    const { data: profile } = await supabase
-      .from("profiles").select("gym_id").eq("id", session.user.id).single();
+  const fetchAlumnos = useCallback(async (background = false) => {
+    const profile = await getCachedProfile();
     if (!profile) { setLoading(false); return; }
+    setGymId(profile.gymId);
 
-    setGymId(profile.gym_id);
+    if (!background) {
+      const cached = getPageCache<Alumno[]>(`alumnos_${profile.gymId}`);
+      if (cached) { setAlumnos(cached); setTotalCount(cached.length); setLoading(false); }
+      else setLoading(true);
+    }
 
     const [{ data }, { count }] = await Promise.all([
       supabase
         .from("alumnos")
         .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio)")
-        .eq("gym_id", profile.gym_id)
+        .eq("gym_id", profile.gymId)
         .order("full_name"),
       supabase
         .from("alumnos")
         .select("id", { count: "exact", head: true })
-        .eq("gym_id", profile.gym_id),
+        .eq("gym_id", profile.gymId),
     ]);
 
-    setAlumnos((data as unknown as Alumno[]) ?? []);
+    const rows = (data as unknown as Alumno[]) ?? [];
+    setAlumnos(rows);
     setTotalCount(count ?? 0);
+    setPageCache(`alumnos_${profile.gymId}`, rows);
     setLoading(false);
   }, []);
 
