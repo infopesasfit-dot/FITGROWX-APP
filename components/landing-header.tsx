@@ -96,11 +96,10 @@ export function LandingHeader(props: LandingHeaderProps) {
               </Link>
               <Link
                 href={props.actionHref}
-                className="landing-header-cta group relative inline-flex items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] text-white/85 sm:px-5"
+                className="landing-header-cta group relative hidden sm:inline-flex items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-[13px] font-semibold tracking-[-0.01em] text-white/85 sm:px-5"
               >
                 <span className="landing-header-cta-glow" />
-                <span className="relative z-10 hidden sm:inline">{props.actionLabel}</span>
-                <span className="relative z-10 sm:hidden">Probar</span>
+                <span className="relative z-10">{props.actionLabel}</span>
                 <ArrowRight className="relative z-10 h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-0.5" />
               </Link>
             </>
@@ -129,6 +128,25 @@ export function LandingHeader(props: LandingHeaderProps) {
       {mobileOpen && (
         <div ref={mobileMenuRef} className="md:hidden mx-auto mt-2 max-w-6xl px-1">
           <nav className="flex flex-col gap-1 rounded-2xl border border-white/[0.08] bg-black/80 p-3 shadow-2xl backdrop-blur-2xl">
+            {/* CTAs arriba */}
+            <div className="flex gap-2 p-1 pb-2">
+              <Link
+                href="/start?login=1"
+                onClick={() => setMobileOpen(false)}
+                className="flex-1 flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:bg-white/[0.09] active:bg-white/10"
+              >
+                Iniciar sesión
+              </Link>
+              <Link
+                href="/start"
+                onClick={() => setMobileOpen(false)}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#FF6A00] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80"
+              >
+                Prueba gratis
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <div className="mb-1 h-px bg-white/[0.06]" />
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.href}
@@ -139,21 +157,6 @@ export function LandingHeader(props: LandingHeaderProps) {
                 {item.label}
               </Link>
             ))}
-            <div className="my-1 h-px bg-white/[0.06]" />
-            <Link
-              href="/start?login=1"
-              onClick={() => setMobileOpen(false)}
-              className="rounded-xl px-4 py-3 text-sm font-semibold text-white/80 transition-colors hover:bg-white/[0.06] active:bg-white/10"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              href="/start"
-              onClick={() => setMobileOpen(false)}
-              className="mt-1 flex items-center justify-center gap-2 rounded-xl bg-[#FF6A00] px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 active:opacity-80"
-            >
-              Prueba gratis
-            </Link>
           </nav>
         </div>
       )}
