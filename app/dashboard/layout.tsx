@@ -12,7 +12,6 @@ import {
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
-import FloatingSupport from "@/components/FloatingSupport";
 import FeedbackModal from "@/components/FeedbackModal";
 import { getGymSummary } from "@/lib/supabase-relations";
 
@@ -691,7 +690,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
       )}
 
-      <FloatingSupport />
       <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} gymId={gymId} gymDisplayName={gymDisplayName} />
 
       {/* ── Trial last-24h modal ── */}
