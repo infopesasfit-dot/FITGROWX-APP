@@ -52,7 +52,13 @@ function openWhatsApp(phone: string, full_name: string) {
 }
 
 
-const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: "" };
+const defaultExpiry = () => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); };
+const statusFromDate = (dateStr: string | null): Status => {
+  if (!dateStr) return "activo";
+  return new Date(dateStr) < new Date(new Date().toISOString().slice(0, 10)) ? "vencido" : "activo";
+};
+
+const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry() };
 
 export default function AlumnosPage() {
   const [isMobile,        setIsMobile]        = useState(false);
@@ -131,7 +137,7 @@ export default function AlumnosPage() {
 
   // ── Open modal + fetch planes ─────────────────────────────────────
   const openModal = async () => {
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, fecha_inicio: defaultExpiry() });
     setFormError(null);
     setModalOpen(true);
 
@@ -182,7 +188,7 @@ export default function AlumnosPage() {
       phone:               normalizePhone(form.phone.trim()),
       email:               form.email.trim() || null,
       plan_id:             form.plan_id || null,
-      status:              "activo" as Status,
+      status:              statusFromDate(form.fecha_inicio || null),
       last_payment_date:   new Date().toISOString().slice(0, 10),
       next_expiration_date: form.fecha_inicio || null,
     }]);
@@ -452,6 +458,7 @@ export default function AlumnosPage() {
       phone:                normalizePhone(editForm.phone.trim()),
       plan_id:              editForm.plan_id || null,
       next_expiration_date: editForm.next_expiration_date || null,
+      status:               statusFromDate(editForm.next_expiration_date || null),
     }).eq("id", editForm.id);
     if (error) { setEditError(error.message); setEditSaving(false); return; }
     setEditModalOpen(false);
