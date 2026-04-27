@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Receipt, TrendingDown, Tag, Calendar, X, DollarSign } from "lucide-react";
+import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
@@ -33,7 +34,7 @@ interface Egreso {
   gym_id: string;
 }
 
-const EMPTY_FORM = { titulo: "", monto: "", categoria: CATEGORIAS[0], fecha: new Date().toISOString().slice(0, 10) };
+const EMPTY_FORM = { titulo: "", monto: "", categoria: CATEGORIAS[0], fecha: getTodayDate() };
 
 export default function EgresosPage() {
   const [isMobile, setIsMobile]   = useState(false);
@@ -66,7 +67,13 @@ export default function EgresosPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { void fetchEgresos(); }, [fetchEgresos]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchEgresos();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchEgresos]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);

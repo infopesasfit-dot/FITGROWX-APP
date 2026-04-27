@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import { LandingHeader } from "@/components/landing-header";
 
 export const metadata = {
@@ -45,7 +44,7 @@ export default function TerminosPage() {
             <h2 className="mb-3 text-base font-semibold text-white">2. Naturaleza del servicio — Plataforma intermediaria</h2>
             <p>
               FitGrowX actúa exclusivamente como <strong className="text-white/80">intermediario tecnológico</strong> entre
-              el gimnasio o box (en adelante, "el Establecimiento") y sus alumnos o socios (en adelante, "los Usuarios").
+              el gimnasio o box (en adelante, &quot;el Establecimiento&quot;) y sus alumnos o socios (en adelante, &quot;los Usuarios&quot;).
               FitGrowX <strong className="text-white/80">no presta servicios de actividad física</strong>, no es empleador
               de instructores, ni tiene control operativo sobre las instalaciones de los Establecimientos.
             </p>

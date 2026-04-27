@@ -5,6 +5,37 @@
 -- ============================================================
 
 
+-- ── -1. 20260421_asistencias (tabla faltante + RLS correcto) ──
+CREATE TABLE IF NOT EXISTS asistencias (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  gym_id     UUID NOT NULL,
+  alumno_id  UUID NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
+  fecha      DATE NOT NULL DEFAULT CURRENT_DATE,
+  hora       TIME NOT NULL DEFAULT CURRENT_TIME,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(alumno_id, fecha)
+);
+
+CREATE INDEX IF NOT EXISTS idx_asistencias_gym_id ON asistencias(gym_id);
+CREATE INDEX IF NOT EXISTS idx_asistencias_alumno  ON asistencias(alumno_id);
+CREATE INDEX IF NOT EXISTS idx_asistencias_fecha   ON asistencias(fecha);
+
+ALTER TABLE asistencias ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  -- Fix: old policy used gym_id = auth.uid() which is always false
+  DROP POLICY IF EXISTS "owner_asistencias" ON asistencias;
+  CREATE POLICY "owner_asistencias" ON asistencias FOR ALL TO authenticated
+    USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()))
+    WITH CHECK (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='asistencias' AND policyname='service_asistencias') THEN
+    CREATE POLICY "service_asistencias" ON asistencias FOR ALL TO service_role
+      USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+
+
 -- ── 0. 20260427_egresos (tabla faltante) ─────────────────────
 CREATE TABLE IF NOT EXISTS egresos (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -199,6 +230,12 @@ DO $$ BEGIN
 END $$;
 
 
+-- ── 2b. 20260427_planes_duracion_dias_active ─────────────────
+ALTER TABLE planes
+  ADD COLUMN IF NOT EXISTS duracion_dias INT NOT NULL DEFAULT 30,
+  ADD COLUMN IF NOT EXISTS active        BOOLEAN NOT NULL DEFAULT true;
+
+
 -- ── 3. 20260427_missing_columns ──────────────────────────────
 ALTER TABLE gym_settings
   ADD COLUMN IF NOT EXISTS wa_status   TEXT,
@@ -206,6 +243,7 @@ ALTER TABLE gym_settings
   ADD COLUMN IF NOT EXISTS wa_battery  INT,
   ADD COLUMN IF NOT EXISTS wa_plugged  BOOLEAN,
   ADD COLUMN IF NOT EXISTS wa_signal   INT,
+  ADD COLUMN IF NOT EXISTS instagram_url TEXT,
   ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT false;
 
 ALTER TABLE gyms
@@ -304,5 +342,55 @@ DO $$ BEGIN
     CREATE POLICY "owner upsert whatsapp_sessions" ON whatsapp_sessions FOR ALL TO authenticated
       USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid())::text)
       WITH CHECK (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid())::text);
+  END IF;
+END $$;
+
+
+-- ── 10. Staff support: email + full_name en profiles ────────────
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS email     TEXT,
+  ADD COLUMN IF NOT EXISTS full_name TEXT;
+
+-- Admin puede leer perfiles de staff de su mismo gym
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='profiles' AND policyname='admin reads gym profiles') THEN
+    CREATE POLICY "admin reads gym profiles" ON profiles FOR SELECT
+      USING (
+        gym_id = (SELECT gym_id FROM profiles p2 WHERE p2.id = auth.uid())
+        AND id != auth.uid()
+      );
+  END IF;
+END $$;
+
+
+-- ── 9. Storage bucket comprobantes (público para getPublicUrl) ─
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'comprobantes',
+  'comprobantes',
+  true,
+  10485760,
+  ARRAY['image/jpeg','image/png','image/webp','image/gif','application/pdf']
+)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+    AND policyname = 'comprobantes upload authenticated'
+  ) THEN
+    CREATE POLICY "comprobantes upload authenticated"
+      ON storage.objects FOR INSERT TO authenticated
+      WITH CHECK (bucket_id = 'comprobantes');
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'storage' AND tablename = 'objects'
+    AND policyname = 'comprobantes public read'
+  ) THEN
+    CREATE POLICY "comprobantes public read"
+      ON storage.objects FOR SELECT TO public
+      USING (bucket_id = 'comprobantes');
   END IF;
 END $$;

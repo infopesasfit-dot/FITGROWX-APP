@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
@@ -85,7 +86,7 @@ export default function GymLandingPage() {
       {/* Hero */}
       <div style={{ maxWidth: 480, width: "100%", textAlign: "center", marginBottom: 40 }}>
         {gym?.logo_url && (
-          <img src={gym.logo_url} alt="Logo" style={{ height: 64, objectFit: "contain", marginBottom: 24 }} />
+          <Image src={gym.logo_url} alt="Logo" width={180} height={64} unoptimized style={{ height: 64, width: "auto", objectFit: "contain", marginBottom: 24 }} />
         )}
         <h1 style={{ color: "#fff", fontSize: "clamp(1.8rem, 5vw, 2.4rem)", fontWeight: 800, lineHeight: 1.1, margin: "0 0 16px", letterSpacing: "-0.02em" }}>
           {gym?.landing_title ?? "Probá una clase gratis."}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -123,7 +123,11 @@ export default function ClasesPage() {
 
   useEffect(() => {
     if (!gymId) return;
-    void fetchClases(gymId);
+    const timeoutId = window.setTimeout(() => {
+      void fetchClases(gymId);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [gymId, fetchClases]);
 
   const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setFormError(null); setModalOpen(true); };

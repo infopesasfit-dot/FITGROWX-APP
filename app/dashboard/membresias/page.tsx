@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  CreditCard, TrendingUp, Calendar, Settings,
-  Sparkles, X, Send, Star, Zap,
+  CreditCard, TrendingUp, Calendar,
+  Sparkles, X, Send,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -27,6 +27,8 @@ interface PlanDB {
   nombre: string;
   precio: number;
   periodo: string;
+  duracion_dias: number;
+  active: boolean;
   features: string[];
   destacado: boolean;
   accent_color: string | null;
@@ -36,32 +38,16 @@ type Draft = {
   nombre: string;
   precio: string;
   periodo: string;
+  duracion_dias: string;
+  active: boolean;
   features: string;
   destacado: boolean;
   accent_color: string;
 };
 
 // ── Seed templates ────────────────────────────────────────────────────────────
-const SEED: Omit<PlanDB, "id">[] = [
-  {
-    nombre: "Básico", precio: 35000, periodo: "mes",
-    features: ["Acceso a sala de pesas", "Horario libre", "Sin clases grupales"],
-    destacado: false, accent_color: null,
-  },
-  {
-    nombre: "Transformación", precio: 58000, periodo: "mes",
-    features: ["Todo en Básico", "Clases grupales", "App de seguimiento", "Nutricionista"],
-    destacado: true, accent_color: "#F97316",
-  },
-  {
-    nombre: "VIP", precio: 95000, periodo: "mes",
-    features: ["Todo en Transformación", "Sesiones 1:1", "Plan de nutrición", "Prioridad reservas"],
-    destacado: false, accent_color: "#4B6BFB",
-  },
-];
-
-const DEF_COLORS = [t2, "#F97316", "#4B6BFB"];
-const DEF_BGS    = ["#F0F2F8", "rgba(249,115,22,0.08)", "rgba(75,107,251,0.08)"];
+const DEF_COLORS = ["#8E8E93", "#8E8E93", "#8E8E93"];
+const DEF_BGS    = ["#F2F2F7", "#F2F2F7", "#F2F2F7"];
 const PLAN_ICONS = [
   (c: string) => <CreditCard size={20} color={c} />,
   (c: string) => <TrendingUp size={20} color={c} />,
@@ -77,12 +63,14 @@ function planStyleFn(accentColor: string | null, i: number) {
 
 function planToDraft(p: PlanDB): Draft {
   return {
-    nombre:       p.nombre,
-    precio:       String(p.precio),
-    periodo:      p.periodo,
-    features:     (p.features ?? []).join("\n"),
-    destacado:    p.destacado,
-    accent_color: p.accent_color ?? "",
+    nombre:        p.nombre,
+    precio:        String(p.precio),
+    periodo:       p.periodo,
+    duracion_dias: String(p.duracion_dias ?? 30),
+    active:        p.active ?? true,
+    features:      (p.features ?? []).join("\n"),
+    destacado:     p.destacado,
+    accent_color:  p.accent_color ?? "",
   };
 }
 
@@ -91,29 +79,25 @@ function AdvancedModal({
   draft, onSave, onClose,
 }: {
   draft: Draft;
-  onSave: (changes: Pick<Draft, "periodo" | "destacado" | "accent_color">) => void;
+  onSave: (changes: Pick<Draft, "periodo">) => void;
   onClose: () => void;
 }) {
-  const [periodo,     setPeriodo]     = useState(draft.periodo);
-  const [destacado,   setDestacado]   = useState(draft.destacado);
-  const [accentColor, setAccentColor] = useState(draft.accent_color || "#F97316");
+  const [periodo, setPeriodo] = useState(draft.periodo);
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: 360, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: 320, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 22px 16px" }}>
           <div>
-            <h2 style={{ font: `800 1rem/1 ${fd}`, color: t1 }}>Ajustes avanzados</h2>
-            <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 4 }}>Período, badge y color del plan.</p>
+            <h2 style={{ font: `800 1rem/1 ${fd}`, color: t1 }}>Configuración del plan</h2>
+            <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 4 }}>Período de cobro.</p>
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}>
             <X size={16} />
           </button>
         </div>
-        <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 24px" }} />
-        <div style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Período */}
+        <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 22px" }} />
+        <div style={{ padding: "18px 22px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 8 }}>Período de cobro</label>
             <div style={{ display: "flex", gap: 8 }}>
@@ -124,107 +108,11 @@ function AdvancedModal({
               ))}
             </div>
           </div>
-
-          {/* Destacado toggle */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "#F9FAFB", borderRadius: 10, border: "1px solid rgba(0,0,0,0.06)" }}>
-            <div>
-              <p style={{ font: `600 0.83rem/1 ${fb}`, color: t1, marginBottom: 3 }}>Más popular</p>
-              <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>Muestra el badge naranja en la card</p>
-            </div>
-            <button type="button" onClick={() => setDestacado(d => !d)} style={{ width: 44, height: 24, borderRadius: 9999, border: "none", background: destacado ? "#F97316" : "rgba(0,0,0,0.12)", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
-              <span style={{ position: "absolute", top: 3, left: destacado ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.20)", transition: "left 0.2s", display: "block" }} />
-            </button>
-          </div>
-
-          {/* Color picker */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 3 }}>Color del plan</label>
-              <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>Afecta ícono, badge y barra de retención</p>
-            </div>
-            <input type="color" value={accentColor} onChange={e => setAccentColor(e.target.value)} style={{ width: 40, height: 34, border: "1px solid rgba(0,0,0,0.09)", borderRadius: 8, cursor: "pointer", padding: 2, background: "none" }} />
-          </div>
-
-          <button onClick={() => { onSave({ periodo, destacado, accent_color: accentColor }); onClose(); }} style={{ width: "100%", padding: "12px", background: "#F97316", color: "white", border: "none", borderRadius: 12, font: `700 0.95rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 16px rgba(249,115,22,0.28)", marginTop: 2 }}>
-            Aplicar cambios
+          <button onClick={() => { onSave({ periodo }); onClose(); }} style={{ width: "100%", padding: "12px", background: "#FF6A00", color: "white", border: "none", borderRadius: 12, font: `700 0.95rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 16px rgba(255,106,0,0.28)" }}>
+            Aplicar
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Skeleton card (blueprint mode) ───────────────────────────────────────────
-function SkeletonCard() {
-  const bar = (w: string, h = 8, extra: React.CSSProperties = {}) => (
-    <div style={{ width: w, height: h, background: "#E2E8F0", borderRadius: 4, ...extra }} />
-  );
-  return (
-    <div style={{ border: "1px solid #E2E8F0", borderRadius: 14, background: "rgba(248,250,252,0.55)", padding: "22px", display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: "#E2E8F0" }} />
-        <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#E2E8F0" }} />
-      </div>
-      <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-        {bar("38%", 6)}
-        {bar("62%", 13)}
-      </div>
-      <div style={{ marginBottom: 14, display: "flex", flexDirection: "column", gap: 6 }}>
-        {bar("28%", 6)}
-        {bar("48%", 20)}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0 12px", borderTop: "1px solid #E2E8F0", borderBottom: "1px solid #E2E8F0", marginBottom: 14 }}>
-        {bar("44px", 5)}
-        <div style={{ flex: 1, height: 5, background: "#E2E8F0", borderRadius: 9999 }} />
-        {bar("28px", 5)}
-      </div>
-      <div style={{ marginBottom: 16, display: "flex", flexDirection: "column", gap: 7 }}>
-        {bar("30%", 5)}
-        {[82, 68, 90].map((w, i) => bar(`${w}%`, 7, { marginTop: i === 0 ? 4 : 0 }))}
-      </div>
-      <div style={{ display: "flex", gap: 6, marginTop: "auto" }}>
-        <div style={{ width: 88, height: 32, borderRadius: 9, background: "#E2E8F0" }} />
-        <div style={{ flex: 1, height: 32, borderRadius: 9, background: "#E2E8F0" }} />
-      </div>
-    </div>
-  );
-}
-
-// ── Hero center card (blueprint mode) ────────────────────────────────────────
-function HeroCenterCard({ onCTA }: { onCTA: () => void }) {
-  const fd2 = "var(--font-inter, 'Inter', sans-serif)";
-  const fb2 = "var(--font-inter, 'Inter', sans-serif)";
-  return (
-    <div style={{ border: "1px solid #E2E8F0", borderRadius: 14, background: "white", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(249,115,22,0.09)", border: "1px solid rgba(249,115,22,0.18)", borderRadius: 9999, padding: "3px 12px", marginBottom: 14 }}>
-        <Zap size={10} color="#F97316" />
-        <span style={{ font: `700 0.62rem/1 ${fb2}`, color: "#F97316", textTransform: "uppercase" as const, letterSpacing: "0.09em" }}>Oferta · Hormozi</span>
-      </div>
-      <h2 style={{ font: `800 1.15rem/1.3 ${fd2}`, color: "#1A1D23", letterSpacing: "-0.02em", marginBottom: 10 }}>
-        ¿Cuál va a ser tu<br />oferta irresistible?
-      </h2>
-      <p style={{ font: `400 0.775rem/1.6 ${fb2}`, color: "#6B7280", marginBottom: 22 }}>
-        Diseñá planes que tus<br />alumnos no puedan rechazar.
-      </p>
-      <button
-        onClick={onCTA}
-        className="pulse-btn"
-        style={{
-          background: "linear-gradient(180deg, #FB923C 0%, #EA580C 100%)",
-          color: "white",
-          border: "1px solid rgba(255,220,140,0.40)",
-          padding: "12px 26px",
-          borderRadius: 12,
-          font: `700 0.875rem/1 ${fd2}`,
-          cursor: "pointer",
-          boxShadow: "0 8px 20px -2px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.20)",
-          transition: "transform 0.2s, box-shadow 0.2s",
-        }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 14px 30px -4px rgba(249,115,22,0.60), inset 0 1px 0 rgba(255,255,255,0.20)"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "none"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 20px -2px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.20)"; }}
-      >
-        Diseñar mi oferta
-      </button>
     </div>
   );
 }
@@ -234,7 +122,6 @@ export default function MembresiasPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [planes,      setPlanes]      = useState<PlanDB[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [showHero,    setShowHero]    = useState(true);   // hides when planes exist or CTA clicked
   const [drafts,      setDrafts]      = useState<Record<string, Draft>>({});
   const [dirty,       setDirty]       = useState<Set<string>>(new Set());
   const [savingSet,   setSavingSet]   = useState<Set<string>>(new Set());
@@ -272,7 +159,7 @@ export default function MembresiasPage() {
       const cached = getPageCache<PlanesCache>(`membresias_${profile.gymId}`);
       if (cached) {
         setPlanes(cached.planes);
-        if (cached.planes.length > 0) setShowHero(false);
+
         const d: Record<string, Draft> = {};
         cached.planes.forEach(p => { d[p.id] = planToDraft(p); });
         setDrafts(d); setDirty(new Set());
@@ -283,14 +170,13 @@ export default function MembresiasPage() {
     }
 
     const [{ data }, { data: alumnosData }, { count: activos }] = await Promise.all([
-      supabase.from("planes").select("id, nombre, precio, periodo, features, destacado, accent_color").eq("gym_id", profile.gymId).order("created_at"),
+      supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, active, features, destacado, accent_color").eq("gym_id", profile.gymId).order("created_at"),
       supabase.from("alumnos").select("plan_id").eq("gym_id", profile.gymId).not("plan_id", "is", null),
       supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).eq("status", "activo"),
     ]);
 
     const list: PlanDB[] = data ? (data as PlanDB[]) : [];
     setPlanes(list);
-    if (list.length > 0) setShowHero(false);
     const d: Record<string, Draft> = {};
     list.forEach(p => { d[p.id] = planToDraft(p); });
     setDrafts(d); setDirty(new Set());
@@ -302,12 +188,11 @@ export default function MembresiasPage() {
     setActivosCount(activos ?? 0);
     setPageCache(`membresias_${profile.gymId}`, { planes: list, alumnosPorPlan: counts, activosCount: activos ?? 0 });
     setLoading(false);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
-  useEffect(() => { fetchPlanes(); }, [fetchPlanes]);
+  useEffect(() => { void fetchPlanes(); }, [fetchPlanes]);
 
   // ── Hero CTA — only hides the mirror overlay ───────────────────────────────
-  const handleHeroCTA = () => { setShowHero(false); };
 
   // ── Inline edit helpers ────────────────────────────────────────────────────
   const updateDraft = (planId: string, field: keyof Draft, value: string | boolean) => {
@@ -315,8 +200,14 @@ export default function MembresiasPage() {
     setDirty(prev => new Set(prev).add(planId));
   };
 
-  const applyAdvanced = (planId: string, changes: Pick<Draft, "periodo" | "destacado" | "accent_color">) => {
+  const applyAdvanced = (planId: string, changes: Pick<Draft, "periodo">) => {
     setDrafts(prev => ({ ...prev, [planId]: { ...prev[planId], ...changes } }));
+    setDirty(prev => new Set(prev).add(planId));
+  };
+
+  const updatePeriodo = (planId: string, periodo: string) => {
+    const dias = periodo === "año" ? 365 : periodo === "trimestral" ? 90 : 30;
+    setDrafts(prev => ({ ...prev, [planId]: { ...prev[planId], periodo, duracion_dias: String(dias) } }));
     setDirty(prev => new Set(prev).add(planId));
   };
 
@@ -331,18 +222,21 @@ export default function MembresiasPage() {
     const clearSaving = () => setSavingSet(prev => { const s = new Set(prev); s.delete(planId); return s; });
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { clearSaving(); showToast("Sesión expirada. Recargá la página.", "err"); return; }
+      const profile = await getCachedProfile();
+      if (!profile) { clearSaving(); showToast("Sesión expirada. Recargá la página.", "err"); return; }
+      const gymId = profile.gymId;
 
       const featuresArr = (draft.features || "").split("\n").map(f => f.trim()).filter(Boolean);
       const payload = {
-        gym_id:       user.id,
-        nombre:       draft.nombre.trim(),
-        precio:       parseFloat(draft.precio) || 0,
-        periodo:      draft.periodo,
-        features:     featuresArr,
-        destacado:    draft.destacado,
-        accent_color: (draft.accent_color || "").trim() || null,
+        gym_id:        gymId,
+        nombre:        draft.nombre.trim(),
+        precio:        parseFloat(draft.precio) || 0,
+        periodo:       draft.periodo,
+        duracion_dias: parseInt(draft.duracion_dias) || 30,
+        active:        draft.active,
+        features:      featuresArr,
+        destacado:     draft.destacado,
+        accent_color:  (draft.accent_color || "").trim() || null,
       };
 
       if (isNew) {
@@ -355,13 +249,17 @@ export default function MembresiasPage() {
         if (!inserted) { clearSaving(); showToast("No se pudo crear el plan. Verificá tu sesión.", "err"); return; }
         const newPlan = inserted as PlanDB;
         setPlanes(prev => [...prev, newPlan]);
-        setDrafts(prev => { const { [planId]: _removed, ...rest } = prev; return { ...rest, [newPlan.id]: planToDraft(newPlan) }; });
+        setDrafts(prev => {
+          const { [planId]: removedDraft, ...rest } = prev;
+          void removedDraft;
+          return { ...rest, [newPlan.id]: planToDraft(newPlan) };
+        });
         setDirty(prev => { const s = new Set(prev); s.delete(planId); return s; });
       } else {
         const { data: updated, error } = await supabase
           .from("planes")
           .upsert([{ id: planId, ...payload }], { onConflict: "id" })
-          .eq("gym_id", user.id)
+          .eq("gym_id", gymId)
           .select("id, nombre, precio, periodo, features, destacado, accent_color")
           .maybeSingle();
         if (error) { clearSaving(); showToast(`Error: ${error.message}`, "err"); return; }
@@ -378,15 +276,15 @@ export default function MembresiasPage() {
     }
   };
 
-  // ── Derived ───────────────────────────────────────────────────────────────
-  const ingresosMes = planes.reduce((s, p) => {
-    const mensual = p.periodo === "año" ? p.precio / 12 : p.precio;
-    return s + mensual * (alumnosPorPlan[p.id] ?? 0);
-  }, 0);
-  const maxMensual  = planes.length > 1 ? Math.max(...planes.map(p => p.periodo === "año" ? p.precio / 12 : p.precio)) : -1;
+  // ── Toggle active — va por draft igual que nombre/precio ─────────────────
+  const toggleActive = (planId: string, currentActive: boolean) => {
+    if (planId.startsWith("empty-")) return;
+    updateDraft(planId, "active", !currentActive);
+  };
 
+  // ── Derived ───────────────────────────────────────────────────────────────
   // Always exactly 3 slots: real planes first, empty placeholders for the rest
-  const EMPTY = (i: number): PlanDB => ({ id: `empty-${i}`, nombre: "", precio: 0, periodo: "mes", features: [], destacado: false, accent_color: null });
+  const EMPTY = (i: number): PlanDB => ({ id: `empty-${i}`, nombre: "", precio: 0, periodo: "mes", duracion_dias: 30, active: true, features: [], destacado: false, accent_color: null });
   const displayPlanes: PlanDB[] = [0, 1, 2].map(i => planes[i] ?? EMPTY(i));
   const displayIngresos = planes.length > 0
     ? displayPlanes.reduce((s, p) => {
@@ -394,9 +292,6 @@ export default function MembresiasPage() {
         return s + mensual * (alumnosPorPlan[p.id] ?? 0);
       }, 0)
     : 0;
-  const displayMax = displayPlanes.length > 1 ? Math.max(...displayPlanes.map(p => p.periodo === "año" ? p.precio / 12 : p.precio)) : -1;
-  const totalAlumnos = Object.values(alumnosPorPlan).reduce((s, n) => s + n, 0);
-
   // Chat — real OpenAI call
   const sendChat = async (quickMsg?: string) => {
     const text = (quickMsg ?? chatMsg).trim();
@@ -484,6 +379,8 @@ export default function MembresiasPage() {
           ...(plan.garantia ? [`Garantía: ${plan.garantia}`] : []),
           ...(plan.cupos > 0 ? [`Cupos: ${plan.cupos}`] : []),
         ].join("\n"),
+        duracion_dias: "30",
+        active: true,
         destacado: plan.tier === "growth",
         accent_color: ACCENT[plan.tier] ?? "#F97316",
       };
@@ -493,7 +390,6 @@ export default function MembresiasPage() {
     setDirty(newDirty);
     setChatOpen(false);
     setEmilioPlans(null);
-    setShowHero(false);
   };
 
   // ── Input style (looks like text, editable on click) ─────────────────────
@@ -560,48 +456,39 @@ export default function MembresiasPage() {
             ) : (
               <div style={{ position: "relative" }}>
               {/* Real cards */}
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 32, opacity: showHero ? 0 : 1, transition: "opacity 0.55s ease", pointerEvents: showHero ? "none" : "auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 32 }}>
                 {displayPlanes.map((p, i) => {
+                  const isEmpty    = p.id.startsWith("empty-");
                   const draft      = drafts[p.id] ?? planToDraft(p);
                   const isDirty    = dirty.has(p.id);
                   const isSaving   = savingSet.has(p.id);
-                  const { icon, accentColor } = planStyleFn(draft.accent_color || p.accent_color, i);
-                  const mensualDraft = draft.periodo === "año" ? (parseFloat(draft.precio) || 0) / 12 : (parseFloat(draft.precio) || 0);
-                  const esEstrella = displayPlanes.length > 1 && (p.periodo === "año" ? p.precio / 12 : p.precio) === displayMax;
+                  const isActive   = draft.active ?? true;
+                  const { icon } = planStyleFn(draft.accent_color || p.accent_color, i);
 
                   return (
                     <div key={p.id} style={{
                       ...card, padding: "22px",
                       position: "relative",
-                      transition: "box-shadow 0.2s, transform 0.2s",
+                      transition: "box-shadow 0.2s, transform 0.2s, filter 0.25s, opacity 0.25s",
+                      filter: isActive ? "none" : "grayscale(1)",
+                      opacity: isActive ? 1 : 0.55,
                     }}>
-                      {/* "Más popular" badge */}
-                      {draft.destacado && (
-                        <div style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", background: "#F97316", color: "white", font: `700 0.65rem/1 ${fb}`, textTransform: "uppercase", letterSpacing: "0.07em", padding: "4px 12px", borderRadius: 9999, whiteSpace: "nowrap" as const }}>
-                          Más popular
-                        </div>
-                      )}
-
-                      {/* Top row: icon + estrella + gear */}
+                      {/* Top row: icon + toggle (solo planes guardados) */}
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <div style={{ width: 38, height: 38, borderRadius: 10, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
-                          {esEstrella && (
-                            <div style={{ display: "flex", alignItems: "center", gap: 4, background: "linear-gradient(135deg,#FBBF24,#F59E0B)", padding: "3px 8px", borderRadius: 9999 }}>
-                              <Star size={10} color="white" fill="white" />
-                              <span style={{ font: `700 0.62rem/1 ${fb}`, color: "white", textTransform: "uppercase", letterSpacing: "0.06em" }}>Estrella</span>
-                            </div>
-                          )}
-                        </div>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "#F2F2F7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{icon}</div>
                         <button
-                          title="Ajustes avanzados"
-                          onClick={() => setAdvanced(p.id)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.14s", flexShrink: 0 }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0F2F8"; (e.currentTarget as HTMLButtonElement).style.color = t1; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; (e.currentTarget as HTMLButtonElement).style.color = t3; }}
-                        >
-                          <Settings size={15} />
-                        </button>
+                            type="button"
+                            onClick={() => isEmpty ? updateDraft(p.id, "active", !isActive) : toggleActive(p.id, isActive)}
+                            title={isActive ? "Desactivar plan" : "Activar plan"}
+                            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                          >
+                            <span style={{ font: `500 0.7rem/1 ${fb}`, color: isActive ? "#34C759" : "#AEAEB2" }}>
+                              {isActive ? "Activo" : "Inactivo"}
+                            </span>
+                            <div style={{ width: 36, height: 20, borderRadius: 9999, background: isActive ? "#34C759" : "rgba(120,120,128,0.18)", position: "relative", transition: "background 0.22s", flexShrink: 0 }}>
+                              <span style={{ position: "absolute", top: 2, left: isActive ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.18)", transition: "left 0.22s", display: "block" }} />
+                            </div>
+                          </button>
                       </div>
 
                       {/* Nombre */}
@@ -616,25 +503,33 @@ export default function MembresiasPage() {
                         />
                       </div>
 
-                      {/* Precio */}
-                      <div style={{ marginBottom: 20, paddingBottom: 16, borderBottom: `2px solid ${accentColor}18` }}>
-                        <p style={{ font: `500 0.65rem/1 ${fb}`, color: t3, textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6 }}>Precio</p>
-                        <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
-                          <span style={{ font: `800 2.2rem/1 ${fd}`, color: t2 }}>$</span>
-                          <input
-                            className="inline-field"
-                            type="number"
-                            value={draft.precio}
-                            onChange={e => updateDraft(p.id, "precio", e.target.value)}
-                            style={{ ...inlineInput, font: `800 2.2rem/1 ${fd}`, color: t2, width: 130 }}
-                          />
-                          <span style={{ font: `500 0.85rem/1 ${fb}`, color: t3, marginLeft: 2 }}>/{draft.periodo}</span>
+                      {/* Precio + Período */}
+                      <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
+                          <div>
+                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6 }}>Precio</p>
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
+                              <span style={{ font: `400 1rem/1 ${fd}`, color: "#AEAEB2" }}>$</span>
+                              <input
+                                className="inline-field no-spin"
+                                type="number"
+                                value={draft.precio}
+                                onChange={e => updateDraft(p.id, "precio", e.target.value)}
+                                style={{ ...inlineInput, font: `600 1.15rem/1 ${fd}`, color: t1, width: 110 }}
+                              />
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Período</p>
+                            <div style={{ display: "flex", gap: 3, background: "#F2F2F7", borderRadius: 8, padding: 2 }}>
+                              {(["mes", "trimestral", "año"] as const).map(op => (
+                                <button key={op} type="button" onClick={() => updatePeriodo(p.id, op)} style={{ padding: "4px 8px", borderRadius: 6, border: "none", font: `500 0.68rem/1 ${fb}`, cursor: "pointer", transition: "all 0.16s", background: draft.periodo === op ? "white" : "transparent", color: draft.periodo === op ? "#1C1C1E" : "#8E8E93", boxShadow: draft.periodo === op ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
+                                  {op === "mes" ? "Mensual" : op === "trimestral" ? "Trimestral" : "Anual"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                        {draft.periodo === "año" && (
-                          <span style={{ font: `500 0.72rem/1 ${fb}`, color: "#FF6A00", background: "rgba(255,106,0,0.09)", padding: "3px 8px", borderRadius: 9999, display: "inline-block", marginTop: 6 }}>
-                            ${Math.round(mensualDraft).toLocaleString("es-AR")}/mes
-                          </span>
-                        )}
                       </div>
 
                       {/* Características */}
@@ -647,56 +542,51 @@ export default function MembresiasPage() {
                           rows={Math.max(3, (draft.features?.split("\n") || []).length)}
                           style={{
                             width: "100%", padding: "10px 12px",
-                            background: "#F9FAFB",
-                            border: "1px solid rgba(0,0,0,0.06)",
+                            background: "#F2F2F7",
+                            border: "1px solid transparent",
                             borderRadius: 10,
                             font: `400 0.82rem/1.6 ${fb}`,
                             color: t1, outline: "none", resize: "none",
                             boxSizing: "border-box",
-                            transition: "border-color 0.14s",
+                            transition: "border-color 0.16s",
                           } as React.CSSProperties}
-                          onFocus={e => (e.currentTarget.style.borderColor = accentColor + "55")}
-                          onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.06)")}
+                          onFocus={e => (e.currentTarget.style.borderColor = "rgba(0,122,255,0.35)")}
+                          onBlur={e => (e.currentTarget.style.borderColor = "transparent")}
                         />
                       </div>
 
-                      {/* Guardar */}
-                      <div>
-                        {isDirty ? (
+                      {/* Acciones */}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {!isEmpty && !isDirty ? (
+                          <button
+                            onClick={() => setDirty(prev => new Set(prev).add(p.id))}
+                            style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(0,0,0,0.08)", font: `500 0.82rem/1 ${fd}`, cursor: "pointer", background: "#F2F2F7", color: "#3C3C43", transition: "all 0.16s" }}
+                          >
+                            Editar
+                          </button>
+                        ) : (
                           <button
                             onClick={() => saveCard(p.id)}
                             disabled={isSaving}
-                            style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", font: `700 0.82rem/1 ${fd}`, cursor: isSaving ? "wait" : "pointer", background: isSaving ? "#9CA3AF" : "#FF6A00", color: "white", transition: "all 0.14s", boxShadow: isSaving ? "none" : "0 3px 10px rgba(255,106,0,0.28)" }}
+                            style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "none", font: `600 0.82rem/1 ${fd}`, cursor: isSaving ? "wait" : "pointer", background: isSaving ? "#C7C7CC" : "#1C1C1E", color: "white", transition: "all 0.16s" }}
                           >
-                            {isSaving ? "Guardando..." : "Guardar cambios"}
+                            {isSaving ? "Guardando..." : isEmpty ? "Guardar" : "Guardar cambios"}
                           </button>
-                        ) : (
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px", borderRadius: 10, background: "#F9FAFB", font: `500 0.75rem/1 ${fb}`, color: t3, gap: 6 }}>
-                            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF6A00", display: "inline-block" }} />
-                            Guardado
-                          </div>
                         )}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              {/* Blueprint skeleton overlay — only when hero is active */}
-              {showHero && (
-                <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 32 }}>
-                  <SkeletonCard />
-                  <HeroCenterCard onCTA={handleHeroCTA} />
-                  <SkeletonCard />
-                </div>
-              )}
               </div>
             )}
 
-            {!showHero && (
-              <p style={{ font: `400 0.75rem/1 ${fb}`, color: t3, marginTop: 14, textAlign: "center" as const }}>
-                Clic en nombre o precio para editar directo
+            <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,106,0,0.05)", border: "1px solid rgba(255,106,0,0.12)", borderRadius: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
+              <span style={{ fontSize: "1rem", lineHeight: 1, marginTop: 1, flexShrink: 0 }}>💡</span>
+              <p style={{ font: `400 0.78rem/1.55 ${fb}`, color: t2, margin: 0 }}>
+                <strong style={{ color: t1, fontWeight: 600 }}>¿Tenés una sola cuota mensual?</strong> Completá solo la primera tarjeta con tu plan y dejá las demás desactivadas. Si ofrecés varios planes (ej. mensual + trimestral), usá una tarjeta por plan. El precio que ponés acá es lo que verán los alumnos al pagar.
               </p>
-            )}
+            </div>
           </div>
 
           {/* ── Emilio banner — mesh orange texture ── */}

@@ -5,7 +5,6 @@ import { CreditCard, TrendingUp, Calendar, Sparkles, Star } from "lucide-react";
 
 const fd = "var(--font-nunito, 'Nunito', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
-const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
 

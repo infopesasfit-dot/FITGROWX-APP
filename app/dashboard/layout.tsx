@@ -9,25 +9,35 @@ import {
   Home, Users, CreditCard, Wallet, TrendingDown, Settings, LogOut,
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, MessageSquare, Target, Megaphone, CalendarDays, ScanLine,
-  Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen,
+  Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import FeedbackModal from "@/components/FeedbackModal";
 import { getGymSummary } from "@/lib/supabase-relations";
+import { getCachedProfile } from "@/lib/gym-cache";
 
-const NAV_TOP = [
+const NAV_TOP_ADMIN = [
   { href: "/dashboard",                   label: "Inicio",          icon: Home },
   { href: "/dashboard/alumnos",           label: "Alumnos",         icon: Users },
   { href: "/dashboard/clases",            label: "Clases",          icon: CalendarDays },
   { href: "/dashboard/scanner",           label: "Escáner QR",      icon: ScanLine },
+  { href: "/dashboard/asistencias",       label: "Asistencias",     icon: ClipboardList },
   { href: "/dashboard/membresias",        label: "Membresías",      icon: CreditCard },
   { href: "/dashboard/pagos",             label: "Pagos",           icon: Wallet },
   { href: "/dashboard/egresos",           label: "Egresos",         icon: TrendingDown },
-  { href: "/dashboard/automatizaciones",  label: "Automatizaciones",icon: MessageSquare },
   { href: "/dashboard/prospectos",        label: "Prospectos",      icon: Target },
   { href: "/dashboard/publicidad",        label: "Campañas",        icon: Megaphone },
-  { href: "/dashboard/boveda",            label: "Bóveda",          icon: FolderOpen },
 ];
+
+const NAV_TOP_STAFF = [
+  { href: "/dashboard",             label: "Inicio",      icon: Home },
+  { href: "/dashboard/alumnos",     label: "Alumnos",     icon: Users },
+  { href: "/dashboard/clases",      label: "Clases",      icon: CalendarDays },
+  { href: "/dashboard/scanner",     label: "Escáner QR",  icon: ScanLine },
+  { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
+];
+
+const STAFF_ALLOWED_ROUTES = ["/dashboard", "/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
 
 const BOTTOM_NAV = [
   { href: "/dashboard",         label: "Inicio",  icon: Home },
@@ -71,6 +81,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen,   setNotifOpen]   = useState(false);
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [gymId,       setGymId]       = useState<string | null>(null);
+  const [role,        setRole]        = useState<"admin" | "staff">("admin");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -87,24 +98,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Close mobile nav on route change
   useEffect(() => {
-    setMobileNavOpen(false);
+    const timeoutId = window.setTimeout(() => {
+      setMobileNavOpen(false);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [pathname]);
+
+  // Staff route protection
+  useEffect(() => {
+    if (role !== "staff") return;
+    const allowed = STAFF_ALLOWED_ROUTES.some(r =>
+      r === "/dashboard" ? pathname === r : pathname.startsWith(r)
+    );
+    if (!allowed) router.replace("/dashboard");
+  }, [role, pathname, router]);
 
   // Fetch user + trial info once
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const cachedProfile = await getCachedProfile();
+      if (!cachedProfile) return;
+      const gymIdVal = cachedProfile.gymId;
+      const userIdVal = cachedProfile.userId;
+      const roleVal = cachedProfile.role as "admin" | "staff";
 
-      const name = user.email ?? "Admin";
+      setGymId(gymIdVal);
+      setRole(roleVal);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const name = user?.email ?? "Admin";
       setUserName(name.split("@")[0]);
       setUserInitials(name.split("@")[0].slice(0, 2).toUpperCase());
-      setGymId(user.id);
 
       const [{ count }, { data: profile }, { data: settings }] = await Promise.all([
-        supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", user.id).eq("status", "pendiente"),
-        supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status)").eq("id", user.id).maybeSingle(),
-        supabase.from("gym_settings").select("logo_url, gym_name").eq("gym_id", user.id).maybeSingle(),
+        supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", gymIdVal).eq("status", "pendiente"),
+        supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status)").eq("id", userIdVal).maybeSingle(),
+        supabase.from("gym_settings").select("logo_url, gym_name").eq("gym_id", gymIdVal).maybeSingle(),
       ]);
 
       setProspectBadge(count ?? 0);
@@ -295,7 +325,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Nav top */}
         <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {NAV_TOP.map(({ href, label, icon: Icon }) => (
+          {(role === "staff" ? NAV_TOP_STAFF : NAV_TOP_ADMIN).map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} style={navItemStyle(href)} title={(!isMobile && collapsed) ? label : undefined}>
               <Icon size={16} style={{ opacity: isActive(href) ? 1 : 0.65, flexShrink: 0 }} />
               {(isMobile || !collapsed) && (
@@ -543,7 +573,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <p style={{ font: `700 0.875rem/1 ${fd}`, color: "#1A1D23", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</p>
-                        <p style={{ font: `400 0.72rem/1 ${fb}`, color: "#9CA3AF", marginTop: 3 }}>Administrador</p>
+                        <p style={{ font: `400 0.72rem/1 ${fb}`, color: "#9CA3AF", marginTop: 3 }}>{role === "staff" ? "Staff" : "Administrador"}</p>
                       </div>
                     </div>
 
@@ -551,33 +581,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                   {/* Menu items */}
                   <div style={{ padding: "6px" }}>
-
-                    {/* Planes y Suscripción — link a página */}
-                    <Link
-                      href="/dashboard/planes"
-                      onClick={() => setMenuOpen(false)}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(249,115,22,0.09)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Zap size={13} color="#F97316" />
-                      </div>
-                      Planes y Suscripción
-                    </Link>
-
-                    <Link
-                      href="/dashboard/ajustes"
-                      onClick={() => setMenuOpen(false)}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(75,107,251,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Settings size={13} color="#4B6BFB" />
-                      </div>
-                      Ajustes del Gimnasio
-                    </Link>
+                    {role === "admin" && (
+                      <>
+                        <Link
+                          href="/dashboard/planes"
+                          onClick={() => setMenuOpen(false)}
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(249,115,22,0.09)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <Zap size={13} color="#F97316" />
+                          </div>
+                          Planes y Suscripción
+                        </Link>
+                        <Link
+                          href="/dashboard/ajustes"
+                          onClick={() => setMenuOpen(false)}
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(75,107,251,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <Settings size={13} color="#4B6BFB" />
+                          </div>
+                          Ajustes del Gimnasio
+                        </Link>
+                        <Link
+                          href="/dashboard/boveda"
+                          onClick={() => setMenuOpen(false)}
+                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(14,165,233,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <FolderOpen size={13} color="#0EA5E9" />
+                          </div>
+                          Bóveda de Crecimiento
+                        </Link>
+                      </>
+                    )}
                   </div>
 
                   {/* Sign out */}
@@ -602,7 +645,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* ── Trial countdown banner (day 10+) ── */}
-        {showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
+        {role === "admin" && showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",

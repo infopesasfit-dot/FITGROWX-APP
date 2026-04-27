@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Clock, Trash2, CheckCircle } from "lucide-react";
+import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Clock, Trash2, CheckCircle, ClipboardCheck, Star, Download } from "lucide-react";
+import { Tooltip } from "@/components/tooltip";
+import Papa from "papaparse";
 
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -21,6 +23,7 @@ interface PlanOption {
   nombre: string;
   precio: number;
   periodo: string;
+  duracion_dias: number;
   accent_color: string | null;
 }
 
@@ -30,13 +33,13 @@ interface Alumno {
   full_name: string;
   phone: string | null;
   plan_id: string | null;
-  planes: { nombre: string; accent_color: string | null; precio: number } | null;
+  planes: { nombre: string; accent_color: string | null; precio: number; duracion_dias: number } | null;
   status: Status;
   next_expiration_date: string | null;
 }
 
 const STATUS_STYLE: Record<Status, { color: string; bg: string; label: string }> = {
-  activo:    { color: "#FF6A00", bg: "rgba(255,106,0,0.08)",   label: "Activo" },
+  activo:    { color: "#16A34A", bg: "rgba(22,163,74,0.08)",   label: "Activo" },
   vencido:   { color: "#DC2626", bg: "rgba(220,38,38,0.08)",   label: "Vencido" },
   pendiente: { color: "#D97706", bg: "rgba(217,119,6,0.08)",   label: "Pendiente" },
   pausado:   { color: "#64748B", bg: "rgba(100,116,139,0.08)", label: "Pausado" },
@@ -101,6 +104,17 @@ export default function AlumnosPage() {
   const [wodTimeCap,       setWodTimeCap]       = useState("15");
   const [wodMovimientos,   setWodMovimientos]   = useState<{ nombre: string; reps: string }[]>([]);
   const [gymId,            setGymId]            = useState<string | null>(null);
+  const [ultimaMap,        setUltimaMap]        = useState<Record<string, string>>({});
+  const [checkinTarget,    setCheckinTarget]    = useState<Alumno | null>(null);
+  const [checkinDate,      setCheckinDate]      = useState("");
+  const [checkinSaving,    setCheckinSaving]    = useState(false);
+  const [checkinResult,    setCheckinResult]    = useState<string | null>(null);
+  const [exportMenuOpen,   setExportMenuOpen]   = useState(false);
+  const [membresiaTarget,  setMembresiaTarget]  = useState<Alumno | null>(null);
+  const [membresiaPlanId,  setMembresiaPlanId]  = useState("");
+  const [membresiaFecha,   setMembresiaFecha]   = useState(defaultExpiry());
+  const [membresiaSaving,  setMembresiaSaving]  = useState(false);
+  const [membresiaError,   setMembresiaError]   = useState<string | null>(null);
 
   // ── Fetch alumnos ─────────────────────────────────────────────────
   const fetchAlumnos = useCallback(async (background = false) => {
@@ -117,7 +131,7 @@ export default function AlumnosPage() {
     const [{ data }, { count }] = await Promise.all([
       supabase
         .from("alumnos")
-        .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio)")
+        .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
         .eq("gym_id", profile.gymId)
         .order("full_name"),
       supabase
@@ -130,6 +144,23 @@ export default function AlumnosPage() {
     setAlumnos(rows);
     setTotalCount(count ?? 0);
     setPageCache(`alumnos_${profile.gymId}`, rows);
+
+    // Fetch ultima asistencia per alumno (last 60 days)
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const { data: asistData } = await supabase
+      .from("asistencias")
+      .select("alumno_id, fecha")
+      .eq("gym_id", profile.gymId)
+      .gte("fecha", sixtyDaysAgo.toISOString().slice(0, 10))
+      .order("fecha", { ascending: false });
+
+    const map: Record<string, string> = {};
+    for (const row of (asistData ?? []) as { alumno_id: string; fecha: string }[]) {
+      if (!map[row.alumno_id]) map[row.alumno_id] = row.fecha;
+    }
+    setUltimaMap(map);
+
     setLoading(false);
   }, []);
 
@@ -156,8 +187,9 @@ export default function AlumnosPage() {
 
     const { data } = await supabase
       .from("planes")
-      .select("id, nombre, precio, periodo, accent_color")
+      .select("id, nombre, precio, periodo, duracion_dias, accent_color")
       .eq("gym_id", gymId)
+      .eq("active", true)
       .order("created_at");
 
     const list = (data as PlanOption[]) ?? [];
@@ -249,6 +281,35 @@ export default function AlumnosPage() {
   }, [toast]);
 
   // ── Pago Modal ────────────────────────────────────────────────────
+  const today = new Date().toISOString().slice(0, 10);
+
+  const openCheckinModal = (a: Alumno) => {
+    setCheckinTarget(a);
+    setCheckinDate(today);
+    setCheckinResult(null);
+    setCheckinSaving(false);
+  };
+
+  const handleCheckin = async () => {
+    if (!checkinTarget) return;
+    setCheckinSaving(true);
+    setCheckinResult(null);
+    const res = await fetch("/api/admin/checkin-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumno_id: checkinTarget.id, fecha: checkinDate }),
+    });
+    const d = await res.json();
+    setCheckinSaving(false);
+    if (d.ok) {
+      setUltimaMap(prev => ({ ...prev, [checkinTarget.id]: checkinDate }));
+      setCheckinResult("ok");
+      setTimeout(() => { setCheckinTarget(null); setCheckinResult(null); }, 1200);
+    } else {
+      setCheckinResult(d.error ?? "No se pudo registrar la asistencia.");
+    }
+  };
+
   const openPagoModal = (a: Alumno) => {
     setPagoTarget(a);
     setPagoMonto(String(a.planes?.precio ?? ""));
@@ -270,11 +331,11 @@ export default function AlumnosPage() {
     const today = new Date();
     const todayStr = today.toISOString().slice(0, 10);
 
-    const base = pagoTarget.next_expiration_date
-      ? new Date(Math.max(today.getTime(), new Date(pagoTarget.next_expiration_date).getTime()))
-      : today;
+    const duracion = pagoTarget.planes?.duracion_dias ?? 30;
+    const currentExpiry = pagoTarget.next_expiration_date ? new Date(pagoTarget.next_expiration_date) : null;
+    const base = currentExpiry && currentExpiry > today ? currentExpiry : today;
     const newExpiry = new Date(base);
-    newExpiry.setDate(newExpiry.getDate() + 30);
+    newExpiry.setDate(newExpiry.getDate() + duracion);
     const newExpiryStr = newExpiry.toISOString().slice(0, 10);
 
     const [{ error: pagoErr }, { error: alumnoErr }] = await Promise.all([
@@ -449,6 +510,87 @@ export default function AlumnosPage() {
     if (!error) fetchAlumnos();
   };
 
+  // ── Exportar ──────────────────────────────────────────────────────
+  const buildRows = () => lista.map(a => ({
+    Nombre:       a.full_name,
+    DNI:          a.dni ?? "",
+    Teléfono:     a.phone ?? "",
+    Plan:         a.planes?.nombre ?? "",
+    Estado:       STATUS_STYLE[a.status].label,
+    Vencimiento:  a.next_expiration_date ?? "",
+    "Últ. asistencia": ultimaMap[a.id] ?? "",
+  }));
+
+  const exportCSV = () => {
+    const csv = Papa.unparse(buildRows());
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `alumnos_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    setExportMenuOpen(false);
+  };
+
+  const exportPDF = () => {
+    const rows = buildRows();
+    const cols = Object.keys(rows[0] ?? {});
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Alumnos</title>
+<style>
+  body{font-family:system-ui,sans-serif;padding:28px;color:#111}
+  h2{margin:0 0 4px;font-size:1.1rem}
+  p{margin:0 0 18px;font-size:.75rem;color:#777}
+  table{width:100%;border-collapse:collapse;font-size:.78rem}
+  th{background:#1A1D23;color:#fff;padding:8px 10px;text-align:left;font-weight:600}
+  td{padding:7px 10px;border-bottom:1px solid #eee}
+  tr:nth-child(even) td{background:#f9f9f9}
+</style></head><body>
+<h2>Lista de Alumnos</h2>
+<p>Exportado el ${new Date().toLocaleDateString("es-AR")} · ${rows.length} alumnos</p>
+<table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead>
+<tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${(r as Record<string,string>)[c]}</td>`).join("")}</tr>`).join("")}</tbody>
+</table></body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 400);
+    setExportMenuOpen(false);
+  };
+
+  // ── Asignar Membresía ─────────────────────────────────────────────
+  const openMembresiaModal = async (a: Alumno) => {
+    setMembresiaTarget(a);
+    setMembresiaPlanId(a.plan_id ?? "");
+    setMembresiaFecha(a.next_expiration_date ?? defaultExpiry());
+    setMembresiaError(null);
+    if (planes.length === 0 && gymId) {
+      setPlanesLoading(true);
+      const { data } = await supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, accent_color").eq("gym_id", gymId).eq("active", true).order("created_at");
+      setPlanes((data as PlanOption[]) ?? []);
+      setPlanesLoading(false);
+    }
+  };
+
+  const handleMembresiaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!membresiaTarget) return;
+    setMembresiaSaving(true);
+    setMembresiaError(null);
+    const newStatus = membresiaFecha ? statusFromDate(membresiaFecha) : "activo";
+    const { error } = await supabase
+      .from("alumnos")
+      .update({ plan_id: membresiaPlanId || null, next_expiration_date: membresiaFecha || null, status: newStatus })
+      .eq("id", membresiaTarget.id);
+    setMembresiaSaving(false);
+    if (error) { setMembresiaError(error.message); return; }
+    setMembresiaTarget(null);
+    setToast("Membresía asignada");
+    setTimeout(() => setToast(null), 3000);
+    fetchAlumnos(true);
+  };
+
   // ── Editar Alumno ─────────────────────────────────────────────────
   const openEditModal = async (a: Alumno) => {
     setEditForm({ id: a.id, full_name: a.full_name, phone: a.phone ?? "", plan_id: a.plan_id ?? "", next_expiration_date: a.next_expiration_date ?? "" });
@@ -456,7 +598,7 @@ export default function AlumnosPage() {
     setEditModalOpen(true);
     if (planes.length === 0 && gymId) {
       setPlanesLoading(true);
-      const { data } = await supabase.from("planes").select("id, nombre, precio, periodo, accent_color").eq("gym_id", gymId).order("created_at");
+      const { data } = await supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, accent_color").eq("gym_id", gymId).eq("active", true).order("created_at");
       setPlanes((data as PlanOption[]) ?? []);
       setPlanesLoading(false);
     }
@@ -556,7 +698,7 @@ export default function AlumnosPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-                {["Alumno", "DNI", "Plan", "Estado", "Vence", "Teléfono", "Acciones"].map(h => (
+                {["Alumno", "DNI", "Plan", "Estado", "Vence", "Últ. asistencia", "Acciones"].map(h => (
                   <th key={h} style={{ padding: "10px 20px", textAlign: "left", font: `600 0.7rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</th>
                 ))}
               </tr>
@@ -588,14 +730,45 @@ export default function AlumnosPage() {
                     <td style={{ padding: "13px 20px" }}><span style={{ font: `600 0.75rem/1 ${fb}`, color: planColor, background: planBg, padding: "4px 10px", borderRadius: 9999 }}>{planNombre}</span></td>
                     <td style={{ padding: "13px 20px" }}><span style={{ font: `600 0.72rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "4px 10px", borderRadius: 9999 }}>{STATUS_STYLE[a.status].label}</span></td>
                     <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2 }}>{a.next_expiration_date ?? "—"}</td>
-                    <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2 }}>{a.phone ?? <span style={{ color: t3 }}>—</span>}</td>
+                    <td style={{ padding: "13px 20px" }}>
+                      {(() => {
+                        const ua = ultimaMap[a.id];
+                        const isToday = ua === today;
+                        return ua ? (
+                          <span style={{ font: `500 0.75rem/1 ${fb}`, color: isToday ? "#22C55E" : t2, background: isToday ? "rgba(34,197,94,0.08)" : "transparent", padding: isToday ? "3px 8px" : "0", borderRadius: isToday ? 9999 : 0 }}>
+                            {isToday ? "Hoy" : ua}
+                          </span>
+                        ) : <span style={{ color: t3 }}>—</span>;
+                      })()}
+                    </td>
                     <td style={{ padding: "13px 20px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <button disabled={!a.phone} onClick={() => a.phone && openWhatsApp(a.phone, a.full_name)} style={{ background: "none", border: "none", cursor: a.phone ? "pointer" : "default", color: a.phone ? "#25D366" : t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", opacity: a.phone ? 1 : 0.35 }}>
-                          <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
-                        </button>
-                        <button onClick={() => openPagoModal(a)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}><CreditCard size={18} /></button>
-                        <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMenuOpenId(a.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}><MoreVertical size={18} /></button>
+                        <Tooltip content="Check-in manual">
+                          <button onClick={() => openCheckinModal(a)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+                          ><ClipboardCheck size={16} /></button>
+                        </Tooltip>
+                        <Tooltip content={a.phone ? "Enviar WhatsApp" : "Sin teléfono"}>
+                          <button disabled={!a.phone} onClick={() => a.phone && openWhatsApp(a.phone, a.full_name)} style={{ background: "none", border: "none", cursor: a.phone ? "pointer" : "default", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", opacity: a.phone ? 1 : 0.35 }}
+                            onMouseEnter={e => { if (a.phone) (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+                          >
+                            <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Registrar pago">
+                          <button onClick={() => openPagoModal(a)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+                          ><CreditCard size={16} /></button>
+                        </Tooltip>
+                        <Tooltip content="Más acciones">
+                          <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMenuOpenId(a.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+                          ><MoreVertical size={16} /></button>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>
@@ -605,7 +778,30 @@ export default function AlumnosPage() {
           </table>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
             <span style={{ font: `400 0.78rem/1 ${fb}`, color: t3 }}>{loading ? "Cargando..." : `Mostrando ${lista.length} de ${totalCount} alumnos`}</span>
-            <button style={{ font: `500 0.78rem/1 ${fb}`, color: "#4B6BFB", background: "none", border: "none", cursor: "pointer" }}>Exportar lista →</button>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setExportMenuOpen(o => !o)}
+                style={{ display: "flex", alignItems: "center", gap: 6, font: `500 0.78rem/1 ${fb}`, color: "#4B6BFB", background: "none", border: "1px solid rgba(75,107,251,0.2)", borderRadius: 8, padding: "6px 11px", cursor: "pointer" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(75,107,251,0.06)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+              ><Download size={13} /> Exportar</button>
+              {exportMenuOpen && (
+                <>
+                  <div onClick={() => setExportMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 900 }} />
+                  <div style={{ position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 901, background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 140, overflow: "hidden" }}>
+                    {[
+                      { label: "Exportar CSV", action: exportCSV },
+                      { label: "Exportar PDF", action: exportPDF },
+                    ].map(item => (
+                      <button key={item.label} onClick={item.action}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", font: `500 0.825rem/1 ${fb}`, color: t1, cursor: "pointer" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                      >{item.label}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -632,11 +828,12 @@ export default function AlumnosPage() {
                   <span style={{ font: `600 0.68rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "4px 10px", borderRadius: 9999, flexShrink: 0 }}>{STATUS_STYLE[a.status].label}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span style={{ font: `600 0.68rem/1 ${fb}`, color: planColor, background: planBg, padding: "3px 9px", borderRadius: 9999 }}>{planNombre}</span>
-                    {a.next_expiration_date && <span style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>Vence {a.next_expiration_date}</span>}
+                    {(() => { const ua = ultimaMap[a.id]; const isToday = ua === today; return ua ? <span style={{ font: `500 0.65rem/1 ${fb}`, color: isToday ? "#22C55E" : t3 }}>{isToday ? "Hoy ✓" : `Últ: ${ua}`}</span> : null; })()}
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
+                    <button title="Check-in" onClick={() => openCheckinModal(a)} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(34,197,94,0.1)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#22C55E" }}><ClipboardCheck size={14} /></button>
                     {a.phone && (
                       <button onClick={() => openWhatsApp(a.phone!, a.full_name)} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(37,211,102,0.10)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#25D366" }}>
                         <svg width={15} height={15} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
@@ -653,6 +850,42 @@ export default function AlumnosPage() {
         </div>
       )}
     </div>
+
+    {/* ── Modal: Check-in manual ── */}
+    {checkinTarget && (
+      <div onClick={() => setCheckinTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 20, padding: "28px 24px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}><ClipboardCheck size={18} color="#22C55E" /></div>
+            <div>
+              <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>Check-in manual</p>
+              <p style={{ font: `400 0.72rem/1 ${fd}`, color: t3, marginTop: 2 }}>{checkinTarget.full_name}</p>
+            </div>
+          </div>
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ font: `600 0.72rem/1 ${fd}`, color: t2, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Fecha</label>
+            <input
+              type="date"
+              value={checkinDate}
+              onChange={e => setCheckinDate(e.target.value)}
+              style={{ width: "100%", padding: "10px 12px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 10, font: `400 0.875rem/1 ${fd}`, color: t1, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+          {checkinResult && checkinResult !== "ok" && (
+            <p style={{ font: `400 0.78rem/1 ${fd}`, color: "#EF4444", marginBottom: 12 }}>{checkinResult}</p>
+          )}
+          {checkinResult === "ok" && (
+            <p style={{ font: `600 0.82rem/1 ${fd}`, color: "#22C55E", marginBottom: 12 }}>Asistencia registrada ✓</p>
+          )}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setCheckinTarget(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "1px solid rgba(0,0,0,0.1)", background: "none", font: `500 0.82rem/1 ${fd}`, color: t3, cursor: "pointer" }}>Cancelar</button>
+            <button onClick={handleCheckin} disabled={checkinSaving} style={{ flex: 1, padding: "11px 0", borderRadius: 12, border: "none", background: "#22C55E", font: `700 0.82rem/1 ${fd}`, color: "white", cursor: "pointer", opacity: checkinSaving ? 0.6 : 1 }}>
+              {checkinSaving ? "Guardando..." : "Registrar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* ── Modal: Nuevo Alumno ── */}
     {modalOpen && (
@@ -817,10 +1050,11 @@ export default function AlumnosPage() {
         return (
           <div onClick={e => e.stopPropagation()} style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
             {[
+              { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(target); setMenuOpenId(null); setMenuPos(null); } },
               { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(target); setMenuOpenId(null); setMenuPos(null); } },
               { label: "Editar Datos", color: t1, action: () => { openEditModal(target); setMenuOpenId(null); setMenuPos(null); } },
               target.status === "pausado"
-                ? { label: "Reanudar Membresía", color: "#FF6A00", action: () => { handleReanudar(target.id); setMenuOpenId(null); setMenuPos(null); } }
+                ? { label: "Reanudar Membresía", color: "#22C55E", action: () => { handleReanudar(target.id); setMenuOpenId(null); setMenuPos(null); } }
                 : { label: "Pausar Membresía",   color: "#64748B", action: () => { handlePausar(target.id);   setMenuOpenId(null); setMenuPos(null); } },
               { label: "Eliminar Alumno", color: "#DC2626", action: () => { handleEliminar(target.id, target.full_name); setMenuOpenId(null); setMenuPos(null); } },
             ].map(item => (
@@ -919,6 +1153,71 @@ export default function AlumnosPage() {
         </div>
       </div>
     )}
+    {/* ── Modal: Asignar Membresía ── */}
+    {membresiaTarget && (
+      <div onClick={() => setMembresiaTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 420, overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,106,0,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Star size={18} color="#FF6A00" />
+              </div>
+              <div>
+                <h2 style={{ font: `800 1.05rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Asignar Membresía</h2>
+                <p style={{ font: `400 0.75rem/1 ${fb}`, color: t3, marginTop: 3 }}>{membresiaTarget.full_name}</p>
+              </div>
+            </div>
+            <button onClick={() => setMembresiaTarget(null)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#E4E6EF"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0F2F8"; }}
+            ><X size={16} /></button>
+          </div>
+          <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 24px" }} />
+          <form onSubmit={handleMembresiaSubmit} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Plan</label>
+              <div style={{ position: "relative" }}>
+                {planesLoading ? (
+                  <div style={{ padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando planes...</div>
+                ) : (
+                  <>
+                    <select value={membresiaPlanId} onChange={e => setMembresiaPlanId(e.target.value)}
+                      style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `500 0.875rem/1 ${fb}`, color: t1, outline: "none", appearance: "none", cursor: "pointer", boxSizing: "border-box" as const }}
+                      onFocus={e => (e.currentTarget.style.borderColor = "#FF6A00")}
+                      onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                    >
+                      <option value="">Sin plan</option>
+                      {planes.map(p => <option key={p.id} value={p.id}>{p.nombre} — ${p.precio}/{p.periodo}</option>)}
+                    </select>
+                    <svg viewBox="0 0 20 20" fill={t3} width="14" height="14" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                  </>
+                )}
+              </div>
+            </div>
+            <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Fecha de vencimiento</label>
+              <div style={{ position: "relative" }}>
+                <CalendarDays size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
+                <input type="date" value={membresiaFecha} onChange={e => setMembresiaFecha(e.target.value)}
+                  style={{ width: "100%", padding: "11px 14px 11px 34px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: membresiaFecha ? t1 : t3, outline: "none", boxSizing: "border-box" as const }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "#FF6A00")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                />
+              </div>
+            </div>
+            {membresiaError && (
+              <div style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9, padding: "10px 14px", font: `400 0.8rem/1.4 ${fb}`, color: "#DC2626" }}>{membresiaError}</div>
+            )}
+            <button type="submit" disabled={membresiaSaving}
+              style={{ width: "100%", padding: "13px", background: membresiaSaving ? "#9CA3AF" : "#FF6A00", color: "white", border: "none", borderRadius: 12, font: `700 0.95rem/1 ${fd}`, cursor: membresiaSaving ? "not-allowed" : "pointer", boxShadow: membresiaSaving ? "none" : "0 4px 16px rgba(255,106,0,0.28)", marginTop: 4 }}
+              onMouseEnter={e => { if (!membresiaSaving) (e.currentTarget.style.opacity = "0.92"); }}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >{membresiaSaving ? "Guardando..." : "Asignar Membresía"}</button>
+          </form>
+        </div>
+      </div>
+    )}
+
     {/* ── Modal: Registrar Pago ── */}
     {pagoModalOpen && pagoTarget && (
       <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>

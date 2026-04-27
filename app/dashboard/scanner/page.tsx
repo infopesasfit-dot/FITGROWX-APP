@@ -26,6 +26,9 @@ interface CheckinResult {
   };
   hora?: string;
   error?: string;
+  error_code?: string;
+  error_title?: string;
+  error_hint?: string;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -167,6 +170,8 @@ export default function ScannerPage() {
 
   const statusColor = result?.alumno ? (STATUS_COLOR[result.alumno.status] ?? "#6B7280") : "#6B7280";
   const statusLabel = result?.alumno ? (STATUS_LABEL[result.alumno.status] ?? result.alumno.status) : "";
+  const isMembershipIssue = result?.error_code === "membership_expired" || result?.error_code === "membership_inactive";
+  const isSystemIssue = result?.error_code === "system_error";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 560, margin: "0 auto" }}>
@@ -290,9 +295,39 @@ export default function ScannerPage() {
               </div>
             </>
           ) : (
-            <div style={{ background: "rgba(220,38,38,0.04)", border: "1px solid rgba(220,38,38,0.3)", borderRadius: 16, padding: "20px 22px", display: "flex", alignItems: "center", gap: 12 }}>
-              <XCircle size={22} color="#DC2626" />
-              <p style={{ font: `600 0.9rem/1 ${fd}`, color: "#DC2626" }}>{result.error ?? "Error desconocido."}</p>
+            <div style={{
+              background: isSystemIssue ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.04)",
+              border: `1px solid ${isSystemIssue ? "rgba(217,119,6,0.28)" : "rgba(220,38,38,0.3)"}`,
+              borderRadius: 16,
+              padding: "20px 22px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 12,
+            }}>
+              <XCircle size={22} color={isSystemIssue ? "#D97706" : "#DC2626"} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <p style={{ font: `800 0.98rem/1 ${fd}`, color: isSystemIssue ? "#B45309" : "#B91C1C" }}>
+                  {result.error_title ?? "Error al escanear"}
+                </p>
+                {result.alumno?.full_name && (
+                  <p style={{ font: `600 0.86rem/1.3 ${fd}`, color: "#1A1D23" }}>
+                    {result.alumno.full_name}
+                  </p>
+                )}
+                <p style={{ font: `500 0.86rem/1.4 ${fd}`, color: isSystemIssue ? "#92400E" : "#DC2626" }}>
+                  {result.error ?? "Error desconocido."}
+                </p>
+                {result.error_hint && (
+                  <p style={{ font: `400 0.8rem/1.4 ${fd}`, color: "#6B7280" }}>
+                    {result.error_hint}
+                  </p>
+                )}
+                {isMembershipIssue && result.alumno?.expiration && (
+                  <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280" }}>
+                    Vencimiento registrado: {result.alumno.expiration}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>

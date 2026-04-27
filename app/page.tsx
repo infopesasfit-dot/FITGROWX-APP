@@ -9,6 +9,7 @@ import { LandingHeader } from "@/components/landing-header";
 import { LogosSection } from "@/components/logos-section";
 import { FITGROWX_PLANS, formatArs } from "@/lib/fitgrowx-plans";
 import { LandingWhatsApp } from "@/components/landing-whatsapp";
+import { CookieBanner } from "@/components/cookie-banner";
 
 const plans = FITGROWX_PLANS.map((plan) => ({
   name: plan.name,
@@ -87,6 +88,8 @@ export default function Home() {
         </section>
 
         <LandingWhatsApp />
+
+        <CookieBanner />
 
         <footer className="mx-auto max-w-7xl px-6 py-12 lg:px-10 border-t border-white/[0.03]">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">

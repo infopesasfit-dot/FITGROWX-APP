@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -107,7 +108,7 @@ export default function ReservaPage({ params }: { params: { gymId: string } }) {
     <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "system-ui,sans-serif" }}>
       {/* Header */}
       <div style={{ background: "#1A1D23", padding: "28px 20px", textAlign: "center" }}>
-        {gym.logo_url && <img src={gym.logo_url} alt="Logo" style={{ height: 52, objectFit: "contain", marginBottom: 12 }} />}
+        {gym.logo_url && <Image src={gym.logo_url} alt="Logo" width={160} height={52} unoptimized style={{ height: 52, width: "auto", objectFit: "contain", marginBottom: 12 }} />}
         <h1 style={{ color: "#fff", fontSize: "1.4rem", fontWeight: 800, margin: 0 }}>
           {gym.gym_name ?? "Reservá tu clase"}
         </h1>

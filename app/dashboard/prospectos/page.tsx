@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  Target, Phone, Mail, Clock, CheckCircle, X, MessageSquare, Search, Filter,
+  Target, Phone, Mail, Clock, CheckCircle, X, MessageSquare, Search,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -50,8 +50,6 @@ export default function ProspectosPage() {
   const [loading,    setLoading]    = useState(true);
   const [search,     setSearch]     = useState("");
   const [filter,     setFilter]     = useState<Status | "todos">("todos");
-  const [gymId,      setGymId]      = useState<string | null>(null);
-
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -63,7 +61,6 @@ export default function ProspectosPage() {
     (async () => {
       const profile = await getCachedProfile();
       if (!profile) { setLoading(false); return; }
-      setGymId(profile.gymId);
 
       const cached = getPageCache<Prospecto[]>(`prospectos_${profile.gymId}`);
       if (cached) { setProspectos(cached); setLoading(false); }
@@ -184,7 +181,7 @@ export default function ProspectosPage() {
           </div>
         )}
 
-        {!loading && filtered.map((p, i) => {
+        {!loading && filtered.map((p) => {
           const s = STATUS_CFG[p.status];
           const date = new Date(p.created_at);
           const dateStr = date.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
@@ -256,7 +253,7 @@ export default function ProspectosPage() {
             <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>{search || filter !== "todos" ? "Sin resultados" : "Todavía no hay prospectos"}</p>
           </div>
         )}
-        {!loading && filtered.map((p, i) => {
+        {!loading && filtered.map((p) => {
           const s = STATUS_CFG[p.status];
           const date = new Date(p.created_at);
           const dateStr = date.toLocaleDateString("es-AR", { day: "numeric", month: "short" });

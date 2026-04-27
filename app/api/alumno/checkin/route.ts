@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { getPlanNombre } from "@/lib/supabase-relations";
+import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(req: NextRequest) {
+  const supabaseAdmin = getSupabaseAdminClient();
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
+    return NextResponse.json({
+      ok: false,
+      error: "No autorizado.",
+      error_code: "unauthorized",
+      error_title: "Sin autorización",
+      error_hint: "Iniciá sesión nuevamente antes de escanear.",
+    }, { status: 401 });
   }
 
   const { data: profile, error: profileError } = await supabaseAdmin
@@ -22,18 +25,38 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (profileError || !profile || !["admin", "staff"].includes(profile.role)) {
-    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+    return NextResponse.json({
+      ok: false,
+      error: "No autorizado.",
+      error_code: "forbidden",
+      error_title: "Sin permisos",
+      error_hint: "Tu usuario no tiene permisos para registrar asistencias.",
+    }, { status: 403 });
   }
 
   const { qr_data } = await req.json();
 
   // QR format: "FITGROWX:{DNI}"
   if (!qr_data || !qr_data.startsWith("FITGROWX:")) {
-    return NextResponse.json({ ok: false, error: "QR inválido." }, { status: 400 });
+    return NextResponse.json({
+      ok: false,
+      error: "QR inválido.",
+      error_code: "invalid_qr",
+      error_title: "QR inválido",
+      error_hint: "Pedile al alumno que vuelva a mostrar su código o ingresá el DNI manualmente.",
+    }, { status: 400 });
   }
 
   const dni = qr_data.slice("FITGROWX:".length).trim();
-  if (!dni) return NextResponse.json({ ok: false, error: "QR inválido." }, { status: 400 });
+  if (!dni) {
+    return NextResponse.json({
+      ok: false,
+      error: "QR inválido.",
+      error_code: "invalid_qr",
+      error_title: "QR inválido",
+      error_hint: "Pedile al alumno que vuelva a mostrar su código o ingresá el DNI manualmente.",
+    }, { status: 400 });
+  }
 
   const { data: alumno, error } = await supabaseAdmin
     .from("alumnos")
@@ -43,11 +66,42 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !alumno) {
-    return NextResponse.json({ ok: false, error: "Alumno no encontrado." }, { status: 404 });
+    return NextResponse.json({
+      ok: false,
+      error: "Alumno no encontrado.",
+      error_code: "student_not_found",
+      error_title: "Alumno no encontrado",
+      error_hint: "Verificá que el QR pertenezca a este gimnasio o registrá la asistencia manualmente.",
+    }, { status: 404 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getTodayDate();
   const alumno_id = alumno.id;
+  const expiration = alumno.next_expiration_date;
+  const isExpired = Boolean(expiration && expiration < today);
+  const isActive = alumno.status === "activo";
+
+  if (!isActive || isExpired) {
+    const membershipErrorCode = isExpired ? "membership_expired" : "membership_inactive";
+    const membershipErrorTitle = isExpired ? "Membresía vencida" : "Membresía inactiva";
+    const membershipError = isExpired
+      ? "La membresía del alumno está vencida."
+      : "La membresía del alumno no está activa.";
+
+    return NextResponse.json({
+      ok: false,
+      error: membershipError,
+      error_code: membershipErrorCode,
+      error_title: membershipErrorTitle,
+      error_hint: "No registrar asistencia hasta regularizar el pago o actualizar el estado del alumno.",
+      alumno: {
+        full_name: alumno.full_name,
+        plan: getPlanNombre(alumno.planes),
+        status: alumno.status,
+        expiration,
+      },
+    }, { status: 409 });
+  }
 
   // Check if already checked in today
   const { data: existing } = await supabaseAdmin
@@ -71,8 +125,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const now = new Date();
-  const hora = now.toTimeString().slice(0, 8);
+  const hora = getCurrentTime();
 
   const { error: insErr } = await supabaseAdmin.from("asistencias").insert({
     gym_id: alumno.gym_id,
@@ -82,7 +135,14 @@ export async function POST(req: NextRequest) {
   });
 
   if (insErr) {
-    return NextResponse.json({ ok: false, error: "Error al registrar." }, { status: 500 });
+    console.error("[checkin] insert error:", insErr.message, insErr.code, insErr.details);
+    return NextResponse.json({
+      ok: false,
+      error: "No se pudo registrar la asistencia por un error del sistema.",
+      error_code: "system_error",
+      error_title: "Error del sistema",
+      error_hint: "Probá de nuevo o hacé el check-in manual desde Alumnos.",
+    }, { status: 500 });
   }
 
   return NextResponse.json({

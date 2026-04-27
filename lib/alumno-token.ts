@@ -1,10 +1,5 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export type AlumnoTokenRow = {
   alumno_id: string;
@@ -17,6 +12,7 @@ export function getAlumnoBearerToken(req: NextRequest) {
 }
 
 export async function getValidAlumnoToken(req: NextRequest): Promise<AlumnoTokenRow | null> {
+  const supabase = getSupabaseAdminClient();
   const token = getAlumnoBearerToken(req);
   if (!token) return null;
 

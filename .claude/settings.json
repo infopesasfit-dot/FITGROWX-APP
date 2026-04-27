@@ -18,7 +18,22 @@
       "Bash(curl -s \"https://api.github.com/repos/infopesasfit-dot/fitgrowx-wsp-motor/contents/\")",
       "Bash(gh repo *)",
       "Bash(gh api *)",
-      "Bash(python3 -c \"import sys,json; [print\\(f['type'].ljust\\(6\\), f['name']\\) for f in json.load\\(sys.stdin\\)]\")"
+      "Bash(python3 -c \"import sys,json; [print\\(f['type'].ljust\\(6\\), f['name']\\) for f in json.load\\(sys.stdin\\)]\")",
+      "Bash(git status *)",
+      "Bash(xargs stat *)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx log --oneline --all -- 'supabase/migrations/*.sql')",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx log --oneline --all -- 'supabase/migrations/20260426*' 'supabase/migrations/gym_classes*' 'supabase/migrations/20260422*' 'supabase/migrations/20260421*')",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx show --name-only dd5ec68)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx show --name-only c9c9de0)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx mv supabase/migrations/gym_classes.sql supabase/migrations/20260411_gym_classes.sql)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx log --oneline origin/main..HEAD)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx add supabase/migrations/20260411_gym_classes.sql supabase/migrations/PENDING_RUN_NOW.sql)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx commit -m ' *)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx push)",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx log --oneline --all -- 'app/dashboard/egresos/page.tsx')",
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx show 3451d04 -- app/dashboard/egresos/page.tsx)",
+      "Bash(sed -n '360,380p' /Users/eliydan/Desktop/fitgrowx/app/dashboard/clases/page.tsx)",
+      "Bash(sed -n '490,510p' /Users/eliydan/Desktop/fitgrowx/app/dashboard/clases/page.tsx)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server"

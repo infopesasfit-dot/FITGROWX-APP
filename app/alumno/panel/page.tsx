@@ -83,6 +83,8 @@ export default function AlumnoPanelPage() {
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
   const [inlineSaving, setInlineSaving] = useState<Record<string, boolean>>({});
   const [showQR,       setShowQR]       = useState(false);
+  const [asistFechas,  setAsistFechas]  = useState<string[]>([]);
+  const [asistCount,   setAsistCount]   = useState(0);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -144,11 +146,22 @@ export default function AlumnoPanelPage() {
     setGymInfo({ gym_name: d.gym_name, logo_url: d.logo_url, accent_color: d.accent_color, plan_type: d.plan_type ?? null });
   }, []);
 
+  const fetchAsistencias = useCallback(async (s: Session) => {
+    try {
+      const r = await fetch(`/api/alumno/asistencias?alumno_id=${s.alumno_id}`, {
+        headers: { Authorization: `Bearer ${s.token}` },
+      });
+      const d = await r.json();
+      setAsistFechas(d.fechas ?? []);
+      setAsistCount(d.count ?? 0);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     if (!session) return;
     setLoading(true);
-    Promise.all([fetchClases(session), fetchRutina(session), fetchPesos(session), fetchGymInfo(session)]).finally(() => setLoading(false));
-  }, [session, fetchClases, fetchRutina, fetchPesos, fetchGymInfo]);
+    Promise.all([fetchClases(session), fetchRutina(session), fetchPesos(session), fetchGymInfo(session), fetchAsistencias(session)]).finally(() => setLoading(false));
+  }, [session, fetchClases, fetchRutina, fetchPesos, fetchGymInfo, fetchAsistencias]);
 
   const handleReservar = async (clase_id: string, fecha: string) => {
     if (!session) return;
@@ -302,6 +315,11 @@ export default function AlumnoPanelPage() {
           {session.plan && (
             <span style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.08)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.04em" }}>
               {session.plan}
+            </span>
+          )}
+          {asistCount > 0 && (
+            <span style={{ font: `600 0.65rem/1 ${fd}`, color: "#F97316", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.02em" }}>
+              {asistCount} asistencia{asistCount !== 1 ? "s" : ""} este mes 💪
             </span>
           )}
         </div>
@@ -659,6 +677,64 @@ export default function AlumnoPanelPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Expiry warning */}
+                {session.expiration && (() => {
+                  const exp = new Date(session.expiration);
+                  const daysLeft = Math.ceil((exp.getTime() - Date.now()) / 86_400_000);
+                  if (daysLeft > 3) return null;
+                  return (
+                    <div style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: 14, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+                      <p style={{ font: `500 0.8rem/1.45 ${fd}`, color: "rgba(255,255,255,0.7)" }}>
+                        Tu plan vence en <strong style={{ color: "#FBBF24" }}>{daysLeft <= 0 ? "hoy" : `${daysLeft} día${daysLeft !== 1 ? "s" : ""}`}</strong>. Acercate a recepción para renovarlo.
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                {/* Monthly attendance calendar */}
+                {asistCount > 0 && (() => {
+                  const now = new Date();
+                  const year = now.getFullYear();
+                  const month = now.getMonth();
+                  const daysInMonth = new Date(year, month + 1, 0).getDate();
+                  const firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+                  const attended = new Set(asistFechas);
+                  const cells: (number | null)[] = Array(firstDow).fill(null);
+                  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+                  while (cells.length % 7 !== 0) cells.push(null);
+                  const monthName = now.toLocaleDateString("es-AR", { month: "long" });
+                  return (
+                    <div style={{ ...gc, padding: "16px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                        <p style={{ font: `600 0.8rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", textTransform: "capitalize" }}>{monthName}</p>
+                        <span style={{ font: `600 0.7rem/1 ${fd}`, color: "#F97316", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", padding: "3px 9px", borderRadius: 9999 }}>
+                          {asistCount} día{asistCount !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 8 }}>
+                        {["D","L","M","X","J","V","S"].map(d => (
+                          <div key={d} style={{ textAlign: "center", font: `500 0.52rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.05em" }}>{d}</div>
+                        ))}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+                        {cells.map((day, i) => {
+                          if (!day) return <div key={i} />;
+                          const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                          const isToday = iso === now.toISOString().slice(0, 10);
+                          const wasHere = attended.has(iso);
+                          return (
+                            <div key={i} style={{ aspectRatio: "1", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", position: "relative", background: wasHere ? "rgba(52,211,153,0.15)" : isToday ? "rgba(249,115,22,0.12)" : "transparent", border: isToday ? "1px solid rgba(249,115,22,0.3)" : "none" }}>
+                              <span style={{ font: `${wasHere || isToday ? "700" : "400"} 0.65rem/1 ${fd}`, color: wasHere ? "#34D399" : isToday ? "#F97316" : "rgba(255,255,255,0.35)" }}>{day}</span>
+                              {wasHere && <div style={{ position: "absolute", bottom: 1, width: 3, height: 3, borderRadius: "50%", background: "#34D399" }} />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {pesos.length > 0 && (
                   <div style={{ ...gc, padding: "16px 18px" }}>

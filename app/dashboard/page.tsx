@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getPlanNombre, getRelationRecord } from "@/lib/supabase-relations";
+import { getCachedProfile } from "@/lib/gym-cache";
 
 const accent = "#FF6A00";
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -123,14 +124,17 @@ export default function DashboardPage() {
   const [captacion5,        setCaptacion5]        = useState<number[]>([0, 0, 0, 0, 0]);
   const [planDist,          setPlanDist]          = useState<PlanDist[]>([]);
   const [prospectos,        setProspectos]        = useState(0);
+  const [asistDiarias,      setAsistDiarias]      = useState<{ fecha: string; count: number }[]>([]);
+  const [asistHoras,        setAsistHoras]        = useState<number[]>(Array(24).fill(0));
+  const [asistHoy,          setAsistHoy]          = useState(0);
 
   const fetchData = async (filter: DateFilter) => {
     setLoading(true);
     let gym_id = gymIdRef.current;
     if (!gym_id) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
-      gym_id = user.id;
+      const profile = await getCachedProfile();
+      if (!profile) { setLoading(false); return; }
+      gym_id = profile.gymId;
       gymIdRef.current = gym_id;
     }
 
@@ -191,6 +195,16 @@ export default function DashboardPage() {
       .sort((a, b) => b[1] - a[1])
       .map(([nombre, count]) => ({ nombre, count }));
     setPlanDist(dist);
+
+    // Fetch attendance stats in background (non-blocking)
+    fetch(`/api/admin/asistencias-stats`)
+      .then(r => r.json())
+      .then(d => {
+        setAsistDiarias((d.dailyCounts ?? []).slice(-14));
+        setAsistHoras(d.hourlyCounts ?? Array(24).fill(0));
+        setAsistHoy(d.todayCount ?? 0);
+      })
+      .catch(() => {});
 
     setLoading(false);
   };
@@ -677,6 +691,67 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* ZONA ASISTENCIAS */}
+      {asistDiarias.length > 0 && (() => {
+        const maxA = Math.max(...asistDiarias.map(d => d.count), 1);
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const peakH = asistHoras.indexOf(Math.max(...asistHoras));
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 20 }}>
+            <div style={{ ...cardBase, padding: "22px 24px" }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <span style={{ font: `800 1rem/1 ${fd}`, color: t1 }}>Asistencia diaria</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ font: `700 0.72rem/1 ${fd}`, color: "#FF6A00", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.18)", borderRadius: 9999, padding: "3px 10px" }}>{asistHoy} hoy</span>
+                  <a href="/dashboard/asistencias" style={{ font: `500 0.68rem/1 ${fd}`, color: t3, textDecoration: "none" }}>Ver detalle →</a>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 80 }}>
+                {asistDiarias.map(d => {
+                  const h = maxA > 0 ? Math.max((d.count / maxA) * 68, d.count > 0 ? 4 : 0) : 0;
+                  const isToday = d.fecha === todayStr;
+                  return (
+                    <div key={d.fecha} title={`${d.fecha}: ${d.count}`} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, position: "relative" }}>
+                      <div style={{ width: "100%", height: h || 2, background: isToday ? "#FF6A00" : d.count > 0 ? "#1A1D23" : "#F1F2F6", borderRadius: "3px 3px 0 0", transition: "height 0.3s ease", opacity: isToday ? 1 : 0.7 }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                <span style={{ font: `400 0.6rem/1 ${fd}`, color: t3 }}>{asistDiarias[0]?.fecha.slice(8)}/{asistDiarias[0]?.fecha.slice(5,7)}</span>
+                <span style={{ font: `400 0.6rem/1 ${fd}`, color: "#FF6A00", fontWeight: 700 }}>hoy</span>
+              </div>
+            </div>
+            <div style={{ ...cardBase, padding: "22px 24px" }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+              <div style={{ marginBottom: 14 }}>
+                <span style={{ font: `800 1rem/1 ${fd}`, color: t1 }}>Horario pico</span>
+                {asistHoras[peakH] > 0 && (
+                  <p style={{ font: `400 0.72rem/1 ${fd}`, color: t3, marginTop: 4 }}>
+                    Pico: <strong style={{ color: t1 }}>{peakH}:00 – {peakH + 1}:00h</strong>
+                  </p>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {[6,7,8,9,10,17,18,19,20,21,22].map(h => {
+                  const count = asistHoras[h] ?? 0;
+                  const pct = asistHoras[peakH] > 0 ? (count / asistHoras[peakH]) * 100 : 0;
+                  const isPeak = h === peakH && count > 0;
+                  return (
+                    <div key={h} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ font: `500 0.62rem/1 ${fd}`, color: t3, width: 28, textAlign: "right", flexShrink: 0 }}>{h}h</span>
+                      <div style={{ flex: 1, height: 6, background: "#F1F2F6", borderRadius: 9999, overflow: "hidden" }}>
+                        <div style={{ width: `${pct}%`, height: "100%", background: isPeak ? "#FF6A00" : "#1A1D23", borderRadius: 9999, transition: "width 0.4s ease", opacity: isPeak ? 1 : 0.7 }} />
+                      </div>
+                      <span style={{ font: `600 0.62rem/1 ${fd}`, color: isPeak ? "#FF6A00" : t2, width: 16, flexShrink: 0 }}>{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ZONA 3 */}
       <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 20 }}>
