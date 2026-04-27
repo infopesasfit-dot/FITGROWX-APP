@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   TrendingUp, CreditCard, Wallet, CheckCircle, Clock, XCircle,
   Plus, Upload, X, Smartphone, DollarSign, Building2, Settings,
+  Users, ShoppingBag,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getPagoAlumnoSummary, getPlanPeriodo } from "@/lib/supabase-relations";
@@ -93,10 +94,10 @@ function fmtARS(n: number) {
   return "$" + n.toLocaleString("es-AR");
 }
 
-const CONCEPTO_META: Record<Concepto, { label: string; color: string; bg: string }> = {
-  membresia: { label: "Membresía",    color: "#FF6A00", bg: "rgba(255,106,0,0.08)" },
-  clase:     { label: "Clase/Evento", color: "#1E50F0", bg: "rgba(30,80,240,0.08)" },
-  producto:  { label: "Producto",     color: "#16A34A", bg: "rgba(22,163,74,0.08)" },
+const CONCEPTO_META: Record<Concepto, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  membresia: { label: "Membresía",    color: "#FF6A00", bg: "rgba(255,106,0,0.08)",  icon: <CreditCard size={11} /> },
+  clase:     { label: "Clase/Evento", color: "#1E50F0", bg: "rgba(30,80,240,0.08)",  icon: <Users size={11} /> },
+  producto:  { label: "Producto",     color: "#16A34A", bg: "rgba(22,163,74,0.08)",  icon: <ShoppingBag size={11} /> },
 };
 
 function mapPagoRow(row: PagoRow): Pago {
