@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CheckCircle2, Eye, EyeOff, Lock, Mail, MessageCircleMore, User } from "lucide-react";
@@ -40,7 +41,7 @@ function DotField({ className }: { className: string }) {
   );
 }
 
-export default function StartPage() {
+function StartPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nameRef = useRef<HTMLInputElement>(null);
@@ -509,5 +510,13 @@ const [authError, setAuthError] = useState<string | null>(null);
         )}
       </div>
     </main>
+  );
+}
+
+export default function StartPage() {
+  return (
+    <Suspense>
+      <StartPageInner />
+    </Suspense>
   );
 }
