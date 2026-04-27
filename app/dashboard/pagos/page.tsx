@@ -170,9 +170,9 @@ export default function PagosPage() {
     if (!alumno) return;
 
     const PERIOD_MONTHS: Record<string, number> = {
-      mensual: 1, trimestral: 3, anual: 12,
+      mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12,
     };
-    const PERIOD_DAYS: Record<string, number> = { semanal: 7 };
+    const PERIOD_DAYS: Record<string, number> = { semanal: 7, semana: 7 };
 
     const periodo = getPlanPeriodo(alumno.planes) ?? "mensual";
 
