@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHmac } from "crypto";
+import { addOneMonth } from "@/lib/date-utils";
 
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN!;
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;
@@ -11,19 +12,20 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  // Validar firma de MP si la clave está configurada
-  if (MP_WEBHOOK_SECRET) {
-    const xSignature  = req.headers.get("x-signature") ?? "";
-    const xRequestId  = req.headers.get("x-request-id") ?? "";
-    const dataId      = new URL(req.url).searchParams.get("data.id") ?? "";
-    const signedStr   = `id:${dataId};request-id:${xRequestId};ts:${xSignature.split(";").find(p => p.startsWith("ts="))?.split("=")[1] ?? ""}`;
-    const ts          = xSignature.split(";").find(p => p.startsWith("ts="))?.split("=")[1] ?? "";
-    const template    = `id:${dataId};request-id:${xRequestId};ts:${ts}`;
-    const expected    = createHmac("sha256", MP_WEBHOOK_SECRET).update(template).digest("hex");
-    const received    = xSignature.split(";").find(p => p.startsWith("v1="))?.split("=")[1] ?? "";
-    if (received && received !== expected) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
+  if (!MP_WEBHOOK_SECRET) {
+    console.error("MP_WEBHOOK_SECRET no configurado");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
+
+  const xSignature  = req.headers.get("x-signature") ?? "";
+  const xRequestId  = req.headers.get("x-request-id") ?? "";
+  const dataId      = new URL(req.url).searchParams.get("data.id") ?? "";
+  const ts          = xSignature.split(";").find(p => p.startsWith("ts="))?.split("=")[1] ?? "";
+  const template    = `id:${dataId};request-id:${xRequestId};ts:${ts}`;
+  const expected    = createHmac("sha256", MP_WEBHOOK_SECRET).update(template).digest("hex");
+  const received    = xSignature.split(";").find(p => p.startsWith("v1="))?.split("=")[1] ?? "";
+  if (received !== expected) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   const body = await req.json().catch(() => null);
@@ -56,16 +58,48 @@ export async function POST(req: NextRequest) {
   const isActive = status === "authorized";
   const isCancelled = status === "cancelled" || status === "paused";
 
-  await supabaseAdmin
+  const { error: dbErr } = await supabaseAdmin
     .from("gyms")
     .update({
       mp_preapproval_id: id,
       is_subscription_active: isActive,
-      ...(isCancelled ? { is_subscription_active: false } : {}),
+      ...(isActive    ? { subscription_expires_at: addOneMonth(new Date()).toISOString() } : {}),
+      ...(isCancelled ? { is_subscription_active: false, subscription_expires_at: null } : {}),
     })
     .eq("id", gymId);
 
+  if (dbErr) console.error(`MP webhook: DB update failed para gym ${gymId}:`, dbErr.message);
   console.log(`MP webhook: gym ${gymId} → preapproval ${id} → ${status}`);
+
+  // Notify gym owner via WA when subscription is cancelled or payment fails
+  if (isCancelled) {
+    const motorUrl = process.env.WA_MOTOR_URL;
+    if (motorUrl) {
+      const { data: settings } = await supabaseAdmin
+        .from("gym_settings")
+        .select("gym_name, whatsapp")
+        .eq("gym_id", gymId)
+        .maybeSingle();
+
+      const phone = settings?.whatsapp;
+      const gymName = settings?.gym_name ?? "tu gimnasio";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
+
+      if (phone) {
+        const message = `⚠️ *${gymName}* — Hubo un problema con el pago de tu suscripción FitGrowX y tu acceso fue suspendido.\n\nPodés renovarla en: ${appUrl}/dashboard/suscripcion\n\nSi tenés dudas, escribinos a soporte@fitgrowx.com.`;
+        try {
+          await fetch(`${motorUrl}/send/${gymId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+            body: JSON.stringify({ phone, message }),
+            signal: AbortSignal.timeout(8000),
+          });
+        } catch (err) {
+          console.error(`MP webhook: WA notif failed para gym ${gymId}:`, err instanceof Error ? err.message : err);
+        }
+      }
+    }
+  }
 
   return NextResponse.json({ ok: true });
 }

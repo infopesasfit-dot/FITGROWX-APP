@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import PlatformHeader from "./components/PlatformHeader";
 
 export default function PlatformLayout({ children }: { children: ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function PlatformLayout({ children }: { children: ReactNode }) {
         color: "#111827",
       }}
     >
+      <PlatformHeader />
       {children}
     </main>
   );

@@ -65,6 +65,7 @@ function mapReservaRow(row: unknown): Reserva {
 }
 
 export default function ClasesPage() {
+  const [isMobile, setIsMobile] = useState(false);
   const [gymId,         setGymId]         = useState<string | null>(null);
   const [clases,        setClases]        = useState<GymClass[]>([]);
   const [loading,       setLoading]       = useState(true);
@@ -83,6 +84,13 @@ export default function ClasesPage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setGymId(user.id);
     });
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   const fetchClases = useCallback(async (gid: string) => {
@@ -221,19 +229,19 @@ export default function ClasesPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h1 style={{ font: `800 1.6rem/1 ${fd}`, color: t1, letterSpacing: "-0.035em" }}>Calendario de Clases</h1>
-          <p style={{ font: `400 0.85rem/1 ${fd}`, color: t2, marginTop: 4 }}>Gestioná las clases de tu gimnasio</p>
+          <h1 style={{ font: `800 ${isMobile ? "1.4rem" : "1.6rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.035em" }}>{isMobile ? "Clases" : "Calendario de Clases"}</h1>
+          {!isMobile && <p style={{ font: `400 0.85rem/1 ${fd}`, color: t2, marginTop: 4 }}>Gestioná las clases de tu gimnasio</p>}
         </div>
         <button
           onClick={openAdd}
           style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", background: t1, color: "white", border: "none", borderRadius: 10, font: `600 0.85rem/1 ${fd}`, cursor: "pointer" }}
         >
-          <Plus size={15} /> Nueva clase
+          <Plus size={15} /> {isMobile ? "Nueva" : "Nueva clase"}
         </button>
       </div>
 
       {/* KPI cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 12 }}>
         {[
           { label: "Clases activas", value: clases.length, icon: Calendar, color: "#4B6BFB" },
           { label: "Clases hoy", value: clasesHoy, icon: Clock, color: "#F97316" },
@@ -356,8 +364,8 @@ export default function ClasesPage() {
 
       {/* Add/Edit Modal */}
       {modalOpen && typeof window !== "undefined" && createPortal(
-        <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: "28px 24px", width: "100%", maxWidth: 440, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", maxHeight: "90vh", overflowY: "auto" }}>
+        <div onClick={() => setModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: isMobile ? "20px 20px 0 0" : 18, padding: "28px 24px", width: "100%", maxWidth: isMobile ? "100%" : 440, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
               <h2 style={{ font: `700 1.1rem/1 ${fd}`, color: t1 }}>{editId ? "Editar clase" : "Nueva clase"}</h2>
               <button onClick={() => setModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: t2, display: "flex" }}><X size={18} /></button>

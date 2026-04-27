@@ -230,6 +230,7 @@ function HeroCenterCard({ onCTA }: { onCTA: () => void }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function MembresiasPage() {
+  const [isMobile, setIsMobile] = useState(false);
   const [planes,      setPlanes]      = useState<PlanDB[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [showHero,    setShowHero]    = useState(true);   // hides when planes exist or CTA clicked
@@ -247,6 +248,13 @@ export default function MembresiasPage() {
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
   const [alumnosPorPlan, setAlumnosPorPlan] = useState<Record<string, number>>({});
   const [activosCount,   setActivosCount]   = useState(0);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const showToast = (msg: string, type: "ok" | "err") => {
     setToast({ msg, type });
@@ -513,7 +521,7 @@ export default function MembresiasPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
           {/* KPI row */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 14 }}>
             {[
               { label: "Ingreso Est. Mensual", value: loading ? "—" : `$${displayIngresos.toLocaleString("es-AR")}`, icon: <TrendingUp size={16} color="white" />, sub: `${activosCount} alumnos activos` },
               { label: "Planes Activos",       value: loading ? "—" : planes.length,                               icon: <CreditCard  size={16} color="white" />, sub: "configurados" },
@@ -544,7 +552,7 @@ export default function MembresiasPage() {
             ) : (
               <div style={{ position: "relative" }}>
               {/* Real cards */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 32, opacity: showHero ? 0 : 1, transition: "opacity 0.55s ease", pointerEvents: showHero ? "none" : "auto" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 32, opacity: showHero ? 0 : 1, transition: "opacity 0.55s ease", pointerEvents: showHero ? "none" : "auto" }}>
                 {displayPlanes.map((p, i) => {
                   const draft      = drafts[p.id] ?? planToDraft(p);
                   const isDirty    = dirty.has(p.id);
@@ -667,7 +675,7 @@ export default function MembresiasPage() {
               </div>
               {/* Blueprint skeleton overlay — only when hero is active */}
               {showHero && (
-                <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 32 }}>
+                <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 32 }}>
                   <SkeletonCard />
                   <HeroCenterCard onCTA={handleHeroCTA} />
                   <SkeletonCard />
@@ -847,7 +855,7 @@ export default function MembresiasPage() {
 
         {/* ── Toast ── */}
         {toast && (
-          <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100, display: "flex", alignItems: "center", gap: 10, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", padding: "13px 20px", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", font: `600 0.875rem/1 ${fb}`, minWidth: 260, animation: "slideUp 0.22s ease" }}>
+          <div style={{ position: "fixed", bottom: isMobile ? 90 : 28, right: 28, zIndex: 100, display: "flex", alignItems: "center", gap: 10, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", padding: "13px 20px", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", font: `600 0.875rem/1 ${fb}`, minWidth: 260, animation: "slideUp 0.22s ease" }}>
             <span style={{ fontSize: "1.1rem" }}>{toast.type === "ok" ? "✓" : "✕"}</span>
             {toast.msg}
           </div>

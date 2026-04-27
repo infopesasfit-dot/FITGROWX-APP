@@ -11,7 +11,17 @@
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx/wa-server add index.js)",
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx/wa-server commit -m \"Fix: Enable CORS for all origins to allow QR in frontend\")",
       "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/rpc/exec_sql -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -d '{\"sql\": \"ALTER TABLE whatsapp_sessions ADD COLUMN IF NOT EXISTS creds_json text; ALTER TABLE whatsapp_sessions ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now\\(\\);\"}')",
-      "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/whatsapp_sessions -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -H 'Prefer: resolution=merge-duplicates,return=representation' -d '{\"gym_id\":\"test-debug\",\"creds_json\":\"test\",\"updated_at\":\"2026-04-19T00:00:00Z\"}')"
+      "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/whatsapp_sessions -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -H 'Prefer: resolution=merge-duplicates,return=representation' -d '{\"gym_id\":\"test-debug\",\"creds_json\":\"test\",\"updated_at\":\"2026-04-19T00:00:00Z\"}')",
+      "Bash(curl -v -s -H 'x-api-key: EsTaEsUnaApiHKhEyjeJE2026' https://motor-wsp-fitgrowx-production.up.railway.app/status)",
+      "Bash(curl -s \"https://api.github.com/repos/infopesasfit-dot/fitgrowx-wsp-motor/contents/\" -H \"Accept: application/vnd.github.v3+json\")",
+      "Bash(python3 -c \"import sys,json; [print\\(f['type'], f['name']\\) for f in json.load\\(sys.stdin\\)]\")",
+      "Bash(curl -s \"https://api.github.com/repos/infopesasfit-dot/fitgrowx-wsp-motor/contents/\")",
+      "Bash(gh repo *)",
+      "Bash(gh api *)",
+      "Bash(python3 -c \"import sys,json; [print\\(f['type'].ljust\\(6\\), f['name']\\) for f in json.load\\(sys.stdin\\)]\")"
+    ],
+    "additionalDirectories": [
+      "/Users/eliydan/Desktop/wa-server"
     ]
   }
 }

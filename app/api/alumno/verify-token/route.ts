@@ -10,17 +10,17 @@ export async function POST(req: NextRequest) {
   const { token } = await req.json();
   if (!token) return NextResponse.json({ error: "Token requerido." }, { status: 400 });
 
+  // Atomically consume the token: only succeeds if not used and not expired
   const { data: tokenRow, error } = await supabase
     .from("alumno_tokens")
-    .select("id, alumno_id, gym_id, expires_at, used_at")
+    .update({ used_at: new Date().toISOString() })
     .eq("token", token)
+    .is("used_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .select("id, alumno_id, gym_id")
     .single();
 
-  if (error || !tokenRow) return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
-  if (tokenRow.used_at) return NextResponse.json({ error: "Este enlace ya fue utilizado." }, { status: 401 });
-  if (new Date(tokenRow.expires_at) < new Date()) return NextResponse.json({ error: "El enlace expiró. Solicitá uno nuevo." }, { status: 401 });
-
-  await supabase.from("alumno_tokens").update({ used_at: new Date().toISOString() }).eq("id", tokenRow.id);
+  if (error || !tokenRow) return NextResponse.json({ error: "Enlace inválido, expirado o ya utilizado." }, { status: 401 });
 
   const { data: alumno } = await supabase
     .from("alumnos")

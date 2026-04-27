@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -15,6 +16,13 @@ export async function POST(req: NextRequest) {
   if (!gym_id || !plan_key || !price_ars) {
     return NextResponse.json({ error: "Faltan parámetros." }, { status: 400 });
   }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const { data: profile } = await supabase.from("profiles").select("gym_id").eq("id", user.id).single();
+  if (profile?.gym_id !== gym_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
   // Obtener email del gym para precompletar el pago
   const { data: settings } = await supabaseAdmin
@@ -54,14 +62,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: data.message ?? "Error MP" }, { status: res.status });
   }
 
-  // Guardar preapproval_id y plan en Supabase (pendiente hasta webhook confirme)
-  await supabaseAdmin
+  const { error: dbErr } = await supabaseAdmin
     .from("gyms")
-    .update({
-      mp_preapproval_id: data.id,
-      plan_type: plan_key,
-    })
+    .update({ mp_preapproval_id: data.id, plan_type: plan_key })
     .eq("id", gym_id);
+  if (dbErr) console.error("create-subscription: DB update failed:", dbErr.message);
 
   return NextResponse.json({ init_point: data.init_point, preapproval_id: data.id });
 }

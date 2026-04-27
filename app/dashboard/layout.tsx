@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import FloatingSupport from "@/components/FloatingSupport";
+import FeedbackModal from "@/components/FeedbackModal";
 import { getGymSummary } from "@/lib/supabase-relations";
 
 const NAV_TOP = [
@@ -27,6 +28,13 @@ const NAV_TOP = [
   { href: "/dashboard/prospectos",        label: "Prospectos",      icon: Target },
   { href: "/dashboard/publicidad",        label: "Campañas",        icon: Megaphone },
   { href: "/dashboard/boveda",            label: "Bóveda",          icon: FolderOpen },
+];
+
+const BOTTOM_NAV = [
+  { href: "/dashboard",         label: "Inicio",  icon: Home },
+  { href: "/dashboard/alumnos", label: "Alumnos", icon: Users },
+  { href: "/dashboard/scanner", label: "Escáner", icon: ScanLine },
+  { href: "/dashboard/pagos",   label: "Pagos",   icon: Wallet },
 ];
 
 
@@ -54,6 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [planType,         setPlanType]         = useState<string | null>(null);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
+  const [feedbackOpen,     setFeedbackOpen]     = useState(false);
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
@@ -345,11 +354,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 pointer-events: none;
               }
             `}</style>
-            <a
-              href={`https://wa.me/${process.env.NEXT_PUBLIC_FITGROWX_SUPPORT_WA ?? ""}?text=${encodeURIComponent("Hola! Tengo una sugerencia para FitGrowX.")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ borderRadius: 16, padding: "14px 16px", marginTop: "auto", position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #0a1628 0%, #0d1f3c 40%, #000000 100%)", border: "1px solid rgba(110,168,254,0.18)", display: "block", textDecoration: "none" }}
+            <div
+              style={{ borderRadius: 16, padding: "14px 16px", marginTop: "auto", position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #0a1628 0%, #0d1f3c 40%, #000000 100%)", border: "1px solid rgba(110,168,254,0.18)", display: "block" }}
             >
               {/* Grain overlay */}
               <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.18, pointerEvents: "none" }} xmlns="http://www.w3.org/2000/svg">
@@ -370,16 +376,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <p style={{ font: `400 0.72rem/1.45 ${fb}`, color: "rgba(255,255,255,0.55)", marginBottom: 12, position: "relative", zIndex: 1 }}>
                 Tu feedback nos ayuda a construir algo mejor. Contanos qué necesitás.
               </p>
-              <div className="support-btn-shimmer" style={{ width: "100%", padding: "8px", borderRadius: 9999, background: "linear-gradient(135deg, #1e3fa0, #0a1628)", color: "white", border: "1px solid rgba(110,168,254,0.30)", fontWeight: 700, fontSize: "0.75rem", fontFamily: fd, letterSpacing: "0.02em", position: "relative", zIndex: 1, textAlign: "center", overflow: "hidden", animation: "borderBreath 3s ease-in-out infinite" }}>
+              <button
+                onClick={() => setFeedbackOpen(true)}
+                className="support-btn-shimmer"
+                style={{ width: "100%", padding: "8px", borderRadius: 9999, background: "linear-gradient(135deg, #1e3fa0, #0a1628)", color: "white", border: "1px solid rgba(110,168,254,0.30)", fontWeight: 700, fontSize: "0.75rem", fontFamily: fd, letterSpacing: "0.02em", position: "relative", zIndex: 1, textAlign: "center", overflow: "hidden", animation: "borderBreath 3s ease-in-out infinite", cursor: "pointer" }}
+              >
                 Mandanos un mensaje
-              </div>
-            </a>
+              </button>
+            </div>
           </>
         )}
       </aside>
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : "#f8fafc", borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : (isMobile ? "#F0F2F7" : "#f8fafc"), borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
 
         {/* Topbar */}
         <header style={{
@@ -388,20 +398,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           margin: isMobile ? "0" : "12px 0 0",
           position: "sticky", top: isMobile ? 0 : 12, zIndex: 10,
           borderRadius: scrolled ? 16 : 0,
-          background: isMobile ? "rgba(248,250,252,0.96)" : (scrolled ? "rgba(248,250,252,0.82)" : "transparent"),
-          backdropFilter: (isMobile || scrolled) ? "blur(20px) saturate(180%)" : "none",
-          WebkitBackdropFilter: (isMobile || scrolled) ? "blur(20px) saturate(180%)" : "none",
-          boxShadow: (isMobile || scrolled) ? "0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)" : "none",
+          background: isMobile ? "#151515" : (scrolled ? "rgba(248,250,252,0.82)" : "transparent"),
+          backdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
+          boxShadow: isMobile ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 16px rgba(0,0,0,0.30)" : (scrolled ? "0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)" : "none"),
           transition: "background 0.25s ease, box-shadow 0.25s ease, backdrop-filter 0.25s ease, border-radius 0.25s ease",
         }}>
-          {/* Hamburger — mobile only */}
+          {/* Mobile: show gym logo / brand in topbar instead of hamburger */}
           {isMobile && (
-            <button
-              onClick={() => setMobileNavOpen(true)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7280", padding: 6, display: "flex", alignItems: "center", flexShrink: 0 }}
-            >
-              <Menu size={20} />
-            </button>
+            <div style={{ flexShrink: 0 }}>
+              {planType === "full_marca" && gymLogoUrl
+                ? // eslint-disable-next-line @next/next/no-img-element
+                  <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 28, maxWidth: 100, objectFit: "contain", display: "block" }} />
+                : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={300} height={90} style={{ height: 24, width: "auto", objectFit: "contain", display: "block" }} priority unoptimized />
+              }
+            </div>
           )}
 
           {/* Search — hidden on mobile */}
@@ -412,12 +423,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           )}
 
-          {/* Page title on mobile */}
-          {isMobile && (
-            <span style={{ flex: 1, font: `600 0.9rem/1 ${fd}`, color: "#1A1D23" }}>
-              {NAV_TOP.find(n => isActive(n.href))?.label ?? "Dashboard"}
-            </span>
-          )}
+          {/* Spacer on mobile to push actions right */}
+          {isMobile && <span style={{ flex: 1 }} />}
 
           <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, marginLeft: isMobile ? 0 : "auto" }}>
             {!isMobile && (
@@ -430,11 +437,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div ref={notifRef} style={{ position: "relative" }}>
               <button
                 onClick={handleOpenNotifs}
-                style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: "#6B7280", padding: 5, display: "flex", alignItems: "center" }}
+                style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.6)" : "#6B7280", padding: 5, display: "flex", alignItems: "center" }}
               >
                 <Bell size={19} />
                 {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#F97316", borderRadius: "50%", border: "2px solid white" }} />
+                  <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#F97316", borderRadius: "50%", border: `2px solid ${isMobile ? "#151515" : "white"}` }} />
                 )}
               </button>
 
@@ -492,8 +499,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div ref={menuRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setMenuOpen(o => !o)}
-                style={{ display: "flex", alignItems: "center", gap: 8, background: menuOpen ? "#F4F5F9" : "none", border: menuOpen ? "1px solid rgba(0,0,0,0.08)" : "1px solid transparent", borderRadius: 10, padding: "5px 8px 5px 5px", cursor: "pointer", transition: "all 0.14s" }}
-                onMouseEnter={e => { if (!menuOpen) e.currentTarget.style.background = "#F4F5F9"; }}
+                style={{ display: "flex", alignItems: "center", gap: 8, background: menuOpen ? (isMobile ? "rgba(255,255,255,0.08)" : "#F4F5F9") : "none", border: menuOpen ? (isMobile ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(0,0,0,0.08)") : "1px solid transparent", borderRadius: 10, padding: "5px 8px 5px 5px", cursor: "pointer", transition: "all 0.14s" }}
+                onMouseEnter={e => { if (!menuOpen) e.currentTarget.style.background = isMobile ? "rgba(255,255,255,0.08)" : "#F4F5F9"; }}
                 onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = "none"; }}
               >
                 {/* Avatar */}
@@ -622,13 +629,65 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: isMobile ? "14px 12px 24px" : "20px 20px 28px", display: "flex", flexDirection: "column", gap: 18, background: isVaultRoute ? "#ECEFF3" : "transparent" }}>
+        <main style={{ flex: 1, padding: isMobile ? "14px 12px 90px" : "20px 20px 28px", display: "flex", flexDirection: "column", gap: 18, background: isVaultRoute ? "#ECEFF3" : "transparent" }}>
           {children}
         </main>
         <WelcomeModal />
       </div>
 
+      {/* ── Mobile Bottom Navigation Bar ── */}
+      {isMobile && (
+        <nav style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 95,
+          background: "rgba(21,21,21,0.86)",
+          backdropFilter: "blur(28px) saturate(160%)",
+          WebkitBackdropFilter: "blur(28px) saturate(160%)",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+          display: "flex", alignItems: "stretch",
+          paddingBottom: "env(safe-area-inset-bottom, 8px)",
+          boxShadow: "0 -4px 24px rgba(0,0,0,0.18)",
+        }}>
+          {BOTTOM_NAV.map(({ href, label, icon: Icon }) => {
+            const active = isActive(href);
+            return (
+              <Link key={href} href={href} style={{
+                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                gap: 4, padding: "10px 4px 8px", textDecoration: "none",
+                color: active ? "#FF6A00" : "rgba(255,255,255,0.38)",
+                transition: "color 0.15s",
+              }}>
+                <div style={{
+                  width: 38, height: 28, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: active ? "rgba(255,106,0,0.14)" : "transparent",
+                  transition: "background 0.15s",
+                }}>
+                  <Icon size={19} />
+                </div>
+                <span style={{ font: `${active ? 700 : 400} 0.6rem/1 ${fd}`, letterSpacing: "0.02em" }}>{label}</span>
+              </Link>
+            );
+          })}
+          {/* Más — opens sidebar drawer */}
+          <button onClick={() => setMobileNavOpen(true)} style={{
+            flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: 4, padding: "10px 4px 8px", background: "none", border: "none", cursor: "pointer",
+            color: mobileNavOpen ? "#FF6A00" : "rgba(255,255,255,0.38)",
+            transition: "color 0.15s",
+          }}>
+            <div style={{
+              width: 38, height: 28, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+              background: mobileNavOpen ? "rgba(255,106,0,0.14)" : "transparent",
+              transition: "background 0.15s",
+            }}>
+              <Menu size={19} />
+            </div>
+            <span style={{ font: `400 0.6rem/1 ${fd}`, letterSpacing: "0.02em" }}>Más</span>
+          </button>
+        </nav>
+      )}
+
       <FloatingSupport />
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} gymId={gymId} gymDisplayName={gymDisplayName} />
 
       {/* ── Trial last-24h modal ── */}
       {showTrialModal && (

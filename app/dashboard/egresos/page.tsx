@@ -35,6 +35,7 @@ interface Egreso {
 const EMPTY_FORM = { titulo: "", monto: "", categoria: CATEGORIAS[0], fecha: new Date().toISOString().slice(0, 10) };
 
 export default function EgresosPage() {
+  const [isMobile, setIsMobile]   = useState(false);
   const [egresos, setEgresos]     = useState<Egreso[]>([]);
   const [loading, setLoading]     = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -74,6 +75,13 @@ export default function EgresosPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [fetchEgresos]);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,9 +127,9 @@ export default function EgresosPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
-          <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Finanzas</p>
-          <h1 style={{ font: `800 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Egresos</h1>
-          <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Registrá y analizá todos los gastos del gym.</p>
+          {!isMobile && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Finanzas</p>}
+          <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Egresos</h1>
+          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Registrá y analizá todos los gastos del gym.</p>}
         </div>
         <button
           onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true); }}
@@ -129,12 +137,12 @@ export default function EgresosPage() {
           onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
           onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
         >
-          <Plus size={15} /> Nuevo Egreso
+          <Plus size={15} /> {isMobile ? "Nuevo" : "Nuevo Egreso"}
         </button>
       </div>
 
       {/* KPI row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 14 }}>
         {[
           { label: "Gastos del Mes",  value: totalMes,   icon: <TrendingDown size={16} color="white" />, sub: "mes actual" },
           { label: "Acumulado",       value: totalAcum,  icon: <Receipt      size={16} color="white" />, sub: "total registrado" },
@@ -154,9 +162,10 @@ export default function EgresosPage() {
       </div>
 
       {/* Main grid: table + breakdown */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr", gap: 16, alignItems: "start" }}>
 
-        {/* Table */}
+        {/* Table — desktop */}
+        {!isMobile && (
         <div style={{ ...card, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
             <span style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>Historial de Egresos</span>
@@ -206,6 +215,39 @@ export default function EgresosPage() {
             </tbody>
           </table>
         </div>
+        )}
+
+        {/* Card list — mobile */}
+        {isMobile && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>Historial</span>
+            <span style={{ font: `400 0.75rem/1 ${fb}`, color: t3 }}>{egresos.length} registros</span>
+          </div>
+          {loading ? (
+            <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Cargando...</p>
+          ) : egresos.length === 0 ? (
+            <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Sin egresos registrados.</p>
+          ) : egresos.map((e, i) => {
+            const cat = CAT_COLOR[e.categoria] ?? CAT_COLOR.Otros;
+            return (
+              <div key={e.id} style={{ ...card, padding: "14px 16px", animation: `fadeUp 0.2s ease ${i * 30}ms both` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <DollarSign size={15} color={cat.color} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.titulo}</p>
+                    <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{new Date(e.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                  </div>
+                  <span style={{ font: `700 0.9rem/1 ${fd}`, color: "#DC2626", flexShrink: 0 }}>−${e.monto.toLocaleString("es-AR")}</span>
+                </div>
+                <span style={{ font: `600 0.72rem/1 ${fb}`, color: cat.color, background: cat.bg, padding: "3px 10px", borderRadius: 9999 }}>{e.categoria}</span>
+              </div>
+            );
+          })}
+        </div>
+        )}
 
         {/* Category breakdown */}
         <div style={{ ...card, padding: "18px 20px" }}>
@@ -237,11 +279,11 @@ export default function EgresosPage() {
     {modalOpen && (
       <div
         onClick={() => setModalOpen(false)}
-        style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }}
       >
         <div
           onClick={e => e.stopPropagation()}
-          style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: 460, overflow: "hidden" }}
+          style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 460, maxHeight: isMobile ? "90vh" : undefined, overflowY: "auto" }}
         >
           {/* Modal header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 0" }}>

@@ -37,6 +37,11 @@ interface Ejercicio {
   series:        number;
   repeticiones:  number;
   peso_sugerido: string;
+  // WOD fields
+  _meta?:        boolean;
+  modalidad?:    string;
+  time_cap?:     string;
+  reps?:         string;
 }
 
 interface Peso { id: string; ejercicio: string; peso: number; fecha: string; notas: string | null; }
@@ -471,76 +476,105 @@ export default function AlumnoPanelPage() {
             {/* TAB — ENTRENAMIENTO */}
             {tab === "entrenamiento" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp 0.22s ease" }}>
-                {rutina ? (
+                {rutina ? (() => {
+                  const isWod = !!(rutina.ejercicios[0]?._meta);
+                  const wodMeta = isWod ? rutina.ejercicios[0] : null;
+                  const items = isWod ? rutina.ejercicios.slice(1) : rutina.ejercicios;
+                  return (
                   <>
                     <div style={{ ...gc, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <div>
-                        <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Tu rutina</p>
+                        <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+                          {isWod ? "Tu WOD" : "Tu rutina"}
+                        </p>
                         <h2 style={{ font: `700 1.2rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.02em" }}>{rutina.nombre}</h2>
                       </div>
-                      <span style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.25)" }}>{rutina.ejercicios.length} ejerc.</span>
+                      {isWod && wodMeta ? (
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ padding: "4px 10px", borderRadius: 9999, background: "rgba(99,102,241,0.18)", border: "1px solid rgba(99,102,241,0.25)", font: `700 0.7rem/1 ${fd}`, color: "#818cf8" }}>{wodMeta.modalidad}</span>
+                          <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>{wodMeta.time_cap} min</p>
+                        </div>
+                      ) : (
+                        <span style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.25)" }}>{items.length} ejerc.</span>
+                      )}
                     </div>
 
-                    {rutina.ejercicios.map((ej, i) => {
-                      const lastPeso = pesos.filter(p => p.ejercicio === ej.nombre)[0];
-                      const saving = !!inlineSaving[ej.nombre];
-                      return (
-                        <div key={i} style={{ ...gc, padding: "15px 16px" }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                            <div>
-                              <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 10 }}>{ej.nombre}</p>
-                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                {[
-                                  { val: ej.series, label: "series" },
-                                  { val: ej.repeticiones, label: "reps" },
-                                  ...(ej.peso_sugerido ? [{ val: ej.peso_sugerido, label: "sug." }] : []),
-                                ].map((item, idx, arr) => (
-                                  <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <div style={{ textAlign: "center" }}>
-                                      <span style={{ font: `600 1rem/1 ${fd}`, color: "#FFFFFF" }}>{item.val}</span>
-                                      <p style={{ font: `400 0.55rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 2 }}>{item.label}</p>
-                                    </div>
-                                    {idx < arr.length - 1 && <span style={{ color: "rgba(255,255,255,0.1)", fontSize: 18, lineHeight: 1 }}>·</span>}
-                                  </div>
-                                ))}
-                              </div>
+                    {isWod ? (
+                      // WOD: lista simple de movimientos
+                      <div style={{ ...gc, padding: "14px 16px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                          {items.map((m, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: i < items.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                              <p style={{ font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>{m.nombre}</p>
+                              <span style={{ font: `700 0.88rem/1 ${fd}`, color: "#818cf8", flexShrink: 0 }}>{m.reps}</span>
                             </div>
-                            {lastPeso && (
-                              <div style={{ textAlign: "right" }}>
-                                <div style={{ display: "flex", alignItems: "baseline", gap: 2, justifyContent: "flex-end" }}>
-                                  <span style={{ font: `700 1.3rem/1 ${fd}`, color: "#FFFFFF" }}>{lastPeso.peso}</span>
-                                  <span style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.06em" }}>kg</span>
-                                </div>
-                                <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", marginTop: 3 }}>{lastPeso.fecha}</p>
-                              </div>
-                            )}
-                          </div>
-                          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 11 }}>
-                            <div style={{ position: "relative", flex: 1 }}>
-                              <input
-                                type="number" step="0.5" min="0" placeholder="kg hoy"
-                                value={inlineKg[ej.nombre] ?? ""}
-                                onChange={e => setInlineKg(prev => ({ ...prev, [ej.nombre]: e.target.value }))}
-                                onKeyDown={e => e.key === "Enter" && handleInlineKgSave(ej.nombre)}
-                                style={{ width: "100%", padding: "4px 0 6px", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.12)", font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }}
-                                onFocus={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.5)")}
-                                onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.12)")}
-                              />
-                              <span style={{ position: "absolute", right: 0, bottom: 7, font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", pointerEvents: "none" }}>kg</span>
-                            </div>
-                            <button
-                              onClick={() => handleInlineKgSave(ej.nombre)}
-                              disabled={saving || !inlineKg[ej.nombre]}
-                              style={{ padding: "5px 0 6px", background: "transparent", border: "none", borderBottom: `1px solid ${saving || !inlineKg[ej.nombre] ? "transparent" : "rgba(249,115,22,0.5)"}`, color: saving || !inlineKg[ej.nombre] ? "rgba(255,255,255,0.15)" : "#F97316", font: `500 0.72rem/1 ${fd}`, cursor: saving || !inlineKg[ej.nombre] ? "not-allowed" : "pointer", whiteSpace: "nowrap", letterSpacing: "0.05em", transition: "all 0.15s" }}
-                            >
-                              {saving ? "..." : "GUARDAR"}
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ) : (
+                      // Gym: tabla con kg tracking
+                      items.map((ej, i) => {
+                        const lastPeso = pesos.filter(p => p.ejercicio === ej.nombre)[0];
+                        const saving = !!inlineSaving[ej.nombre];
+                        return (
+                          <div key={i} style={{ ...gc, padding: "15px 16px" }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
+                              <div>
+                                <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 10 }}>{ej.nombre}</p>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                  {[
+                                    { val: ej.series, label: "series" },
+                                    { val: ej.repeticiones, label: "reps" },
+                                    ...(ej.peso_sugerido ? [{ val: ej.peso_sugerido, label: "sug." }] : []),
+                                  ].map((item, idx, arr) => (
+                                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <div style={{ textAlign: "center" }}>
+                                        <span style={{ font: `600 1rem/1 ${fd}`, color: "#FFFFFF" }}>{item.val}</span>
+                                        <p style={{ font: `400 0.55rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 2 }}>{item.label}</p>
+                                      </div>
+                                      {idx < arr.length - 1 && <span style={{ color: "rgba(255,255,255,0.1)", fontSize: 18, lineHeight: 1 }}>·</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              {lastPeso && (
+                                <div style={{ textAlign: "right" }}>
+                                  <div style={{ display: "flex", alignItems: "baseline", gap: 2, justifyContent: "flex-end" }}>
+                                    <span style={{ font: `700 1.3rem/1 ${fd}`, color: "#FFFFFF" }}>{lastPeso.peso}</span>
+                                    <span style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.06em" }}>kg</span>
+                                  </div>
+                                  <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", marginTop: 3 }}>{lastPeso.fecha}</p>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", gap: 10, alignItems: "flex-end", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 11 }}>
+                              <div style={{ position: "relative", flex: 1 }}>
+                                <input
+                                  type="number" step="0.5" min="0" placeholder="kg hoy"
+                                  value={inlineKg[ej.nombre] ?? ""}
+                                  onChange={e => setInlineKg(prev => ({ ...prev, [ej.nombre]: e.target.value }))}
+                                  onKeyDown={e => e.key === "Enter" && handleInlineKgSave(ej.nombre)}
+                                  style={{ width: "100%", padding: "4px 0 6px", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.12)", font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }}
+                                  onFocus={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.5)")}
+                                  onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.12)")}
+                                />
+                                <span style={{ position: "absolute", right: 0, bottom: 7, font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", pointerEvents: "none" }}>kg</span>
+                              </div>
+                              <button
+                                onClick={() => handleInlineKgSave(ej.nombre)}
+                                disabled={saving || !inlineKg[ej.nombre]}
+                                style={{ padding: "5px 0 6px", background: "transparent", border: "none", borderBottom: `1px solid ${saving || !inlineKg[ej.nombre] ? "transparent" : "rgba(249,115,22,0.5)"}`, color: saving || !inlineKg[ej.nombre] ? "rgba(255,255,255,0.15)" : "#F97316", font: `500 0.72rem/1 ${fd}`, cursor: saving || !inlineKg[ej.nombre] ? "not-allowed" : "pointer", whiteSpace: "nowrap", letterSpacing: "0.05em", transition: "all 0.15s" }}
+                              >
+                                {saving ? "..." : "GUARDAR"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </>
-                ) : (
+                  );
+                })() : (
                   <div style={{ ...gc, padding: "48px 24px", textAlign: "center" }}>
                     <Dumbbell size={28} color="rgba(255,255,255,0.15)" strokeWidth={1.5} style={{ margin: "0 auto 16px" }} />
                     <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 6 }}>Sin rutina asignada</p>

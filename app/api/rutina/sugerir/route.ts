@@ -1,13 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
 
 export async function POST(req: NextRequest) {
-  const { objetivo, alumno_name, notas } = await req.json();
-  if (!objetivo) return NextResponse.json({ error: "Objetivo requerido." }, { status: 400 });
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const { objetivo, alumno_name, notas, tipo, modalidad, time_cap } = await req.json();
 
   const notasExtra = notas?.trim() ? `\nIndicaciones adicionales del coach: "${notas}"` : "";
+
+  if (tipo === "wod") {
+    const mod = modalidad ?? "AMRAP";
+    const cap = time_cap ?? "15";
+    const prompt = `Eres un coach de CrossFit experto. Generá un WOD de CrossFit en formato ${mod} de ${cap} minutos para ${alumno_name ?? "el atleta"}.${notasExtra}
+
+Devolvé SOLO un JSON válido con esta estructura exacta (sin markdown, sin texto extra):
+{
+  "nombre": "Nombre del WOD",
+  "modalidad": "${mod}",
+  "time_cap": "${cap}",
+  "movimientos": [
+    { "nombre": "Thruster", "reps": "21" },
+    { "nombre": "Pull-up", "reps": "15" }
+  ]
+}
+
+Reglas:
+- Entre 3 y 6 movimientos funcionales
+- Reps en formato string (puede ser "21-15-9", "10 cal", "400m", "AMRAP", etc.)
+- Movimientos típicos de CrossFit: Thruster, Wall Ball, Box Jump, Burpee, Clean, Snatch, Pull-up, Row, Double Under, etc.
+- Nombre del WOD en español o hero WOD en inglés si aplica
+- El tiempo total debe ser coherente con la modalidad y los movimientos`;
+
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.8,
+        max_tokens: 500,
+      });
+      const raw = completion.choices[0]?.message?.content ?? "";
+      const cleaned = raw.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      return NextResponse.json({ ok: true, tipo: "wod", nombre: parsed.nombre, modalidad: parsed.modalidad, time_cap: parsed.time_cap, movimientos: parsed.movimientos });
+    } catch (err) {
+      console.error("[rutina/sugerir wod]", err);
+      return NextResponse.json({ ok: false, error: "No se pudo generar el WOD. Intentá de nuevo." }, { status: 500 });
+    }
+  }
+
+  // Gym routine (existing behavior)
+  if (!objetivo) return NextResponse.json({ error: "Objetivo requerido." }, { status: 400 });
 
   const prompt = `Eres un entrenador personal experto. Creá una rutina de gimnasio para ${alumno_name ?? "el alumno"} con objetivo de ${objetivo}.${notasExtra}
 
@@ -39,11 +86,9 @@ Reglas:
       temperature: 0.7,
       max_tokens: 800,
     });
-
     const raw = completion.choices[0]?.message?.content ?? "";
     const cleaned = raw.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
-
     return NextResponse.json({ ok: true, nombre: parsed.nombre, ejercicios: parsed.ejercicios });
   } catch (err) {
     console.error("[rutina/sugerir]", err);

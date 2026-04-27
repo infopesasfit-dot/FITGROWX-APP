@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getPagoAlumnoSummary, getPlanPeriodo } from "@/lib/supabase-relations";
+import { addMonths } from "@/lib/date-utils";
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -125,6 +126,7 @@ function ProgressBar({ pct, color }: { pct: number; color: string }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function PagosPage() {
+  const [isMobile, setIsMobile] = useState(false);
   const [role,        setRole]        = useState<string>("admin");
   const [gymId,       setGymId]       = useState<string | null>(null);
   const [userId,      setUserId]      = useState<string | null>(null);
@@ -167,18 +169,25 @@ export default function PagosPage() {
 
     if (!alumno) return;
 
-    const PERIOD_DAYS: Record<string, number> = {
-      mensual: 30, trimestral: 90, anual: 365, semanal: 7,
+    const PERIOD_MONTHS: Record<string, number> = {
+      mensual: 1, trimestral: 3, anual: 12,
     };
-    const periodo = getPlanPeriodo(alumno.planes) ?? "mensual";
-    const days    = PERIOD_DAYS[periodo] ?? 30;
+    const PERIOD_DAYS: Record<string, number> = { semanal: 7 };
 
-    // Extender desde la fecha actual de vencimiento si todavía no venció; si no, desde hoy
+    const periodo = getPlanPeriodo(alumno.planes) ?? "mensual";
+
+    // Extender desde el vencimiento actual si no venció; si no, desde hoy
     const base = alumno.next_expiration_date && new Date(alumno.next_expiration_date) > new Date()
       ? new Date(alumno.next_expiration_date)
       : new Date();
-    base.setDate(base.getDate() + days);
-    const newExpiry = base.toISOString().slice(0, 10);
+
+    let newExpiry: string;
+    if (PERIOD_MONTHS[periodo]) {
+      newExpiry = addMonths(base, PERIOD_MONTHS[periodo]).toISOString().slice(0, 10);
+    } else {
+      base.setDate(base.getDate() + (PERIOD_DAYS[periodo] ?? 30));
+      newExpiry = base.toISOString().slice(0, 10);
+    }
 
     await supabase.from("alumnos").update({
       status: "activo",
@@ -241,6 +250,13 @@ export default function PagosPage() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -389,11 +405,11 @@ export default function PagosPage() {
         {/* Header */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div>
-            <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Finanzas</p>
-            <h1 style={{ font: `800 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Pagos</h1>
-            <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>
+            {!isMobile && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Finanzas</p>}
+            <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Pagos</h1>
+            {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>
               {isAdmin ? "Gestión completa de ingresos y cuentas del gimnasio." : isStaff ? "Validá transferencias y registrá pagos." : "Registrá tu pago y seguí el estado."}
-            </p>
+            </p>}
           </div>
           {(isAdmin || isStaff) && (
             <button
@@ -418,7 +434,7 @@ export default function PagosPage() {
         </div>
 
         {/* KPI row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 14 }}>
           {[
             { label: "Ingresos del Mes",           value: loading ? "—" : fmtARS(totalMes),           icon: <TrendingUp size={16} color="white" />, sub: `${validados.length} pagos validados` },
             { label: "Transferencias Pendientes",  value: loading ? "—" : String(pendientes.length),  icon: <Clock size={16} color="white" />,      sub: pendientes.length > 0 ? "Requieren validación" : "Todo al día ✓", warn: pendientes.length > 0 },
@@ -436,7 +452,7 @@ export default function PagosPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 2, borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: 0 }}>
+        <div style={{ display: "flex", gap: 2, borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: 0, overflowX: isMobile ? "auto" : undefined }}>
           {([
             { key: "resumen",    label: "Resumen" },
             { key: "pendientes", label: `Pendientes${pendientes.length > 0 ? ` (${pendientes.length})` : ""}` },
@@ -466,7 +482,7 @@ export default function PagosPage() {
         {/* ── TAB: RESUMEN ── */}
         {tab === "resumen" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
               {(["efectivo", "transferencia", "mercadopago", "debito"] as Method[]).map(m => {
                 const meta  = METHOD_META[m];
                 const total = byMethod(m);
@@ -572,7 +588,7 @@ export default function PagosPage() {
         )}
 
         {/* ── TAB: HISTORIAL ── */}
-        {tab === "historial" && (
+        {tab === "historial" && !isMobile && (
           <div style={{ ...card, padding: 0, overflow: "hidden" }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "12px 20px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
               {["Alumno", "Fecha", "Método", "Estado", "Monto"].map(h => (
@@ -595,6 +611,33 @@ export default function PagosPage() {
                 <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
                 <Chip meta={STATUS_META[p.status ?? "validado"]} />
                 <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, textAlign: "right" }}>{fmtARS(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "historial" && isMobile && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {loading ? (
+              <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Cargando...</p>
+            ) : pagos.length === 0 ? (
+              <p style={{ padding: "48px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados.</p>
+            ) : pagos.map((p, idx) => (
+              <div key={p.id} style={{ ...card, padding: "14px 16px", animation: `fadeUp 0.2s ease ${idx * 30}ms both` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                    {initials(p.alumnos?.full_name ?? "?")}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</p>
+                    <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.date}</p>
+                  </div>
+                  <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{fmtARS(p.amount)}</span>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
+                  <Chip meta={STATUS_META[p.status ?? "validado"]} />
+                </div>
               </div>
             ))}
           </div>
@@ -668,11 +711,11 @@ export default function PagosPage() {
       {newPagoOpen && (
         <div
           onClick={closePagoModal}
-          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }}
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: "#FFFFFF", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: 460, overflow: "hidden" }}
+            style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 460, maxHeight: isMobile ? "90vh" : undefined, overflowY: "auto" }}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 0" }}>
               <div>
@@ -816,7 +859,7 @@ export default function PagosPage() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 99, padding: "12px 20px", borderRadius: 12, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", font: `600 0.85rem/1 ${fb}`, boxShadow: "0 8px 28px rgba(0,0,0,0.20)", animation: "fadeUp 0.2s ease both" }}>
+        <div style={{ position: "fixed", bottom: isMobile ? 90 : 28, right: 28, zIndex: 99, padding: "12px 20px", borderRadius: 12, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", font: `600 0.85rem/1 ${fb}`, boxShadow: "0 8px 28px rgba(0,0,0,0.20)", animation: "fadeUp 0.2s ease both" }}>
           {toast.msg}
         </div>
       )}

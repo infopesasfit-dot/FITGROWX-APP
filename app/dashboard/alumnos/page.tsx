@@ -55,6 +55,7 @@ function openWhatsApp(phone: string, full_name: string) {
 const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: "" };
 
 export default function AlumnosPage() {
+  const [isMobile,        setIsMobile]        = useState(false);
   const [alumnos,         setAlumnos]         = useState<Alumno[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [search,          setSearch]          = useState("");
@@ -88,6 +89,10 @@ export default function AlumnosPage() {
   const [notas,            setNotas]            = useState("");
   const [aiLoading,        setAiLoading]        = useState(false);
   const [publicado,        setPublicado]        = useState(false);
+  const [rutinatipo,       setRutinatipo]       = useState<"gym" | "wod">("gym");
+  const [wodModalidad,     setWodModalidad]     = useState("AMRAP");
+  const [wodTimeCap,       setWodTimeCap]       = useState("15");
+  const [wodMovimientos,   setWodMovimientos]   = useState<{ nombre: string; reps: string }[]>([]);
 
   // ── Fetch alumnos ─────────────────────────────────────────────────
   const fetchAlumnos = useCallback(async () => {
@@ -113,11 +118,16 @@ export default function AlumnosPage() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void fetchAlumnos();
-    }, 0);
+    const timer = window.setTimeout(() => { void fetchAlumnos(); }, 0);
     return () => window.clearTimeout(timer);
   }, [fetchAlumnos]);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   // ── Open modal + fetch planes ─────────────────────────────────────
   const openModal = async () => {
@@ -294,38 +304,63 @@ export default function AlumnosPage() {
   };
 
   // ── Rutina ────────────────────────────────────────────────────────
-  const EMPTY_EJ = { nombre: "", series: 3, repeticiones: 10, peso_sugerido: "", descanso: "60s" };
+  const EMPTY_EJ  = { nombre: "", series: 3, repeticiones: 10, peso_sugerido: "", descanso: "60s" };
+  const EMPTY_MOV = { nombre: "", reps: "" };
 
   const openRutinaModal = async (a: Alumno) => {
     setRutinaTarget(a);
     setRutinaNombre("Mi Rutina");
     setRutinaEjercicios([{ ...EMPTY_EJ }]);
+    setWodMovimientos([{ ...EMPTY_MOV }]);
     setRutinaError(null);
     setNotas("");
     setObjetivo("Hipertrofia");
+    setRutinatipo("gym");
+    setWodModalidad("AMRAP");
+    setWodTimeCap("15");
     setPublicado(false);
     setRutinaModalOpen(true);
     const { data } = await supabase.from("rutinas").select("nombre, ejercicios, notas").eq("alumno_id", a.id).maybeSingle();
     if (data) {
       setRutinaNombre(data.nombre);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setRutinaEjercicios((data.ejercicios as any[]).map(e => ({ ...EMPTY_EJ, ...e })));
+      const ejercicios = data.ejercicios as any[];
+      if (ejercicios?.[0]?._meta) {
+        const meta = ejercicios[0];
+        setRutinatipo("wod");
+        setWodModalidad(meta.modalidad ?? "AMRAP");
+        setWodTimeCap(meta.time_cap ?? "15");
+        setWodMovimientos(ejercicios.slice(1).map((e: { nombre?: string; reps?: string }) => ({ nombre: e.nombre ?? "", reps: e.reps ?? "" })));
+      } else {
+        setRutinatipo("gym");
+        setRutinaEjercicios(ejercicios.map(e => ({ ...EMPTY_EJ, ...e })));
+      }
       setNotas(data.notas ?? "");
     }
   };
 
   const handleRutinaSave = async () => {
     if (!rutinaTarget) return;
-    const valid = rutinaEjercicios.filter(ej => ej.nombre.trim());
-    if (valid.length === 0) { setRutinaError("Agregá al menos un ejercicio."); return; }
-    setRutinaSaving(true);
     setRutinaError(null);
+
+    let ejerciciosToSave: object[];
+    if (rutinatipo === "wod") {
+      const validMov = wodMovimientos.filter(m => m.nombre.trim());
+      if (validMov.length === 0) { setRutinaError("Agregá al menos un movimiento."); return; }
+      ejerciciosToSave = [{ _meta: true, modalidad: wodModalidad, time_cap: wodTimeCap }, ...validMov];
+    } else {
+      const valid = rutinaEjercicios.filter(ej => ej.nombre.trim());
+      if (valid.length === 0) { setRutinaError("Agregá al menos un ejercicio."); return; }
+      ejerciciosToSave = valid;
+    }
+
+    setRutinaSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setRutinaError("Sesión expirada."); setRutinaSaving(false); return; }
     const res = await fetch("/api/alumno/rutina", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gym_id: user.id, alumno_id: rutinaTarget.id, nombre: rutinaNombre.trim(), ejercicios: valid, notas: notas.trim() || null }),
+      body: JSON.stringify({ gym_id: user.id, alumno_id: rutinaTarget.id, nombre: rutinaNombre.trim(), ejercicios: ejerciciosToSave, notas: notas.trim() || null }),
     });
     const d = await res.json();
     if (!res.ok || d.error) { setRutinaError(d.error ?? "Error al guardar."); setRutinaSaving(false); return; }
@@ -334,7 +369,7 @@ export default function AlumnosPage() {
     setTimeout(() => {
       setRutinaModalOpen(false);
       setPublicado(false);
-      setToast(`✓ Rutina publicada para ${rutinaTarget.full_name}`);
+      setToast(`✓ ${rutinatipo === "wod" ? "WOD" : "Rutina"} publicado para ${rutinaTarget.full_name}`);
     }, 1600);
   };
 
@@ -343,17 +378,31 @@ export default function AlumnosPage() {
     setAiLoading(true);
     setRutinaError(null);
     try {
+      const body = rutinatipo === "wod"
+        ? { tipo: "wod", modalidad: wodModalidad, time_cap: wodTimeCap, alumno_name: rutinaTarget.full_name, notas }
+        : { objetivo, alumno_name: rutinaTarget.full_name, notas };
       const res = await fetch("/api/rutina/sugerir", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ objetivo, alumno_name: rutinaTarget.full_name, notas }),
+        body: JSON.stringify(body),
       });
       const d = await res.json();
-      if (d.ejercicios) {
-        setRutinaEjercicios(d.ejercicios.map((e: { nombre: string; series: number; repeticiones: number; peso_sugerido: string; descanso: string }) => ({ ...EMPTY_EJ, ...e })));
-        setRutinaNombre(d.nombre ?? `${objetivo} — ${rutinaTarget.full_name.split(" ")[0]}`);
+      if (rutinatipo === "wod") {
+        if (d.movimientos) {
+          setWodMovimientos(d.movimientos.map((m: { nombre: string; reps: string }) => ({ nombre: m.nombre ?? "", reps: m.reps ?? "" })));
+          setRutinaNombre(d.nombre ?? `WOD ${wodModalidad}`);
+          setWodModalidad(d.modalidad ?? wodModalidad);
+          setWodTimeCap(d.time_cap ?? wodTimeCap);
+        } else {
+          setRutinaError(d.error ?? "Error al generar el WOD.");
+        }
       } else {
-        setRutinaError(d.error ?? "Error al generar la rutina.");
+        if (d.ejercicios) {
+          setRutinaEjercicios(d.ejercicios.map((e: { nombre: string; series: number; repeticiones: number; peso_sugerido: string; descanso: string }) => ({ ...EMPTY_EJ, ...e })));
+          setRutinaNombre(d.nombre ?? `${objetivo} — ${rutinaTarget.full_name.split(" ")[0]}`);
+        } else {
+          setRutinaError(d.error ?? "Error al generar la rutina.");
+        }
       }
     } catch {
       setRutinaError("Error de red. Intentá de nuevo.");
@@ -431,24 +480,22 @@ export default function AlumnosPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div>
           <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Gestión</p>
-          <h1 style={{ font: `800 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Alumnos</h1>
-          <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Administra y monitorea a todos los miembros.</p>
+          <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Alumnos</h1>
+          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Administra y monitorea a todos los miembros.</p>}
         </div>
         <button
           onClick={openModal}
-          style={{ display: "flex", alignItems: "center", gap: 6, background: "#F97316", color: "white", border: "none", padding: "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)" }}
-          onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
-          onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 6, background: "#F97316", color: "white", border: "none", padding: isMobile ? "10px 16px" : "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)" }}
         >
-          <Plus size={15} /> Nuevo Alumno
+          <Plus size={15} />{isMobile ? "Nuevo" : "Nuevo Alumno"}
         </button>
       </div>
 
       {/* KPI row */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
         {[
           { label: "Total",      value: totalCount, icon: <Users      size={16} color="white" />, sub: "registrados" },
           { label: "Activos",    value: activos,    icon: <UserCheck  size={16} color="white" />, sub: "en regla" },
@@ -469,125 +516,122 @@ export default function AlumnosPage() {
         ))}
       </div>
 
-      {/* Table card */}
-      <div style={{ ...card, padding: 0, overflow: "hidden" }}>
-
-        {/* Filters */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 20px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-          <div style={{ position: "relative", flex: 1, maxWidth: 300 }}>
-            <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: t3 }} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar alumno o plan..."
-              style={{ width: "100%", padding: "8px 14px 8px 32px", background: "#F0F2F8", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 9999, font: `400 0.83rem/1 ${fb}`, color: t1, outline: "none" }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 4 }}>
-            {[["todos","Todos"],["activo","Activo"],["vencido","Vencido"],["pendiente","Pendiente"]].map(([val, lbl]) => (
-              <button key={val} onClick={() => setFiltro(val)}
-                style={{ padding: "7px 14px", borderRadius: 9999, border: "none", font: `500 0.78rem/1 ${fb}`, cursor: "pointer", transition: "all 0.14s", background: filtro === val ? "#2C2C2E" : "#F0F2F8", color: filtro === val ? "white" : t2 }}
-              >{lbl}</button>
-            ))}
-          </div>
+      {/* Search + Filters */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ position: "relative" }}>
+          <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: t3 }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar alumno o plan..."
+            style={{ width: "100%", padding: "10px 14px 10px 32px", background: "white", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, font: `400 0.85rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const }} />
         </div>
-
-        {/* Table */}
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-              {["Alumno", "DNI", "Plan", "Estado", "Vence", "Teléfono", "Acciones"].map(h => (
-                <th key={h} style={{ padding: "10px 20px", textAlign: "left", font: `600 0.7rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={7} style={{ padding: "40px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando alumnos...</td></tr>
-            ) : lista.length === 0 ? (
-              <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", font: `400 0.875rem/1.5 ${fb}`, color: t3 }}>
-                {alumnos.length === 0 ? "No hay alumnos registrados aún." : "No se encontraron alumnos con ese filtro."}
-              </td></tr>
-            ) : lista.map((a, i) => {
-              const planNombre = a.planes?.nombre ?? "—";
-              const planColor  = a.planes?.accent_color ?? t2;
-              const planBg     = a.planes?.accent_color ? `${a.planes.accent_color}18` : "#F0F2F8";
-              const isPausado  = a.status === "pausado";
-              return (
-                <tr key={a.id} style={{ borderBottom: i < lista.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", ...(isPausado ? { opacity: 0.65, background: "#F5F5F7" } : {}) }}
-                  onMouseEnter={e => (e.currentTarget.style.background = isPausado ? "#EFEFEF" : "#FAFBFD")}
-                  onMouseLeave={e => (e.currentTarget.style.background = isPausado ? "#F5F5F7" : "transparent")}
-                >
-                  <td style={{ padding: "13px 20px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
-                      <span style={{ font: `600 0.875rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "13px 20px", font: `500 0.83rem/1 ${fb}`, color: t2, fontVariantNumeric: "tabular-nums" }}>
-                    {a.dni ?? <span style={{ color: t3 }}>—</span>}
-                  </td>
-                  <td style={{ padding: "13px 20px" }}>
-                    <span style={{ font: `600 0.75rem/1 ${fb}`, color: planColor, background: planBg, padding: "4px 10px", borderRadius: 9999 }}>{planNombre}</span>
-                  </td>
-                  <td style={{ padding: "13px 20px" }}>
-                    <span style={{ font: `600 0.72rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "4px 10px", borderRadius: 9999 }}>{STATUS_STYLE[a.status].label}</span>
-                  </td>
-                  <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2, fontVariantNumeric: "tabular-nums" }}>
-                    {a.next_expiration_date ?? "—"}
-                  </td>
-                  <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2 }}>
-                    {a.phone ?? <span style={{ color: t3 }}>—</span>}
-                  </td>
-                  <td style={{ padding: "13px 20px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                      <button
-                        title={a.phone ? `WhatsApp ${a.full_name}` : "Sin teléfono"}
-                        disabled={!a.phone}
-                        onClick={() => a.phone && openWhatsApp(a.phone, a.full_name)}
-                        style={{ background: "none", border: "none", cursor: a.phone ? "pointer" : "default", color: a.phone ? "#25D366" : t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.14s", opacity: a.phone ? 1 : 0.35 }}
-                        onMouseEnter={e => { if (a.phone) (e.currentTarget as HTMLButtonElement).style.background = "rgba(37,211,102,0.12)"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
-                      >
-                        <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
-                      </button>
-                      <button title="Registrar Pago" onClick={() => openPagoModal(a)}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.14s" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0F2F8"; (e.currentTarget as HTMLButtonElement).style.color = "#4B6BFB"; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; (e.currentTarget as HTMLButtonElement).style.color = t3; }}
-                      >
-                        <CreditCard size={18} />
-                      </button>
-                      <button title="Más opciones"
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; }
-                          const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                          setMenuOpenId(a.id);
-                        }}
-                        style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.14s" }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0F2F8"; (e.currentTarget as HTMLButtonElement).style.color = t1; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; (e.currentTarget as HTMLButtonElement).style.color = t3; }}
-                      >
-                        <MoreVertical size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Footer */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-          <span style={{ font: `400 0.78rem/1 ${fb}`, color: t3 }}>
-            {loading ? "Cargando..." : `Mostrando ${lista.length} de ${totalCount} alumnos`}
-          </span>
-          <button style={{ font: `500 0.78rem/1 ${fb}`, color: "#4B6BFB", background: "none", border: "none", cursor: "pointer" }}>Exportar lista →</button>
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+          {[["todos","Todos"],["activo","Activo"],["vencido","Vencido"],["pendiente","Pendiente"]].map(([val, lbl]) => (
+            <button key={val} onClick={() => setFiltro(val)} style={{ flexShrink: 0, padding: "7px 16px", borderRadius: 9999, border: "none", font: `600 0.78rem/1 ${fb}`, cursor: "pointer", transition: "all 0.14s", background: filtro === val ? "#1A1D23" : "white", color: filtro === val ? "white" : t2, boxShadow: filtro === val ? "none" : "0 1px 4px rgba(0,0,0,0.08)" }}>{lbl}</button>
+          ))}
         </div>
       </div>
+
+      {/* Table card — desktop */}
+      {!isMobile && (
+        <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                {["Alumno", "DNI", "Plan", "Estado", "Vence", "Teléfono", "Acciones"].map(h => (
+                  <th key={h} style={{ padding: "10px 20px", textAlign: "left", font: `600 0.7rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} style={{ padding: "40px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando alumnos...</td></tr>
+              ) : lista.length === 0 ? (
+                <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", font: `400 0.875rem/1.5 ${fb}`, color: t3 }}>
+                  {alumnos.length === 0 ? "No hay alumnos registrados aún." : "No se encontraron alumnos con ese filtro."}
+                </td></tr>
+              ) : lista.map((a, i) => {
+                const planNombre = a.planes?.nombre ?? "—";
+                const planColor  = a.planes?.accent_color ?? t2;
+                const planBg     = a.planes?.accent_color ? `${a.planes.accent_color}18` : "#F0F2F8";
+                const isPausado  = a.status === "pausado";
+                return (
+                  <tr key={a.id} style={{ borderBottom: i < lista.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", ...(isPausado ? { opacity: 0.65, background: "#F5F5F7" } : {}) }}
+                    onMouseEnter={e => (e.currentTarget.style.background = isPausado ? "#EFEFEF" : "#FAFBFD")}
+                    onMouseLeave={e => (e.currentTarget.style.background = isPausado ? "#F5F5F7" : "transparent")}
+                  >
+                    <td style={{ padding: "13px 20px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
+                        <span style={{ font: `600 0.875rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "13px 20px", font: `500 0.83rem/1 ${fb}`, color: t2 }}>{a.dni ?? <span style={{ color: t3 }}>—</span>}</td>
+                    <td style={{ padding: "13px 20px" }}><span style={{ font: `600 0.75rem/1 ${fb}`, color: planColor, background: planBg, padding: "4px 10px", borderRadius: 9999 }}>{planNombre}</span></td>
+                    <td style={{ padding: "13px 20px" }}><span style={{ font: `600 0.72rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "4px 10px", borderRadius: 9999 }}>{STATUS_STYLE[a.status].label}</span></td>
+                    <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2 }}>{a.next_expiration_date ?? "—"}</td>
+                    <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2 }}>{a.phone ?? <span style={{ color: t3 }}>—</span>}</td>
+                    <td style={{ padding: "13px 20px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <button disabled={!a.phone} onClick={() => a.phone && openWhatsApp(a.phone, a.full_name)} style={{ background: "none", border: "none", cursor: a.phone ? "pointer" : "default", color: a.phone ? "#25D366" : t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", opacity: a.phone ? 1 : 0.35 }}>
+                          <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
+                        </button>
+                        <button onClick={() => openPagoModal(a)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}><CreditCard size={18} /></button>
+                        <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMenuOpenId(a.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}><MoreVertical size={18} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+            <span style={{ font: `400 0.78rem/1 ${fb}`, color: t3 }}>{loading ? "Cargando..." : `Mostrando ${lista.length} de ${totalCount} alumnos`}</span>
+            <button style={{ font: `500 0.78rem/1 ${fb}`, color: "#4B6BFB", background: "none", border: "none", cursor: "pointer" }}>Exportar lista →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Card list — mobile */}
+      {isMobile && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {loading ? (
+            <p style={{ textAlign: "center", font: `400 0.85rem/1 ${fb}`, color: t3, padding: "32px 0" }}>Cargando...</p>
+          ) : lista.length === 0 ? (
+            <p style={{ textAlign: "center", font: `400 0.85rem/1.5 ${fb}`, color: t3, padding: "40px 0" }}>{alumnos.length === 0 ? "No hay alumnos aún." : "Sin resultados."}</p>
+          ) : lista.map(a => {
+            const planNombre = a.planes?.nombre ?? "—";
+            const planColor  = a.planes?.accent_color ?? t2;
+            const planBg     = a.planes?.accent_color ? `${a.planes.accent_color}18` : "#F0F2F8";
+            return (
+              <div key={a.id} style={{ background: "white", borderRadius: 18, padding: "14px 16px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.05)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.7rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.full_name}</p>
+                    <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 3 }}>DNI: {a.dni ?? "—"}</p>
+                  </div>
+                  <span style={{ font: `600 0.68rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "4px 10px", borderRadius: 9999, flexShrink: 0 }}>{STATUS_STYLE[a.status].label}</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ font: `600 0.68rem/1 ${fb}`, color: planColor, background: planBg, padding: "3px 9px", borderRadius: 9999 }}>{planNombre}</span>
+                    {a.next_expiration_date && <span style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>Vence {a.next_expiration_date}</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {a.phone && (
+                      <button onClick={() => openWhatsApp(a.phone!, a.full_name)} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(37,211,102,0.10)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#25D366" }}>
+                        <svg width={15} height={15} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
+                      </button>
+                    )}
+                    <button onClick={() => openPagoModal(a)} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(75,107,251,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4B6BFB" }}><CreditCard size={14} /></button>
+                    <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMenuOpenId(a.id); }} style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t3 }}><MoreVertical size={14} /></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <p style={{ textAlign: "center", font: `400 0.72rem/1 ${fb}`, color: t3, paddingTop: 4 }}>{lista.length} de {totalCount} alumnos</p>
+        </div>
+      )}
     </div>
 
     {/* ── Modal: Nuevo Alumno ── */}
@@ -965,24 +1009,78 @@ export default function AlumnosPage() {
               </button>
             </div>
 
-            {/* Objetivo selector */}
+            {/* Tipo toggle */}
             <div style={{ marginTop: 16, position: "relative", zIndex: 1 }}>
-              <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Objetivo</p>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {["Hipertrofia", "Descenso", "Fuerza", "Resistencia", "Tonificación", "Movilidad"].map(obj => (
+              <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 4 }}>
+                {(["gym", "wod"] as const).map(t => (
                   <button
-                    key={obj}
-                    onClick={() => setObjetivo(obj)}
+                    key={t}
+                    onClick={() => setRutinatipo(t)}
                     style={{
-                      padding: "6px 14px", borderRadius: 9999, border: `1px solid ${objetivo === obj ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
-                      background: objetivo === obj ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.04)",
-                      color: objetivo === obj ? "#F97316" : "rgba(255,255,255,0.4)",
-                      font: `${objetivo === obj ? "700" : "400"} 0.72rem/1 ${fd}`, cursor: "pointer", transition: "all 0.15s",
+                      flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", transition: "all 0.15s",
+                      background: rutinatipo === t ? "white" : "transparent",
+                      color: rutinatipo === t ? "#111318" : "rgba(255,255,255,0.4)",
+                      font: `700 0.78rem/1 ${fd}`,
+                      boxShadow: rutinatipo === t ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
                     }}
-                  >{obj}</button>
+                  >
+                    {t === "gym" ? "🏋️ Gym" : "⚡ WOD CrossFit"}
+                  </button>
                 ))}
               </div>
             </div>
+
+            {/* Gym: objetivo chips */}
+            {rutinatipo === "gym" && (
+              <div style={{ marginTop: 14, position: "relative", zIndex: 1 }}>
+                <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Objetivo</p>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {["Hipertrofia", "Descenso", "Fuerza", "Resistencia", "Tonificación", "Movilidad"].map(obj => (
+                    <button
+                      key={obj}
+                      onClick={() => setObjetivo(obj)}
+                      style={{
+                        padding: "6px 14px", borderRadius: 9999, border: `1px solid ${objetivo === obj ? "rgba(249,115,22,0.5)" : "rgba(255,255,255,0.1)"}`,
+                        background: objetivo === obj ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.04)",
+                        color: objetivo === obj ? "#F97316" : "rgba(255,255,255,0.4)",
+                        font: `${objetivo === obj ? "700" : "400"} 0.72rem/1 ${fd}`, cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >{obj}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* WOD: modalidad + time cap */}
+            {rutinatipo === "wod" && (
+              <div style={{ marginTop: 14, position: "relative", zIndex: 1 }}>
+                <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Modalidad</p>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+                  {["AMRAP", "For Time", "EMOM", "Chipper"].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setWodModalidad(m)}
+                      style={{
+                        padding: "6px 14px", borderRadius: 9999, border: `1px solid ${wodModalidad === m ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.1)"}`,
+                        background: wodModalidad === m ? "rgba(99,102,241,0.14)" : "rgba(255,255,255,0.04)",
+                        color: wodModalidad === m ? "#818cf8" : "rgba(255,255,255,0.4)",
+                        font: `${wodModalidad === m ? "700" : "400"} 0.72rem/1 ${fd}`, cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >{m}</button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", flexShrink: 0 }}>Time Cap</p>
+                  <input
+                    type="number" min={1} max={90}
+                    value={wodTimeCap}
+                    onChange={e => setWodTimeCap(e.target.value)}
+                    style={{ width: 60, padding: "5px 10px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, font: `600 0.85rem/1 ${fd}`, color: "white", outline: "none", textAlign: "center" }}
+                  />
+                  <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>min</span>
+                </div>
+              </div>
+            )}
 
             {/* AI button */}
             <button
@@ -1001,7 +1099,7 @@ export default function AlumnosPage() {
             >
               {aiLoading
                 ? <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", animation: "spinAI 0.7s linear infinite" }} /> Generando con IA...</>
-                : <><Sparkles size={16} /> Sugerir con IA</>
+                : <><Sparkles size={16} /> {rutinatipo === "wod" ? "Generar WOD con IA" : "Sugerir con IA"}</>
               }
             </button>
           </div>
@@ -1022,84 +1120,136 @@ export default function AlumnosPage() {
               />
             </div>
 
-            {/* Tabla de ejercicios */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                <label style={{ font: `600 0.72rem/1 ${fd}`, color: t1, textTransform: "uppercase", letterSpacing: "0.07em" }}>Ejercicios ({rutinaEjercicios.length})</label>
-              </div>
-
-              {/* Table header */}
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 52px 52px 72px 64px 32px", gap: 6, padding: "0 8px", marginBottom: 6 }}>
-                {["Ejercicio", "Series", "Reps", "Carga", "Descanso", ""].map(h => (
-                  <span key={h} style={{ font: `600 0.62rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
-                ))}
-              </div>
-
-              {/* Rows */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {rutinaEjercicios.map((ej, i) => (
-                  <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 52px 52px 72px 64px 32px", gap: 6, alignItems: "center", background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "8px 8px" }}>
-                    <input
-                      placeholder="Nombre del ejercicio"
-                      value={ej.nombre}
-                      onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
-                      style={{ padding: "7px 10px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
-                      onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                      onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                    />
-                    {(["series", "repeticiones"] as const).map(key => (
+            {/* Gym: tabla de ejercicios */}
+            {rutinatipo === "gym" && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <label style={{ font: `600 0.72rem/1 ${fd}`, color: t1, textTransform: "uppercase", letterSpacing: "0.07em" }}>Ejercicios ({rutinaEjercicios.length})</label>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 52px 52px 72px 64px 32px", gap: 6, padding: "0 8px", marginBottom: 6 }}>
+                  {["Ejercicio", "Series", "Reps", "Carga", "Descanso", ""].map(h => (
+                    <span key={h} style={{ font: `600 0.62rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
+                  ))}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {rutinaEjercicios.map((ej, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 52px 52px 72px 64px 32px", gap: 6, alignItems: "center", background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "8px 8px" }}>
                       <input
-                        key={key}
-                        type="number"
-                        min={1}
-                        value={ej[key]}
-                        onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, [key]: Number(e.target.value) } : x))}
+                        placeholder="Nombre del ejercicio"
+                        value={ej.nombre}
+                        onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
+                        style={{ padding: "7px 10px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
+                        onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                        onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
+                      />
+                      {(["series", "repeticiones"] as const).map(key => (
+                        <input
+                          key={key}
+                          type="number"
+                          min={1}
+                          value={ej[key]}
+                          onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, [key]: Number(e.target.value) } : x))}
+                          style={{ padding: "7px 6px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
+                          onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                          onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
+                        />
+                      ))}
+                      <input
+                        placeholder="20kg"
+                        value={ej.peso_sugerido}
+                        onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, peso_sugerido: e.target.value } : x))}
                         style={{ padding: "7px 6px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
                         onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
                         onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
                       />
-                    ))}
-                    <input
-                      placeholder="20kg"
-                      value={ej.peso_sugerido}
-                      onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, peso_sugerido: e.target.value } : x))}
-                      style={{ padding: "7px 6px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
-                      onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                      onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                    />
-                    <div style={{ position: "relative" }}>
-                      <Clock size={11} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
+                      <div style={{ position: "relative" }}>
+                        <Clock size={11} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
+                        <input
+                          placeholder="60s"
+                          value={ej.descanso}
+                          onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, descanso: e.target.value } : x))}
+                          style={{ padding: "7px 6px 7px 20px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
+                          onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                          onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
+                        />
+                      </div>
+                      <button
+                        onClick={() => setRutinaEjercicios(prev => prev.filter((_, j) => j !== i))}
+                        style={{ width: 32, height: 32, borderRadius: 8, background: "none", border: "1px solid rgba(220,38,38,0.12)", cursor: "pointer", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(220,38,38,0.07)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setRutinaEjercicios(prev => [...prev, { ...EMPTY_EJ }])}
+                  style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "none", border: "1px dashed rgba(249,115,22,0.2)", borderRadius: 9, font: `600 0.78rem/1 ${fd}`, color: "#F97316", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(249,115,22,0.04)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+                >
+                  <Plus size={13} /> Agregar ejercicio
+                </button>
+              </div>
+            )}
+
+            {/* WOD: lista de movimientos */}
+            {rutinatipo === "wod" && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <label style={{ font: `600 0.72rem/1 ${fd}`, color: t1, textTransform: "uppercase", letterSpacing: "0.07em" }}>Movimientos ({wodMovimientos.length})</label>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ padding: "3px 10px", borderRadius: 9999, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", font: `700 0.68rem/1 ${fd}`, color: "#818cf8" }}>{wodModalidad}</span>
+                    <span style={{ font: `400 0.68rem/1 ${fd}`, color: t3 }}>{wodTimeCap} min</span>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 32px", gap: 6, padding: "0 8px", marginBottom: 6 }}>
+                  {["Movimiento", "Reps / Dist", ""].map(h => (
+                    <span key={h} style={{ font: `600 0.62rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
+                  ))}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {wodMovimientos.map((m, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 90px 32px", gap: 6, alignItems: "center", background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "8px 8px" }}>
                       <input
-                        placeholder="60s"
-                        value={ej.descanso}
-                        onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, descanso: e.target.value } : x))}
-                        style={{ padding: "7px 6px 7px 20px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
-                        onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                        placeholder="Ej: Thruster"
+                        value={m.nombre}
+                        onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
+                        style={{ padding: "7px 10px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
+                        onFocus={e => (e.currentTarget.style.borderColor = "#6366f1")}
                         onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
                       />
+                      <input
+                        placeholder="21-15-9"
+                        value={m.reps}
+                        onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))}
+                        style={{ padding: "7px 8px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
+                        onFocus={e => (e.currentTarget.style.borderColor = "#6366f1")}
+                        onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
+                      />
+                      <button
+                        onClick={() => setWodMovimientos(prev => prev.filter((_, j) => j !== i))}
+                        style={{ width: 32, height: 32, borderRadius: 8, background: "none", border: "1px solid rgba(220,38,38,0.12)", cursor: "pointer", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(220,38,38,0.07)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setRutinaEjercicios(prev => prev.filter((_, j) => j !== i))}
-                      style={{ width: 32, height: 32, borderRadius: 8, background: "none", border: "1px solid rgba(220,38,38,0.12)", cursor: "pointer", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(220,38,38,0.07)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
+                <button
+                  onClick={() => setWodMovimientos(prev => [...prev, { ...EMPTY_MOV }])}
+                  style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "none", border: "1px dashed rgba(99,102,241,0.25)", borderRadius: 9, font: `600 0.78rem/1 ${fd}`, color: "#818cf8", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.04)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+                >
+                  <Plus size={13} /> Agregar movimiento
+                </button>
               </div>
-
-              {/* Add row */}
-              <button
-                onClick={() => setRutinaEjercicios(prev => [...prev, { ...EMPTY_EJ }])}
-                style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "none", border: "1px dashed rgba(249,115,22,0.2)", borderRadius: 9, font: `600 0.78rem/1 ${fd}`, color: "#F97316", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(249,115,22,0.04)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-              >
-                <Plus size={13} /> Agregar ejercicio
-              </button>
-            </div>
+            )}
 
             {/* Notas Pro */}
             <div style={{ marginBottom: 8 }}>
@@ -1144,7 +1294,7 @@ export default function AlumnosPage() {
                 onMouseEnter={e => { if (!rutinaSaving) e.currentTarget.style.opacity = "0.92"; }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
               >
-                {rutinaSaving ? "Publicando..." : "Publicar Rutina"}
+                {rutinaSaving ? "Publicando..." : rutinatipo === "wod" ? "Publicar WOD" : "Publicar Rutina"}
               </button>
             )}
           </div>

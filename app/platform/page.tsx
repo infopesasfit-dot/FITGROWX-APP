@@ -64,6 +64,15 @@ type VaultCategoryRow = {
   is_active: boolean;
 };
 
+type FeedbackRow = {
+  id: string;
+  gym_id: string;
+  gym_name: string | null;
+  email: string | null;
+  message: string;
+  created_at: string;
+};
+
 type AccountStatus = "trial_setup" | "trial_active" | "trial_risk" | "converted" | "churned";
 type LeadStatus = "new" | "contacted" | "qualified" | "registered" | "lost";
 type ResourceStatus = "draft" | "published" | "archived";
@@ -185,7 +194,7 @@ export default function PlatformPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"crm" | "cms">("crm");
+  const [activeTab, setActiveTab] = useState<"crm" | "cms" | "feedback">("crm");
   const [stats, setStats] = useState<PlatformStats>({
     vaultResources: 0,
     platformAccounts: 0,
@@ -195,6 +204,7 @@ export default function PlatformPage() {
   const [leads, setLeads] = useState<PlatformLead[]>([]);
   const [vaultResources, setVaultResources] = useState<VaultResourceRow[]>([]);
   const [vaultCategories, setVaultCategories] = useState<VaultCategoryRow[]>([]);
+  const [feedbackRows, setFeedbackRows] = useState<FeedbackRow[]>([]);
   const [crmSearch, setCrmSearch] = useState("");
   const [savingLead, setSavingLead] = useState(false);
   const [savingAccount, setSavingAccount] = useState(false);
@@ -239,6 +249,7 @@ export default function PlatformPage() {
       { data: leadRows, error: leadRowsError },
       { data: resourceRows, error: resourceRowsError },
       { data: categoryRows, error: categoryRowsError },
+      { data: feedbackData },
     ] = await Promise.all([
       supabase.from("vault_resources").select("*", { count: "exact", head: true }),
       supabase.from("platform_accounts").select("*", { count: "exact", head: true }),
@@ -262,6 +273,11 @@ export default function PlatformPage() {
         .from("vault_categories")
         .select("id, slug, title, description, is_active")
         .order("sort_order", { ascending: true }),
+      supabase
+        .from("platform_feedback")
+        .select("id, gym_id, gym_name, email, message, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50),
     ]);
 
     if (vaultCountError) throw vaultCountError;
@@ -280,6 +296,7 @@ export default function PlatformPage() {
     setAccounts((accountRows ?? []) as PlatformAccount[]);
     setLeads((leadRows ?? []) as PlatformLead[]);
     setVaultResources((resourceRows ?? []) as VaultResourceRow[]);
+    setFeedbackRows((feedbackData ?? []) as FeedbackRow[]);
     setVaultCategories((categoryRows ?? []) as VaultCategoryRow[]);
   };
 
@@ -593,11 +610,12 @@ export default function PlatformPage() {
           {[
             { key: "crm", label: "Clientes FitGrowX" },
             { key: "cms", label: "CMS Bóveda" },
+            { key: "feedback", label: "Feedback" },
           ].map((tab) => (
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key as "crm" | "cms")}
+              onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback")}
               style={{
                 padding: "10px 14px",
                 borderRadius: 999,
@@ -1743,6 +1761,47 @@ export default function PlatformPage() {
               Siguiente paso sugerido: conectar la bóveda al CMS nuevo
             </div>
           </div>
+        </>
+      )}
+
+      {/* ── Feedback tab ── */}
+      {!loading && !error && authorized && activeTab === "feedback" && (
+        <>
+          <section style={{ ...shellCard, padding: "28px 30px 26px", marginBottom: 20 }}>
+            <p style={{ margin: "0 0 6px", font: `700 1.05rem/1 ${fd}`, color: "#111827" }}>
+              Feedback de usuarios
+            </p>
+            <p style={{ margin: 0, font: `400 0.875rem/1.6 ${fb}`, color: "#64748B" }}>
+              Mensajes enviados desde el dashboard por los dueños de gimnasio.
+            </p>
+          </section>
+
+          {feedbackRows.length === 0 ? (
+            emptyState("Sin feedback todavía", "Cuando algún usuario envíe un mensaje desde el dashboard, va a aparecer acá.")
+          ) : (
+            <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {feedbackRows.map(row => (
+                <article key={row.id} style={{ ...shellCard, padding: "18px 22px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+                    <div>
+                      <p style={{ margin: 0, font: `700 0.88rem/1 ${fd}`, color: "#111827" }}>
+                        {row.gym_name ?? row.email ?? row.gym_id}
+                      </p>
+                      {row.gym_name && row.email && (
+                        <p style={{ margin: "3px 0 0", font: `400 0.78rem/1 ${fb}`, color: "#9CA3AF" }}>{row.email}</p>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, font: `400 0.76rem/1 ${fb}`, color: "#9CA3AF", flexShrink: 0 }}>
+                      {formatDate(row.created_at)}
+                    </p>
+                  </div>
+                  <p style={{ margin: 0, font: `400 0.875rem/1.65 ${fb}`, color: "#374151" }}>
+                    {row.message}
+                  </p>
+                </article>
+              ))}
+            </section>
+          )}
         </>
       )}
     </div>

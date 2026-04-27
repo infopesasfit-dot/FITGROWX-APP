@@ -32,52 +32,77 @@ export async function GET(req: NextRequest) {
   // ── 2. Day-13 and Day-15 WA notifications ────────────────────────────
   if (!motorUrl) return NextResponse.json({ ok: true, log: [...log, "Motor WA no configurado, notificaciones omitidas."] });
 
-  // Gyms where trial_start_date + 12 = today (day 13, 3 days left)
-  // Gyms where trial_start_date + 14 = today (day 15, 1 day left)
-  const day13Date = new Date();
-  day13Date.setDate(day13Date.getDate() - 12);
+  // Use "started N+ days ago AND not yet sent" instead of exact date match.
+  // This retries the next day if WA was down, so notifications are never permanently lost.
+  const day13Cutoff = new Date();
+  day13Cutoff.setDate(day13Cutoff.getDate() - 12);
 
-  const day15Date = new Date();
-  day15Date.setDate(day15Date.getDate() - 14);
+  const day15Cutoff = new Date();
+  day15Cutoff.setDate(day15Cutoff.getDate() - 14);
 
-  const { data: gymsToNotify } = await supabase
-    .from("gyms")
-    .select("id, trial_start_date, trial_expires_at, gym_settings(gym_name, whatsapp)")
-    .eq("gym_status", "trial")
-    .eq("is_subscription_active", false)
-    .in("trial_start_date", [
-      day13Date.toISOString().slice(0, 10),
-      day15Date.toISOString().slice(0, 10),
-    ]);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
+  const waHeaders = { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" };
 
-  for (const gym of gymsToNotify ?? []) {
+  async function sendTrialNotif(
+    gym: { id: string; gym_settings: unknown },
+    daysLeft: number,
+    notifCol: "trial_notif_d13_sent_at" | "trial_notif_d15_sent_at",
+  ) {
     const settings = getGymSettingsSummary(gym.gym_settings);
     const phone = settings?.whatsapp;
     const gymName = settings?.gym_name ?? "tu gimnasio";
 
     if (!phone) {
-      log.push(`Sin WhatsApp: gym ${gym.id}`);
-      continue;
+      log.push(`Sin WhatsApp (día ${daysLeft === 1 ? 15 : 13}): gym ${gym.id}`);
+      return;
     }
 
-    const isDay15 = gym.trial_start_date === day15Date.toISOString().slice(0, 10);
-    const daysLeft = isDay15 ? 1 : 3;
-
-    const message = isDay15
-      ? `⚠️ *${gymName}* — Tu prueba de FitGrowX vence *mañana*. Pasado mañana perderás el acceso al sistema. Elegí un plan ahora en: ${process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app"}/dashboard/suscripcion`
-      : `⏳ *${gymName}* — Te quedan *${daysLeft} días* de prueba gratuita en FitGrowX. No pierdas el acceso a tus alumnos y rutinas. Elegí tu plan en: ${process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app"}/dashboard/suscripcion`;
+    const message = daysLeft === 1
+      ? `⚠️ *${gymName}* — Tu prueba de FitGrowX vence *mañana*. Pasado mañana perderás el acceso al sistema. Elegí un plan ahora en: ${appUrl}/dashboard/suscripcion`
+      : `⏳ *${gymName}* — Te quedan *${daysLeft} días* de prueba gratuita en FitGrowX. No pierdas el acceso a tus alumnos y rutinas. Elegí tu plan en: ${appUrl}/dashboard/suscripcion`;
 
     try {
       const res = await fetch(`${motorUrl}/send/${gym.id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+        headers: waHeaders,
         body: JSON.stringify({ phone, message }),
         signal: AbortSignal.timeout(8000),
       });
-      log.push(`${res.ok ? "✓" : "✗"} Día ${isDay15 ? 15 : 13} → ${gymName} (${phone})`);
+      if (res.ok) {
+        await supabase.from("gyms").update({ [notifCol]: new Date().toISOString() }).eq("id", gym.id);
+        log.push(`✓ Día ${daysLeft === 1 ? 15 : 13} → ${gymName}`);
+      } else {
+        log.push(`✗ Día ${daysLeft === 1 ? 15 : 13} → ${gymName} (HTTP ${res.status}, se reintentará)`);
+      }
     } catch (err) {
-      log.push(`✗ ${gymName} — ${err instanceof Error ? err.message : "error"}`);
+      log.push(`✗ Día ${daysLeft === 1 ? 15 : 13} → ${gymName} — ${err instanceof Error ? err.message : "error"} (se reintentará)`);
     }
+  }
+
+  // Day 13 (3 days left): started 12+ days ago, d13 not sent yet
+  const { data: d13Gyms } = await supabase
+    .from("gyms")
+    .select("id, gym_settings(gym_name, whatsapp)")
+    .eq("gym_status", "trial")
+    .eq("is_subscription_active", false)
+    .lte("trial_start_date", day13Cutoff.toISOString().slice(0, 10))
+    .is("trial_notif_d13_sent_at", null);
+
+  for (const gym of d13Gyms ?? []) {
+    await sendTrialNotif(gym, 3, "trial_notif_d13_sent_at");
+  }
+
+  // Day 15 (1 day left): started 14+ days ago, d15 not sent yet
+  const { data: d15Gyms } = await supabase
+    .from("gyms")
+    .select("id, gym_settings(gym_name, whatsapp)")
+    .eq("gym_status", "trial")
+    .eq("is_subscription_active", false)
+    .lte("trial_start_date", day15Cutoff.toISOString().slice(0, 10))
+    .is("trial_notif_d15_sent_at", null);
+
+  for (const gym of d15Gyms ?? []) {
+    await sendTrialNotif(gym, 1, "trial_notif_d15_sent_at");
   }
 
   return NextResponse.json({ ok: true, date: today, log });

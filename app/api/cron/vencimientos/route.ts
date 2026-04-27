@@ -1,0 +1,109 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+function normalizeArgPhone(raw: string): string {
+  const p = raw.replace(/\D/g, "");
+  if (p.startsWith("549") && p.length === 13) return p;
+  if (p.startsWith("54")  && p.length === 12) return "549" + p.slice(2);
+  if (p.startsWith("9")   && p.length === 11) return "54" + p;
+  if (p.startsWith("0")   && p.length === 11) return "549" + p.slice(1);
+  if (p.length === 10) return "549" + p;
+  return p;
+}
+
+export async function GET(req: NextRequest) {
+  const secret = req.nextUrl.searchParams.get("secret");
+  if (secret !== process.env.WA_MOTOR_API_KEY) {
+    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  }
+
+  const motorUrl = process.env.WA_MOTOR_URL;
+  if (!motorUrl) return NextResponse.json({ error: "Motor WA no configurado." }, { status: 500 });
+
+  const log: string[] = [];
+
+  // Gyms con recordatorio de vencimiento activo
+  const { data: gyms } = await supabase
+    .from("gym_settings")
+    .select("gym_id, gym_name, vencimiento_dias, vencimiento_msg")
+    .eq("vencimiento_activo", true);
+
+  if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con recordatorio de vencimiento activo."] });
+
+  let totalEnviados = 0;
+
+  for (const gym of gyms) {
+    const dias = gym.vencimiento_dias ?? 3;
+
+    // Fecha límite: alumnos cuyo vencimiento es hoy + N días o antes (pero aún activos)
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() + dias);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const todayStr  = new Date().toISOString().slice(0, 10);
+
+    // Alumnos activos con vencimiento próximo que aún no recibieron notif para este ciclo
+    // notif_vencimiento_para != next_expiration_date → notif pendiente para este vencimiento
+    const { data: alumnos } = await supabase
+      .from("alumnos")
+      .select("id, full_name, phone, next_expiration_date, notif_vencimiento_para")
+      .eq("gym_id", gym.gym_id)
+      .eq("status", "activo")
+      .not("phone", "is", null)
+      .not("next_expiration_date", "is", null)
+      .lte("next_expiration_date", cutoffStr)
+      .gte("next_expiration_date", todayStr); // no avisar sobre vencimientos ya pasados
+
+    if (!alumnos?.length) continue;
+
+    const DEFAULT_MSG = `¡Hola [Nombre]! 👋 Tu membresía en *[Gym]* vence el *[Fecha]*. Renovála para seguir entrenando sin interrupciones. 💪`;
+
+    for (const alumno of alumnos) {
+      // Saltar si ya enviamos notif para este ciclo exacto de vencimiento
+      if (alumno.notif_vencimiento_para === alumno.next_expiration_date) continue;
+
+      const phone = normalizeArgPhone(alumno.phone!);
+      const fechaVto = new Date(alumno.next_expiration_date!).toLocaleDateString("es-AR", {
+        day: "numeric", month: "long",
+      });
+
+      const template = gym.vencimiento_msg?.trim() || DEFAULT_MSG;
+      const message = template
+        .replace(/\[Nombre\]/g, alumno.full_name)
+        .replace(/\[Gym\]/g,    gym.gym_name ?? "el gym")
+        .replace(/\[Fecha\]/g,  fechaVto);
+
+      try {
+        const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
+          },
+          body: JSON.stringify({ phone, message }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (res.ok) {
+          // Marcar que este vencimiento ya fue notificado — no reenviar hasta el próximo ciclo
+          await supabase
+            .from("alumnos")
+            .update({ notif_vencimiento_para: alumno.next_expiration_date })
+            .eq("id", alumno.id);
+          totalEnviados++;
+          log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — vence ${alumno.next_expiration_date}`);
+        } else {
+          log.push(`✗ ${alumno.full_name} — HTTP ${res.status} (se reintentará)`);
+        }
+      } catch (err) {
+        log.push(`✗ ${alumno.full_name} — ${err instanceof Error ? err.message : "error"} (se reintentará)`);
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, enviados: totalEnviados, log });
+}
