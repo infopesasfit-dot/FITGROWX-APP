@@ -181,7 +181,7 @@ export default function AlumnosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setFormError("Sesión expirada."); setSaving(false); return; }
 
-    const { error } = await supabase.from("alumnos").insert([{
+    const { data: newAlumno, error } = await supabase.from("alumnos").insert([{
       gym_id:              user.id,
       full_name:           form.full_name.trim(),
       dni:                 form.dni.trim(),
@@ -191,7 +191,7 @@ export default function AlumnosPage() {
       status:              statusFromDate(form.fecha_inicio || null),
       last_payment_date:   new Date().toISOString().slice(0, 10),
       next_expiration_date: form.fecha_inicio || null,
-    }]);
+    }]).select("id").single();
 
     if (error) {
       setFormError(error.code === "23505" ? "Ya existe un alumno con ese DNI en este gimnasio." : error.message);
@@ -210,6 +210,15 @@ export default function AlumnosPage() {
         body: form.phone.trim() ? `Tel: ${form.phone.trim()}` : null,
       }),
     }).catch(() => {});
+
+    // Bienvenida por WhatsApp con link a /alumno/login
+    if (newAlumno?.id && form.phone.trim()) {
+      fetch("/api/alumno/send-welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alumno_id: newAlumno.id }),
+      }).catch(() => {});
+    }
 
     setModalOpen(false);
     setForm(EMPTY_FORM);
