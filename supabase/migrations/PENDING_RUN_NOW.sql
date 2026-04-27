@@ -5,6 +5,42 @@
 -- ============================================================
 
 
+-- ── 0. 20260427_egresos (tabla faltante) ─────────────────────
+CREATE TABLE IF NOT EXISTS egresos (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id     UUID NOT NULL,
+  titulo     TEXT NOT NULL,
+  monto      NUMERIC(12,2) NOT NULL,
+  categoria  TEXT NOT NULL DEFAULT 'Otros',
+  fecha      DATE NOT NULL DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_egresos_gym_id ON egresos(gym_id);
+CREATE INDEX IF NOT EXISTS idx_egresos_fecha  ON egresos(fecha);
+
+ALTER TABLE egresos ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='egresos' AND policyname='owner select egresos') THEN
+    CREATE POLICY "owner select egresos" ON egresos FOR SELECT
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='egresos' AND policyname='owner insert egresos') THEN
+    CREATE POLICY "owner insert egresos" ON egresos FOR INSERT
+      WITH CHECK (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='egresos' AND policyname='owner update egresos') THEN
+    CREATE POLICY "owner update egresos" ON egresos FOR UPDATE
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='egresos' AND policyname='owner delete egresos') THEN
+    CREATE POLICY "owner delete egresos" ON egresos FOR DELETE
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+END $$;
+
+
 -- ── 1. 20260426_subscription_notif_tracking ──────────────────
 ALTER TABLE gyms
   ADD COLUMN IF NOT EXISTS trial_notif_d13_sent_at              TIMESTAMPTZ,
@@ -160,3 +196,64 @@ ALTER TABLE gym_settings
 -- ── 6. 20260427_notifications_link ───────────────────────────
 ALTER TABLE notifications
   ADD COLUMN IF NOT EXISTS link TEXT;
+
+
+-- ── 7. 20260427_prospectos (tabla faltante) ───────────────────
+CREATE TABLE IF NOT EXISTS prospectos (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id     UUID NOT NULL,
+  full_name  TEXT NOT NULL,
+  phone      TEXT,
+  email      TEXT,
+  status     TEXT NOT NULL DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'contactado', 'descartado')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (gym_id, email)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prospectos_gym_id ON prospectos(gym_id);
+CREATE INDEX IF NOT EXISTS idx_prospectos_status ON prospectos(status);
+
+ALTER TABLE prospectos ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='prospectos' AND policyname='public insert prospectos') THEN
+    CREATE POLICY "public insert prospectos" ON prospectos FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='prospectos' AND policyname='owner select prospectos') THEN
+    CREATE POLICY "owner select prospectos" ON prospectos FOR SELECT
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='prospectos' AND policyname='owner update prospectos') THEN
+    CREATE POLICY "owner update prospectos" ON prospectos FOR UPDATE
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='prospectos' AND policyname='owner delete prospectos') THEN
+    CREATE POLICY "owner delete prospectos" ON prospectos FOR DELETE
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+END $$;
+
+
+-- ── 8. 20260427_whatsapp_sessions (tabla faltante) ────────────
+CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id     TEXT NOT NULL UNIQUE,
+  creds_json JSONB,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_gym_id ON whatsapp_sessions(gym_id);
+
+ALTER TABLE whatsapp_sessions ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='whatsapp_sessions' AND policyname='owner select whatsapp_sessions') THEN
+    CREATE POLICY "owner select whatsapp_sessions" ON whatsapp_sessions FOR SELECT
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid())::text);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='whatsapp_sessions' AND policyname='owner upsert whatsapp_sessions') THEN
+    CREATE POLICY "owner upsert whatsapp_sessions" ON whatsapp_sessions FOR ALL TO authenticated
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid())::text)
+      WITH CHECK (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid())::text);
+  END IF;
+END $$;
