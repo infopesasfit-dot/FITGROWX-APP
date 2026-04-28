@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -160,7 +160,7 @@ function slugify(value: string) {
     .slice(0, 60);
 }
 
-export default function AjustesPage() {
+function AjustesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1575,5 +1575,13 @@ export default function AjustesPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function AjustesPage() {
+  return (
+    <Suspense>
+      <AjustesContent />
+    </Suspense>
   );
 }

@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
+type ProfileRole = { role: string | null };
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -28,7 +30,7 @@ export async function GET(request: NextRequest) {
         .select("role")
         .eq("id", user.id)
         .limit(1)
-        .maybeSingle();
+        .maybeSingle<ProfileRole>();
 
       if (profile?.role === "platform_owner") {
         return NextResponse.redirect(`${origin}/platform`);

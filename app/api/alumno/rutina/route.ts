@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type StaffProfile = { gym_id: string | null; role: string | null };
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -36,9 +38,9 @@ export async function POST(req: NextRequest) {
       .from("profiles")
       .select("gym_id, role")
       .eq("id", user.id)
-      .maybeSingle();
+      .maybeSingle<StaffProfile>();
 
-    if (!ownerProfile || !["admin", "staff"].includes(ownerProfile.role) || ownerProfile.gym_id !== gym_id) {
+    if (!ownerProfile || !["admin", "staff"].includes(ownerProfile.role ?? "") || ownerProfile.gym_id !== gym_id) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
   } else if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
