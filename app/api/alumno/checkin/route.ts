@@ -4,6 +4,26 @@ import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type StaffProfile = {
+  gym_id: string | null;
+  role: "admin" | "staff" | string | null;
+};
+
+type AlumnoRow = {
+  id: string;
+  gym_id: string;
+  full_name: string;
+  status: string | null;
+  phone: string | null;
+  planes: unknown;
+  next_expiration_date: string | null;
+};
+
+type ExistingAsistenciaRow = {
+  id: string;
+  hora: string | null;
+};
+
 export async function POST(req: NextRequest) {
   const supabaseAdmin = getSupabaseAdminClient();
   const supabase = await createSupabaseServerClient();
@@ -22,15 +42,26 @@ export async function POST(req: NextRequest) {
     .from("profiles")
     .select("role, gym_id")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle<StaffProfile>();
 
-  if (profileError || !profile || !["admin", "staff"].includes(profile.role)) {
+  const profileRow = profile as StaffProfile | null;
+  const profileRole = profileRow?.role ?? null;
+  if (profileError || !profileRow || !profileRole || !["admin", "staff"].includes(profileRole)) {
     return NextResponse.json({
       ok: false,
       error: "No autorizado.",
       error_code: "forbidden",
       error_title: "Sin permisos",
       error_hint: "Tu usuario no tiene permisos para registrar asistencias.",
+    }, { status: 403 });
+  }
+  if (!profileRow.gym_id) {
+    return NextResponse.json({
+      ok: false,
+      error: "No autorizado.",
+      error_code: "forbidden",
+      error_title: "Sin permisos",
+      error_hint: "No se encontró un gimnasio asociado a este usuario.",
     }, { status: 403 });
   }
 
@@ -62,10 +93,11 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, gym_id, full_name, status, phone, planes(nombre, accent_color), next_expiration_date")
     .eq("dni", dni)
-    .eq("gym_id", profile.gym_id)
+    .eq("gym_id", profileRow.gym_id)
     .single();
+  const alumnoRow = alumno as AlumnoRow | null;
 
-  if (error || !alumno) {
+  if (error || !alumnoRow) {
     return NextResponse.json({
       ok: false,
       error: "Alumno no encontrado.",
@@ -76,10 +108,10 @@ export async function POST(req: NextRequest) {
   }
 
   const today = getTodayDate();
-  const alumno_id = alumno.id;
-  const expiration = alumno.next_expiration_date;
+  const alumno_id = alumnoRow.id;
+  const expiration = alumnoRow.next_expiration_date;
   const isExpired = Boolean(expiration && expiration < today);
-  const isActive = alumno.status === "activo";
+  const isActive = alumnoRow.status === "activo";
 
   if (!isActive || isExpired) {
     const membershipErrorCode = isExpired ? "membership_expired" : "membership_inactive";
@@ -95,9 +127,9 @@ export async function POST(req: NextRequest) {
       error_title: membershipErrorTitle,
       error_hint: "No registrar asistencia hasta regularizar el pago o actualizar el estado del alumno.",
       alumno: {
-        full_name: alumno.full_name,
-        plan: getPlanNombre(alumno.planes),
-        status: alumno.status,
+        full_name: alumnoRow.full_name,
+        plan: getPlanNombre(alumnoRow.planes),
+        status: alumnoRow.status,
         expiration,
       },
     }, { status: 409 });
@@ -110,29 +142,30 @@ export async function POST(req: NextRequest) {
     .eq("alumno_id", alumno_id)
     .eq("fecha", today)
     .maybeSingle();
+  const existingRow = existing as ExistingAsistenciaRow | null;
 
-  if (existing) {
+  if (existingRow) {
     return NextResponse.json({
       ok: true,
       already: true,
       alumno: {
-        full_name: alumno.full_name,
-        plan: getPlanNombre(alumno.planes),
-        status: alumno.status,
-        expiration: alumno.next_expiration_date,
+        full_name: alumnoRow.full_name,
+        plan: getPlanNombre(alumnoRow.planes),
+        status: alumnoRow.status,
+        expiration: alumnoRow.next_expiration_date,
       },
-      hora: existing.hora,
+      hora: existingRow.hora,
     });
   }
 
   const hora = getCurrentTime();
 
   const { error: insErr } = await supabaseAdmin.from("asistencias").insert({
-    gym_id: alumno.gym_id,
+    gym_id: alumnoRow.gym_id,
     alumno_id,
     fecha: today,
     hora,
-  });
+  } as never);
 
   if (insErr) {
     console.error("[checkin] insert error:", insErr.message, insErr.code, insErr.details);
@@ -149,10 +182,10 @@ export async function POST(req: NextRequest) {
     ok: true,
     already: false,
     alumno: {
-      full_name: alumno.full_name,
-      plan: getPlanNombre(alumno.planes),
-      status: alumno.status,
-      expiration: alumno.next_expiration_date,
+      full_name: alumnoRow.full_name,
+      plan: getPlanNombre(alumnoRow.planes),
+      status: alumnoRow.status,
+      expiration: alumnoRow.next_expiration_date,
     },
     hora,
   });

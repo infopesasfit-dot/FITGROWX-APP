@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type AuthorizedProfile = {
+  id: string;
+  gym_id: string | null;
+  role: "platform_owner" | "admin" | "staff" | string | null;
+};
+
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,7 +25,7 @@ async function getAuthorizedProfile() {
     .from("profiles")
     .select("id, gym_id, role")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle<AuthorizedProfile>();
 
   return profile ?? null;
 }

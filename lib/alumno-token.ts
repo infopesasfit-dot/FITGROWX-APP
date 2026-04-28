@@ -21,9 +21,10 @@ export async function getValidAlumnoToken(req: NextRequest): Promise<AlumnoToken
     .select("alumno_id, gym_id, expires_at")
     .eq("token", token)
     .single();
+  const tokenRow = data as AlumnoTokenRow | null;
 
-  if (error || !data) return null;
-  if (new Date(data.expires_at) < new Date()) return null;
+  if (error || !tokenRow) return null;
+  if (new Date(tokenRow.expires_at) < new Date()) return null;
 
-  return data;
+  return tokenRow;
 }

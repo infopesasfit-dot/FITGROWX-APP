@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type AdminProfile = {
+  gym_id: string | null;
+  role: "admin" | "staff" | string | null;
+};
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -11,9 +16,10 @@ async function getAdminGymId(supabase: Awaited<ReturnType<typeof createSupabaseS
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
   const { data: profile } = await supabaseAdmin
-    .from("profiles").select("gym_id, role").eq("id", user.id).maybeSingle();
-  if (!profile || profile.role !== "admin") return null;
-  return { userId: user.id, gymId: profile.gym_id as string };
+    .from("profiles").select("gym_id, role").eq("id", user.id).maybeSingle<AdminProfile>();
+  const profileRow = profile as AdminProfile | null;
+  if (!profileRow || profileRow.role !== "admin") return null;
+  return { userId: user.id, gymId: profileRow.gym_id as string };
 }
 
 // GET — listar staff del gym
@@ -76,8 +82,9 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });
 
   const { data: staffProfile } = await supabaseAdmin
-    .from("profiles").select("gym_id, role").eq("id", id).maybeSingle();
-  if (!staffProfile || staffProfile.gym_id !== admin.gymId || staffProfile.role !== "staff") {
+    .from("profiles").select("gym_id, role").eq("id", id).maybeSingle<AdminProfile>();
+  const staffProfileRow = staffProfile as AdminProfile | null;
+  if (!staffProfileRow || staffProfileRow.gym_id !== admin.gymId || staffProfileRow.role !== "staff") {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 

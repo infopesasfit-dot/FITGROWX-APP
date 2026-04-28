@@ -3,6 +3,21 @@ import { getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type AdminProfile = {
+  gym_id: string | null;
+  role: "admin" | "staff" | string | null;
+};
+
+type AsistenciaMonthRow = {
+  fecha: string;
+  hora: string | null;
+};
+
+type AsistenciaTodayRow = {
+  alumno_id: string;
+  hora: string | null;
+};
+
 export async function GET(req: NextRequest) {
   const supabaseAdmin = getSupabaseAdminClient();
   const supabase = await createSupabaseServerClient();
@@ -15,13 +30,15 @@ export async function GET(req: NextRequest) {
     .from("profiles")
     .select("gym_id, role")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle<AdminProfile>();
 
-  if (!profile || !["admin", "staff"].includes(profile.role)) {
+  const profileRow = profile as AdminProfile | null;
+  const profileRole = profileRow?.role ?? null;
+  if (!profileRow || !profileRole || !["admin", "staff"].includes(profileRole)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 
-  const resolvedGymId = profile?.gym_id ?? gym_id;
+  const resolvedGymId = profileRow.gym_id ?? gym_id;
 
   const today = getTodayDate();
   const monthStart = `${today.slice(0, 7)}-01`;
@@ -40,12 +57,14 @@ export async function GET(req: NextRequest) {
       .eq("gym_id", resolvedGymId)
       .eq("fecha", today),
   ]);
+  const monthlyRows = (monthly ?? []) as AsistenciaMonthRow[];
+  const todayAsistencias = (todayRows ?? []) as AsistenciaTodayRow[];
 
   // Build daily counts map
   const dailyMap: Record<string, number> = {};
   const hourlyCounts: number[] = Array(24).fill(0);
 
-  for (const row of monthly ?? []) {
+  for (const row of monthlyRows) {
     dailyMap[row.fecha] = (dailyMap[row.fecha] ?? 0) + 1;
     if (row.hora) {
       const h = parseInt(row.hora.slice(0, 2), 10);
@@ -62,8 +81,8 @@ export async function GET(req: NextRequest) {
     dailyCounts.push({ fecha: key, count: dailyMap[key] ?? 0 });
   }
 
-  const todayCount = todayRows?.length ?? 0;
-  const totalMonth = (monthly ?? []).length;
+  const todayCount = todayAsistencias.length;
+  const totalMonth = monthlyRows.length;
 
   // Weekly avg (last 7 days)
   const last7 = dailyCounts.slice(-7);

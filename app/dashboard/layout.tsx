@@ -10,33 +10,97 @@ import {
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, MessageSquare, Target, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
+  Globe,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
-import FeedbackModal from "@/components/FeedbackModal";
 import { getGymSummary } from "@/lib/supabase-relations";
 import { getCachedProfile } from "@/lib/gym-cache";
 
-const NAV_TOP_ADMIN = [
-  { href: "/dashboard",                   label: "Inicio",          icon: Home },
-  { href: "/dashboard/alumnos",           label: "Alumnos",         icon: Users },
-  { href: "/dashboard/clases",            label: "Clases",          icon: CalendarDays },
-  { href: "/dashboard/scanner",           label: "Escáner QR",      icon: ScanLine },
-  { href: "/dashboard/asistencias",       label: "Asistencias",     icon: ClipboardList },
-  { href: "/dashboard/membresias",        label: "Membresías",      icon: CreditCard },
-  { href: "/dashboard/pagos",             label: "Pagos",           icon: Wallet },
-  { href: "/dashboard/egresos",           label: "Egresos",         icon: TrendingDown },
-  { href: "/dashboard/prospectos",        label: "Prospectos",      icon: Target },
-  { href: "/dashboard/publicidad",        label: "Campañas",        icon: Megaphone },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  sub?: { href: string; label: string }[];
+};
+type NavSection = { section: string; items: NavItem[] };
+
+const NAV_SECTIONS_ADMIN: NavSection[] = [
+  {
+    section: "HOY",
+    items: [
+      { href: "/dashboard",             label: "Inicio",      icon: Home },
+      { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
+      { href: "/dashboard/scanner",     label: "Escáner QR",  icon: ScanLine },
+    ],
+  },
+  {
+    section: "ALUMNOS",
+    items: [
+      { href: "/dashboard/alumnos",    label: "Alumnos",           icon: Users },
+      { href: "/dashboard/clases",     label: "Clases y Horarios", icon: CalendarDays },
+      { href: "/dashboard/membresias", label: "Membresías",        icon: CreditCard },
+    ],
+  },
+  {
+    section: "CRECIMIENTO",
+    items: [
+      {
+        href: "/dashboard/prospectos",
+        label: "Atraer Clientes",
+        icon: Megaphone,
+        sub: [
+          { href: "/dashboard/prospectos",          label: "Prospectos" },
+          { href: "/dashboard/publicidad",          label: "Campañas" },
+          { href: "/dashboard/ajustes?tab=landing", label: "Mi Web / Landing" },
+        ],
+      },
+      { href: "/dashboard/automatizaciones", label: "Automatizaciones",     icon: Zap },
+      { href: "/dashboard/boveda",           label: "Bóveda",               icon: FolderOpen },
+    ],
+  },
+  {
+    section: "DINERO",
+    items: [
+      { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
+      { href: "/dashboard/egresos", label: "Egresos",  icon: TrendingDown },
+    ],
+  },
+  {
+    section: "SISTEMA",
+    items: [
+      {
+        href: "/dashboard/ajustes",
+        label: "Configuración",
+        icon: Settings,
+        sub: [
+          { href: "/dashboard/ajustes?tab=general",    label: "General" },
+          { href: "/dashboard/ajustes?tab=conexiones", label: "Conexiones" },
+          { href: "/dashboard/ajustes?tab=equipo",     label: "Equipo" },
+        ],
+      },
+    ],
+  },
 ];
 
-const NAV_TOP_STAFF = [
-  { href: "/dashboard",             label: "Inicio",      icon: Home },
-  { href: "/dashboard/alumnos",     label: "Alumnos",     icon: Users },
-  { href: "/dashboard/clases",      label: "Clases",      icon: CalendarDays },
-  { href: "/dashboard/scanner",     label: "Escáner QR",  icon: ScanLine },
-  { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
+const NAV_SECTIONS_STAFF: NavSection[] = [
+  {
+    section: "HOY",
+    items: [
+      { href: "/dashboard",             label: "Inicio",      icon: Home },
+      { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
+      { href: "/dashboard/scanner",     label: "Escáner QR",  icon: ScanLine },
+    ],
+  },
+  {
+    section: "GESTIÓN",
+    items: [
+      { href: "/dashboard/alumnos", label: "Alumnos", icon: Users },
+      { href: "/dashboard/clases",  label: "Clases",  icon: CalendarDays },
+    ],
+  },
 ];
 
+const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/publicidad"];
 const STAFF_ALLOWED_ROUTES = ["/dashboard", "/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
 
 const BOTTOM_NAV = [
@@ -71,7 +135,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [planType,         setPlanType]         = useState<string | null>(null);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
-  const [feedbackOpen,     setFeedbackOpen]     = useState(false);
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
@@ -82,6 +145,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
   const [gymId,       setGymId]       = useState<string | null>(null);
   const [role,        setRole]        = useState<"admin" | "staff">("admin");
+  const [attractOpen, setAttractOpen] = useState(() => ATTRACT_ROUTES.some(r => pathname.startsWith(r)));
+  const [configOpen,  setConfigOpen]  = useState(() => pathname.startsWith("/dashboard/ajustes"));
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -277,7 +342,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Sidebar ── */}
       <aside style={{
-        background: SB_BG,
+        background: "linear-gradient(160deg, #000000 0%, #0e0e0e 35%, #151515 100%)",
         width: isMobile ? 260 : w,
         height: isMobile ? "100vh" : "calc(100vh - 24px)",
         minHeight: isMobile ? "100vh" : "calc(100vh - 24px)",
@@ -296,19 +361,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         transition: "width 0.22s cubic-bezier(0.4,0,0.2,1), padding 0.22s cubic-bezier(0.4,0,0.2,1)",
       }}>
 
+        {/* Blob 1 — top */}
+        <div style={{ position: "absolute", top: "-10%", left: "10%", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, #323232 0%, transparent 70%)", filter: "blur(72px)", pointerEvents: "none", zIndex: 0 }} />
+        {/* Blob 2 — bottom */}
+        <div style={{ position: "absolute", bottom: "-8%", right: "-10%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, #272727 0%, transparent 70%)", filter: "blur(90px)", pointerEvents: "none", zIndex: 0 }} />
+        {/* Grain overlay — sutil */}
+        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.14, pointerEvents: "none", zIndex: 0 }} xmlns="http://www.w3.org/2000/svg">
+          <filter id="sb-grain">
+            <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="3" stitchTiles="stitch" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+          <rect width="100%" height="100%" filter="url(#sb-grain)" />
+        </svg>
+
         {/* Logo + collapse/close toggle */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40, position: "relative", zIndex: 1 }}>
           {(isMobile || !collapsed) && (
-            <div style={{
-              borderRadius: 12, padding: "6px 10px",
-              background: "linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)",
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.25), 0 2px 8px rgba(0,0,0,0.30)",
-              border: "1px solid rgba(255,255,255,0.08)", flexShrink: 0,
-            }}>
+            <div style={{ flexShrink: 0 }}>
               {planType === "full_marca" && gymLogoUrl
                 ? // eslint-disable-next-line @next/next/no-img-element
-                  <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 36, maxWidth: 160, objectFit: "contain", display: "block" }} />
-                : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} style={{ height: 36, width: "auto", objectFit: "contain", display: "block" }} priority unoptimized />
+                  <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 36, maxWidth: 160, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} />
+                : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} style={{ height: 36, width: "auto", objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} priority unoptimized />
               }
             </div>
           )}
@@ -324,98 +397,112 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Nav top */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {(role === "staff" ? NAV_TOP_STAFF : NAV_TOP_ADMIN).map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} style={navItemStyle(href)} title={(!isMobile && collapsed) ? label : undefined}>
-              <Icon size={16} style={{ opacity: isActive(href) ? 1 : 0.65, flexShrink: 0 }} />
-              {(isMobile || !collapsed) && (
-                <>
-                  <span style={{ flex: 1 }}>{label}</span>
-                  {href === "/dashboard/prospectos" && prospectBadge > 0 && (
-                    <span style={{ background: "#F97316", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", minWidth: 16, textAlign: "center" as const, lineHeight: 1.4 }}>
-                      {prospectBadge}
-                    </span>
-                  )}
-                </>
+        <style>{`
+          .sb-nav::-webkit-scrollbar { width: 3px; }
+          .sb-nav::-webkit-scrollbar-track { background: transparent; }
+          .sb-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+          .sb-nav { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+        `}</style>
+        <nav className="sb-nav" style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
+          {(role === "staff" ? NAV_SECTIONS_STAFF : NAV_SECTIONS_ADMIN).map(({ section, items }) => (
+            <div key={section} style={{ marginBottom: 2 }}>
+              {(isMobile || !collapsed) ? (
+                <p style={{ font: `600 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em", textTransform: "uppercase" as const, padding: "12px 14px 4px", margin: 0 }}>
+                  {section}
+                </p>
+              ) : (
+                <div style={{ margin: "8px 0 3px", borderTop: "1px solid rgba(255,255,255,0.07)" }} />
               )}
-            </Link>
+
+              {items.map((item) => {
+                const Icon = item.icon;
+
+                /* ── Collapsible group ── */
+                if (item.sub) {
+                  const isAttract = item.href === "/dashboard/prospectos";
+                  const open      = isAttract ? attractOpen : configOpen;
+                  const setOpen   = isAttract ? setAttractOpen : setConfigOpen;
+                  const anyActive = item.sub.some(s => pathname.startsWith(s.href.split("?")[0]) && (isAttract || pathname === "/dashboard/ajustes"));
+
+                  if (!isMobile && collapsed) {
+                    return (
+                      <Link key={item.href} href={item.href} style={navItemStyle(item.href)} title={item.label}>
+                        <Icon size={16} style={{ opacity: anyActive ? 1 : 0.65, flexShrink: 0 }} />
+                      </Link>
+                    );
+                  }
+                  return (
+                    <div key={item.href}>
+                      <button
+                        onClick={() => setOpen(o => !o)}
+                        style={{
+                          borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center",
+                          gap: 11, width: "100%", border: "none", textAlign: "left" as const, cursor: "pointer",
+                          background: anyActive ? "rgba(255,255,255,0.10)" : "transparent",
+                          color: anyActive ? "#FFFFFF" : "rgba(255,255,255,0.50)",
+                          fontFamily: fb, fontSize: "0.875rem", fontWeight: anyActive ? 600 : 500,
+                          transition: "all 0.14s",
+                        }}
+                      >
+                        <Icon size={16} style={{ opacity: anyActive ? 1 : 0.65, flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{item.label}</span>
+                        {isAttract && prospectBadge > 0 && !open && (
+                          <span style={{ background: "#F97316", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
+                            {prospectBadge}
+                          </span>
+                        )}
+                        <ChevronDown size={12} style={{ opacity: 0.4, flexShrink: 0, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                      </button>
+                      {open && (
+                        <div style={{ paddingLeft: 14, marginBottom: 2 }}>
+                          {item.sub.map(s => {
+                            const subActive = pathname.startsWith(s.href.split("?")[0]) && (!s.href.includes("?") || true);
+                            return (
+                              <Link key={s.href} href={s.href} style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: "7px 10px 7px 14px",
+                                borderLeft: `2px solid ${subActive ? "rgba(249,115,22,0.55)" : "rgba(255,255,255,0.09)"}`,
+                                borderRadius: "0 8px 8px 0", marginBottom: 1,
+                                textDecoration: "none", fontSize: "0.82rem",
+                                fontWeight: subActive ? 600 : 400, fontFamily: fb,
+                                color: subActive ? "#FFFFFF" : "rgba(255,255,255,0.42)",
+                                background: subActive ? "rgba(255,255,255,0.05)" : "transparent",
+                                transition: "all 0.12s",
+                              }}>
+                                <span style={{ flex: 1 }}>{s.label}</span>
+                                {s.href === "/dashboard/prospectos" && prospectBadge > 0 && (
+                                  <span style={{ background: "#F97316", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
+                                    {prospectBadge}
+                                  </span>
+                                )}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                /* ── Regular item ── */
+                return (
+                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} title={(!isMobile && collapsed) ? item.label : undefined}>
+                    <Icon size={16} style={{ opacity: isActive(item.href) ? 1 : 0.65, flexShrink: 0 }} />
+                    {(isMobile || !collapsed) && <span style={{ flex: 1 }}>{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
           ))}
         </nav>
 
-        <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.07)", margin: "8px 4px" }} />
-
-        {/* Nav bottom — logout only */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <button onClick={handleSignOut} style={logoutStyle} title={(!isMobile && collapsed) ? "Salir" : undefined}>
+        <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 6, position: "relative", zIndex: 1 }}>
+          <button onClick={handleSignOut} style={logoutStyle} title={(!isMobile && collapsed) ? "Cerrar sesión" : undefined}>
             <LogOut size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
-            {(isMobile || !collapsed) && "Salir"}
+            {(isMobile || !collapsed) && <span>Cerrar sesión</span>}
           </button>
         </div>
 
-        {/* Soporte Banner */}
-        {(isMobile || !collapsed) && (
-          <>
-            <style>{`
-              @keyframes borderBreath {
-                0%, 100% { box-shadow: 0 0 0 0 rgba(110,168,254,0), 0 2px 14px rgba(10,22,40,0.60); }
-                50%       { box-shadow: 0 0 14px 2px rgba(110,168,254,0.22), 0 2px 14px rgba(10,22,40,0.60); }
-              }
-              @keyframes glowPulse {
-                0%, 100% { opacity: 0.45; transform: scale(1); }
-                50%       { opacity: 0.75; transform: scale(1.3); }
-              }
-              @keyframes iconBounce {
-                0%, 100% { transform: translateY(0); }
-                40%       { transform: translateY(-3px); }
-                60%       { transform: translateY(-1px); }
-              }
-              @keyframes shimmer {
-                0%   { left: -70%; }
-                100% { left: 130%; }
-              }
-              .support-btn-shimmer::after {
-                content: '';
-                position: absolute;
-                top: 0; left: -70%;
-                width: 50%; height: 100%;
-                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
-                transform: skewX(-18deg);
-                animation: shimmer 2.6s ease-in-out infinite;
-                pointer-events: none;
-              }
-            `}</style>
-            <div
-              style={{ borderRadius: 16, padding: "14px 16px", marginTop: "auto", position: "relative", overflow: "hidden", background: "linear-gradient(145deg, #0a1628 0%, #0d1f3c 40%, #000000 100%)", border: "1px solid rgba(110,168,254,0.18)", display: "block" }}
-            >
-              {/* Grain overlay */}
-              <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.18, pointerEvents: "none" }} xmlns="http://www.w3.org/2000/svg">
-                <filter id="grain-support">
-                  <feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="2" stitchTiles="stitch" />
-                  <feColorMatrix type="saturate" values="0" />
-                </filter>
-                <rect width="100%" height="100%" filter="url(#grain-support)" />
-              </svg>
-              {/* Breathing glow */}
-              <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "radial-gradient(circle, rgba(30,80,200,0.55) 0%, transparent 70%)", pointerEvents: "none", animation: "glowPulse 3s ease-in-out infinite" }} />
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, position: "relative", zIndex: 1 }}>
-                <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(30,80,200,0.30)", border: "1px solid rgba(30,80,200,0.40)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, animation: "iconBounce 3s ease-in-out infinite" }}>
-                  <MessageSquare size={13} color="#6ea8fe" />
-                </div>
-                <span style={{ font: `700 0.8rem/1 ${fd}`, color: "white" }}>Siempre mejorando para vos</span>
-              </div>
-              <p style={{ font: `400 0.72rem/1.45 ${fb}`, color: "rgba(255,255,255,0.55)", marginBottom: 12, position: "relative", zIndex: 1 }}>
-                Tu feedback nos ayuda a construir algo mejor. Contanos qué necesitás.
-              </p>
-              <button
-                onClick={() => setFeedbackOpen(true)}
-                className="support-btn-shimmer"
-                style={{ width: "100%", padding: "8px", borderRadius: 9999, background: "linear-gradient(135deg, #1e3fa0, #0a1628)", color: "white", border: "1px solid rgba(110,168,254,0.30)", fontWeight: 700, fontSize: "0.75rem", fontFamily: fd, letterSpacing: "0.02em", position: "relative", zIndex: 1, textAlign: "center", overflow: "hidden", animation: "borderBreath 3s ease-in-out infinite", cursor: "pointer" }}
-              >
-                Mandanos un mensaje
-              </button>
-            </div>
-          </>
-        )}
       </aside>
 
       {/* ── Main ── */}
@@ -582,44 +669,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {/* Menu items */}
                   <div style={{ padding: "6px" }}>
                     {role === "admin" && (
-                      <>
-                        <Link
-                          href="/dashboard/planes"
-                          onClick={() => setMenuOpen(false)}
-                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(249,115,22,0.09)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <Zap size={13} color="#F97316" />
-                          </div>
-                          Planes y Suscripción
-                        </Link>
-                        <Link
-                          href="/dashboard/ajustes"
-                          onClick={() => setMenuOpen(false)}
-                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(75,107,251,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <Settings size={13} color="#4B6BFB" />
-                          </div>
-                          Ajustes del Gimnasio
-                        </Link>
-                        <Link
-                          href="/dashboard/boveda"
-                          onClick={() => setMenuOpen(false)}
-                          style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                        >
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(14,165,233,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                            <FolderOpen size={13} color="#0EA5E9" />
-                          </div>
-                          Bóveda de Crecimiento
-                        </Link>
-                      </>
+                      <Link
+                        href="/dashboard/planes"
+                        onClick={() => setMenuOpen(false)}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(249,115,22,0.09)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Zap size={13} color="#F97316" />
+                        </div>
+                        Planes y Suscripción
+                      </Link>
                     )}
                   </div>
 
@@ -733,7 +794,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
       )}
 
-      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} gymId={gymId} gymDisplayName={gymDisplayName} />
 
       {/* ── Trial last-24h modal ── */}
       {showTrialModal && (

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type AuthorizedProfile = {
+  gym_id: string | null;
+  role: "platform_owner" | "admin" | "staff" | string | null;
+};
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -37,7 +42,7 @@ export async function POST(req: NextRequest) {
     .from("profiles")
     .select("role, gym_id")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle<AuthorizedProfile>();
 
   if (profileError || !profile) {
     console.error(`[WA SEND] ${new Date().toISOString()} ${endpoint} error authz request_id=${requestId} gym_id=${gym_id} phone=${phoneRef} reason=profile_lookup_failed`);

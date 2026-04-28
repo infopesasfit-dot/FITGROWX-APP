@@ -3,6 +3,18 @@ import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type AdminProfile = {
+  gym_id: string | null;
+  role: "admin" | "staff" | string | null;
+};
+
+type AlumnoCheckinRow = {
+  id: string;
+  gym_id: string;
+  status: string | null;
+  next_expiration_date: string | null;
+};
+
 export async function POST(req: NextRequest) {
   const supabaseAdmin = getSupabaseAdminClient();
   const supabase = await createSupabaseServerClient();
@@ -13,10 +25,15 @@ export async function POST(req: NextRequest) {
     .from("profiles")
     .select("role, gym_id")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle<AdminProfile>();
 
-  if (!profile || !["admin", "staff"].includes(profile.role)) {
+  const profileRow = profile as AdminProfile | null;
+  const profileRole = profileRow?.role ?? null;
+  if (!profileRow || !profileRole || !["admin", "staff"].includes(profileRole)) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+  }
+  if (!profileRow.gym_id) {
+    return NextResponse.json({ ok: false, error: "Gym inválido." }, { status: 403 });
   }
 
   const { alumno_id, fecha } = await req.json();
@@ -29,13 +46,14 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, gym_id, status, next_expiration_date")
     .eq("id", alumno_id)
-    .eq("gym_id", profile.gym_id)
+    .eq("gym_id", profileRow.gym_id)
     .single();
+  const alumnoRow = alumno as AlumnoCheckinRow | null;
 
-  if (!alumno) return NextResponse.json({ ok: false, error: "Alumno no encontrado." }, { status: 404 });
+  if (!alumnoRow) return NextResponse.json({ ok: false, error: "Alumno no encontrado." }, { status: 404 });
 
-  const isExpired = Boolean(alumno.next_expiration_date && alumno.next_expiration_date < dateStr);
-  const isActive = alumno.status === "activo";
+  const isExpired = Boolean(alumnoRow.next_expiration_date && alumnoRow.next_expiration_date < dateStr);
+  const isActive = alumnoRow.status === "activo";
   if (!isActive || isExpired) {
     return NextResponse.json({
       ok: false,
@@ -47,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabaseAdmin
     .from("asistencias")
-    .upsert({ gym_id: alumno.gym_id, alumno_id, fecha: dateStr, hora }, { onConflict: "alumno_id,fecha" });
+    .upsert({ gym_id: alumnoRow.gym_id, alumno_id, fecha: dateStr, hora } as never, { onConflict: "alumno_id,fecha" });
 
   if (error) {
     console.error("[checkin-manual]", error.message);

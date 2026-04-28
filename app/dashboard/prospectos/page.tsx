@@ -181,7 +181,7 @@ export default function ProspectosPage() {
           </div>
         )}
 
-        {!loading && filtered.map((p) => {
+        {!loading && filtered.map((p, i) => {
           const s = STATUS_CFG[p.status];
           const date = new Date(p.created_at);
           const dateStr = date.toLocaleDateString("es-AR", { day: "numeric", month: "short" });

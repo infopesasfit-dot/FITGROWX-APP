@@ -221,6 +221,24 @@ export default function AlumnosPage() {
 
     if (!gymId) { setFormError("Sesión expirada."); setSaving(false); return; }
 
+    // ── Chequeo de duplicados antes de insertar ───────────────────
+    const normalizedPhone = normalizePhone(form.phone.trim());
+    const { data: existing } = await supabase
+      .from("alumnos")
+      .select("id, dni, phone, email")
+      .eq("gym_id", gymId)
+      .or(`dni.eq.${form.dni.trim()},phone.eq.${normalizedPhone},email.eq.${form.email.trim()}`);
+
+    if (existing && existing.length > 0) {
+      const dup = existing[0];
+      if (dup.dni === form.dni.trim())
+        return (setFormError("Ya hay un alumno registrado con ese DNI."), setSaving(false));
+      if (dup.phone === normalizedPhone)
+        return (setFormError("Ya hay un alumno registrado con ese número de teléfono."), setSaving(false));
+      if (dup.email?.toLowerCase() === form.email.trim().toLowerCase())
+        return (setFormError("Ya hay un alumno registrado con ese email."), setSaving(false));
+    }
+
     const { data: newAlumno, error } = await supabase.from("alumnos").insert([{
       gym_id:              gymId,
       full_name:           form.full_name.trim(),
@@ -234,7 +252,7 @@ export default function AlumnosPage() {
     }]).select("id").single();
 
     if (error) {
-      setFormError(error.code === "23505" ? "Ya existe un alumno con ese DNI en este gimnasio." : error.message);
+      setFormError(error.code === "23505" ? "Ya existe un alumno con ese dato (DNI, teléfono o email) en este gimnasio." : error.message);
       setSaving(false);
       return;
     }

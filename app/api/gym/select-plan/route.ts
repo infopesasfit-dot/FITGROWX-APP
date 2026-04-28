@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
+type AuthorizedProfile = {
+  gym_id: string | null;
+  role: "platform_owner" | "admin" | "staff" | string | null;
+};
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -22,7 +27,7 @@ export async function POST(req: NextRequest) {
     .from("profiles")
     .select("gym_id, role")
     .eq("id", user.id)
-    .maybeSingle();
+    .maybeSingle<AuthorizedProfile>();
 
   if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   if (profile.role !== "platform_owner" && profile.gym_id !== gym_id) {
