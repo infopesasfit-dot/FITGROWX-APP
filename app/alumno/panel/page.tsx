@@ -837,7 +837,7 @@ export default function AlumnoPanelPage() {
               <div style={{ position: "absolute", bottom: 14, left: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 0 3px" }} />
               <div style={{ position: "absolute", bottom: 14, right: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 3px 0" }} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=FITGROWX:${session.dni ?? session.alumno_id}&color=FFFFFF&bgcolor=0D0D14&qzone=1`} alt="QR" width={220} height={220} style={{ display: "block", margin: "0 auto", borderRadius: 4 }} />
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=FITGROWX:ID:${session.alumno_id}&color=FFFFFF&bgcolor=0D0D14&qzone=1`} alt="QR" width={220} height={220} style={{ display: "block", margin: "0 auto", borderRadius: 4 }} />
             </div>
             <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em", marginTop: 18, marginBottom: 4 }}>{session.full_name}</p>
             <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.18)", letterSpacing: "0.1em", marginBottom: 24, fontVariantNumeric: "tabular-nums" }}>DNI {session.dni ?? "—"}</p>

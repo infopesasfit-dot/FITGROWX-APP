@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { QrCode, CheckCircle, XCircle, RefreshCw, Scan } from "lucide-react";
+import { QrCode, CheckCircle, XCircle, RefreshCw, Scan, Copy, Download } from "lucide-react";
+import { getCachedProfile } from "@/lib/gym-cache";
 
 type DetectedBarcode = {
   rawValue?: string;
@@ -53,6 +54,14 @@ export default function ScannerPage() {
   const [loading,    setLoading]    = useState(false);
   const [camError,   setCamError]   = useState<string | null>(null);
   const hasDetector = typeof window !== "undefined" && Boolean(getBarcodeDetector());
+
+  const [gymId,  setGymId]  = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const checkinUrl = gymId ? `${typeof window !== "undefined" ? window.location.origin : ""}/checkin/${gymId}` : "";
+
+  useEffect(() => {
+    getCachedProfile().then(p => { if (p?.gymId) setGymId(p.gymId); });
+  }, []);
 
   const processQR = useCallback(async (qr_data: string) => {
     if (cooldownRef.current || qr_data === lastQR.current) return;
@@ -174,12 +183,25 @@ export default function ScannerPage() {
   const isSystemIssue = result?.error_code === "system_error";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 560, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 560, margin: "0 auto" }}>
 
       {/* Header */}
       <div>
         <h1 style={{ font: `800 1.6rem/1 ${fd}`, color: "#1A1D23", letterSpacing: "-0.035em" }}>Escáner de Presencia</h1>
-        <p style={{ font: `400 0.85rem/1 ${fd}`, color: "#6B7280", marginTop: 4 }}>Escaneá el QR del alumno para registrar su asistencia.</p>
+        <p style={{ font: `400 0.85rem/1.5 ${fd}`, color: "#6B7280", marginTop: 6 }}>
+          Dos formas de registrar asistencia: el staff escanea el QR del alumno, o el gym tiene un QR fijo y el alumno se registra solo desde su teléfono.
+        </p>
+      </div>
+
+      {/* Section 1 label */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 9, background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+          <span style={{ font: `800 0.75rem/1 ${fd}`, color: "white" }}>1</span>
+        </div>
+        <div>
+          <p style={{ font: `800 0.95rem/1 ${fd}`, color: "#1A1D23" }}>Staff escanea el QR del alumno</p>
+          <p style={{ font: `400 0.78rem/1.45 ${fd}`, color: "#6B7280", marginTop: 3 }}>El alumno abre la app en su teléfono, muestra su código y el staff lo lee con la cámara.</p>
+        </div>
       </div>
 
       {/* Camera viewfinder */}
@@ -368,6 +390,95 @@ export default function ScannerPage() {
             Registrar
           </button>
         </div>
+      </div>
+
+      {/* Divider */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)" }} />
+        <span style={{ font: `500 0.76rem/1 ${fd}`, color: "#9CA3AF", whiteSpace: "nowrap" }}>o también podés usar</span>
+        <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)" }} />
+      </div>
+
+      {/* Section 2 label */}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 9, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+          <span style={{ font: `800 0.75rem/1 ${fd}`, color: "white" }}>2</span>
+        </div>
+        <div>
+          <p style={{ font: `800 0.95rem/1 ${fd}`, color: "#1A1D23" }}>QR fijo del gimnasio</p>
+          <p style={{ font: `400 0.78rem/1.45 ${fd}`, color: "#6B7280", marginTop: 3 }}>
+            Imprimí o mostrá este código en la entrada. El alumno lo escanea con la cámara de su teléfono, ingresa su DNI y registra su asistencia sin necesidad de staff.
+          </p>
+        </div>
+      </div>
+
+      {/* Gym QR card */}
+      <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 18, padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+        {gymId && checkinUrl ? (
+          <>
+            {/* QR image */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=1`}
+              alt="QR del gimnasio"
+              width={220}
+              height={220}
+              style={{ borderRadius: 14, border: "1px solid rgba(0,0,0,0.06)" }}
+            />
+
+            {/* URL */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, textAlign: "center", width: "100%" }}>
+              <p style={{ font: `600 0.78rem/1 ${fd}`, color: "#1A1D23" }}>Enlace de check-in</p>
+              <p style={{ font: `400 0.72rem/1.4 ${fd}`, color: "#6B7280", wordBreak: "break-all", maxWidth: 340 }}>{checkinUrl}</p>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+              <button
+                onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", background: copied ? "#22C55E" : "#1A1D23", color: "white", border: "none", borderRadius: 10, font: `600 0.8rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s" }}
+              >
+                <Copy size={14} />
+                {copied ? "Copiado ✓" : "Copiar enlace"}
+              </button>
+              <a
+                href={`https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=2`}
+                download="qr-checkin-gym.png"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", background: "white", color: "#1A1D23", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 10, font: `600 0.8rem/1 ${fd}`, textDecoration: "none", cursor: "pointer" }}
+              >
+                <Download size={14} />
+                Descargar QR
+              </a>
+            </div>
+
+            {/* How it works */}
+            <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 18px", width: "100%" }}>
+              <p style={{ font: `700 0.8rem/1 ${fd}`, color: "#1A1D23", marginBottom: 12 }}>¿Cómo funciona para el alumno?</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  "Escanea el QR con la cámara de su teléfono (no hace falta app).",
+                  "En la pantalla que aparece, ingresa su DNI.",
+                  "El sistema verifica su membresía y registra la asistencia.",
+                ].map((step, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 6, background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                      <span style={{ font: `800 0.65rem/1 ${fd}`, color: "white" }}>{i + 1}</span>
+                    </div>
+                    <p style={{ font: `400 0.79rem/1.5 ${fd}`, color: "#6B7280" }}>{step}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            <style>{`@keyframes spin2 { to { transform: rotate(360deg); } }`}</style>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin2 0.8s linear infinite" }} />
+            <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#9CA3AF" }}>Cargando QR...</p>
+          </div>
+        )}
       </div>
     </div>
   );

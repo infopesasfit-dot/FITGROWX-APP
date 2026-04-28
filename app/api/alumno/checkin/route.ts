@@ -67,7 +67,6 @@ export async function POST(req: NextRequest) {
 
   const { qr_data } = await req.json();
 
-  // QR format: "FITGROWX:{DNI}"
   if (!qr_data || !qr_data.startsWith("FITGROWX:")) {
     return NextResponse.json({
       ok: false,
@@ -78,8 +77,8 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
-  const dni = qr_data.slice("FITGROWX:".length).trim();
-  if (!dni) {
+  const payload = qr_data.slice("FITGROWX:".length).trim();
+  if (!payload) {
     return NextResponse.json({
       ok: false,
       error: "QR inválido.",
@@ -89,12 +88,20 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
-  const { data: alumno, error } = await supabaseAdmin
+  // Formato nuevo: FITGROWX:ID:{alumno_id}  →  buscar por id
+  // Formato viejo: FITGROWX:{dni}            →  buscar por dni (retrocompatible)
+  const byId = payload.startsWith("ID:");
+  const lookup = byId ? payload.slice(3) : payload;
+
+  const baseQuery = supabaseAdmin
     .from("alumnos")
     .select("id, gym_id, full_name, status, phone, planes(nombre, accent_color), next_expiration_date")
-    .eq("dni", dni)
-    .eq("gym_id", profileRow.gym_id)
-    .single();
+    .eq("gym_id", profileRow.gym_id);
+
+  const { data: alumno, error } = await (byId
+    ? baseQuery.eq("id", lookup)
+    : baseQuery.eq("dni", lookup)
+  ).single();
   const alumnoRow = alumno as AlumnoRow | null;
 
   if (error || !alumnoRow) {
