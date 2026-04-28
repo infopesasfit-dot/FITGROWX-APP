@@ -78,7 +78,7 @@ export default function AlumnosPage() {
   const [planesLoading,   setPlanesLoading]   = useState(false);
   const [totalCount,      setTotalCount]      = useState(0);
   const [menuOpenId,      setMenuOpenId]      = useState<string | null>(null);
-  const [menuPos,         setMenuPos]         = useState<{ top: number; right: number } | null>(null);
+  const [menuPos,         setMenuPos]         = useState<{ top: number; right: number; openUp?: boolean } | null>(null);
   const [editModalOpen,   setEditModalOpen]   = useState(false);
   const [editForm,        setEditForm]        = useState({ id: "", full_name: "", phone: "", plan_id: "", next_expiration_date: "" });
   const [editSaving,      setEditSaving]      = useState(false);
@@ -782,7 +782,7 @@ export default function AlumnosPage() {
                           ><CreditCard size={16} /></button>
                         </Tooltip>
                         <Tooltip content="Más acciones">
-                          <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMenuOpenId(a.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4 > window.innerHeight - 180 ? rect.top - 4 : rect.bottom + 4, right: window.innerWidth - rect.right, openUp: rect.bottom + 4 > window.innerHeight - 180 }); setMenuOpenId(a.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
                             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
                           ><MoreVertical size={16} /></button>
@@ -858,7 +858,7 @@ export default function AlumnosPage() {
                       </button>
                     )}
                     <button onClick={() => openPagoModal(a)} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(75,107,251,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4B6BFB" }}><CreditCard size={14} /></button>
-                    <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right }); setMenuOpenId(a.id); }} style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t3 }}><MoreVertical size={14} /></button>
+                    <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4 > window.innerHeight - 180 ? rect.top - 4 : rect.bottom + 4, right: window.innerWidth - rect.right, openUp: rect.bottom + 4 > window.innerHeight - 180 }); setMenuOpenId(a.id); }} style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t3 }}><MoreVertical size={14} /></button>
                   </div>
                 </div>
               </div>
@@ -871,8 +871,8 @@ export default function AlumnosPage() {
 
     {/* ── Modal: Check-in manual ── */}
     {checkinTarget && (
-      <div onClick={() => setCheckinTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 20, padding: "28px 24px", maxWidth: 380, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
+      <div onClick={() => setCheckinTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, padding: "28px 24px", maxWidth: isMobile ? "100%" : 380, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}><ClipboardCheck size={18} color="#22C55E" /></div>
             <div>
@@ -1066,7 +1066,7 @@ export default function AlumnosPage() {
         const target = alumnos.find(a => a.id === menuOpenId);
         if (!target) return null;
         return (
-          <div onClick={e => e.stopPropagation()} style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
+          <div onClick={e => e.stopPropagation()} style={{ position: "fixed", ...(menuPos.openUp ? { bottom: window.innerHeight - menuPos.top } : { top: menuPos.top }), right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
             {[
               { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(target); setMenuOpenId(null); setMenuPos(null); } },
               { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(target); setMenuOpenId(null); setMenuPos(null); } },
@@ -1644,7 +1644,7 @@ export default function AlumnosPage() {
 
     {/* ── Toast ── */}
     {toast && (
-      <div style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", zIndex: 10000, background: "#FF6A00", color: "white", padding: "12px 22px", borderRadius: 12, font: `600 0.875rem/1 ${fb}`, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", pointerEvents: "none", whiteSpace: "nowrap" }}>
+      <div style={{ position: "fixed", bottom: isMobile ? "calc(72px + env(safe-area-inset-bottom, 0px))" : "28px", left: "50%", transform: "translateX(-50%)", zIndex: 10000, background: "#FF6A00", color: "white", padding: "12px 22px", borderRadius: 12, font: `600 0.875rem/1 ${fb}`, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", pointerEvents: "none", whiteSpace: "nowrap" }}>
         {toast}
       </div>
     )}

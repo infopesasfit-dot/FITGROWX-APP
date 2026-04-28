@@ -104,10 +104,10 @@ const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/publicidad"];
 const STAFF_ALLOWED_ROUTES = ["/dashboard", "/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
 
 const BOTTOM_NAV = [
-  { href: "/dashboard",         label: "Inicio",  icon: Home },
-  { href: "/dashboard/alumnos", label: "Alumnos", icon: Users },
-  { href: "/dashboard/scanner", label: "Escáner", icon: ScanLine },
-  { href: "/dashboard/pagos",   label: "Pagos",   icon: Wallet },
+  { href: "/dashboard",         label: "Inicio",   icon: Home },
+  { href: "/dashboard/alumnos", label: "Alumnos",  icon: Users },
+  { href: "/dashboard/scanner", label: "Escáner",  icon: ScanLine },
+  { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
 ];
 
 

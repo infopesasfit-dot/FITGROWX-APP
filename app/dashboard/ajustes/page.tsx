@@ -66,12 +66,9 @@ const mutedInputStyle = {
 };
 
 const tabs = [
-  { key: "general", label: "General" },
+  { key: "general",    label: "General" },
   { key: "conexiones", label: "Conexiones" },
-  { key: "landing", label: "Landing" },
-  { key: "membresias", label: "Membresías" },
-  { key: "equipo", label: "Equipo" },
-  { key: "automatizaciones", label: "Automatizaciones" },
+  { key: "equipo",     label: "Equipo" },
 ] as const;
 
 type SettingsTab = typeof tabs[number]["key"];
@@ -323,18 +320,6 @@ function AjustesContent() {
           eyebrow: "Integraciones",
           title: "Conexiones",
           desc: "Controlá los canales y servicios conectados con estados simples y acciones claras.",
-        };
-      case "landing":
-        return {
-          eyebrow: "Captación",
-          title: "Landing",
-          desc: "Editá tu página pública y el dominio corto sin mezclarlo con otros ajustes.",
-        };
-      case "membresias":
-        return {
-          eyebrow: "Facturación y Plan",
-          title: "Membresías y cobros",
-          desc: "Configurá cómo cobrás y administrá tu suscripción activa sin dar vueltas.",
         };
       case "equipo":
         return {
@@ -966,7 +951,7 @@ function AjustesContent() {
                     badge: hasMercadoPagoLink ? { label: "Activo", bg: "rgba(34,197,94,0.10)", color: "#15803D" } : { label: "Desconectado", bg: "#F1F5F9", color: t2 },
                     action: (
                       <button
-                        onClick={() => handleTabChange("membresias")}
+                        onClick={() => router.push("/dashboard/membresias")}
                         style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "white", color: t2, font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
                       >
                         {hasMercadoPagoLink ? "Editar" : "Configurar"}
@@ -1008,255 +993,7 @@ function AjustesContent() {
           </div>
         )}
 
-        {activeTab === "landing" && (
-          <div style={{ display: "grid", gap: 18 }}>
-            <SectionCard
-              icon={<Globe size={18} color="white" />}
-              title="Landing"
-              desc="Tu página pública tiene su propia pestaña para que no quede perdida entre ajustes menores."
-              actions={
-                <button
-                  onClick={handleSaveLanding}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 7,
-                    padding: "11px 16px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: `linear-gradient(135deg, ${ACCENT_DARK} 0%, ${ACCENT} 100%)`,
-                    color: "white",
-                    font: `800 0.8rem/1 ${fd}`,
-                    cursor: "pointer",
-                    boxShadow: "0 12px 24px rgba(37,99,235,0.16)",
-                  }}
-                >
-                  <Save size={13} />
-                  {landingSaved ? "Guardado ✓" : "Guardar landing"}
-                </button>
-              }
-            >
-              <div style={{ display: "grid", gap: 18 }}>
-                <div style={{ padding: "16px 18px", borderRadius: 18, background: "linear-gradient(135deg, #F8FAFC 0%, #EEF4FF 100%)", border: "1px solid rgba(37,99,235,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                  <div>
-                    <p style={{ font: `800 0.84rem/1 ${fd}`, color: t1, marginBottom: 5 }}>Configuración de dominio</p>
-                    <p style={{ font: `400 0.76rem/1.45 ${fb}`, color: t2 }}>{publicLandingUrl}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(publicLandingUrl);
-                      setCopiedSlug(true);
-                      setTimeout(() => setCopiedSlug(false), 1800);
-                    }}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "white", color: t2, font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
-                  >
-                    <Copy size={13} />
-                    {copiedSlug ? "Copiado" : "Copiar link"}
-                  </button>
-                </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
-                  <Field label="Slug / dominio corto" hint="Se usa en `fitgrowx.app/tugym`. Solo letras, números y guiones.">
-                    <input value={gymSlug} onChange={(event) => setGymSlug(slugify(event.target.value))} placeholder="power-house" style={inputStyle} />
-                  </Field>
-
-                  <Field label="Color de acento" hint="Impacta la landing pública y el CTA principal.">
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                      {[ACCENT, "#1E40AF", "#60A5FA", "#0F766E", "#64748B", "#EF4444"].map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => setLandingAccent(color)}
-                          style={{ width: 32, height: 32, borderRadius: 10, border: landingAccent === color ? "2px solid #111827" : "1px solid rgba(15,23,42,0.08)", background: color, cursor: "pointer" }}
-                        />
-                      ))}
-                      <input type="color" value={landingAccent} onChange={(event) => setLandingAccent(event.target.value)} style={{ width: 34, height: 34, padding: 0, border: "none", background: "transparent", cursor: "pointer" }} />
-                    </div>
-                  </Field>
-                </div>
-
-                <Field label="Título principal">
-                  <input value={landingTitle} onChange={(event) => setLandingTitle(event.target.value)} style={inputStyle} />
-                </Field>
-
-                <Field label="Descripción" hint="Este texto aparece abajo del título en tu landing pública.">
-                  <textarea value={landingDesc} onChange={(event) => setLandingDesc(event.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} />
-                </Field>
-
-                <div style={{ padding: "16px 18px", borderRadius: 18, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)" }}>
-                  <p style={{ font: `700 0.75rem/1 ${fb}`, color: landingAccent, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                    Preview
-                  </p>
-                  <p style={{ font: `900 1.1rem/1.1 ${fd}`, color: t1, marginBottom: 8 }}>{landingTitle || "Probá una clase gratis."}</p>
-                  <p style={{ font: `400 0.82rem/1.55 ${fb}`, color: t2, marginBottom: 14 }}>{landingDesc || "Vení a conocernos. Te esperamos con una clase de bienvenida totalmente gratis."}</p>
-                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 16px", borderRadius: 12, background: landingAccent, color: "white", font: `800 0.8rem/1 ${fd}` }}>
-                    Reservar clase
-                  </span>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-        )}
-
-        {activeTab === "membresias" && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18 }}>
-            <SectionCard
-              icon={<CreditCard size={18} color="white" />}
-              title="Métodos de cobro"
-              desc="Elegí cómo querés que aparezca tu dato de cobro en recordatorios y seguimientos."
-              actions={
-                <button
-                  onClick={handleSaveBilling}
-                  disabled={!billingValue.trim()}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "11px 20px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: billingValue.trim() ? `linear-gradient(135deg, ${ACCENT_DARK} 0%, ${ACCENT} 100%)` : "#D1D5DB",
-                    color: "white",
-                    font: `800 0.8rem/1 ${fd}`,
-                    cursor: billingValue.trim() ? "pointer" : "not-allowed",
-                    whiteSpace: "nowrap",
-                    minWidth: 174,
-                    justifyContent: "center",
-                    boxShadow: billingValue.trim() ? "0 12px 24px rgba(37,99,235,0.16)" : "none",
-                  }}
-                >
-                  <Save size={14} />
-                  {billingSaved ? "Guardado ✓" : "Guardar cobro"}
-                </button>
-              }
-            >
-              <div style={{ display: "grid", gap: 18 }}>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {([
-                    { key: "alias", label: "Alias" },
-                    { key: "cbu", label: "CBU / CVU" },
-                    { key: "mp", label: "Mercado Pago" },
-                  ] as const).map((option) => {
-                    const selected = metodo === option.key;
-                    return (
-                      <button
-                        key={option.key}
-                        onClick={() => setMetodo(option.key)}
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: 9999,
-                          border: selected ? "1px solid rgba(37,99,235,0.18)" : "1px solid rgba(15,23,42,0.08)",
-                          background: selected ? "rgba(37,99,235,0.08)" : "#FFFFFF",
-                          color: selected ? ACCENT : t2,
-                          font: `${selected ? "800" : "600"} 0.8rem/1 ${fd}`,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {metodo === "alias" && (
-                  <Field label="Alias de cobro" hint="Es el formato más claro para WhatsApp y recordatorios rápidos.">
-                    <input value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="mi.gym.alias" style={inputStyle} />
-                  </Field>
-                )}
-
-                {metodo === "cbu" && (
-                  <Field label="CBU / CVU" hint="Usá los 22 dígitos completos para evitar errores de copia.">
-                    <input value={cbu} onChange={(event) => setCbu(event.target.value)} maxLength={22} placeholder="0000000000000000000000" style={inputStyle} />
-                  </Field>
-                )}
-
-                {metodo === "mp" && (
-                  <Field label="Link de pago de Mercado Pago" hint="Ideal si querés que el alumno pague directo desde el enlace.">
-                    <input value={mpLink} onChange={(event) => setMpLink(event.target.value)} placeholder="https://mpago.la/tu-link" style={inputStyle} />
-                  </Field>
-                )}
-
-                <div style={{ padding: "14px 16px", borderRadius: 16, background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.14)" }}>
-                  <p style={{ font: `700 0.75rem/1 ${fb}`, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
-                    Preview del mensaje
-                  </p>
-                  <p style={{ font: `400 0.82rem/1.55 ${fb}`, color: t2 }}>
-                    Para renovar tu membresía, pagá por <strong style={{ color: t1 }}>{metodo === "mp" ? "Mercado Pago" : metodo === "cbu" ? "CBU / CVU" : "alias"}</strong>:{" "}
-                    <span style={{ color: t1 }}>{billingValue || "completá un dato de cobro"}</span>
-                  </p>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              icon={<AlertTriangle size={18} color="white" />}
-              title="Suscripción y cancelación"
-              desc="Revisá tu plan actual o cancelá tu suscripción cuando lo necesites."
-            >
-              <div style={{ display: "grid", gap: 14 }}>
-                <div style={{ padding: "18px 18px", borderRadius: 18, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                  <div>
-                    <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Ver o cambiar plan</p>
-                    <p style={{ font: `400 0.77rem/1.45 ${fb}`, color: t2 }}>Consultá tu suscripción activa y los upgrades disponibles.</p>
-                  </div>
-                  <Link
-                    href="/dashboard/suscripcion"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      background: "#111827",
-                      color: "white",
-                      textDecoration: "none",
-                      font: `800 0.8rem/1 ${fd}`,
-                    }}
-                  >
-                    Ver suscripción
-                    <ChevronRight size={13} />
-                  </Link>
-                </div>
-
-                <div style={{ padding: "18px 18px", borderRadius: 18, border: "1px solid rgba(239,68,68,0.14)", background: "rgba(239,68,68,0.03)" }}>
-                  <p style={{ font: `800 0.92rem/1 ${fd}`, color: "#DC2626", marginBottom: 8 }}>Cancelar suscripción</p>
-                  <p style={{ font: `400 0.78rem/1.55 ${fb}`, color: t2, maxWidth: 420 }}>
-                    Tu acceso se mantiene hasta el final del período ya abonado. No hay reintegros proporcionales por los días no utilizados.
-                  </p>
-                  <Link
-                    href="/terminos"
-                    target="_blank"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 10, font: `600 0.75rem/1 ${fb}`, color: t3, textDecoration: "none" }}
-                  >
-                    <ExternalLink size={11} />
-                    Ver política de cancelación
-                  </Link>
-
-                  <div style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
-                    <button
-                      onClick={() => setShowConfirm(true)}
-                      disabled={cancelDone}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 7,
-                        padding: "10px 14px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(239,68,68,0.2)",
-                        background: cancelDone ? "rgba(34,197,94,0.08)" : "white",
-                        color: cancelDone ? "#16A34A" : "#DC2626",
-                        font: `800 0.8rem/1 ${fd}`,
-                        cursor: cancelDone ? "default" : "pointer",
-                      }}
-                    >
-                      {cancelDone ? "Cancelación solicitada ✓" : "Cancelar suscripción"}
-                    </button>
-                    {cancelError && <span style={{ font: `600 0.75rem/1.4 ${fb}`, color: "#DC2626" }}>{cancelError}</span>}
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
-          </div>
-        )}
 
         {activeTab === "equipo" && (
           <div style={{ display: "grid", gap: 18 }}>
@@ -1365,11 +1102,6 @@ function AjustesContent() {
           </div>
         )}
 
-        {activeTab === "automatizaciones" && (
-          <div style={{ display: "grid", gap: 18 }}>
-            <AutomatizacionesPage />
-          </div>
-        )}
       </div>
 
       {qrModalOpen && (
