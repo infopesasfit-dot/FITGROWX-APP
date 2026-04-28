@@ -3,31 +3,52 @@ import { getPlanNombre } from "@/lib/supabase-relations";
 import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-type AlumnoRow = {
-  id: string;
-  gym_id: string;
-  full_name: string;
-  status: string | null;
-  planes: unknown;
-  next_expiration_date: string | null;
-};
-
+type TokenRow  = { alumno_id: string; gym_id: string; expires_at: string };
+type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string | null; planes: unknown; next_expiration_date: string | null };
 type ExistingRow = { id: string; hora: string | null };
 
 export async function POST(req: NextRequest) {
   const { gym_id, dni } = await req.json();
-  if (!gym_id || !dni?.trim()) {
-    return NextResponse.json({ ok: false, error: "gym_id y DNI son requeridos." }, { status: 400 });
-  }
+  if (!gym_id) return NextResponse.json({ ok: false, error: "gym_id requerido." }, { status: 400 });
 
   const supabase = getSupabaseAdminClient();
 
-  const { data: alumno, error } = await supabase
+  // ── Modo automático: token en Authorization header ──────────────────────────
+  let alumnoId: string | null = null;
+  const rawToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() ?? null;
+
+  if (rawToken) {
+    const { data: tokenRow } = await supabase
+      .from("alumno_tokens")
+      .select("alumno_id, gym_id, expires_at")
+      .eq("token", rawToken)
+      .maybeSingle<TokenRow>();
+
+    if (tokenRow && tokenRow.gym_id === gym_id && new Date(tokenRow.expires_at) > new Date()) {
+      alumnoId = tokenRow.alumno_id;
+    }
+  }
+
+  // ── Fallback: requiere DNI si no hay token válido ───────────────────────────
+  if (!alumnoId) {
+    if (!dni?.trim()) {
+      return NextResponse.json({
+        ok: false,
+        error_code: "need_dni",
+        error: "Ingresá tu DNI para registrar tu asistencia.",
+      }, { status: 400 });
+    }
+  }
+
+  // ── Buscar alumno ───────────────────────────────────────────────────────────
+  const baseSelect = supabase
     .from("alumnos")
     .select("id, gym_id, full_name, status, planes(nombre), next_expiration_date")
-    .eq("dni", String(dni).trim())
-    .eq("gym_id", gym_id)
-    .single();
+    .eq("gym_id", gym_id);
+
+  const { data: alumno, error } = await (
+    alumnoId ? baseSelect.eq("id", alumnoId) : baseSelect.eq("dni", String(dni).trim())
+  ).single();
   const alumnoRow = alumno as AlumnoRow | null;
 
   if (error || !alumnoRow) {
@@ -37,9 +58,10 @@ export async function POST(req: NextRequest) {
     }, { status: 404 });
   }
 
+  // ── Validar membresía ───────────────────────────────────────────────────────
   const today = getTodayDate();
   const isExpired = Boolean(alumnoRow.next_expiration_date && alumnoRow.next_expiration_date < today);
-  const isActive = alumnoRow.status === "activo";
+  const isActive  = alumnoRow.status === "activo";
 
   if (!isActive || isExpired) {
     return NextResponse.json({
@@ -50,6 +72,7 @@ export async function POST(req: NextRequest) {
     }, { status: 409 });
   }
 
+  // ── Verificar si ya registró hoy ────────────────────────────────────────────
   const { data: existing } = await supabase
     .from("asistencias")
     .select("id, hora")
@@ -67,6 +90,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // ── Registrar asistencia ────────────────────────────────────────────────────
   const hora = getCurrentTime();
   const { error: insErr } = await supabase.from("asistencias").insert({
     gym_id: alumnoRow.gym_id,
