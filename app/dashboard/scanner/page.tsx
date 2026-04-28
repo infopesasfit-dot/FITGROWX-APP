@@ -57,7 +57,7 @@ export default function ScannerPage() {
 
   const [gymId,  setGymId]  = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const checkinUrl = gymId ? `https://fitgrowx.app/checkin/${gymId}` : "";
+  const checkinUrl = gymId ? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/checkin/${gymId}` : "";
 
   useEffect(() => {
     getCachedProfile().then(p => { if (p?.gymId) setGymId(p.gymId); });
