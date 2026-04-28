@@ -309,29 +309,20 @@ function AjustesContent() {
 
   const currentTabMeta = useMemo(() => {
     switch (activeTab) {
-      case "general":
-        return {
-          eyebrow: "Centro de Configuración",
-          title: "General",
-          desc: "Actualizá los datos base del gimnasio desde una vista más compacta y clara.",
-        };
       case "conexiones":
         return {
-          eyebrow: "Integraciones",
-          title: "Conexiones",
-          desc: "Controlá los canales y servicios conectados con estados simples y acciones claras.",
+          title: "Canales conectados",
+          desc: "Conectá WhatsApp y Mercado Pago para que todo funcione solo.",
         };
       case "equipo":
         return {
-          eyebrow: "Equipo interno",
-          title: "Miembros y accesos",
-          desc: "Invitá staff, revisá quién tiene acceso y mantené la operación ordenada.",
+          title: "Tu equipo",
+          desc: "Agregá personas de confianza para ayudarte a manejar el gym.",
         };
       default:
         return {
-          eyebrow: "Mensajería y Captación",
-          title: "Automatizaciones",
-          desc: "Gestioná los mensajes automáticos, accesos al panel y reactivaciones desde una vista enfocada.",
+          title: "Tu gimnasio",
+          desc: "Actualizá el nombre, logo y datos principales de tu gym.",
         };
     }
   }, [activeTab]);
@@ -644,13 +635,10 @@ function AjustesContent() {
           <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 22 }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
               <div style={{ maxWidth: 700 }}>
-                <p style={{ font: `700 0.72rem/1 ${fb}`, color: ACCENT, textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 10 }}>
-                  {currentTabMeta.eyebrow}
-                </p>
-                <h1 style={{ font: `900 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.04em", marginBottom: 10 }}>
+                <h1 style={{ font: `800 1.6rem/1.1 ${fd}`, color: t1, letterSpacing: "-0.03em", marginBottom: 6 }}>
                   {currentTabMeta.title}
                 </h1>
-                <p style={{ font: `400 0.94rem/1.6 ${fb}`, color: t2 }}>
+                <p style={{ font: `400 0.88rem/1.5 ${fb}`, color: t2 }}>
                   {currentTabMeta.desc}
                 </p>
               </div>
@@ -689,8 +677,8 @@ function AjustesContent() {
           <div style={{ display: "grid", gap: 18 }}>
             <SectionCard
               icon={<Building2 size={18} color="white" />}
-              title="General"
-              desc="Nombre, acceso, Instagram, logo y seguridad en una sola vista compacta."
+              title="Datos del gym"
+              desc="El nombre y la info que tus alumnos van a ver."
               actions={
                 <button
                   onClick={handleSaveGym}
@@ -896,8 +884,8 @@ function AjustesContent() {
           <div style={{ display: "grid", gap: 18 }}>
             <SectionCard
               icon={<Smartphone size={18} color="white" />}
-              title="Canales y conexiones"
-              desc="Cada conexión aparece en una fila clara con estado y acción principal."
+              title="Tus canales"
+              desc="Conectá las herramientas que usás para cobrar y comunicarte."
             >
               <div style={{ display: "grid", gap: 10 }}>
                 {[
@@ -999,8 +987,8 @@ function AjustesContent() {
           <div style={{ display: "grid", gap: 18 }}>
             <SectionCard
               icon={<Users size={18} color="white" />}
-              title="Equipo y accesos"
-              desc="Gestioná quién entra al panel y mantené al staff con acceso solo a operación diaria."
+              title="Quién puede entrar"
+              desc="Agregá staff para que te ayuden a registrar asistencias y alumnos."
               actions={
                 <button
                   onClick={() => { setStaffError(null); setStaffModalOpen(true); }}
