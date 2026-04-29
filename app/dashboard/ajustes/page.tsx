@@ -281,13 +281,6 @@ function AjustesContent() {
     }
   }, [activeTab]);
 
-  const handleTabChange = (tab: SettingsTab) => {
-    setActiveTab(tab);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", tab);
-    router.replace(`/dashboard/ajustes?${params.toString()}`, { scroll: false });
-  };
-
   const handleSaveGym = async () => {
     if (!gymId) return;
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
@@ -565,31 +558,6 @@ function AjustesContent() {
 
             </div>
 
-            <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
-              {tabs.map((tab) => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    onClick={() => handleTabChange(tab.key)}
-                    style={{
-                      flexShrink: 0,
-                      padding: "11px 16px",
-                      borderRadius: 9999,
-                      border: isActive ? "1px solid rgba(37,99,235,0.22)" : "1px solid rgba(15,23,42,0.08)",
-                      background: isActive ? "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(239,246,255,1) 100%)" : "rgba(255,255,255,0.72)",
-                      color: isActive ? ACCENT : t2,
-                      font: `${isActive ? "800" : "600"} 0.82rem/1 ${fd}`,
-                      cursor: "pointer",
-                      boxShadow: isActive ? "0 6px 18px rgba(37,99,235,0.10)" : "none",
-                      transition: "all 0.16s ease",
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </section>
 

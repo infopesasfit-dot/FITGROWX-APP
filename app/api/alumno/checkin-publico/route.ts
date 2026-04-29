@@ -8,7 +8,7 @@ type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string
 type ExistingRow = { id: string; hora: string | null };
 
 export async function POST(req: NextRequest) {
-  const { gym_id, dni } = await req.json();
+  const { gym_id } = await req.json();
   if (!gym_id) return NextResponse.json({ ok: false, error: "gym_id requerido." }, { status: 400 });
 
   const supabase = getSupabaseAdminClient();
@@ -29,33 +29,29 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Fallback: requiere DNI si no hay token válido ───────────────────────────
   if (!alumnoId) {
-    if (!dni?.trim()) {
-      return NextResponse.json({
-        ok: false,
-        error_code: "need_dni",
-        error: "Ingresá tu DNI para registrar tu asistencia.",
-      }, { status: 400 });
-    }
+    return NextResponse.json({
+      ok: false,
+      error_code: "auth_required",
+      error: "Necesitás iniciar sesión en tu panel para registrar la asistencia desde tu celular. Si no, pedile al staff que la cargue manualmente.",
+    }, { status: 401 });
   }
 
   // ── Buscar alumno ───────────────────────────────────────────────────────────
-  const baseSelect = supabase
+  const { data: alumno, error } = await supabase
     .from("alumnos")
     .select("id, gym_id, full_name, status, planes(nombre), next_expiration_date")
-    .eq("gym_id", gym_id);
-
-  const { data: alumno, error } = await (
-    alumnoId ? baseSelect.eq("id", alumnoId) : baseSelect.eq("dni", String(dni).trim())
-  ).single();
+    .eq("gym_id", gym_id)
+    .eq("id", alumnoId)
+    .maybeSingle();
   const alumnoRow = alumno as AlumnoRow | null;
 
   if (error || !alumnoRow) {
     return NextResponse.json({
       ok: false,
-      error: "No encontramos un alumno con ese DNI en este gimnasio.",
-    }, { status: 404 });
+      error_code: "auth_required",
+      error: "Tu sesión no es válida para este gimnasio. Volvé a ingresar desde tu panel o pedile ayuda al staff.",
+    }, { status: 401 });
   }
 
   // ── Validar membresía ───────────────────────────────────────────────────────

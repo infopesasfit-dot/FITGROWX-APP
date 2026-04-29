@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Clock, Trash2, CheckCircle, ClipboardCheck, Star, Download } from "lucide-react";
+import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
 import Papa from "papaparse";
 
@@ -1467,73 +1467,67 @@ export default function AlumnosPage() {
               />
             </div>
 
-            {/* Gym: tabla de ejercicios */}
+            {/* Gym: cards de ejercicios */}
             {rutinatipo === "gym" && (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <label style={{ font: `600 0.72rem/1 ${fd}`, color: t1, textTransform: "uppercase", letterSpacing: "0.07em" }}>Ejercicios ({rutinaEjercicios.length})</label>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 52px 52px 72px 64px 32px", gap: 6, padding: "0 8px", marginBottom: 6 }}>
-                  {["Ejercicio", "Series", "Reps", "Carga", "Descanso", ""].map(h => (
-                    <span key={h} style={{ font: `600 0.62rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
-                  ))}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {rutinaEjercicios.map((ej, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 52px 52px 72px 64px 32px", gap: 6, alignItems: "center", background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "8px 8px" }}>
-                      <input
-                        placeholder="Nombre del ejercicio"
-                        value={ej.nombre}
-                        onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
-                        style={{ padding: "7px 10px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
-                        onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                        onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                      />
-                      {(["series", "repeticiones"] as const).map(key => (
-                        <input
-                          key={key}
-                          type="number"
-                          min={1}
-                          value={ej[key]}
-                          onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, [key]: Number(e.target.value) } : x))}
-                          style={{ padding: "7px 6px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
-                          onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                          onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                        />
-                      ))}
-                      <input
-                        placeholder="20kg"
-                        value={ej.peso_sugerido}
-                        onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, peso_sugerido: e.target.value } : x))}
-                        style={{ padding: "7px 6px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
-                        onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                        onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                      />
-                      <div style={{ position: "relative" }}>
-                        <Clock size={11} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
-                        <input
-                          placeholder="60s"
-                          value={ej.descanso}
-                          onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, descanso: e.target.value } : x))}
-                          style={{ padding: "7px 6px 7px 20px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
-                          onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                          onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                        />
+                    <div key={i} style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 14, padding: "12px 14px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      {/* Número */}
+                      <div style={{ width: 26, height: 26, borderRadius: 8, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.72rem/1 ${fd}`, color: t3, flexShrink: 0, marginTop: 6 }}>
+                        {i + 1}
                       </div>
+                      {/* Contenido */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <input
+                          placeholder="Nombre del ejercicio"
+                          value={ej.nombre}
+                          onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
+                          style={{ width: "100%", padding: "0 0 6px", background: "transparent", border: "none", borderBottom: "1.5px solid rgba(0,0,0,0.08)", font: `600 0.92rem/1.2 ${fd}`, color: t1, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
+                          onFocus={e => (e.currentTarget.style.borderBottomColor = "#F97316")}
+                          onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(0,0,0,0.08)")}
+                        />
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
+                          {([
+                            { key: "series",       label: "Series",   placeholder: "4",    type: "number" },
+                            { key: "repeticiones", label: "Reps",     placeholder: "12",   type: "number" },
+                            { key: "peso_sugerido",label: "Carga",    placeholder: "20kg", type: "text"   },
+                            { key: "descanso",     label: "Descanso", placeholder: "60s",  type: "text"   },
+                          ] as const).map(({ key, label, placeholder, type }) => (
+                            <div key={key} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                              <span style={{ font: `500 0.6rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</span>
+                              <input
+                                type={type}
+                                min={type === "number" ? 1 : undefined}
+                                placeholder={placeholder}
+                                value={ej[key]}
+                                onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, [key]: type === "number" ? Number(e.target.value) : e.target.value } : x))}
+                                style={{ padding: "6px 8px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `600 0.82rem/1 ${fb}`, color: "#374151", outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
+                                onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                                onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Delete */}
                       <button
                         onClick={() => setRutinaEjercicios(prev => prev.filter((_, j) => j !== i))}
-                        style={{ width: 32, height: 32, borderRadius: 8, background: "none", border: "1px solid rgba(220,38,38,0.12)", cursor: "pointer", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(220,38,38,0.07)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+                        style={{ width: 28, height: 28, borderRadius: 8, background: "none", border: "none", cursor: "pointer", color: "#D1D5DB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 4, transition: "color 0.15s" }}
+                        onMouseEnter={e => { e.currentTarget.style.color = "#EF4444"; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = "#D1D5DB"; }}
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   ))}
                 </div>
                 <button
                   onClick={() => setRutinaEjercicios(prev => [...prev, { ...EMPTY_EJ }])}
-                  style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "none", border: "1px dashed rgba(249,115,22,0.2)", borderRadius: 9, font: `600 0.78rem/1 ${fd}`, color: "#F97316", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
+                  style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", background: "none", border: "1.5px dashed rgba(249,115,22,0.22)", borderRadius: 12, font: `600 0.78rem/1 ${fd}`, color: "#F97316", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(249,115,22,0.04)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
                 >
@@ -1545,51 +1539,54 @@ export default function AlumnosPage() {
             {/* WOD: lista de movimientos */}
             {rutinatipo === "wod" && (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
                   <label style={{ font: `600 0.72rem/1 ${fd}`, color: t1, textTransform: "uppercase", letterSpacing: "0.07em" }}>Movimientos ({wodMovimientos.length})</label>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     <span style={{ padding: "3px 10px", borderRadius: 9999, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", font: `700 0.68rem/1 ${fd}`, color: "#818cf8" }}>{wodModalidad}</span>
                     <span style={{ font: `400 0.68rem/1 ${fd}`, color: t3 }}>{wodTimeCap} min</span>
                   </div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 32px", gap: 6, padding: "0 8px", marginBottom: 6 }}>
-                  {["Movimiento", "Reps / Dist", ""].map(h => (
-                    <span key={h} style={{ font: `600 0.62rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
-                  ))}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {wodMovimientos.map((m, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 90px 32px", gap: 6, alignItems: "center", background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 10, padding: "8px 8px" }}>
-                      <input
-                        placeholder="Ej: Thruster"
-                        value={m.nombre}
-                        onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
-                        style={{ padding: "7px 10px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box" }}
-                        onFocus={e => (e.currentTarget.style.borderColor = "#6366f1")}
-                        onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                      />
-                      <input
-                        placeholder="21-15-9"
-                        value={m.reps}
-                        onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))}
-                        style={{ padding: "7px 8px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `500 0.82rem/1 ${fb}`, color: t1, outline: "none", width: "100%", boxSizing: "border-box", textAlign: "center" }}
-                        onFocus={e => (e.currentTarget.style.borderColor = "#6366f1")}
-                        onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                      />
+                    <div key={i} style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 14, padding: "12px 14px", display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(99,102,241,0.08)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.72rem/1 ${fd}`, color: "#818cf8", flexShrink: 0, marginTop: 6 }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <input
+                          placeholder="Ej: Thruster"
+                          value={m.nombre}
+                          onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
+                          style={{ width: "100%", padding: "0 0 6px", background: "transparent", border: "none", borderBottom: "1.5px solid rgba(0,0,0,0.08)", font: `600 0.92rem/1.2 ${fd}`, color: t1, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
+                          onFocus={e => (e.currentTarget.style.borderBottomColor = "#6366f1")}
+                          onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(0,0,0,0.08)")}
+                        />
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          <span style={{ font: `500 0.6rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em" }}>Reps / Dist</span>
+                          <input
+                            placeholder="21-15-9"
+                            value={m.reps}
+                            onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))}
+                            style={{ padding: "6px 10px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `600 0.82rem/1 ${fb}`, color: "#374151", outline: "none", width: "100%", boxSizing: "border-box" }}
+                            onFocus={e => (e.currentTarget.style.borderColor = "#6366f1")}
+                            onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
+                          />
+                        </div>
+                      </div>
                       <button
                         onClick={() => setWodMovimientos(prev => prev.filter((_, j) => j !== i))}
-                        style={{ width: 32, height: 32, borderRadius: 8, background: "none", border: "1px solid rgba(220,38,38,0.12)", cursor: "pointer", color: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}
-                        onMouseEnter={e => { e.currentTarget.style.background = "rgba(220,38,38,0.07)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+                        style={{ width: 28, height: 28, borderRadius: 8, background: "none", border: "none", cursor: "pointer", color: "#D1D5DB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 4, transition: "color 0.15s" }}
+                        onMouseEnter={e => { e.currentTarget.style.color = "#EF4444"; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = "#D1D5DB"; }}
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   ))}
                 </div>
                 <button
                   onClick={() => setWodMovimientos(prev => [...prev, { ...EMPTY_MOV }])}
-                  style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "none", border: "1px dashed rgba(99,102,241,0.25)", borderRadius: 9, font: `600 0.78rem/1 ${fd}`, color: "#818cf8", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
+                  style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", background: "none", border: "1.5px dashed rgba(99,102,241,0.25)", borderRadius: 12, font: `600 0.78rem/1 ${fd}`, color: "#818cf8", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.04)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
                 >

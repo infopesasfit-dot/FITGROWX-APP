@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
   const { alumno_id, gym_id, clase_id, fecha } = await req.json();

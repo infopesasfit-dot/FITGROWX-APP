@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 // Payload shapes from the Ocean WA server
 type WaEvent =
@@ -12,26 +12,24 @@ export async function POST(req: NextRequest) {
   // ── Validate shared secret ──────────────────────────────────────────────────
   const secret = process.env.WA_WEBHOOK_SECRET;
   const incoming = req.headers.get("x-webhook-secret") ?? req.nextUrl.searchParams.get("secret");
-  console.log("[WA Webhook] request recibido — secret env:", secret, "| secret incoming:", incoming);
 
-  if (secret && secret !== "cambia_esto_por_un_secreto") {
-    if (incoming !== secret) {
-      console.error("[WA Webhook] Unauthorized — secret no coincide");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!secret || secret === "cambia_esto_por_un_secreto") {
+    console.error("[WA Webhook] WA_WEBHOOK_SECRET no está configurado correctamente.");
+    return NextResponse.json({ error: "Webhook no configurado" }, { status: 500 });
+  }
+
+  if (incoming !== secret) {
+    console.error("[WA Webhook] Unauthorized — secret no coincide");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const body = await req.json() as WaEvent;
   const gymId = body.gym_id ?? req.nextUrl.searchParams.get("gym_id");
-  console.log("[WA Webhook] body recibido:", JSON.stringify(body), "| gymId:", gymId);
 
   if (!gymId) return NextResponse.json({ error: "gym_id required" }, { status: 400 });
 
   // ── Write state to Supabase ─────────────────────────────────────────────────
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
+  const supabase = getSupabaseAdminClient();
 
   const patch: Record<string, unknown> = { gym_id: gymId };
 

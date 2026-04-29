@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -66,7 +67,7 @@ function BenefitIcon({ name, accent }: { name: string; accent: string }) {
 // Template: Energía (dark, bold, high energy)
 // ─────────────────────────────────────────────────────────────────────────────
 function EnergiaTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
-  const { name, setName, phone, setPhone, email, setEmail, sending, done, error } = fields;
+  const { name, setName, phone, setPhone, email, setEmail, sending, done, error, turnstileToken, setTurnstileToken, turnstileResetKey } = fields;
   return (
     <div style={{ minHeight: "100dvh", background: "#0D1117", fontFamily: fd, display: "flex", flexDirection: "column" }}>
       {/* Hero */}
@@ -124,8 +125,9 @@ function EnergiaTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
               <LabelInput dark label="Nombre completo" value={name} onChange={setName} placeholder="Carlos Mendez" />
               <LabelInput dark label="WhatsApp" value={phone} onChange={setPhone} placeholder="5491112345678" type="tel" />
               <LabelInput dark label="Email" value={email} onChange={setEmail} placeholder="carlos@email.com" type="email" />
+              <TurnstileWidget onTokenChange={setTurnstileToken} theme="dark" resetKey={turnstileResetKey} />
               {error && <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#F87171", margin: 0 }}>{error}</p>}
-              <button type="submit" disabled={sending} style={{ marginTop: 4, padding: "15px", borderRadius: 13, border: "none", background: ACCENT, color: (ACCENT === "#E2E8F0" || ACCENT === "#FFFFFF") ? "#111827" : "#FFFFFF", font: `700 0.95rem/1 ${fd}`, cursor: sending ? "wait" : "pointer", opacity: sending ? .7 : 1, boxShadow: `0 4px 22px ${ACCENT}44`, transition: "opacity .15s" }}>
+              <button type="submit" disabled={sending || !turnstileToken} style={{ marginTop: 4, padding: "15px", borderRadius: 13, border: "none", background: ACCENT, color: (ACCENT === "#E2E8F0" || ACCENT === "#FFFFFF") ? "#111827" : "#FFFFFF", font: `700 0.95rem/1 ${fd}`, cursor: sending || !turnstileToken ? "default" : "pointer", opacity: sending || !turnstileToken ? .7 : 1, boxShadow: `0 4px 22px ${ACCENT}44`, transition: "opacity .15s" }}>
                 {sending ? "Enviando…" : (gym.landing_cta_text ?? "Quiero mi clase gratis →")}
               </button>
               <p style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,.2)", textAlign: "center", margin: 0 }}>Sin compromisos. Te contactamos por WhatsApp.</p>
@@ -141,7 +143,7 @@ function EnergiaTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
 // Template: Pro Clean (light, minimal, boutique)
 // ─────────────────────────────────────────────────────────────────────────────
 function ProTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
-  const { name, setName, phone, setPhone, email, setEmail, sending, done, error } = fields;
+  const { name, setName, phone, setPhone, email, setEmail, sending, done, error, turnstileToken, setTurnstileToken, turnstileResetKey } = fields;
   return (
     <div style={{ minHeight: "100dvh", background: "#FAFAF8", fontFamily: fd, display: "flex", flexDirection: "column" }}>
       {/* Top bar */}
@@ -199,8 +201,9 @@ function ProTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
               <LabelInput dark={false} label="Nombre completo" value={name} onChange={setName} placeholder="Carlos Mendez" />
               <LabelInput dark={false} label="WhatsApp" value={phone} onChange={setPhone} placeholder="5491112345678" type="tel" />
               <LabelInput dark={false} label="Email" value={email} onChange={setEmail} placeholder="carlos@email.com" type="email" />
+              <TurnstileWidget onTokenChange={setTurnstileToken} theme="light" resetKey={turnstileResetKey} />
               {error && <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#EF4444", margin: 0 }}>{error}</p>}
-              <button type="submit" disabled={sending} style={{ marginTop: 4, padding: "15px", borderRadius: 13, border: "none", background: ACCENT, color: "#FFFFFF", font: `700 0.95rem/1 ${fd}`, cursor: sending ? "wait" : "pointer", opacity: sending ? .7 : 1, transition: "opacity .15s" }}>
+              <button type="submit" disabled={sending || !turnstileToken} style={{ marginTop: 4, padding: "15px", borderRadius: 13, border: "none", background: ACCENT, color: "#FFFFFF", font: `700 0.95rem/1 ${fd}`, cursor: sending || !turnstileToken ? "default" : "pointer", opacity: sending || !turnstileToken ? .7 : 1, transition: "opacity .15s" }}>
                 {sending ? "Enviando…" : (gym.landing_cta_text ?? "Quiero mi clase gratis →")}
               </button>
               <p style={{ font: `400 0.7rem/1 ${fd}`, color: "#D1D5DB", textAlign: "center", margin: 0 }}>Sin compromisos. Te contactamos por WhatsApp.</p>
@@ -216,7 +219,7 @@ function ProTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
 // Template: Impact (ultra dark, big type, minimal)
 // ─────────────────────────────────────────────────────────────────────────────
 function ImpactTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
-  const { name, setName, phone, setPhone, email, setEmail, sending, done, error } = fields;
+  const { name, setName, phone, setPhone, email, setEmail, sending, done, error, turnstileToken, setTurnstileToken, turnstileResetKey } = fields;
   const isLightAccent = ACCENT === "#FFFFFF" || ACCENT === "#E2E8F0" || ACCENT === "#F1F5F9";
   return (
     <div style={{ minHeight: "100dvh", background: "#060609", fontFamily: fd, display: "flex", flexDirection: "column" }}>
@@ -268,8 +271,9 @@ function ImpactTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
               <LabelInput dark label="Nombre completo" value={name} onChange={setName} placeholder="Carlos Mendez" />
               <LabelInput dark label="WhatsApp" value={phone} onChange={setPhone} placeholder="5491112345678" type="tel" />
               <LabelInput dark label="Email" value={email} onChange={setEmail} placeholder="carlos@email.com" type="email" />
+              <TurnstileWidget onTokenChange={setTurnstileToken} theme="dark" resetKey={turnstileResetKey} />
               {error && <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#F87171", margin: 0 }}>{error}</p>}
-              <button type="submit" disabled={sending} style={{ marginTop: 6, padding: "15px", borderRadius: 12, border: `1px solid ${ACCENT}`, background: isLightAccent ? ACCENT : "transparent", color: isLightAccent ? "#060609" : ACCENT, font: `700 0.95rem/1 ${fd}`, cursor: sending ? "wait" : "pointer", opacity: sending ? .7 : 1, transition: "all .15s" }}>
+              <button type="submit" disabled={sending || !turnstileToken} style={{ marginTop: 6, padding: "15px", borderRadius: 12, border: `1px solid ${ACCENT}`, background: isLightAccent ? ACCENT : "transparent", color: isLightAccent ? "#060609" : ACCENT, font: `700 0.95rem/1 ${fd}`, cursor: sending || !turnstileToken ? "default" : "pointer", opacity: sending || !turnstileToken ? .7 : 1, transition: "all .15s" }}>
                 {sending ? "Enviando…" : (gym.landing_cta_text ?? "Quiero mi clase gratis →")}
               </button>
             </form>
@@ -306,6 +310,9 @@ type TemplateProps = {
     phone: string; setPhone: (v: string) => void;
     email: string; setEmail: (v: string) => void;
     sending: boolean; done: boolean; error: string | null;
+    turnstileToken: string | null;
+    setTurnstileToken: (token: string | null) => void;
+    turnstileResetKey: number;
   };
 };
 
@@ -325,6 +332,8 @@ export default function GymLandingPage() {
   const [sending, setSending] = useState(false);
   const [done,    setDone]    = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   useEffect(() => {
     if (!slug) return;
@@ -345,17 +354,27 @@ export default function GymLandingPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gym) return;
+    if (!turnstileToken && process.env.NODE_ENV === "production") {
+      setError("Completá la validación de seguridad.");
+      return;
+    }
     setSending(true); setError(null);
     const res  = await fetch("/api/gym/lead", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gymId: gym.gym_id, name: name.trim(), phone: phone.trim(), email: email.trim() }),
+      body: JSON.stringify({ gymId: gym.gym_id, name: name.trim(), phone: phone.trim(), email: email.trim(), turnstileToken }),
     });
     const data = await res.json();
-    if (!res.ok) { setError(data.error ?? "Error al enviar. Intentá de nuevo."); setSending(false); return; }
+    if (!res.ok) {
+      setError(data.error ?? "Error al enviar. Intentá de nuevo.");
+      setSending(false);
+      setTurnstileToken(null);
+      setTurnstileResetKey((value) => value + 1);
+      return;
+    }
     setDone(true); setSending(false);
   };
 
-  const fields = { name, setName, phone, setPhone, email, setEmail, sending, done, error };
+  const fields = { name, setName, phone, setPhone, email, setEmail, sending, done, error, turnstileToken, setTurnstileToken, turnstileResetKey };
 
   if (loading) return (
     <div style={{ minHeight: "100dvh", background: "#0D1117", display: "flex", alignItems: "center", justifyContent: "center" }}>

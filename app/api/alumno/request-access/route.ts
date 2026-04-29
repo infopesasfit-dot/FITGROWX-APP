@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 
 // Normaliza teléfonos argentinos al formato E.164 para WhatsApp (549XXXXXXXXXX)
 function normalizeArgPhone(raw: string): string {
@@ -24,15 +25,45 @@ function normalizeArgPhone(raw: string): string {
   return p;
 }
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const REQUEST_ACCESS_RESPONSE = {
+  ok: true,
+  message: "Si encontramos una cuenta válida, te enviamos el acceso por WhatsApp.",
+};
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
   const { dni } = await req.json();
   const dniClean = String(dni ?? "").replace(/\D/g, "");
   if (!dniClean) return NextResponse.json({ error: "DNI requerido." }, { status: 400 });
+  if (dniClean.length < 7 || dniClean.length > 10) {
+    return NextResponse.json({ error: "Ingresá un DNI válido." }, { status: 400 });
+  }
+
+  const ipLimit = applyRateLimit({
+    namespace: "request-access:ip",
+    identifier: normalizeIdentifier(ip),
+    windowMs: 10 * 60 * 1000,
+    maxAttempts: 6,
+  });
+
+  if (!ipLimit.allowed) {
+    return NextResponse.json({
+      error: "Demasiados intentos. Esperá unos minutos antes de volver a pedir el acceso.",
+    }, { status: 429 });
+  }
+
+  const dniLimit = applyRateLimit({
+    namespace: "request-access:dni",
+    identifier: dniClean,
+    windowMs: 10 * 60 * 1000,
+    maxAttempts: 3,
+  });
+
+  if (!dniLimit.allowed) {
+    return NextResponse.json(REQUEST_ACCESS_RESPONSE);
+  }
+
+  const supabase = getSupabaseAdminClient();
 
   const { data: alumno, error } = await supabase
     .from("alumnos")
@@ -41,11 +72,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !alumno) {
-    return NextResponse.json({ error: "No encontramos ese DNI en ningún gimnasio." }, { status: 404 });
+    return NextResponse.json(REQUEST_ACCESS_RESPONSE);
   }
 
   if (!alumno.phone) {
-    return NextResponse.json({ error: "Tu cuenta no tiene teléfono registrado. Contactá al gym." }, { status: 400 });
+    return NextResponse.json(REQUEST_ACCESS_RESPONSE);
   }
 
   const token = crypto.randomUUID();
@@ -59,6 +90,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (tokenErr) {
+    console.error("[request-access] token insert error:", tokenErr.message);
     return NextResponse.json({ error: "Error al generar el acceso." }, { status: 500 });
   }
 
@@ -97,8 +129,6 @@ export async function POST(req: NextRequest) {
   if (motorUrl) {
     const endpoint = `${motorUrl}/send/${alumno.gym_id}`;
     const payload  = { phone, message };
-    console.log("[WA Motor] request-access → URL:", endpoint);
-    console.log("[WA Motor] request-access → body:", JSON.stringify(payload));
     try {
       const waRes = await fetch(endpoint, {
         method: "POST",
@@ -109,8 +139,9 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(8000),
       });
-      const waBody = await waRes.text();
-      console.log("[WA Motor] request-access → HTTP", waRes.status, "→", waBody);
+      if (!waRes.ok) {
+        console.error("[WA Motor] request-access → HTTP", waRes.status);
+      }
     } catch (err) {
       console.error("[WA Motor] request-access → ERROR:", err instanceof Error ? err.message : err);
     }
@@ -118,5 +149,5 @@ export async function POST(req: NextRequest) {
     console.warn("[WA Motor] request-access → WA_MOTOR_URL no definida");
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(REQUEST_ACCESS_RESPONSE);
 }

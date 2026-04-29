@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 function normalizeArgPhone(raw: string): string {
   const p = raw.replace(/\D/g, "");
@@ -11,10 +11,7 @@ function normalizeArgPhone(raw: string): string {
   return p;
 }
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = getSupabaseAdminClient();
 
 // type: "welcome" → nuevo alumno, "renewal" → renovó cuota
 export async function POST(req: NextRequest) {

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
+const supabase = getSupabaseAdminClient();
 
 function buildCompanyName(fullName: string, gymName?: string | null) {
   if (gymName?.trim()) return gymName.trim();
@@ -34,8 +31,7 @@ export async function POST(req: NextRequest) {
     const {
       fullName,
       whatsApp,
-      email,
-    }: { fullName?: string; whatsApp?: string; email?: string } = await req.json();
+    }: { fullName?: string; whatsApp?: string } = await req.json();
 
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData.user) {
@@ -43,9 +39,13 @@ export async function POST(req: NextRequest) {
     }
 
     const user = authData.user;
-    const normalizedEmail = (email ?? user.email ?? "").trim().toLowerCase();
+    const normalizedEmail = (user.email ?? "").trim().toLowerCase();
     const normalizedName = (fullName ?? "").trim();
     const normalizedPhone = (whatsApp ?? "").trim();
+
+    if (!normalizedEmail) {
+      return NextResponse.json({ error: "El usuario autenticado no tiene email válido." }, { status: 400 });
+    }
 
     const [{ data: existingProfile }, { data: gymSettings }, { data: existingGym }, { data: existingAccount }] =
       await Promise.all([

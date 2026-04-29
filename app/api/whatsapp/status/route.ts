@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+
+type AuthorizedProfile = {
+  gym_id: string | null;
+  role: "platform_owner" | "admin" | "staff" | string | null;
+};
 
 export type WaStatusResponse = {
   status: "active" | "disconnected" | "qr" | "unknown";
@@ -67,13 +73,30 @@ async function healthCheckWithAutoRestart(
 
 export async function GET(req: NextRequest) {
   const gymId = req.nextUrl.searchParams.get("gym_id");
+  const supabaseServer = await createSupabaseServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("gym_id, role")
+    .eq("id", user.id)
+    .maybeSingle<AuthorizedProfile>();
+
+  if (!profile) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  if (gymId && profile.role !== "platform_owner" && profile.gym_id !== gymId) {
+    return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+  }
 
   // ── 1. State cached in Supabase (written by webhook) ─────────────────────
   if (gymId) {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
     const { data } = await supabase
       .from("gym_settings")
       .select("wa_status, wa_phone, wa_battery, wa_plugged, wa_signal")

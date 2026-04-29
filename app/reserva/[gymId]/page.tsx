@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,6 +40,8 @@ export default function ReservaPage({ params }: { params: { gymId: string } }) {
   const [sending,  setSending]  = useState(false);
   const [done,     setDone]     = useState(false);
   const [error,    setError]    = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   const ACCENT = gym.accent_color ?? "#F97316";
 
@@ -79,16 +82,26 @@ export default function ReservaPage({ params }: { params: { gymId: string } }) {
 
   const book = async () => {
     if (!selected || !name.trim() || !phone.trim()) return;
+    if (!turnstileToken && process.env.NODE_ENV === "production") {
+      setError("Completá la validación de seguridad.");
+      return;
+    }
     setSending(true);
     setError(null);
     try {
       const res  = await fetch("/api/reserva/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId: selected.id, leadName: name.trim(), leadPhone: phone.trim(), gymId }),
+        body: JSON.stringify({ classId: selected.id, leadName: name.trim(), leadPhone: phone.trim(), gymId, turnstileToken }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Error al reservar"); setSending(false); return; }
+      if (!res.ok) {
+        setError(data.error ?? "Error al reservar");
+        setSending(false);
+        setTurnstileToken(null);
+        setTurnstileResetKey((value) => value + 1);
+        return;
+      }
       setDone(true);
     } catch {
       setError("Error de red. Intentá de nuevo.");
@@ -189,14 +202,15 @@ export default function ReservaPage({ params }: { params: { gymId: string } }) {
                 type="tel"
                 style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: ".875rem", outline: "none" }}
               />
+              <TurnstileWidget onTokenChange={setTurnstileToken} theme="light" resetKey={turnstileResetKey} />
               {error && <p style={{ fontSize: ".78rem", color: "#DC2626" }}>{error}</p>}
               <button
                 onClick={book}
-                disabled={sending || !name.trim() || !phone.trim()}
+                disabled={sending || !name.trim() || !phone.trim() || !turnstileToken}
                 style={{
                   padding: "14px", borderRadius: 10, border: "none",
                   background: ACCENT, color: "#fff", fontWeight: 700, fontSize: ".9rem",
-                  cursor: sending ? "wait" : "pointer", opacity: sending ? .7 : 1,
+                  cursor: sending || !turnstileToken ? "default" : "pointer", opacity: sending || !turnstileToken ? .7 : 1,
                 }}
               >
                 {sending ? "Reservando…" : "Confirmar reserva"}
