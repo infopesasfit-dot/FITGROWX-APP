@@ -197,3 +197,11 @@ function LoginContent() {
     </div>
   );
 }
+
+export default function AlumnoLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
+  );
+}

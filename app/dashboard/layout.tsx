@@ -8,9 +8,8 @@ import { supabase } from "@/lib/supabase";
 import {
   Home, Users, CreditCard, Wallet, TrendingDown, Settings, LogOut,
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
-  Zap, ChevronDown, MessageSquare, Target, Megaphone, CalendarDays, ScanLine,
+  Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
-  Globe,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { getGymSummary } from "@/lib/supabase-relations";
@@ -141,7 +140,6 @@ function ConfigSubNav() {
   );
 }
 
-const SB_BG        = "#151515";
 const SB_FULL      = 240;
 const SB_COLLAPSED = 64;
 const fd           = "var(--font-inter, 'Inter', sans-serif)";

@@ -1,5 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+
+type AuthorizedProfile = {
+  id: string;
+  gym_id: string | null;
+  role: "platform_owner" | "admin" | "staff" | string | null;
+};
+
+function adminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+  if (!serviceRoleKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
+
+  return createClient(url, serviceRoleKey);
+}
+
+async function getAuthorizedProfile() {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const admin = adminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, gym_id, role")
+    .eq("id", user.id)
+    .maybeSingle<AuthorizedProfile>();
+
+  return profile ?? null;
+}
 
 /**
  * POST /api/whatsapp/session/reset?gym_id=...
@@ -14,6 +46,11 @@ import { createClient } from "@supabase/supabase-js";
 export async function POST(req: NextRequest) {
   const gymId = req.nextUrl.searchParams.get("gym_id");
   if (!gymId) return NextResponse.json({ error: "gym_id requerido" }, { status: 400 });
+  const profile = await getAuthorizedProfile();
+  if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (profile.role !== "platform_owner" && !(profile.role === "admin" && profile.gym_id === gymId)) {
+    return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+  }
 
   const baseUrl = process.env.WA_MOTOR_URL;
   if (!baseUrl) {
@@ -50,10 +87,7 @@ export async function POST(req: NextRequest) {
 
   // ── Paso 2: Limpiar estado en Supabase ────────────────────────────────────
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    );
+    const supabase = adminClient();
     const { error } = await supabase
       .from("gym_settings")
       .update({

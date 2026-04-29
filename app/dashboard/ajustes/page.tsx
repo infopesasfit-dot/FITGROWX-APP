@@ -7,10 +7,7 @@ import {
   AlertTriangle,
   Building2,
   ChevronRight,
-  Copy,
   CreditCard,
-  ExternalLink,
-  Globe,
   ImagePlus,
   Camera,
   Loader2,
@@ -30,7 +27,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile } from "@/lib/gym-cache";
-import AutomatizacionesPage from "../automatizaciones/page";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -74,7 +70,6 @@ const tabs = [
 
 type SettingsTab = typeof tabs[number]["key"];
 type StaffMember = { id: string; email: string | null; full_name: string | null };
-type CobroMethod = "alias" | "cbu" | "mp";
 
 function SectionCard({
   icon,
@@ -147,17 +142,6 @@ function getInitials(value: string) {
     .toUpperCase();
 }
 
-function slugify(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-}
-
 function AjustesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -173,12 +157,7 @@ function AjustesContent() {
   const [gymName, setGymName] = useState("Power House Gym");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [email, setEmail] = useState("");
-  const [metodo, setMetodo] = useState<CobroMethod>("alias");
-  const [alias, setAlias] = useState("");
-  const [cbu, setCbu] = useState("");
-  const [mpLink, setMpLink] = useState("");
   const [saved, setSaved] = useState(false);
-  const [billingSaved, setBillingSaved] = useState(false);
 
   const [gymId, setGymId] = useState<string | null>(null);
   const [planType, setPlanType] = useState<string | null>(null);
@@ -191,12 +170,6 @@ function AjustesContent() {
   const [logoSaved, setLogoSaved] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [copiedSlug, setCopiedSlug] = useState(false);
-  const [landingSaved, setLandingSaved] = useState(false);
-  const [landingAccent, setLandingAccent] = useState(ACCENT);
-  const [landingTitle, setLandingTitle] = useState("Probá una clase gratis.");
-  const [landingDesc, setLandingDesc] = useState("Vení a conocernos. Te esperamos con una clase de bienvenida totalmente gratis.");
-  const [gymSlug, setGymSlug] = useState("tu-gym");
 
   const [waStatus, setWaStatus] = useState<"unknown" | "connected" | "disconnected">("unknown");
   const [waPhone, setWaPhone] = useState<string | null>(null);
@@ -214,11 +187,6 @@ function AjustesContent() {
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const MOTOR = process.env.NEXT_PUBLIC_WA_MOTOR_URL ?? "https://motor-wsp-fitgrowx-production.up.railway.app";
 
-  const [cancelling, setCancelling] = useState(false);
-  const [cancelDone, setCancelDone] = useState(false);
-  const [cancelError, setCancelError] = useState<string | null>(null);
-  const [showConfirm, setShowConfirm] = useState(false);
-
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [staffLoading, setStaffLoading] = useState(true);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
@@ -228,6 +196,7 @@ function AjustesContent() {
   const [staffSaving, setStaffSaving] = useState(false);
   const [staffError, setStaffError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [hasMercadoPagoLink, setHasMercadoPagoLink] = useState(false);
 
   useEffect(() => {
     setActiveTab(normalizeTab(searchTab));
@@ -242,7 +211,7 @@ function AjustesContent() {
       const userIdVal = cachedProfile.userId;
       setGymId(gymIdVal);
 
-      const [{ data: authData }, { data: profile }, { data: settings }, { data: billingAccount }] = await Promise.all([
+      const [{ data: authData }, { data: profile }, { data: settings }, { data: cuentas }] = await Promise.all([
         supabase.auth.getUser(),
         supabase
           .from("profiles")
@@ -256,33 +225,18 @@ function AjustesContent() {
           .maybeSingle(),
         supabase
           .from("gym_cuentas")
-          .select("tipo, valor")
+          .select("id")
           .eq("gym_id", gymIdVal)
+          .eq("tipo", "mercadopago")
           .eq("activa", true)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+          .limit(1),
       ]);
 
       setEmail(authData.user?.email ?? "");
       if (settings?.gym_name) setGymName(settings.gym_name);
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
       if (settings?.instagram_url) setInstagramUrl(settings.instagram_url);
-      if (settings?.accent_color) setLandingAccent(settings.accent_color);
-      if (settings?.landing_title) setLandingTitle(settings.landing_title);
-      if (settings?.landing_desc) setLandingDesc(settings.landing_desc);
-      if (settings?.slug) setGymSlug(settings.slug);
-
-      if (billingAccount?.tipo === "alias") {
-        setMetodo("alias");
-        setAlias(billingAccount.valor);
-      } else if (billingAccount?.tipo === "cbu") {
-        setMetodo("cbu");
-        setCbu(billingAccount.valor);
-      } else if (billingAccount?.tipo === "mercadopago") {
-        setMetodo("mp");
-        setMpLink(billingAccount.valor);
-      }
+      setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
 
       const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
       if (gym) {
@@ -306,9 +260,6 @@ function AjustesContent() {
 
   const activeLogoSrc = logoPreview ?? logoUrl;
   const canUseBranding = isTrial || planType === "full_marca";
-  const billingValue = metodo === "alias" ? alias : metodo === "cbu" ? cbu : mpLink;
-  const publicLandingUrl = `fitgrowx.app/${gymSlug || "tu-gym"}`;
-  const hasMercadoPagoLink = metodo === "mp" && mpLink.trim().length > 0;
 
   const currentTabMeta = useMemo(() => {
     switch (activeTab) {
@@ -343,41 +294,6 @@ function AjustesContent() {
     await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, instagram_url: instagramUrl.trim() || null }, { onConflict: "gym_id" });
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
-  };
-
-  const handleSaveLanding = async () => {
-    if (!gymId) return;
-    const nextSlug = slugify(gymSlug) || slugify(gymName) || "tu-gym";
-    await supabase.from("gym_settings").upsert({
-      gym_id: gymId,
-      accent_color: landingAccent,
-      landing_title: landingTitle.trim() || null,
-      landing_desc: landingDesc.trim() || null,
-      slug: nextSlug,
-    }, { onConflict: "gym_id" });
-    setGymSlug(nextSlug);
-    setLandingSaved(true);
-    setTimeout(() => setLandingSaved(false), 2200);
-  };
-
-  const handleSaveBilling = async () => {
-    if (!gymId || !billingValue.trim()) return;
-
-    const tipo = metodo === "mp" ? "mercadopago" : metodo;
-    await supabase.from("gym_cuentas").update({ activa: false }).eq("gym_id", gymId);
-    await supabase.from("gym_cuentas").insert({
-      gym_id: gymId,
-      tipo,
-      valor: billingValue.trim(),
-      activa: true,
-    });
-
-    if (metodo === "alias") {
-      await supabase.from("gym_settings").upsert({ gym_id: gymId, cobro_alias: alias.trim() || null }, { onConflict: "gym_id" });
-    }
-
-    setBillingSaved(true);
-    setTimeout(() => setBillingSaved(false), 2200);
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -480,27 +396,6 @@ function AjustesContent() {
     });
     setStaffList((prev) => prev.filter((member) => member.id !== id));
     setDeletingId(null);
-  };
-
-  const handleCancelSubscription = async () => {
-    if (!gymId) return;
-    setCancelling(true);
-    setCancelError(null);
-    try {
-      const response = await fetch("/api/mp/cancel-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gym_id: gymId }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Error al cancelar.");
-      setCancelDone(true);
-      setShowConfirm(false);
-    } catch (error) {
-      setCancelError(error instanceof Error ? error.message : "Error inesperado.");
-    } finally {
-      setCancelling(false);
-    }
   };
 
   useEffect(() => {
@@ -1307,51 +1202,6 @@ function AjustesContent() {
         </div>
       )}
 
-      {showConfirm && (
-        <div
-          onClick={() => setShowConfirm(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 210,
-            background: "rgba(15,23,42,0.50)",
-            backdropFilter: "blur(10px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{ width: "100%", maxWidth: 480, ...card, padding: 26, boxShadow: "0 24px 60px rgba(15,23,42,0.18)" }}
-          >
-            <div style={{ width: 48, height: 48, borderRadius: 16, background: "rgba(239,68,68,0.08)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
-              <AlertTriangle size={22} color="#DC2626" />
-            </div>
-            <h3 style={{ font: `900 1.1rem/1 ${fd}`, color: t1, marginBottom: 10 }}>Confirmar cancelación</h3>
-            <p style={{ font: `400 0.84rem/1.55 ${fb}`, color: t2, marginBottom: 18 }}>
-              Vas a cancelar la suscripción del gym. El acceso se mantiene hasta el final del período ya abonado.
-            </p>
-            {cancelError && <p style={{ font: `600 0.78rem/1.4 ${fb}`, color: "#DC2626", marginBottom: 14 }}>{cancelError}</p>}
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                onClick={() => setShowConfirm(false)}
-                style={{ padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "white", color: t2, font: `700 0.8rem/1 ${fd}`, cursor: "pointer" }}
-              >
-                Volver
-              </button>
-              <button
-                onClick={handleCancelSubscription}
-                disabled={cancelling}
-                style={{ padding: "11px 16px", borderRadius: 12, border: "none", background: "#DC2626", color: "white", font: `800 0.8rem/1 ${fd}`, cursor: cancelling ? "not-allowed" : "pointer", opacity: cancelling ? 0.7 : 1 }}
-              >
-                {cancelling ? "Cancelando..." : "Sí, cancelar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

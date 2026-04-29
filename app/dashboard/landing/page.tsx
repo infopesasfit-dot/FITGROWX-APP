@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile } from "@/lib/gym-cache";
 import {
   ExternalLink, Copy, Check, Save, Loader2, Globe, Zap, Users,
   Calendar, Heart, Star, Target, Shield, Clock, Trophy, Plus,
-  Trash2, Dumbbell, ChevronRight, RefreshCw, AlertTriangle,
+  Trash2, Dumbbell, ChevronRight, AlertTriangle,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
