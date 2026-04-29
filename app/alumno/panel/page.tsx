@@ -82,7 +82,10 @@ export default function AlumnoPanelPage() {
   const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; plan_type: string | null } | null>(null);
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
   const [inlineSaving, setInlineSaving] = useState<Record<string, boolean>>({});
-  const [showQR,       setShowQR]       = useState(false);
+  const [showQR,        setShowQR]        = useState(false);
+  const [checkinMode,   setCheckinMode]   = useState<"qr" | "checkin" | "dni">("qr");
+  const [checkinLoading, setCheckinLoading] = useState(false);
+  const [checkinResult, setCheckinResult] = useState<{ ok: boolean; already?: boolean; full_name?: string; hora?: string; error?: string } | null>(null);
   const [asistFechas,  setAsistFechas]  = useState<string[]>([]);
   const [asistCount,   setAsistCount]   = useState(0);
 
@@ -205,6 +208,24 @@ export default function AlumnoPanelPage() {
       showToast("Error de conexion.", false);
     }
     setInlineSaving(prev => ({ ...prev, [ejercicio]: false }));
+  };
+
+  const doCheckin = async () => {
+    if (!session) return;
+    setCheckinLoading(true);
+    setCheckinResult(null);
+    try {
+      const res = await fetch("/api/alumno/checkin-publico", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ gym_id: session.gym_id }),
+      });
+      const d = await res.json();
+      setCheckinResult({ ok: d.ok, already: d.already, full_name: d.alumno?.full_name, hora: d.hora, error: d.error });
+    } catch {
+      setCheckinResult({ ok: false, error: "Error de conexión." });
+    }
+    setCheckinLoading(false);
   };
 
   const logout = () => { localStorage.removeItem("fitgrowx_alumno"); router.replace("/alumno/login"); };
@@ -795,7 +816,7 @@ export default function AlumnoPanelPage() {
         {/* QR center */}
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", margin: "0 3px" }}>
           <button
-            onClick={() => setShowQR(true)}
+            onClick={() => { setCheckinMode("qr"); setCheckinResult(null); setShowQR(true); }}
             className="tap-active"
             style={{ position: "relative", bottom: 16, width: 62, height: 62, background: "rgba(12,12,18,0.98)", border: "1px solid rgba(249,115,22,0.4)", borderRadius: 20, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, animation: "qrPulse 3s ease-in-out infinite" }}
           >
@@ -828,19 +849,97 @@ export default function AlumnoPanelPage() {
 
       {/* QR Modal */}
       {showQR && (
-        <div onClick={() => setShowQR(false)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 28 }}>
-          <div onClick={e => e.stopPropagation()} style={{ textAlign: "center", maxWidth: 280, width: "100%", animation: "fadeUp 0.22s cubic-bezier(0.16,1,0.3,1)" }}>
-            <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 20 }}>Codigo de ingreso</p>
-            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: 24, position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", top: 14, left: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "3px 0 0 0" }} />
-              <div style={{ position: "absolute", top: 14, right: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 3px 0 0" }} />
-              <div style={{ position: "absolute", bottom: 14, left: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 0 3px" }} />
-              <div style={{ position: "absolute", bottom: 14, right: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 3px 0" }} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=FITGROWX:ID:${session.alumno_id}&color=FFFFFF&bgcolor=0D0D14&qzone=1`} alt="QR" width={220} height={220} style={{ display: "block", margin: "0 auto", borderRadius: 4 }} />
+        <div onClick={() => setShowQR(false)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.88)", backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ textAlign: "center", maxWidth: 300, width: "100%", animation: "fadeUp 0.22s cubic-bezier(0.16,1,0.3,1)" }}>
+
+            {/* Tab switcher */}
+            <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 4, marginBottom: 20 }}>
+              {([
+                { key: "qr",      label: "Mi QR" },
+                { key: "checkin", label: "Check-in" },
+                { key: "dni",     label: "Mi DNI" },
+              ] as const).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => { setCheckinMode(key); setCheckinResult(null); }}
+                  style={{ flex: 1, padding: "8px 0", borderRadius: 10, border: "none", background: checkinMode === key ? "rgba(249,115,22,0.18)" : "transparent", color: checkinMode === key ? "#F97316" : "rgba(255,255,255,0.3)", font: `${checkinMode === key ? "700" : "500"} 0.7rem/1 ${fd}`, cursor: "pointer", transition: "all 0.15s", letterSpacing: "0.02em" }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em", marginTop: 18, marginBottom: 4 }}>{session.full_name}</p>
-            <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.18)", letterSpacing: "0.1em", marginBottom: 24, fontVariantNumeric: "tabular-nums" }}>DNI {session.dni ?? "—"}</p>
+
+            {/* Mode: Mi QR */}
+            {checkinMode === "qr" && (
+              <>
+                <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16 }}>El staff escanea este codigo</p>
+                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: 24, position: "relative", overflow: "hidden", marginBottom: 16 }}>
+                  <div style={{ position: "absolute", top: 14, left: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "3px 0 0 0" }} />
+                  <div style={{ position: "absolute", top: 14, right: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 3px 0 0" }} />
+                  <div style={{ position: "absolute", bottom: 14, left: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 0 3px" }} />
+                  <div style={{ position: "absolute", bottom: 14, right: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 3px 0" }} />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=FITGROWX:ID:${session.alumno_id}&color=FFFFFF&bgcolor=0D0D14&qzone=1`} alt="QR" width={220} height={220} style={{ display: "block", margin: "0 auto", borderRadius: 4 }} />
+                </div>
+                <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em", marginBottom: 4 }}>{session.full_name}</p>
+                <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.18)", letterSpacing: "0.1em", marginBottom: 20, fontVariantNumeric: "tabular-nums" }}>DNI {session.dni ?? "—"}</p>
+              </>
+            )}
+
+            {/* Mode: Check-in automático */}
+            {checkinMode === "checkin" && (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 20 }}>Escanéaste el QR del gym</p>
+                {checkinResult ? (
+                  <div style={{ background: checkinResult.ok ? "rgba(52,211,153,0.06)" : "rgba(239,68,68,0.06)", border: `1px solid ${checkinResult.ok ? "rgba(52,211,153,0.18)" : "rgba(239,68,68,0.18)"}`, borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: checkinResult.ok ? "rgba(52,211,153,0.12)" : "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {checkinResult.ok
+                        ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      }
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                      <p style={{ font: `700 0.9rem/1.2 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
+                        {checkinResult.already ? "Ya registrado hoy" : checkinResult.ok ? "¡Buen entreno!" : "Sin acceso"}
+                      </p>
+                      {checkinResult.ok && checkinResult.hora && <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 3 }}>{checkinResult.hora.slice(0, 5)}h · Entrada registrada</p>}
+                      {!checkinResult.ok && checkinResult.error && <p style={{ font: `400 0.72rem/1.3 ${fd}`, color: "#EF4444", marginTop: 3 }}>{checkinResult.error}</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <p style={{ font: `400 0.75rem/1.5 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "left" }}>
+                      Registrá tu ingreso sin escanear nada — tu sesión identifica al gym automáticamente.
+                    </p>
+                    <button
+                      onClick={doCheckin}
+                      disabled={checkinLoading}
+                      style={{ width: "100%", padding: "13px 0", background: checkinLoading ? "rgba(249,115,22,0.3)" : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)", border: "none", borderRadius: 14, font: `700 0.85rem/1 ${fd}`, color: "#FFFFFF", cursor: checkinLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                    >
+                      {checkinLoading
+                        ? <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> Registrando...</>
+                        : "Registrar mi ingreso"
+                      }
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mode: Mi DNI */}
+            {checkinMode === "dni" && (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16 }}>El staff ingresa tu DNI</p>
+                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "32px 20px", marginBottom: 14 }}>
+                  <p style={{ font: `800 2.6rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "0.04em", fontVariantNumeric: "tabular-nums" }}>
+                    {session.dni ?? "—"}
+                  </p>
+                  <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginTop: 10 }}>DNI</p>
+                </div>
+                <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em", marginBottom: 4 }}>{session.full_name}</p>
+              </div>
+            )}
+
             <button onClick={() => setShowQR(false)} style={{ width: "100%", padding: "13px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", cursor: "pointer", letterSpacing: "0.08em" }}>
               CERRAR
             </button>
