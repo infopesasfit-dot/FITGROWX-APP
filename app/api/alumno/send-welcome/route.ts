@@ -16,9 +16,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// type: "welcome" → nuevo alumno, "renewal" → renovó cuota
 export async function POST(req: NextRequest) {
-  const { alumno_id } = await req.json();
-  if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido" }, { status: 400 });
+  const { alumno_id, type = "welcome" } = await req.json();
+  if (!alumno_id) return NextResponse.json({ ok: true });
 
   const { data: alumno } = await supabase
     .from("alumnos")
@@ -28,11 +29,24 @@ export async function POST(req: NextRequest) {
 
   if (!alumno?.phone) return NextResponse.json({ ok: true });
 
+  // Crear token de 30 días
+  const token = crypto.randomUUID();
+  const expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  await supabase.from("alumno_tokens").insert({
+    alumno_id: alumno.id,
+    gym_id: alumno.gym_id,
+    token,
+    expires_at,
+  });
+
   const { data: settings } = await supabase
     .from("gym_settings")
-    .select("gym_name, magiclink_msg")
+    .select("gym_name, magiclink_msg, renewal_msg, renewal_activo")
     .eq("gym_id", alumno.gym_id)
     .maybeSingle();
+
+  // Si es renovación y el gym desactivó el envío, no mandamos nada
+  if (type === "renewal" && settings?.renewal_activo === false) return NextResponse.json({ ok: true });
 
   const { data: gym } = await supabase
     .from("gyms")
@@ -48,14 +62,18 @@ export async function POST(req: NextRequest) {
     return `${proto}://${host}`;
   })()).replace(/\/$/, "");
 
-  const loginUrl = `${baseUrl}/alumno/login`;
+  const link = `${baseUrl}/alumno/auth?token=${token}`;
 
-  const DEFAULT_MSG = `¡Hola [Nombre]! 👋 Te registramos en *[Gym]*.\n\nDesde acá podés ver tu membresía, rutinas y más 👇\n\n${loginUrl}\n\n_Ingresá con tu email y te mandamos el acceso al instante._`;
-  const template = settings?.magiclink_msg?.trim() || DEFAULT_MSG;
-  const message = template
+  const DEFAULT_WELCOME = `¡Hola [Nombre]! 👋 Te registramos en *[Gym]*.\n\nDesde acá podés ver tu membresía, rutinas y más 👇\n\n[Link]\n\n_El acceso dura 30 días._`;
+  const DEFAULT_RENEWAL = `¡Hola [Nombre]! 💪 Tu cuota en *[Gym]* está al día.\n\nIngresá a tu panel desde acá 👇\n\n[Link]\n\n_El acceso dura 30 días._`;
+
+  const template = type === "renewal"
+    ? (settings?.renewal_msg?.trim() || DEFAULT_RENEWAL)
+    : (settings?.magiclink_msg?.trim() || DEFAULT_WELCOME);
+  const message  = template
     .replace(/\[Nombre\]/g, alumno.full_name)
     .replace(/\[Gym\]/g,    gymName)
-    .replace(/\[Link\]/g,   loginUrl);
+    .replace(/\[Link\]/g,   link);
 
   const motorUrl = process.env.WA_MOTOR_URL;
   if (!motorUrl) return NextResponse.json({ ok: true });

@@ -30,17 +30,18 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const { email } = await req.json();
-  if (!email) return NextResponse.json({ error: "Email requerido." }, { status: 400 });
+  const { dni } = await req.json();
+  const dniClean = String(dni ?? "").replace(/\D/g, "");
+  if (!dniClean) return NextResponse.json({ error: "DNI requerido." }, { status: 400 });
 
   const { data: alumno, error } = await supabase
     .from("alumnos")
     .select("id, gym_id, full_name, phone")
-    .ilike("email", email.trim())
+    .eq("dni", dniClean)
     .single();
 
   if (error || !alumno) {
-    return NextResponse.json({ error: "No encontramos ese email en ningún gimnasio." }, { status: 404 });
+    return NextResponse.json({ error: "No encontramos ese DNI en ningún gimnasio." }, { status: 404 });
   }
 
   if (!alumno.phone) {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   const token = crypto.randomUUID();
-  const expires_at = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  const expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const { error: tokenErr } = await supabase.from("alumno_tokens").insert({
     alumno_id: alumno.id,
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
   })()).replace(/\/$/, "");
   const link = `${baseUrl}/alumno/auth?token=${token}`;
 
-  const DEFAULT_MSG = `¡Hola [Nombre]! 👋\nIngresá a tu panel de *[Gym]* desde acá 👇\n\n[Link]\n\n_El link vence en 15 minutos._`;
+  const DEFAULT_MSG = `¡Hola [Nombre]! 👋\nIngresá a tu panel de *[Gym]* desde acá 👇\n\n[Link]\n\n_El acceso dura 30 días._`;
   const template = settings?.magiclink_msg?.trim() || DEFAULT_MSG;
   const message = template
     .replace(/\[Nombre\]/g, alumno.full_name)

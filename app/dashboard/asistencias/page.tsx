@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight } from "lucide-react";
+import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight, Dumbbell } from "lucide-react";
 import Link from "next/link";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
@@ -33,6 +33,14 @@ interface Ausente {
 
 interface DayBar { fecha: string; count: number; }
 
+interface TodayClass {
+  id: string;
+  class_name: string;
+  start_time: string;
+  max_capacity: number;
+  reservas: number;
+}
+
 function initials(name: string) {
   return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
@@ -51,6 +59,7 @@ export default function AsistenciasPage() {
   const [dailyBars, setDailyBars] = useState<DayBar[]>([]);
   const [hourlyCounts, setHourlyCounts] = useState<number[]>(Array(24).fill(0));
   const [tab, setTab] = useState<"presentes" | "ausentes">("presentes");
+  const [todayClasses, setTodayClasses] = useState<TodayClass[]>([]);
   const [gymId, setGymId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -69,7 +78,9 @@ export default function AsistenciasPage() {
     if (!profile) { setLoading(false); return; }
     setGymId(profile.gymId);
 
-    const [statsRes, presentesRes, activosRes] = await Promise.all([
+    const dayOfWeek = new Date().getDay();
+
+    const [statsRes, presentesRes, activosRes, clasesRes] = await Promise.all([
       fetch(`/api/admin/asistencias-stats?gym_id=${profile.gymId}`),
       supabase
         .from("asistencias")
@@ -82,6 +93,12 @@ export default function AsistenciasPage() {
         .select("id, full_name, planes!plan_id(nombre, accent_color)")
         .eq("gym_id", profile.gymId)
         .eq("status", "activo"),
+      supabase
+        .from("gym_classes")
+        .select("id, class_name, start_time, max_capacity, class_reservations!class_id(id)")
+        .eq("gym_id", profile.gymId)
+        .eq("day_of_week", dayOfWeek)
+        .order("start_time"),
     ]);
 
     if (statsRes.ok) {
@@ -92,6 +109,18 @@ export default function AsistenciasPage() {
       setDailyBars((stats.dailyCounts ?? []).slice(-14));
       setHourlyCounts(stats.hourlyCounts ?? Array(24).fill(0));
     }
+
+    const rawClases = (clasesRes.data ?? []) as unknown as Array<{
+      id: string; class_name: string; start_time: string; max_capacity: number;
+      class_reservations: Array<{ id: string }>;
+    }>;
+    setTodayClasses(rawClases.map(c => ({
+      id: c.id,
+      class_name: c.class_name,
+      start_time: c.start_time,
+      max_capacity: c.max_capacity,
+      reservas: c.class_reservations?.length ?? 0,
+    })));
 
     const presenteRows = (presentesRes.data ?? []) as unknown as Presente[];
     setPresentes(presenteRows);
@@ -144,6 +173,52 @@ export default function AsistenciasPage() {
           </div>
         ))}
       </div>
+
+      {/* Clases de Hoy */}
+      {(todayClasses.length > 0 || loading) && (
+        <div>
+          <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1, marginBottom: 10, letterSpacing: "-0.01em" }}>
+            Clases de hoy
+          </p>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+            {loading
+              ? [1, 2, 3].map(i => (
+                  <div key={i} style={{ ...card, minWidth: 148, padding: "14px 16px", flexShrink: 0, background: "#F8F9FB" }} />
+                ))
+              : todayClasses.map(c => {
+                  const pct = c.max_capacity > 0 ? c.reservas / c.max_capacity : 0;
+                  const full = pct >= 1;
+                  const near = pct >= 0.75 && !full;
+                  const fillColor = full ? "#EF4444" : near ? "#F59E0B" : "#FF6A00";
+                  return (
+                    <div key={c.id} style={{ ...card, minWidth: 148, padding: "14px 16px", flexShrink: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 10 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(255,106,0,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Dumbbell size={13} color="#FF6A00" />
+                        </div>
+                        <p style={{ font: `700 0.8rem/1.2 ${fd}`, color: t1, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                          {c.class_name}
+                        </p>
+                      </div>
+                      <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3, marginBottom: 8 }}>
+                        {c.start_time.slice(0, 5)}h
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ font: `800 1rem/1 ${fd}`, color: fillColor }}>
+                          {c.reservas}
+                          <span style={{ font: `400 0.65rem/1 ${fb}`, color: t3 }}>/{c.max_capacity}</span>
+                        </span>
+                        <span style={{ font: `500 0.6rem/1 ${fb}`, color: t3 }}>cupos</span>
+                      </div>
+                      <div style={{ height: 4, background: "#F1F2F6", borderRadius: 9999, overflow: "hidden" }}>
+                        <div style={{ width: `${Math.min(pct * 100, 100)}%`, height: "100%", background: fillColor, borderRadius: 9999, transition: "width 0.4s ease" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+          </div>
+        </div>
+      )}
 
       {/* Charts row */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.6fr 1fr", gap: 16 }}>

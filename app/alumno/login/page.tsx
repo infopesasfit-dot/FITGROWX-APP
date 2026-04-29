@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 const fd = "'Inter', sans-serif";
 
-export default function AlumnoLoginPage() {
-  const [email,   setEmail]   = useState("");
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const redirect     = searchParams.get("redirect");
+
+  const [dni,     setDni]     = useState("");
   const [loading, setLoading] = useState(false);
   const [sent,    setSent]    = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+
+  // Guardar redirect en localStorage para recuperarlo después del link de WA
+  useEffect(() => {
+    if (redirect) localStorage.setItem("fitgrowx_post_login_redirect", redirect);
+  }, [redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,7 +26,7 @@ export default function AlumnoLoginPage() {
     const res  = await fetch("/api/alumno/request-access", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim() }),
+      body: JSON.stringify({ dni: dni.replace(/\D/g, "") }),
     });
     const data = await res.json();
     setLoading(false);
@@ -84,12 +93,12 @@ export default function AlumnoLoginPage() {
               </h2>
               <p style={{ font: `300 0.8rem/1.7 ${fd}`, color: "rgba(255,255,255,0.4)", marginBottom: 28 }}>
                 Te enviamos el acceso por WhatsApp.<br />
-                Válido por <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>15 minutos</span>.
+                Válido por <span style={{ color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>30 días</span>.
               </p>
               {/* Divider */}
               <div style={{ height: 1, background: "rgba(255,255,255,0.05)", marginBottom: 24 }} />
               <button
-                onClick={() => { setSent(false); setEmail(""); }}
+                onClick={() => { setSent(false); setDni(""); }}
                 style={{ background: "none", border: "none", font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", cursor: "pointer", letterSpacing: "0.08em", textTransform: "uppercase" }}
               >
                 Enviar otro enlace
@@ -111,16 +120,17 @@ export default function AlumnoLoginPage() {
                 {/* Email underline input */}
                 <div>
                   <label style={{ display: "block", font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 12 }}>
-                    Email
+                    DNI
                   </label>
                   <div style={{ position: "relative" }}>
                     <input
                       className="input-line"
-                      type="email"
+                      type="text"
+                      inputMode="numeric"
                       required
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      placeholder="tu@email.com"
+                      value={dni}
+                      onChange={e => setDni(e.target.value.replace(/\D/g, ""))}
+                      placeholder="Sin puntos ni espacios"
                       style={{
                         width: "100%", padding: "6px 0 10px",
                         background: "transparent", border: "none",
@@ -128,6 +138,7 @@ export default function AlumnoLoginPage() {
                         font: `400 1rem/1 ${fd}`, color: "#FFFFFF",
                         outline: "none", boxSizing: "border-box",
                         transition: "border-color 0.2s",
+                        letterSpacing: "0.08em",
                       }}
                       onFocus={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.6)")}
                       onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.15)")}

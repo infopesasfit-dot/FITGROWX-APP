@@ -308,7 +308,14 @@ export default function PagosPage() {
       if (error) { showToast(`Error: ${error.message}`, "err"); return; }
       // Renovar membresía del alumno
       const pago = pagos.find(p => p.id === pagoId);
-      if (pago) await renewMembership(pago.alumno_id);
+      if (pago) {
+        await renewMembership(pago.alumno_id);
+        fetch("/api/alumno/send-welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ alumno_id: pago.alumno_id, type: "renewal" }),
+        }).catch(() => {});
+      }
       setPagos(prev => prev.map(p => p.id === pagoId ? { ...p, status: "validado" as PagoStatus } : p));
       showToast("Transferencia validada ✓", "ok");
     } finally {

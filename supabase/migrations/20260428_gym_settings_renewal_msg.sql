@@ -1,0 +1,3 @@
+ALTER TABLE gym_settings
+  ADD COLUMN IF NOT EXISTS renewal_msg    TEXT,
+  ADD COLUMN IF NOT EXISTS renewal_activo BOOLEAN NOT NULL DEFAULT true;

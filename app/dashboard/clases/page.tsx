@@ -24,6 +24,7 @@ interface GymClass {
   event_type: "regular" | "especial";
   notes: string | null;
   coach_name: string | null;
+  event_date: string | null;
   reservas_count?: number;
 }
 
@@ -43,6 +44,7 @@ interface FormState {
   event_type: "regular" | "especial";
   notes: string;
   coach_name: string;
+  event_date: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -54,6 +56,7 @@ const EMPTY_FORM: FormState = {
   event_type: "regular",
   notes: "",
   coach_name: "",
+  event_date: "",
 };
 
 function mapReservaRow(row: unknown): Reserva {
@@ -106,7 +109,7 @@ export default function ClasesPage() {
 
     const [{ data }, { data: resData }] = await Promise.all([
       supabase.from("gym_classes")
-        .select("id, class_name, day_of_week, start_time, max_capacity, event_type, notes, coach_name")
+        .select("id, class_name, day_of_week, start_time, max_capacity, event_type, notes, coach_name, event_date")
         .eq("gym_id", gid).order("day_of_week").order("start_time"),
       supabase.from("reservas")
         .select("clase_id").eq("gym_id", gid).eq("estado", "confirmada").in("fecha", dates),
@@ -115,7 +118,7 @@ export default function ClasesPage() {
     if (!data) { setLoading(false); return; }
     const countMap: Record<string, number> = {};
     resData?.forEach(r => { countMap[r.clase_id] = (countMap[r.clase_id] ?? 0) + 1; });
-    const rows = data.map(c => ({ ...c, event_type: (c.event_type ?? "regular") as "regular" | "especial", reservas_count: countMap[c.id] ?? 0 }));
+    const rows = data.map(c => ({ ...c, event_type: (c.event_type ?? "regular") as "regular" | "especial", event_date: c.event_date ?? null, reservas_count: countMap[c.id] ?? 0 }));
     setClases(rows);
     setPageCache(`clases_${gid}`, rows);
     setLoading(false);
@@ -142,6 +145,7 @@ export default function ClasesPage() {
       event_type: c.event_type ?? "regular",
       notes: c.notes ?? "",
       coach_name: c.coach_name ?? "",
+      event_date: c.event_date ?? "",
     });
     setFormError(null);
     setModalOpen(true);
@@ -150,9 +154,15 @@ export default function ClasesPage() {
   const handleSave = async () => {
     if (!gymId) return;
     if (!form.class_name.trim()) { setFormError("El nombre es obligatorio."); return; }
-    if (!editId && form.days_of_week.length === 0) { setFormError("Seleccioná al menos un día."); return; }
+    if (form.event_type === "especial" && !form.event_date) { setFormError("Seleccioná una fecha para el evento."); return; }
+    if (form.event_type === "regular" && !editId && form.days_of_week.length === 0) { setFormError("Seleccioná al menos un día."); return; }
     setSaving(true);
     setFormError(null);
+
+    const isEspecial = form.event_type === "especial";
+    const derivedDow = isEspecial && form.event_date
+      ? new Date(form.event_date + "T12:00:00").getDay()
+      : parseInt(form.day_of_week);
 
     const basePayload = {
       gym_id: gymId,
@@ -162,13 +172,16 @@ export default function ClasesPage() {
       event_type: form.event_type,
       notes: form.notes.trim() || null,
       coach_name: form.coach_name.trim() || null,
+      event_date: isEspecial ? (form.event_date || null) : null,
     };
 
     if (editId) {
-      const { error } = await supabase.from("gym_classes").update(basePayload).eq("id", editId);
+      const { error } = await supabase.from("gym_classes").update({ ...basePayload, day_of_week: derivedDow }).eq("id", editId);
       if (error) { setFormError(error.message); setSaving(false); return; }
     } else {
-      const rows = form.days_of_week.map(dow => ({ ...basePayload, day_of_week: dow }));
+      const rows = isEspecial
+        ? [{ ...basePayload, day_of_week: derivedDow }]
+        : form.days_of_week.map(dow => ({ ...basePayload, day_of_week: dow }));
       const { error } = await supabase.from("gym_classes").insert(rows);
       if (error) { setFormError(error.message); setSaving(false); return; }
     }
@@ -298,6 +311,11 @@ export default function ClasesPage() {
                                   <Star size={8} fill="#D97706" /> ESPECIAL
                                 </span>
                               )}
+                              {isEspecial && c.event_date && (
+                                <span style={{ font: `500 0.65rem/1 ${fd}`, color: "#92400E", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)", padding: "2px 8px", borderRadius: 9999, flexShrink: 0 }}>
+                                  {new Date(c.event_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                                </span>
+                              )}
                             </div>
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                               <span style={{ font: `400 0.72rem/1 ${fd}`, color: t2 }}>{c.start_time.slice(0, 5)}h</span>
@@ -399,12 +417,37 @@ export default function ClasesPage() {
                 </div>
               </div>
 
-              {/* Días — multi-select in create, label in edit */}
-              {editId ? (
+              {/* Fecha / Días */}
+              {form.event_type === "especial" ? (
+                <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <span style={{ font: `500 0.75rem/1 ${fd}`, color: t2 }}>Fecha del evento</span>
+                  <input
+                    type="date"
+                    value={form.event_date}
+                    onChange={e => {
+                      const dow = e.target.value ? new Date(e.target.value + "T12:00:00").getDay() : 1;
+                      setForm(p => ({ ...p, event_date: e.target.value, day_of_week: String(dow), days_of_week: [dow] }));
+                    }}
+                    style={{ padding: "10px 12px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 9, font: `400 0.875rem/1 ${fd}`, color: t1, outline: "none" }}
+                  />
+                </label>
+              ) : editId ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span style={{ font: `500 0.75rem/1 ${fd}`, color: t2 }}>Día</span>
-                  <div style={{ padding: "9px 12px", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 9, background: "#FAFAFA", font: `400 0.875rem/1 ${fd}`, color: t1 }}>
-                    {DAYS[parseInt(form.day_of_week)]}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {[1, 2, 3, 4, 5, 6, 0].map(dow => {
+                      const sel = parseInt(form.day_of_week) === dow;
+                      return (
+                        <button
+                          key={dow}
+                          type="button"
+                          onClick={() => setForm(p => ({ ...p, day_of_week: String(dow) }))}
+                          style={{ width: 44, height: 44, borderRadius: 10, border: `1.5px solid ${sel ? t1 : "rgba(0,0,0,0.1)"}`, background: sel ? t1 : "white", color: sel ? "white" : t2, font: `${sel ? "700" : "500"} 0.72rem/1 ${fd}`, cursor: "pointer", flexShrink: 0 }}
+                        >
+                          {DAYS_SHORT[dow]}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ) : (

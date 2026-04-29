@@ -8,6 +8,7 @@ import {
   UserX,
   Save,
   Send,
+  RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -55,9 +56,11 @@ export default function AutomatizacionesPage() {
   const [gymName,             setGymName]             = useState("");
   const [aliasGym,       setAliasGym]       = useState("");
   const [magiclinkMsg,   setMagiclinkMsg]   = useState(DEFAULT_MAGICLINK_MSG);
-  const [leadAutoWelcome, setLeadAutoWelcome] = useState(true);
-  const [saving,          setSaving]          = useState(false);
-  const [savedOk,         setSavedOk]         = useState(false);
+  const [leadAutoWelcome,  setLeadAutoWelcome]  = useState(true);
+  const [renovacionActivo, setRenovacionActivo] = useState(true);
+  const [renovacionMsg,    setRenovacionMsg]    = useState("");
+  const [saving,           setSaving]           = useState(false);
+  const [savedOk,          setSavedOk]          = useState(false);
 
   // Obtener gymId del usuario logueado
   useEffect(() => {
@@ -76,11 +79,13 @@ export default function AutomatizacionesPage() {
         if (s.cobro_alias)              { setAliasGym(s.cobro_alias); }
         if (s.gym_name)                   setGymName(s.gym_name);
         if (s.magiclink_msg)              setMagiclinkMsg(s.magiclink_msg);
-        if (s.inactividad_activo != null) setInactividad(s.inactividad_activo);
-        if (s.inactividad_dias)           setInactividadDias(s.inactividad_dias);
-        if (s.inactividad_msg)            setInactividadMsg(s.inactividad_msg);
-        if (s.vencimiento_activo != null) setRecordatorio(s.vencimiento_activo);
-        if (s.lead_auto_welcome != null)  setLeadAutoWelcome(s.lead_auto_welcome);
+        if (s.inactividad_activo != null)  setInactividad(s.inactividad_activo);
+        if (s.inactividad_dias)            setInactividadDias(s.inactividad_dias);
+        if (s.inactividad_msg)             setInactividadMsg(s.inactividad_msg);
+        if (s.vencimiento_activo != null)  setRecordatorio(s.vencimiento_activo);
+        if (s.lead_auto_welcome != null)   setLeadAutoWelcome(s.lead_auto_welcome);
+        if (s.renewal_activo != null)      setRenovacionActivo(s.renewal_activo);
+        if (s.renewal_msg)                 setRenovacionMsg(s.renewal_msg);
       }
     })();
   }, [gymId]);
@@ -97,6 +102,8 @@ export default function AutomatizacionesPage() {
       inactividad_msg: inactividadMsg.trim() || null,
       vencimiento_activo: recordatorio,
       lead_auto_welcome: leadAutoWelcome,
+      renewal_activo: renovacionActivo,
+      renewal_msg: renovacionMsg.trim() || null,
     }, { onConflict: "gym_id" });
     setSaving(false);
     setSavedOk(true);
@@ -211,6 +218,64 @@ export default function AutomatizacionesPage() {
             </div>
             <Toggle checked={recordatorio} onChange={() => setRecordatorio(!recordatorio)} />
           </div>
+        </div>
+
+        {/* Renovación de cuota */}
+        <div style={{ padding: "18px 20px", background: renovacionActivo ? "rgba(255,106,0,0.03)" : "#F9FAFB", borderRadius: 12, border: `1px solid ${renovacionActivo ? "rgba(255,106,0,0.18)" : "rgba(0,0,0,0.06)"}`, marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: renovacionActivo ? 16 : 0 }}>
+            <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: renovacionActivo ? "rgba(255,106,0,0.10)" : "#F0F2F8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <RefreshCw size={16} color={renovacionActivo ? "#FF6A00" : t3} />
+              </div>
+              <div>
+                <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Mensaje de Renovación + Acceso</p>
+                <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: t2 }}>Envía un mensaje con el link de acceso al confirmar un pago.</p>
+              </div>
+            </div>
+            <Toggle checked={renovacionActivo} onChange={() => setRenovacionActivo(v => !v)} />
+          </div>
+
+          {renovacionActivo && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div>
+                <label style={{ display: "block", font: `500 0.72rem/1 ${fb}`, color: t3, marginBottom: 4 }}>
+                  Mensaje personalizado
+                </label>
+                <p style={{ font: `400 0.72rem/1.4 ${fb}`, color: t3, marginBottom: 7 }}>
+                  Variables: <code style={{ background: ACCENT_SOFT, color: ACCENT, padding: "1px 5px", borderRadius: 4 }}>[Nombre]</code>{" "}
+                  <code style={{ background: ACCENT_SOFT, color: ACCENT, padding: "1px 5px", borderRadius: 4 }}>[Gym]</code>{" "}
+                  <code style={{ background: ACCENT_SOFT, color: ACCENT, padding: "1px 5px", borderRadius: 4 }}>[Link]</code>
+                </p>
+                <textarea
+                  value={renovacionMsg}
+                  onChange={e => setRenovacionMsg(e.target.value)}
+                  placeholder={`¡Hola [Nombre]! 💪 Tu cuota en *[Gym]* está al día.\n\nIngresá a tu panel desde acá 👇\n[Link]\n\n_El acceso dura 30 días._`}
+                  rows={4}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, border: "1px solid #E5E7EB", font: `400 0.875rem/1.5 ${fb}`, color: t1, outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                />
+              </div>
+              {renovacionMsg && (
+                <div style={{ padding: "10px 14px", background: "#F9FAFB", borderRadius: 8, border: "1px solid rgba(0,0,0,0.06)" }}>
+                  <p style={{ font: `500 0.7rem/1 ${fb}`, color: t3, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.06em" }}>Preview</p>
+                  <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: t1, whiteSpace: "pre-line" }}>
+                    {renovacionMsg
+                      .replace(/\[Nombre\]/g, "Julián Álvarez")
+                      .replace(/\[Gym\]/g,    gymName || "tu gimnasio")
+                      .replace(/\[Link\]/g,   "https://fitgrowx.com/alumno/auth?token=…")}
+                  </p>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={saveSettings}
+                  disabled={saving}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 9, border: "none", background: savedOk ? ACCENT_DARK : `linear-gradient(135deg, ${ACCENT_DARK} 0%, ${ACCENT} 100%)`, color: "white", font: `700 0.78rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 10px 20px rgba(37,99,235,0.14)" }}
+                >
+                  <Save size={13} /> {savedOk ? "Guardado ✓" : "Guardar"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bienvenida Leads */}

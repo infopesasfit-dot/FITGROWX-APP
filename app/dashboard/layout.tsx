@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
   Home, Users, CreditCard, Wallet, TrendingDown, Settings, LogOut,
@@ -51,7 +51,7 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
         sub: [
           { href: "/dashboard/prospectos",          label: "Prospectos" },
           { href: "/dashboard/publicidad",          label: "Campañas" },
-          { href: "/dashboard/ajustes?tab=landing", label: "Mi Web / Landing" },
+          { href: "/dashboard/landing",           label: "Mi Web / Landing" },
         ],
       },
       { href: "/dashboard/automatizaciones", label: "Automatizaciones",     icon: Zap },
@@ -100,7 +100,7 @@ const NAV_SECTIONS_STAFF: NavSection[] = [
   },
 ];
 
-const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/publicidad"];
+const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/publicidad", "/dashboard/landing"];
 const STAFF_ALLOWED_ROUTES = ["/dashboard", "/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
 
 const BOTTOM_NAV = [
@@ -110,6 +110,36 @@ const BOTTOM_NAV = [
   { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
 ];
 
+
+// ── Config sub-nav: isolated so useSearchParams is inside Suspense ────────────
+function ConfigSubNav() {
+  const searchParams = useSearchParams();
+  const currentTab   = searchParams.get("tab");
+  const pathname     = usePathname();
+  if (!pathname.startsWith("/dashboard/ajustes")) return null;
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: -4 }}>
+      {[
+        { href: "/dashboard/ajustes?tab=general",    label: "General",    tab: "general"    },
+        { href: "/dashboard/ajustes?tab=conexiones", label: "Conexiones", tab: "conexiones" },
+        { href: "/dashboard/ajustes?tab=equipo",     label: "Equipo",     tab: "equipo"     },
+      ].map(s => {
+        const active = currentTab === s.tab || (!currentTab && s.tab === "general");
+        return (
+          <Link key={s.href} href={s.href} style={{
+            padding: "7px 16px", borderRadius: 9999, textDecoration: "none",
+            font: `${active ? 700 : 500} 0.8rem/1 ${fd}`,
+            background: active ? "#1A1D23" : "rgba(0,0,0,0.07)",
+            color: active ? "#FFFFFF" : "#6B7280",
+            transition: "all .15s", whiteSpace: "nowrap",
+          }}>
+            {s.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 const SB_BG        = "#151515";
 const SB_FULL      = 240;
@@ -434,7 +464,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   return (
                     <div key={item.href}>
                       <button
-                        onClick={() => setOpen(o => !o)}
+                        onClick={() => { if (!open) router.push(item.sub![0].href); setOpen(o => !o); }}
                         style={{
                           borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center",
                           gap: 11, width: "100%", border: "none", textAlign: "left" as const, cursor: "pointer",
@@ -738,6 +768,34 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Page content */}
         <main style={{ flex: 1, padding: isMobile ? "14px 12px 90px" : "20px 20px 28px", display: "flex", flexDirection: "column", gap: 18, background: isVaultRoute ? "#ECEFF3" : "transparent" }}>
+
+          {/* ── Sub-nav shortcut bar (Atraer Clientes) ── */}
+          {ATTRACT_ROUTES.some(r => pathname.startsWith(r)) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: -4 }}>
+              {[
+                { href: "/dashboard/prospectos", label: "Prospectos" },
+                { href: "/dashboard/publicidad", label: "Campañas"   },
+                { href: "/dashboard/landing",    label: "Mi Web"     },
+              ].map(s => {
+                const active = pathname.startsWith(s.href);
+                return (
+                  <Link key={s.href} href={s.href} style={{
+                    padding: "7px 16px", borderRadius: 9999, textDecoration: "none",
+                    font: `${active ? 700 : 500} 0.8rem/1 ${fd}`,
+                    background: active ? "#1A1D23" : "rgba(0,0,0,0.07)",
+                    color: active ? "#FFFFFF" : "#6B7280",
+                    transition: "all .15s", whiteSpace: "nowrap",
+                  }}>
+                    {s.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── Sub-nav shortcut bar (Configuración) ── */}
+          <Suspense fallback={null}><ConfigSubNav /></Suspense>
+
           {children}
         </main>
         <WelcomeModal />

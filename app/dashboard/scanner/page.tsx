@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { QrCode, CheckCircle, XCircle, RefreshCw, Scan, Copy, Download } from "lucide-react";
+import { QrCode, CheckCircle, XCircle, RefreshCw, Scan, Copy, Download, ChevronDown } from "lucide-react";
 import { getCachedProfile } from "@/lib/gym-cache";
 
 type DetectedBarcode = {
@@ -57,6 +57,20 @@ export default function ScannerPage() {
 
   const [gymId,  setGymId]  = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [openSections, setOpenSections] = useState<Set<number>>(new Set());
+
+  const toggleSection = (num: number) => {
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      if (next.has(num)) {
+        next.delete(num);
+        if (num === 1) stopCamera();
+      } else {
+        next.add(num);
+      }
+      return next;
+    });
+  };
   const checkinUrl = gymId ? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/checkin/${gymId}` : "";
 
   useEffect(() => {
@@ -182,304 +196,231 @@ export default function ScannerPage() {
   const isMembershipIssue = result?.error_code === "membership_expired" || result?.error_code === "membership_inactive";
   const isSystemIssue = result?.error_code === "system_error";
 
+  const sections = [
+    {
+      num: 1,
+      title: "Escanear QR del alumno",
+      subtitle: "El staff lee el código del alumno con la cámara.",
+      accent: "#F97316",
+    },
+    {
+      num: 2,
+      title: "QR fijo del gimnasio",
+      subtitle: "El alumno escanea un código puesto en la entrada.",
+      accent: "#1A1D23",
+    },
+    {
+      num: 3,
+      title: "Ingreso manual por DNI",
+      subtitle: "Escribí el DNI del alumno para registrar su entrada.",
+      accent: "#6366F1",
+    },
+  ];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 560, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 560, margin: "0 auto" }}>
 
       {/* Header */}
-      <div>
+      <div style={{ marginBottom: 4 }}>
         <h1 style={{ font: `800 1.6rem/1 ${fd}`, color: "#1A1D23", letterSpacing: "-0.035em" }}>Escáner de Presencia</h1>
-        <p style={{ font: `400 0.85rem/1.5 ${fd}`, color: "#6B7280", marginTop: 6 }}>
-          Dos formas de registrar asistencia: el staff escanea el QR del alumno, o el gym tiene un QR fijo y el alumno se registra solo desde su teléfono.
+        <p style={{ font: `400 0.82rem/1.5 ${fd}`, color: "#6B7280", marginTop: 6 }}>
+          Elegí cómo registrar la asistencia.
         </p>
       </div>
 
-      {/* Section 1 label */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 9, background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-          <span style={{ font: `800 0.75rem/1 ${fd}`, color: "white" }}>1</span>
-        </div>
-        <div>
-          <p style={{ font: `800 0.95rem/1 ${fd}`, color: "#1A1D23" }}>Staff escanea el QR del alumno</p>
-          <p style={{ font: `400 0.78rem/1.45 ${fd}`, color: "#6B7280", marginTop: 3 }}>El alumno abre la app en su teléfono, muestra su código y el staff lo lee con la cámara.</p>
-        </div>
-      </div>
-
-      {/* Camera viewfinder */}
-      <div style={{ background: "#111", borderRadius: 18, overflow: "hidden", position: "relative", aspectRatio: "4/3" }}>
-        <video
-          ref={videoRef}
-          playsInline
-          muted
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: scanning ? "block" : "none" }}
-        />
-        <canvas ref={canvasRef} style={{ display: "none" }} />
-
-        {/* Overlay when not scanning */}
-        {!scanning && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <QrCode size={36} color="rgba(255,255,255,0.4)" />
-            </div>
-            {camError && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#FCA5A5", textAlign: "center", maxWidth: 260, padding: "0 20px" }}>{camError}</p>}
-            {hasDetector ? (
-              <button
-                onClick={startCamera}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 24px", background: "#F97316", color: "white", border: "none", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer" }}
-              >
-                <Scan size={16} /> Iniciar cámara
-              </button>
-            ) : (
-              <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "center", maxWidth: 240, padding: "0 20px" }}>
-                Tu navegador no soporta escaneo en vivo.<br />Usá la cámara o entrada manual debajo.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Scanning frame overlay */}
-        {scanning && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-            <style>{`
-              @keyframes scanLine {
-                0%, 100% { top: 12%; }
-                50% { top: 88%; }
-              }
-            `}</style>
-            {/* Corner brackets */}
-            {[["top:15%","left:20%","top","left"],["top:15%","right:20%","top","right"],["bottom:15%","left:20%","bottom","left"],["bottom:15%","right:20%","bottom","right"]].map(([t,l,vert,horiz], i) => (
-              <div key={i} style={{
-                position: "absolute", [vert!]: t.split(":")[1], [horiz!]: l.split(":")[1],
-                width: 28, height: 28,
-                borderTop: vert === "top" ? "3px solid #F97316" : "none",
-                borderBottom: vert === "bottom" ? "3px solid #F97316" : "none",
-                borderLeft: horiz === "left" ? "3px solid #F97316" : "none",
-                borderRight: horiz === "right" ? "3px solid #F97316" : "none",
-                borderRadius: vert === "top" && horiz === "left" ? "4px 0 0 0" : vert === "top" && horiz === "right" ? "0 4px 0 0" : vert === "bottom" && horiz === "left" ? "0 0 0 4px" : "0 0 4px 0",
-              }} />
-            ))}
-            {/* Scan line */}
-            <div style={{ position: "absolute", left: "20%", right: "20%", height: 2, background: "rgba(249,115,22,0.6)", animation: "scanLine 2s ease-in-out infinite", top: "15%" }} />
-          </div>
-        )}
-
-        {scanning && (
-          <button
-            onClick={stopCamera}
-            style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "6px 12px", font: `600 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", cursor: "pointer" }}
-          >
-            Detener
-          </button>
-        )}
-
-        {/* Loading spinner */}
-        {loading && (
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.8s linear infinite" }} />
-          </div>
-        )}
-      </div>
-
-      {/* Result card */}
+      {/* Result card — visible desde cualquier método */}
       {result && !loading && (
         <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(0,0,0,0.07)" }}>
           {result.ok && result.alumno ? (
             <>
-              {/* Big status banner */}
               {result.alumno.status === "activo" ? (
-                <div style={{ background: "#FF6A00", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                  <CheckCircle size={56} color="white" strokeWidth={2} />
-                  <p style={{ font: `900 1.6rem/1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>AL DÍA ✓</p>
-                  {result.hora && <p style={{ font: `400 0.75rem/1 ${fd}`, color: "rgba(255,255,255,0.7)" }}>{result.hora.slice(0, 5)}h · {result.already ? "Ya registrado hoy" : "Entrada registrada"}</p>}
+                <div style={{ background: "#FF6A00", padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                  <CheckCircle size={48} color="white" strokeWidth={2} />
+                  <p style={{ font: `900 1.5rem/1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>AL DÍA ✓</p>
+                  {result.hora && <p style={{ font: `400 0.75rem/1 ${fd}`, color: "rgba(255,255,255,0.75)" }}>{result.hora.slice(0, 5)}h · {result.already ? "Ya registrado hoy" : "Entrada registrada"}</p>}
                 </div>
               ) : (
-                <div style={{ background: "#DC2626", padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                  <XCircle size={56} color="white" strokeWidth={2} />
-                  <p style={{ font: `900 1.6rem/1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>DEUDA PENDIENTE</p>
+                <div style={{ background: "#DC2626", padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                  <XCircle size={48} color="white" strokeWidth={2} />
+                  <p style={{ font: `900 1.5rem/1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>DEUDA PENDIENTE</p>
                   <p style={{ font: `500 0.8rem/1 ${fd}`, color: "rgba(255,255,255,0.8)" }}>Cuota vencida — contactar al alumno</p>
                 </div>
               )}
-              {/* Alumno info */}
-              <div style={{ background: "white", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ background: "white", padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ font: `700 1rem/1.2 ${fd}`, color: "#1A1D23", marginBottom: 4 }}>{result.alumno.full_name}</p>
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <span style={{ font: `600 0.68rem/1 ${fd}`, color: statusColor, background: `${statusColor}12`, border: `1px solid ${statusColor}22`, padding: "3px 8px", borderRadius: 9999 }}>{statusLabel}</span>
-                    {result.alumno.plan && (
-                      <span style={{ font: `400 0.68rem/1 ${fd}`, color: "#6B7280", border: "1px solid rgba(0,0,0,0.08)", padding: "3px 8px", borderRadius: 9999 }}>{result.alumno.plan}</span>
-                    )}
-                    {result.alumno.expiration && (
-                      <span style={{ font: `400 0.68rem/1 ${fd}`, color: "#6B7280", border: "1px solid rgba(0,0,0,0.08)", padding: "3px 8px", borderRadius: 9999 }}>Vence: {result.alumno.expiration}</span>
-                    )}
+                    {result.alumno.plan && <span style={{ font: `400 0.68rem/1 ${fd}`, color: "#6B7280", border: "1px solid rgba(0,0,0,0.08)", padding: "3px 8px", borderRadius: 9999 }}>{result.alumno.plan}</span>}
+                    {result.alumno.expiration && <span style={{ font: `400 0.68rem/1 ${fd}`, color: "#6B7280", border: "1px solid rgba(0,0,0,0.08)", padding: "3px 8px", borderRadius: 9999 }}>Vence: {result.alumno.expiration}</span>}
                   </div>
                 </div>
                 {result.already && <RefreshCw size={18} color="#3B82F6" />}
               </div>
             </>
           ) : (
-            <div style={{
-              background: isSystemIssue ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.04)",
-              border: `1px solid ${isSystemIssue ? "rgba(217,119,6,0.28)" : "rgba(220,38,38,0.3)"}`,
-              borderRadius: 16,
-              padding: "20px 22px",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 12,
-            }}>
-              <XCircle size={22} color={isSystemIssue ? "#D97706" : "#DC2626"} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <p style={{ font: `800 0.98rem/1 ${fd}`, color: isSystemIssue ? "#B45309" : "#B91C1C" }}>
-                  {result.error_title ?? "Error al escanear"}
-                </p>
-                {result.alumno?.full_name && (
-                  <p style={{ font: `600 0.86rem/1.3 ${fd}`, color: "#1A1D23" }}>
-                    {result.alumno.full_name}
-                  </p>
-                )}
-                <p style={{ font: `500 0.86rem/1.4 ${fd}`, color: isSystemIssue ? "#92400E" : "#DC2626" }}>
-                  {result.error ?? "Error desconocido."}
-                </p>
-                {result.error_hint && (
-                  <p style={{ font: `400 0.8rem/1.4 ${fd}`, color: "#6B7280" }}>
-                    {result.error_hint}
-                  </p>
-                )}
-                {isMembershipIssue && result.alumno?.expiration && (
-                  <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280" }}>
-                    Vencimiento registrado: {result.alumno.expiration}
-                  </p>
-                )}
+            <div style={{ background: isSystemIssue ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.04)", border: `1px solid ${isSystemIssue ? "rgba(217,119,6,0.28)" : "rgba(220,38,38,0.3)"}`, borderRadius: 16, padding: "18px 20px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <XCircle size={20} color={isSystemIssue ? "#D97706" : "#DC2626"} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                <p style={{ font: `800 0.95rem/1 ${fd}`, color: isSystemIssue ? "#B45309" : "#B91C1C" }}>{result.error_title ?? "Error al escanear"}</p>
+                {result.alumno?.full_name && <p style={{ font: `600 0.84rem/1.3 ${fd}`, color: "#1A1D23" }}>{result.alumno.full_name}</p>}
+                <p style={{ font: `500 0.84rem/1.4 ${fd}`, color: isSystemIssue ? "#92400E" : "#DC2626" }}>{result.error ?? "Error desconocido."}</p>
+                {result.error_hint && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280" }}>{result.error_hint}</p>}
+                {isMembershipIssue && result.alumno?.expiration && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280" }}>Vencimiento: {result.alumno.expiration}</p>}
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Fallback: photo capture (works on iOS) */}
-      <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 14, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
-        <p style={{ font: `600 0.8rem/1 ${fd}`, color: "#1A1D23" }}>Alternativas</p>
+      {/* Accordions */}
+      <style>{`
+        @keyframes scanLine { 0%, 100% { top: 12%; } 50% { top: 88%; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
 
-        {/* Camera photo capture */}
-        <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, cursor: "pointer" }}>
-          <QrCode size={16} color="#6B7280" />
-          <span style={{ font: `500 0.82rem/1 ${fd}`, color: "#374151" }}>Sacar foto del QR</span>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            onChange={handleFileCapture}
-          />
-        </label>
+      {sections.map(s => {
+        const isOpen = openSections.has(s.num);
+        return (
+          <div key={s.num} style={{ background: "white", border: `1px solid ${isOpen ? `${s.accent}28` : "rgba(0,0,0,0.07)"}`, borderRadius: 16, overflow: "hidden", transition: "border-color 0.2s" }}>
 
-        {/* Manual DNI input */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <input
-            type="text"
-            placeholder="DNI del alumno..."
-            value={manualId}
-            onChange={e => setManualId(e.target.value.replace(/\D/g, ""))}
-            onKeyDown={e => e.key === "Enter" && handleManual()}
-            style={{ flex: 1, padding: "10px 12px", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 9, font: `400 0.82rem/1 ${fd}`, color: "#1A1D23", outline: "none" }}
-          />
-          <button
-            onClick={handleManual}
-            disabled={!manualId.trim() || loading}
-            style={{ padding: "10px 16px", background: "#1A1D23", color: "white", border: "none", borderRadius: 9, font: `600 0.82rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1 }}
-          >
-            Registrar
-          </button>
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)" }} />
-        <span style={{ font: `500 0.76rem/1 ${fd}`, color: "#9CA3AF", whiteSpace: "nowrap" }}>o también podés usar</span>
-        <div style={{ flex: 1, height: 1, background: "rgba(0,0,0,0.07)" }} />
-      </div>
-
-      {/* Section 2 label */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 9, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-          <span style={{ font: `800 0.75rem/1 ${fd}`, color: "white" }}>2</span>
-        </div>
-        <div>
-          <p style={{ font: `800 0.95rem/1 ${fd}`, color: "#1A1D23" }}>QR fijo del gimnasio</p>
-          <p style={{ font: `400 0.78rem/1.45 ${fd}`, color: "#6B7280", marginTop: 3 }}>
-            Imprimí o mostrá este código en la entrada. El alumno lo escanea con la cámara de su teléfono, ingresa su DNI y registra su asistencia sin necesidad de staff.
-          </p>
-        </div>
-      </div>
-
-      {/* Gym QR card */}
-      <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 18, padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
-        {gymId && checkinUrl ? (
-          <>
-            {/* QR image */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=1`}
-              alt="QR del gimnasio"
-              width={220}
-              height={220}
-              style={{ borderRadius: 14, border: "1px solid rgba(0,0,0,0.06)" }}
-            />
-
-            {/* URL */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, textAlign: "center", width: "100%" }}>
-              <p style={{ font: `600 0.78rem/1 ${fd}`, color: "#1A1D23" }}>Enlace de check-in</p>
-              <p style={{ font: `400 0.72rem/1.4 ${fd}`, color: "#6B7280", wordBreak: "break-all", maxWidth: 340 }}>{checkinUrl}</p>
-            </div>
-
-            {/* Actions */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-              <button
-                onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }}
-                style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", background: copied ? "#22C55E" : "#1A1D23", color: "white", border: "none", borderRadius: 10, font: `600 0.8rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s" }}
-              >
-                <Copy size={14} />
-                {copied ? "Copiado ✓" : "Copiar enlace"}
-              </button>
-              <a
-                href={`https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=2`}
-                download="qr-checkin-gym.png"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", background: "white", color: "#1A1D23", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 10, font: `600 0.8rem/1 ${fd}`, textDecoration: "none", cursor: "pointer" }}
-              >
-                <Download size={14} />
-                Descargar QR
-              </a>
-            </div>
-
-            {/* How it works */}
-            <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 18px", width: "100%" }}>
-              <p style={{ font: `700 0.8rem/1 ${fd}`, color: "#1A1D23", marginBottom: 12 }}>¿Cómo funciona para el alumno?</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {[
-                  "Escanea el QR con la cámara de su teléfono (no hace falta app).",
-                  "En la pantalla que aparece, ingresa su DNI.",
-                  "El sistema verifica su membresía y registra la asistencia.",
-                ].map((step, i) => (
-                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                    <div style={{ width: 20, height: 20, borderRadius: 6, background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                      <span style={{ font: `800 0.65rem/1 ${fd}`, color: "white" }}>{i + 1}</span>
-                    </div>
-                    <p style={{ font: `400 0.79rem/1.5 ${fd}`, color: "#6B7280" }}>{step}</p>
-                  </div>
-                ))}
+            {/* Accordion header */}
+            <button
+              onClick={() => toggleSection(s.num)}
+              style={{ width: "100%", padding: "16px 18px", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+            >
+              <div style={{ width: 30, height: 30, borderRadius: 9, background: s.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ font: `800 0.78rem/1 ${fd}`, color: "white" }}>{s.num}</span>
               </div>
-            </div>
-          </>
-        ) : (
-          <div style={{ padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <style>{`@keyframes spin2 { to { transform: rotate(360deg); } }`}</style>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin2 0.8s linear infinite" }} />
-            <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#9CA3AF" }}>Cargando QR...</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#1A1D23" }}>{s.title}</p>
+                <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280", marginTop: 3 }}>{s.subtitle}</p>
+              </div>
+              <ChevronDown
+                size={18}
+                color="#9CA3AF"
+                style={{ flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s ease" }}
+              />
+            </button>
+
+            {/* Accordion body */}
+            {isOpen && (
+              <div style={{ borderTop: "1px solid rgba(0,0,0,0.05)", padding: "18px" }}>
+
+                {/* Sección 1: Cámara */}
+                {s.num === 1 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div style={{ background: "#111", borderRadius: 14, overflow: "hidden", position: "relative", aspectRatio: "4/3" }}>
+                      <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", display: scanning ? "block" : "none" }} />
+                      <canvas ref={canvasRef} style={{ display: "none" }} />
+                      {!scanning && (
+                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+                          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <QrCode size={32} color="rgba(255,255,255,0.4)" />
+                          </div>
+                          {camError && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#FCA5A5", textAlign: "center", maxWidth: 240, padding: "0 16px" }}>{camError}</p>}
+                          {hasDetector ? (
+                            <button onClick={startCamera} style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "#F97316", color: "white", border: "none", borderRadius: 11, font: `700 0.875rem/1 ${fd}`, cursor: "pointer" }}>
+                              <Scan size={15} /> Iniciar cámara
+                            </button>
+                          ) : (
+                            <p style={{ font: `400 0.76rem/1.4 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "center", maxWidth: 220, padding: "0 16px" }}>Tu navegador no soporta escaneo en vivo.</p>
+                          )}
+                        </div>
+                      )}
+                      {scanning && (
+                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                          {[["top:15%","left:20%","top","left"],["top:15%","right:20%","top","right"],["bottom:15%","left:20%","bottom","left"],["bottom:15%","right:20%","bottom","right"]].map(([t,l,vert,horiz], i) => (
+                            <div key={i} style={{ position: "absolute", [vert!]: t.split(":")[1], [horiz!]: l.split(":")[1], width: 26, height: 26, borderTop: vert === "top" ? "3px solid #F97316" : "none", borderBottom: vert === "bottom" ? "3px solid #F97316" : "none", borderLeft: horiz === "left" ? "3px solid #F97316" : "none", borderRight: horiz === "right" ? "3px solid #F97316" : "none", borderRadius: vert === "top" && horiz === "left" ? "4px 0 0 0" : vert === "top" && horiz === "right" ? "0 4px 0 0" : vert === "bottom" && horiz === "left" ? "0 0 0 4px" : "0 0 4px 0" }} />
+                          ))}
+                          <div style={{ position: "absolute", left: "20%", right: "20%", height: 2, background: "rgba(249,115,22,0.6)", animation: "scanLine 2s ease-in-out infinite", top: "15%" }} />
+                        </div>
+                      )}
+                      {scanning && (
+                        <button onClick={stopCamera} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 11px", font: `600 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>Detener</button>
+                      )}
+                      {loading && (
+                        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ width: 38, height: 38, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.8s linear infinite" }} />
+                        </div>
+                      )}
+                    </div>
+                    {/* Foto del QR (fallback iOS) */}
+                    <label style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, cursor: "pointer" }}>
+                      <QrCode size={15} color="#6B7280" />
+                      <span style={{ font: `500 0.82rem/1 ${fd}`, color: "#374151" }}>Sacar foto del QR (alternativa)</span>
+                      <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFileCapture} />
+                    </label>
+                  </div>
+                )}
+
+                {/* Sección 2: QR fijo */}
+                {s.num === 2 && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
+                    {gymId && checkinUrl ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=1`} alt="QR del gimnasio" width={220} height={220} style={{ borderRadius: 14, border: "1px solid rgba(0,0,0,0.06)" }} />
+                        <div style={{ textAlign: "center" }}>
+                          <p style={{ font: `600 0.78rem/1 ${fd}`, color: "#1A1D23", marginBottom: 4 }}>Enlace de check-in</p>
+                          <p style={{ font: `400 0.7rem/1.4 ${fd}`, color: "#6B7280", wordBreak: "break-all", maxWidth: 320 }}>{checkinUrl}</p>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                          <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", background: copied ? "#22C55E" : "#1A1D23", color: "white", border: "none", borderRadius: 10, font: `600 0.8rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s" }}>
+                            <Copy size={14} />{copied ? "Copiado ✓" : "Copiar enlace"}
+                          </button>
+                          <a href={`https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=2`} download="qr-checkin-gym.png" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", background: "white", color: "#1A1D23", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 10, font: `600 0.8rem/1 ${fd}`, textDecoration: "none" }}>
+                            <Download size={14} />Descargar QR
+                          </a>
+                        </div>
+                        <div style={{ background: "#F8FAFC", borderRadius: 12, padding: "14px 16px", width: "100%" }}>
+                          <p style={{ font: `700 0.78rem/1 ${fd}`, color: "#1A1D23", marginBottom: 10 }}>¿Cómo lo usa el alumno?</p>
+                          {["Escanea el QR con la cámara (no hace falta app).", "Ingresa su DNI en la pantalla que aparece.", "El sistema verifica su membresía y registra la entrada."].map((step, i) => (
+                            <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start", marginBottom: i < 2 ? 8 : 0 }}>
+                              <div style={{ width: 18, height: 18, borderRadius: 5, background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                                <span style={{ font: `800 0.62rem/1 ${fd}`, color: "white" }}>{i + 1}</span>
+                              </div>
+                              <p style={{ font: `400 0.78rem/1.5 ${fd}`, color: "#6B7280" }}>{step}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ padding: "28px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.8s linear infinite" }} />
+                        <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#9CA3AF" }}>Cargando QR...</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sección 3: DNI manual */}
+                {s.num === 3 && (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="DNI del alumno..."
+                      value={manualId}
+                      onChange={e => setManualId(e.target.value.replace(/\D/g, ""))}
+                      onKeyDown={e => e.key === "Enter" && handleManual()}
+                      style={{ flex: 1, padding: "11px 13px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 10, font: `400 0.875rem/1 ${fd}`, color: "#1A1D23", outline: "none" }}
+                    />
+                    <button
+                      onClick={handleManual}
+                      disabled={!manualId.trim() || loading}
+                      style={{ padding: "11px 18px", background: "#6366F1", color: "white", border: "none", borderRadius: 10, font: `600 0.85rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}
+                    >
+                      Registrar
+                    </button>
+                  </div>
+                )}
+
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })}
     </div>
   );
 }

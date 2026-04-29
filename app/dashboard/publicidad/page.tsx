@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   TrendingUp, Target, Users, DollarSign,
   Copy, Check, MessageCircle, Rocket,
-  Activity, Globe, Zap, Brain, Sparkles,
+  Zap, Brain, Sparkles,
   RefreshCw, ChevronRight, AlertTriangle, ArrowRight,
 } from "lucide-react";
 
@@ -34,13 +34,14 @@ const hoverOff = (e: React.MouseEvent<HTMLDivElement>) => {
 
 /* ── Chart data ── */
 const DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-const INVERSION  = [1200, 1800, 1500, 2200, 1900, 2600, 2100];
-const LEADS      = [4,    7,    5,    9,    8,    12,   10];
+const INVERSION  = [0, 0, 0, 0, 0, 0, 0];
+const LEADS      = [0, 0, 0, 0, 0, 0, 0];
 
 function buildLine(data: number[], maxVal: number, w: number, h: number) {
+  const norm = maxVal || 1;
   const pts = data.map((v, i) => ({
     x: (i / (data.length - 1)) * w,
-    y: h - (v / maxVal) * (h - 16),
+    y: h - (v / norm) * (h - 16),
   }));
   let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
   for (let i = 1; i < pts.length; i++) {
@@ -51,32 +52,27 @@ function buildLine(data: number[], maxVal: number, w: number, h: number) {
   return { line: d, area: d + ` L${w},${h} L0,${h} Z`, pts };
 }
 
-/* ── Prospectos mock ── */
-const PROSPECTOS = [
-  { id: 1, nombre: "Valentina Ríos",   phone: "5491161234567", hora: "Hace 10 min",  fuente: "Meta Ads" },
-  { id: 2, nombre: "Matías Gómez",     phone: "5491170987654", hora: "Hace 38 min",  fuente: "Meta Ads" },
-  { id: 3, nombre: "Luciana Torres",   phone: "5491155443322", hora: "Hace 1h 12m",  fuente: "Google"   },
-  { id: 4, nombre: "Ezequiel Suárez",  phone: "5491144556677", hora: "Hace 2h 05m",  fuente: "Meta Ads" },
-  { id: 5, nombre: "Camila Benítez",   phone: "5491133445566", hora: "Hace 3h 40m",  fuente: "Orgánico" },
-];
+const PROSPECTOS: { id: number; nombre: string; phone: string; hora: string; fuente: string }[] = [];
 
 function initials(name: string) {
   return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
 
 export default function PublicidadPage() {
-  const [copied, setCopied] = useState(false);
   const [copyLoading, setCopyLoading] = useState(false);
   const [copies, setCopies] = useState<{ estilo: string; texto: string }[]>([]);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
-
-  const landingUrl = "fitgrowx.app/l/tu-gimnasio";
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(`https://${landingUrl}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const [activeTab, setActiveTab] = useState<"resumen" | "google" | "meta">("resumen");
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [metaConnected, setMetaConnected] = useState(false);
+  const [gCampaigns, setGCampaigns] = useState([
+    { id: 1, name: "Membresías - CABA", active: true, budget: 500, impressions: "14.2k", clicks: 423, conversions: 18, cpc: 32 },
+    { id: 2, name: "Clases Trial - Zona Norte", active: true, budget: 300, impressions: "8.6k", clicks: 241, conversions: 9, cpc: 28 },
+  ]);
+  const [mCampaigns, setMCampaigns] = useState([
+    { id: 1, name: "Verano Fitness 2026", active: true, budget: 800, reach: "22.4k", clicks: 612, leads: 28, cpl: 246 },
+    { id: 2, name: "Lead Form - Plan Mensual", active: false, budget: 400, reach: "11.1k", clicks: 289, leads: 11, cpl: 318 },
+  ]);
 
   /* chart */
   const maxInv   = Math.max(...INVERSION);
@@ -136,45 +132,11 @@ export default function PublicidadPage() {
   };
 
   const metrics = [
-    {
-      label: "Inversión Semanal",
-      value: `$${(totalInv / 1000).toFixed(1)}k`,
-      sub: "+18% vs semana anterior",
-      icon: DollarSign,
-      iconBg: "#1A1D23",
-      iconColor: accent,
-      accent: accent,
-    },
-    {
-      label: "Leads Generados",
-      value: String(totalLeads),
-      sub: "Esta semana",
-      icon: Users,
-      iconBg: "#1E50F0",
-      iconColor: "white",
-      accent: "#1E50F0",
-    },
-    {
-      label: "Costo por Lead",
-      value: cpl === "—" ? "—" : `$${cpl}`,
-      sub: "Promedio semanal",
-      icon: Target,
-      iconBg: "#FF6A00",
-      iconColor: "white",
-      accent: "#FF6A00",
-    },
-    {
-      label: "ROAS",
-      value: roas,
-      sub: "Retorno sobre inversión",
-      icon: TrendingUp,
-      iconBg: "#F59E0B",
-      iconColor: "white",
-      accent: "#F59E0B",
-    },
+    { label: "Inversión Semanal", value: `$${(totalInv / 1000).toFixed(1)}k`, sub: "Semana actual", icon: DollarSign },
+    { label: "Leads Generados",   value: String(totalLeads),                   sub: "Esta semana",   icon: Users      },
+    { label: "Costo por Lead",    value: cpl === "—" ? "—" : `$${cpl}`,        sub: "Promedio",      icon: Target     },
+    { label: "ROAS",              value: totalLeads > 0 ? roas : "—",          sub: "Retorno s/inv", icon: TrendingUp },
   ];
-
-  const healthPct = 85;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, position: "relative", paddingBottom: 80 }}>
@@ -191,18 +153,45 @@ export default function PublicidadPage() {
         </div>
       </div>
 
+      {/* ── TABS ── */}
+      <div style={{ display: "flex", gap: 4, background: "#F1F2F6", borderRadius: 14, padding: 4, width: "fit-content" }}>
+        {([
+          { id: "resumen" as const, label: "Resumen" },
+          { id: "google" as const, label: "Google Ads" },
+          { id: "meta" as const, label: "Meta Ads" },
+        ]).map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: "8px 18px",
+              borderRadius: 10,
+              border: "none",
+              font: `600 0.78rem/1 ${fd}`,
+              cursor: "pointer",
+              transition: "all 0.18s",
+              background: activeTab === tab.id ? "white" : "transparent",
+              color: activeTab === tab.id ? (tab.id === "google" ? "#4285F4" : tab.id === "meta" ? "#1877F2" : accent) : t3,
+              boxShadow: activeTab === tab.id ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "resumen" && (<>
       {/* ══ ZONA 1 — MÉTRICAS (4 cards) ══ */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
         {metrics.map(m => (
           <div
             key={m.label}
-            style={{ ...cardBase, padding: "20px 22px", borderTop: `3px solid ${m.accent}`, position: "relative", overflow: "hidden" }}
+            style={{ ...cardBase, padding: "20px 22px" }}
             onMouseEnter={hoverOn} onMouseLeave={hoverOff}
           >
-            <div style={{ position: "absolute", right: -14, top: -14, width: 80, height: 80, borderRadius: "50%", background: `radial-gradient(circle, ${m.accent}12 0%, transparent 70%)`, pointerEvents: "none" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: m.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <m.icon size={14} color={m.iconColor} />
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <m.icon size={14} color={accent} />
               </div>
               <span style={{ font: `500 0.72rem/1.2 ${fb}`, color: t2 }}>{m.label}</span>
             </div>
@@ -212,11 +201,8 @@ export default function PublicidadPage() {
         ))}
       </div>
 
-      {/* ══ ZONA 2 — ASIMÉTRICA: Gráfico | Landing ══ */}
-      <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr", gap: 20 }}>
-
-        {/* Gráfico Rendimiento Semanal */}
-        <div style={{ ...cardBase, padding: "24px 26px" }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+      {/* ══ ZONA 2 — GRÁFICO ══ */}
+      <div style={{ ...cardBase, padding: "24px 26px" }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <div>
               <span style={{ font: `800 1rem/1 ${fd}`, color: t1, display: "block", marginBottom: 3 }}>Rendimiento Semanal</span>
@@ -271,9 +257,9 @@ export default function PublicidadPage() {
           {/* mini stats row */}
           <div style={{ display: "flex", gap: 12, marginTop: 18 }}>
             {[
-              { label: "Mejor día", value: "Sábado", sub: "12 leads", color: accent },
-              { label: "CTR promedio", value: "4.3%", sub: "Tasa de clic", color: "#1E50F0" },
-              { label: "Impresiones", value: "28.4k", sub: "Esta semana", color: "#FF6A00" },
+              { label: "Mejor día", value: "—", sub: "Sin datos aún" },
+              { label: "CTR promedio", value: "—", sub: "Tasa de clic" },
+              { label: "Impresiones", value: "—", sub: "Esta semana" },
             ].map(s => (
               <div key={s.label} style={{ flex: 1, background: "#F8FAFC", borderRadius: 12, padding: "12px 14px" }}>
                 <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
@@ -283,63 +269,6 @@ export default function PublicidadPage() {
             ))}
           </div>
         </div>
-
-        {/* Estado de tu Landing */}
-        <div style={{ ...cardBase, padding: "24px 22px", display: "flex", flexDirection: "column", gap: 20 }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <Globe size={15} color={accent} />
-              <span style={{ font: `800 1rem/1 ${fd}`, color: t1 }}>Estado de tu Landing</span>
-            </div>
-            <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>Tu página de captación activa</span>
-          </div>
-
-          {/* URL card */}
-          <div style={{ background: "#F8FAFC", borderRadius: 12, padding: "12px 14px" }}>
-            <p style={{ font: `400 0.62rem/1 ${fb}`, color: t3, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>URL de landing</p>
-            <p style={{ font: `600 0.78rem/1.3 ${fd}`, color: t1, wordBreak: "break-all", marginBottom: 10 }}>{landingUrl}</p>
-            <button
-              onClick={handleCopy}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: copied ? "#FF6A00" : "#1A1D23", color: "white", border: "none", borderRadius: 8, padding: "7px 14px", font: `600 0.72rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s", width: "100%" }}
-            >
-              {copied ? <Check size={13} /> : <Copy size={13} />}
-              {copied ? "¡Copiado!" : "Copiar Enlace"}
-            </button>
-          </div>
-
-          {/* Salud de la landing */}
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <Activity size={14} color="#FF6A00" />
-                <span style={{ font: `600 0.78rem/1 ${fd}`, color: t1 }}>Salud de la Landing</span>
-              </div>
-              <span style={{ font: `800 1.1rem/1 ${fd}`, color: "#FF6A00" }}>{healthPct}%</span>
-            </div>
-            <div style={{ height: 7, borderRadius: 9999, background: "#F1F2F6", overflow: "hidden", marginBottom: 8 }}>
-              <div style={{ height: "100%", width: `${healthPct}%`, background: "linear-gradient(90deg, #FF6A00, #FF6A00)", borderRadius: 9999, transition: "width 0.8s ease" }} />
-            </div>
-            <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3 }}>Tasa de conversión estimada</p>
-          </div>
-
-          {/* checks */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { label: "Carga rápida (<2s)", ok: true },
-              { label: "Formulario activo", ok: true },
-              { label: "Pixel Meta instalado", ok: true },
-              { label: "Pruebas A/B activas", ok: false },
-            ].map(item => (
-              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", background: item.ok ? "rgba(255,106,0,0.1)" : "rgba(156,163,175,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Check size={10} color={item.ok ? "#FF6A00" : t3} />
-                </div>
-                <span style={{ font: `400 0.72rem/1 ${fb}`, color: item.ok ? t2 : t3 }}>{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* ══ ZONA 3 — PROSPECTOS CALIENTES ══ */}
       <div style={{ ...cardBase, padding: "22px 24px" }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
@@ -354,6 +283,11 @@ export default function PublicidadPage() {
           </div>
         </div>
 
+        {PROSPECTOS.length === 0 && (
+          <div style={{ textAlign: "center" as const, padding: "32px 0", color: t3 }}>
+            <p style={{ font: `400 0.82rem/1 ${fb}` }}>Aún no hay prospectos. Conectá tus cuentas de Google Ads o Meta Ads para empezar a recibir leads.</p>
+          </div>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
           {PROSPECTOS.map((p, i) => (
             <div
@@ -553,6 +487,216 @@ export default function PublicidadPage() {
           </div>
         )}
       </div>
+      </>)}
+
+      {/* ── GOOGLE ADS ── */}
+      {activeTab === "google" && (
+        !googleConnected ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 360 }}>
+            <div style={{ ...cardBase, padding: "44px 52px", textAlign: "center" as const, maxWidth: 460 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 18, background: "white", boxShadow: "0 2px 16px rgba(0,0,0,0.10)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+                <svg viewBox="0 0 48 48" width="38" height="38">
+                  <path fill="#4285F4" d="M43.6 20.1H42V20H24v8h11.3C33.6 33.4 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+                  <path fill="#34A853" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.1 7.9 2.9l5.7-5.7C34.1 6.5 29.3 4 24 4c-7.7 0-14.3 4.4-17.7 10.7z"/>
+                  <path fill="#FBBC05" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.5-11.2-8.3l-6.5 5C9.5 39.5 16.2 44 24 44z"/>
+                  <path fill="#EA4335" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.2 5.2C36.9 37.2 44 32 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+                </svg>
+              </div>
+              <h2 style={{ font: `800 1.3rem/1.2 ${fd}`, color: t1, marginBottom: 10 }}>Conectá Google Ads</h2>
+              <p style={{ font: `400 0.82rem/1.65 ${fb}`, color: t2, marginBottom: 28 }}>Gestioná tus campañas de búsqueda y display directamente desde FitGrowX sin salir del panel.</p>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, marginBottom: 28, textAlign: "left" as const }}>
+                {["Ver gasto, clics e impresiones en tiempo real", "Pausar o activar campañas con un clic", "Recibir alertas cuando el CPL supera el benchmark"].map(feat => (
+                  <div key={feat} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(66,133,244,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Check size={11} color="#4285F4" />
+                    </div>
+                    <span style={{ font: `400 0.78rem/1 ${fb}`, color: t2 }}>{feat}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setGoogleConnected(true)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "#4285F4", color: "white", border: "none", borderRadius: 12, padding: "13px 24px", font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 16px rgba(66,133,244,0.32)", transition: "all 0.2s" }}
+              >
+                Conectar cuenta de Google Ads
+              </button>
+              <p style={{ font: `400 0.62rem/1 ${fb}`, color: t3, marginTop: 12 }}>Requiere acceso OAuth · Tus datos son privados y no se comparten</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+              {[
+                { label: "Gasto Semanal", value: "$2.3k", sub: "+12% vs anterior", color: "#4285F4" },
+                { label: "Clics", value: "664", sub: "CTR 4.6%", color: "#34A853" },
+                { label: "Impresiones", value: "22.8k", sub: "Esta semana", color: "#FBBC05" },
+                { label: "Conversiones", value: "27", sub: "CPC prom. $30", color: "#EA4335" },
+              ].map(m => (
+                <div key={m.label} style={{ ...cardBase, padding: "18px 20px", borderTop: `3px solid ${m.color}` }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+                  <p style={{ font: `500 0.72rem/1 ${fb}`, color: t2, marginBottom: 10 }}>{m.label}</p>
+                  <p style={{ font: `800 1.8rem/1 ${fd}`, color: t1, marginBottom: 5 }}>{m.value}</p>
+                  <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3 }}>{m.sub}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ ...cardBase, padding: "22px 24px" }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                <div>
+                  <span style={{ font: `800 1rem/1 ${fd}`, color: t1, display: "block", marginBottom: 3 }}>Campañas de búsqueda</span>
+                  <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>Google Search & Display · cuenta vinculada</span>
+                </div>
+                <button style={{ display: "flex", alignItems: "center", gap: 6, background: "#4285F4", color: "white", border: "none", borderRadius: 10, padding: "8px 16px", font: `600 0.75rem/1 ${fd}`, cursor: "pointer" }}>
+                  + Nueva campaña
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 0 }}>
+                {gCampaigns.map((c, i) => (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 0", borderBottom: i < gCampaigns.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
+                    <button
+                      onClick={() => setGCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, active: !x.active } : x))}
+                      style={{ width: 42, height: 24, borderRadius: 12, background: c.active ? "#34A853" : "#E5E7EB", border: "none", cursor: "pointer", position: "relative" as const, transition: "background 0.2s", flexShrink: 0 }}
+                    >
+                      <div style={{ position: "absolute" as const, top: 3, left: c.active ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.18)", transition: "left 0.2s" }} />
+                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, marginBottom: 4 }}>{c.name}</p>
+                      <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>Presupuesto: ${c.budget}/día · CPC prom: ${c.cpc}</p>
+                    </div>
+                    <div style={{ display: "flex", gap: 20, flexShrink: 0 }}>
+                      {[
+                        { label: "Impresiones", value: c.impressions, color: "#4285F4" },
+                        { label: "Clics", value: String(c.clicks), color: "#34A853" },
+                        { label: "Conversiones", value: String(c.conversions), color: "#EA4335" },
+                      ].map(stat => (
+                        <div key={stat.label} style={{ textAlign: "center" as const }}>
+                          <p style={{ font: `700 0.95rem/1 ${fd}`, color: stat.color, marginBottom: 2 }}>{stat.value}</p>
+                          <p style={{ font: `400 0.6rem/1 ${fb}`, color: t3 }}>{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <span style={{ font: `500 0.68rem/1 ${fb}`, color: c.active ? "#34A853" : t3, background: c.active ? "rgba(52,168,83,0.10)" : "#F1F2F6", borderRadius: 9999, padding: "4px 10px", flexShrink: 0 }}>
+                      {c.active ? "Activa" : "Pausada"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )
+      )}
+
+      {/* ── META ADS ── */}
+      {activeTab === "meta" && (
+        !metaConnected ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 360 }}>
+            <div style={{ ...cardBase, padding: "44px 52px", textAlign: "center" as const, maxWidth: 460 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(135deg, #1877F2 0%, #E1306C 100%)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+                <svg viewBox="0 0 36 36" width="28" height="28" fill="white">
+                  <path d="M20.18 35.84v-13.7h4.6l.69-5.35h-5.29V13.4c0-1.55.43-2.6 2.65-2.6h2.83V6c-.49-.07-2.16-.21-4.11-.21-4.07 0-6.86 2.49-6.86 7.07v3.93h-4.6v5.35h4.6v13.7h5.49z" />
+                </svg>
+              </div>
+              <h2 style={{ font: `800 1.3rem/1.2 ${fd}`, color: t1, marginBottom: 10 }}>Conectá Meta Ads</h2>
+              <p style={{ font: `400 0.82rem/1.65 ${fb}`, color: t2, marginBottom: 28 }}>Administrá tus campañas de Facebook e Instagram desde un solo lugar sin salir de FitGrowX.</p>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, marginBottom: 28, textAlign: "left" as const }}>
+                {["Gestionar campañas de Facebook e Instagram juntas", "Ver alcance, leads y CPL en tiempo real", "Activar o pausar conjuntos de anuncios al instante"].map(feat => (
+                  <div key={feat} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 20, height: 20, borderRadius: "50%", background: "rgba(24,119,242,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Check size={11} color="#1877F2" />
+                    </div>
+                    <span style={{ font: `400 0.78rem/1 ${fb}`, color: t2 }}>{feat}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setMetaConnected(true)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", background: "linear-gradient(135deg, #1877F2, #E1306C)", color: "white", border: "none", borderRadius: 12, padding: "13px 24px", font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 16px rgba(24,119,242,0.28)", transition: "all 0.2s" }}
+              >
+                Conectar cuenta de Meta Business
+              </button>
+              <p style={{ font: `400 0.62rem/1 ${fb}`, color: t3, marginTop: 12 }}>Requiere acceso a Meta Business Suite · Tus datos son privados</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+              {[
+                { label: "Gasto Semanal", value: "$4.7k", sub: "+8% vs anterior", color: "#1877F2" },
+                { label: "Alcance", value: "33.5k", sub: "Personas únicas", color: "#E1306C" },
+                { label: "Leads", value: "39", sub: "Formulario + mensajes", color: "#6B21A8" },
+                { label: "CPL", value: "$280", sub: "Costo por lead", color: "#F59E0B" },
+              ].map(m => (
+                <div key={m.label} style={{ ...cardBase, padding: "18px 20px", borderTop: `3px solid ${m.color}` }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+                  <p style={{ font: `500 0.72rem/1 ${fb}`, color: t2, marginBottom: 10 }}>{m.label}</p>
+                  <p style={{ font: `800 1.8rem/1 ${fd}`, color: t1, marginBottom: 5 }}>{m.value}</p>
+                  <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3 }}>{m.sub}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              {[
+                { name: "Facebook", color: "#1877F2", reach: "19.2k", leads: 22 },
+                { name: "Instagram", color: "#E1306C", reach: "14.3k", leads: 17 },
+              ].map(platform => (
+                <div key={platform.name} style={{ ...cardBase, padding: "20px 22px", borderLeft: `4px solid ${platform.color}` }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+                  <p style={{ font: `700 0.85rem/1 ${fd}`, color: platform.color, marginBottom: 14 }}>{platform.name}</p>
+                  <div style={{ display: "flex", gap: 24 }}>
+                    <div>
+                      <p style={{ font: `700 1.5rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{platform.reach}</p>
+                      <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3 }}>Alcance</p>
+                    </div>
+                    <div>
+                      <p style={{ font: `700 1.5rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{platform.leads}</p>
+                      <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3 }}>Leads</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ ...cardBase, padding: "22px 24px" }} onMouseEnter={hoverOn} onMouseLeave={hoverOff}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+                <div>
+                  <span style={{ font: `800 1rem/1 ${fd}`, color: t1, display: "block", marginBottom: 3 }}>Campañas de Meta</span>
+                  <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>Facebook + Instagram · cuenta vinculada</span>
+                </div>
+                <button style={{ display: "flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #1877F2, #E1306C)", color: "white", border: "none", borderRadius: 10, padding: "8px 16px", font: `600 0.75rem/1 ${fd}`, cursor: "pointer" }}>
+                  + Nueva campaña
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 0 }}>
+                {mCampaigns.map((c, i) => (
+                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 0", borderBottom: i < mCampaigns.length - 1 ? "1px solid rgba(0,0,0,0.05)" : "none" }}>
+                    <button
+                      onClick={() => setMCampaigns(prev => prev.map(x => x.id === c.id ? { ...x, active: !x.active } : x))}
+                      style={{ width: 42, height: 24, borderRadius: 12, background: c.active ? "#1877F2" : "#E5E7EB", border: "none", cursor: "pointer", position: "relative" as const, transition: "background 0.2s", flexShrink: 0 }}
+                    >
+                      <div style={{ position: "absolute" as const, top: 3, left: c.active ? 21 : 3, width: 18, height: 18, borderRadius: "50%", background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.18)", transition: "left 0.2s" }} />
+                    </button>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, marginBottom: 4 }}>{c.name}</p>
+                      <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>Presupuesto: ${c.budget}/día · CPL: ${c.cpl}</p>
+                    </div>
+                    <div style={{ display: "flex", gap: 20, flexShrink: 0 }}>
+                      {[
+                        { label: "Alcance", value: c.reach, color: "#1877F2" },
+                        { label: "Clics", value: String(c.clicks), color: "#E1306C" },
+                        { label: "Leads", value: String(c.leads), color: "#6B21A8" },
+                      ].map(stat => (
+                        <div key={stat.label} style={{ textAlign: "center" as const }}>
+                          <p style={{ font: `700 0.95rem/1 ${fd}`, color: stat.color, marginBottom: 2 }}>{stat.value}</p>
+                          <p style={{ font: `400 0.6rem/1 ${fb}`, color: t3 }}>{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <span style={{ font: `500 0.68rem/1 ${fb}`, color: c.active ? "#1877F2" : t3, background: c.active ? "rgba(24,119,242,0.10)" : "#F1F2F6", borderRadius: 9999, padding: "4px 10px", flexShrink: 0 }}>
+                      {c.active ? "Activa" : "Pausada"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )
+      )}
 
       {/* ══ FAB — Lanzar Nueva Campaña ══ */}
       <div style={{ position: "fixed", bottom: 32, right: 32, zIndex: 40 }}>

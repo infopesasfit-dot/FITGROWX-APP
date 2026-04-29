@@ -16,6 +16,7 @@ import {
   Loader2,
   Lock,
   Mail,
+  RefreshCw,
   Save,
   Smartphone,
   Star,
@@ -202,6 +203,8 @@ function AjustesContent() {
   const [waBattery, setWaBattery] = useState<number | null>(null);
   const [waSignal, setWaSignal] = useState<number | null>(null);
   const [waPlugged, setWaPlugged] = useState<boolean | null>(null);
+  const [waRetries, setWaRetries] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
@@ -507,6 +510,7 @@ function AjustesContent() {
         const response = await fetch(`${MOTOR}/session-status/${gymId}`);
         const data = await response.json();
         setWaStatus(data.status === "active" ? "connected" : "disconnected");
+        if (data.retries != null) setWaRetries(data.retries);
         if (data.phone) setWaPhone(data.phone);
         if (data.battery != null) setWaBattery(data.battery);
         if (data.signal != null) setWaSignal(data.signal);
@@ -534,9 +538,11 @@ function AjustesContent() {
       try {
         const response = await fetch(`${MOTOR}/session-status/${gymId}`);
         const data = await response.json();
+        if (data.retries != null) setWaRetries(data.retries);
         if (data.status === "active") {
           stopPolling();
           setWaStatus("connected");
+          setWaRetries(0);
           if (data.phone) setWaPhone(data.phone);
           if (data.battery != null) setWaBattery(data.battery);
           if (data.signal != null) setWaSignal(data.signal);
@@ -612,6 +618,25 @@ function AjustesContent() {
     setWaSignal(null);
     setWaPlugged(null);
     openQrModal();
+  };
+
+  const handleRefreshSession = async () => {
+    if (!gymId || refreshing) return;
+    setRefreshing(true);
+    try {
+      await fetch(`${MOTOR}/session/${gymId}/reconnect`, { method: "POST" });
+      setTimeout(async () => {
+        try {
+          const response = await fetch(`${MOTOR}/session-status/${gymId}`);
+          const data = await response.json();
+          setWaStatus(data.status === "active" ? "connected" : "disconnected");
+          if (data.retries != null) setWaRetries(data.retries);
+        } catch {}
+        setRefreshing(false);
+      }, 3500);
+    } catch {
+      setRefreshing(false);
+    }
   };
 
   useEffect(() => () => stopPolling(), []);
@@ -891,20 +916,45 @@ function AjustesContent() {
                 {[
                   {
                     key: "wa",
-                    icon: <Smartphone size={18} color={waStatus === "connected" ? ACCENT : t3} />,
+                    icon: <Smartphone size={18} color={waStatus === "connected" ? ACCENT : waRetries > 0 ? "#B45309" : t3} />,
                     title: "WhatsApp",
                     description:
                       waStatus === "connected"
                         ? `${waPhone ? waPhone : "Conectado"}${waBattery !== null ? ` · ${waBattery}% batería` : ""}${waSignal !== null ? ` · señal ${waSignal}/4` : ""}${waPlugged ? " · cargando" : ""}`
-                        : "Usa el motor actual para recordatorios, reactivaciones y mensajes automáticos.",
-                    badge: waStatus === "connected" ? { label: "Activo", bg: "rgba(34,197,94,0.10)", color: "#15803D" } : { label: "Desconectado", bg: "#F1F5F9", color: t2 },
+                        : waRetries > 0
+                        ? "Reintentando reconectar... Si tu teléfono perdió internet, revisalo."
+                        : "Usá el motor para recordatorios, reactivaciones y mensajes automáticos.",
+                    badge: waStatus === "connected"
+                      ? { label: "Conexión estable", bg: "rgba(34,197,94,0.10)", color: "#15803D" }
+                      : waRetries > 0
+                      ? { label: "Reintentando...", bg: "rgba(234,179,8,0.10)", color: "#92400E" }
+                      : { label: "Desconectado", bg: "#F1F5F9", color: t2 },
                     action: waStatus === "connected" ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <button
+                          onClick={handleRefreshSession}
+                          disabled={refreshing}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "white", color: t2, font: `700 0.78rem/1 ${fd}`, cursor: refreshing ? "not-allowed" : "pointer", opacity: refreshing ? 0.6 : 1 }}
+                        >
+                          <RefreshCw size={13} style={refreshing ? { animation: "spin 1s linear infinite" } : undefined} />
+                          {refreshing ? "Actualizando..." : "Refrescar"}
+                        </button>
+                        <button
+                          onClick={disconnectWA}
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.18)", background: "white", color: "#DC2626", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
+                        >
+                          <X size={13} />
+                          Desvincular
+                        </button>
+                      </div>
+                    ) : waRetries > 0 ? (
                       <button
-                        onClick={disconnectWA}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.18)", background: "white", color: "#DC2626", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
+                        onClick={handleRefreshSession}
+                        disabled={refreshing}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(234,179,8,0.24)", background: "rgba(234,179,8,0.08)", color: "#92400E", font: `800 0.78rem/1 ${fd}`, cursor: refreshing ? "not-allowed" : "pointer", opacity: refreshing ? 0.6 : 1 }}
                       >
-                        <X size={13} />
-                        Desvincular
+                        <RefreshCw size={14} style={refreshing ? { animation: "spin 1s linear infinite" } : undefined} />
+                        {refreshing ? "Reconectando..." : "Refrescar sesión"}
                       </button>
                     ) : (
                       <button
@@ -977,6 +1027,14 @@ function AjustesContent() {
                   </div>
                 ))}
               </div>
+              {waStatus !== "connected" && waRetries >= 3 && (
+                <div style={{ marginTop: 10, padding: "14px 16px", borderRadius: 16, background: "rgba(234,179,8,0.07)", border: "1px solid rgba(234,179,8,0.22)", display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <AlertTriangle size={16} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <p style={{ font: `400 0.79rem/1.5 ${fb}`, color: "#92400E" }}>
+                    Parece que tu teléfono perdió internet. Revisalo para seguir enviando mensajes automáticos.
+                  </p>
+                </div>
+              )}
             </SectionCard>
           </div>
         )}

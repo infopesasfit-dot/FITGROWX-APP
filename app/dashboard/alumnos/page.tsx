@@ -389,13 +389,20 @@ export default function AlumnosPage() {
       let e164 = digits;
       if (!e164.startsWith("54")) e164 = "54" + e164;
       if (e164.startsWith("54") && !e164.startsWith("549")) e164 = "549" + e164.slice(2);
-      const msgBody = `¡Hola ${pagoTarget.full_name}! 💪 Confirmamos tu pago de $${monto.toLocaleString("es-AR")}. Tu membresía de FitGrowX está activa.`;
+      const msgBody = `¡Hola ${pagoTarget.full_name}! 💪 Confirmamos tu pago de $${monto.toLocaleString("es-AR")}. Tu membresía está al día.`;
       fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gym_id: gymId, phone: e164, message: msgBody }),
-      }).catch(err => console.warn("[WA Motor] Error al enviar confirmación de pago:", err));
+      }).catch(() => {});
     }
+
+    // Enviar magic link de acceso al panel
+    fetch("/api/alumno/send-welcome", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumno_id: pagoTarget.id, type: "renewal" }),
+    }).catch(() => {});
 
     setPagoSaving(false);
     setPagoModalOpen(false);
@@ -662,8 +669,8 @@ export default function AlumnosPage() {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Gestión</p>
-          <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Alumnos</h1>
+          {!isMobile && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Gestión</p>}
+          <h1 style={{ font: `800 ${isMobile ? "1.25rem" : "1.9rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Alumnos</h1>
           {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Administra y monitorea a todos los miembros.</p>}
         </div>
         <button
@@ -677,21 +684,21 @@ export default function AlumnosPage() {
       {/* KPI row */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
         {[
-          { label: "Total",      value: totalCount, icon: <Users      size={16} color="white" />, sub: "registrados" },
-          { label: "Activos",    value: activos,    icon: <UserCheck  size={16} color="white" />, sub: "en regla" },
-          { label: "Vencidos",   value: vencidos,   icon: <UserX      size={16} color="white" />, sub: "sin renovar" },
-          { label: "Pendientes", value: pendientes, icon: <TrendingUp size={16} color="white" />, sub: "por confirmar" },
+          { label: "Total",      value: totalCount, icon: <Users      size={14} color="white" />, sub: "registrados" },
+          { label: "Activos",    value: activos,    icon: <UserCheck  size={14} color="white" />, sub: "en regla" },
+          { label: "Vencidos",   value: vencidos,   icon: <UserX      size={14} color="white" />, sub: "sin renovar" },
+          { label: "Pendientes", value: pendientes, icon: <TrendingUp size={14} color="white" />, sub: "por confirmar" },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: "16px 18px", transition: "box-shadow 0.2s, transform 0.2s" }}
+          <div key={s.label} style={{ ...card, padding: isMobile ? "12px 14px" : "16px 18px", transition: "box-shadow 0.2s, transform 0.2s" }}
             onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 28px rgba(0,0,0,0.10)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
             onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = card.boxShadow; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
           >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <span style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isMobile ? 8 : 10 }}>
+              <span style={{ font: `500 ${isMobile ? "0.65" : "0.72"}rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
+              <div style={{ width: isMobile ? 26 : 30, height: isMobile ? 26 : 30, borderRadius: 7, background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
             </div>
-            <p style={{ font: `800 1.8rem/1 ${fd}`, color: t1, marginBottom: 4 }}>{loading ? "—" : s.value}</p>
-            <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{s.sub}</p>
+            <p style={{ font: `800 ${isMobile ? "1.3" : "1.75"}rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{loading ? "—" : s.value}</p>
+            {!isMobile && <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{s.sub}</p>}
           </div>
         ))}
       </div>
@@ -858,6 +865,7 @@ export default function AlumnosPage() {
                       </button>
                     )}
                     <button onClick={() => openPagoModal(a)} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(75,107,251,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4B6BFB" }}><CreditCard size={14} /></button>
+                    <button title="Asignar Rutina" onClick={() => openRutinaModal(a)} style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(124,58,237,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#7C3AED" }}><Sparkles size={14} /></button>
                     <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4 > window.innerHeight - 180 ? rect.top - 4 : rect.bottom + 4, right: window.innerWidth - rect.right, openUp: rect.bottom + 4 > window.innerHeight - 180 }); setMenuOpenId(a.id); }} style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t3 }}><MoreVertical size={14} /></button>
                   </div>
                 </div>

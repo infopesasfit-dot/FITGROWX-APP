@@ -1,0 +1,1 @@
+ALTER TABLE gym_classes ADD COLUMN IF NOT EXISTS event_date DATE;
