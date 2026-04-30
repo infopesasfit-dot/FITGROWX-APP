@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useDeferredValue, useMemo } from "react";
 import {
   TrendingUp, CreditCard, Wallet, CheckCircle, Clock, XCircle,
   Plus, Upload, X, Smartphone, DollarSign, Building2, Settings,
@@ -149,6 +149,7 @@ export default function PagosPage() {
   const [cuentas,     setCuentas]     = useState<Cuenta[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [tab,         setTab]         = useState<"resumen" | "pendientes" | "historial" | "cuentas">("resumen");
+  const [scrollTarget, setScrollTarget] = useState<string | null>(null);
   const [validating,  setValidating]  = useState<Set<string>>(new Set());
   const [toast,       setToast]       = useState<{ msg: string; type: "ok" | "err" } | null>(null);
 
@@ -158,6 +159,7 @@ export default function PagosPage() {
   const [pagoDescripcion,  setPagoDescripcion]  = useState("");
   const [pagoMethod,       setPagoMethod]       = useState<Method>("transferencia");
   const [pagoMonto,        setPagoMonto]        = useState("");
+  const [pagoFecha,        setPagoFecha]        = useState(new Date().toISOString().slice(0, 10));
   const [pagoNotes,        setPagoNotes]        = useState("");
   const [comproFile,       setComproFile]       = useState<File | null>(null);
   const [uploading,        setUploading]        = useState(false);
@@ -167,6 +169,7 @@ export default function PagosPage() {
   const [alumnoSearch,   setAlumnoSearch]   = useState("");
   const [selectedAlumno, setSelectedAlumno] = useState<AlumnoOption | null>(null);
   const [showAlumnoList, setShowAlumnoList] = useState(false);
+  const deferredAlumnoSearch = useDeferredValue(alumnoSearch);
 
   const fileRef    = useRef<HTMLInputElement>(null);
   const alumnoRef  = useRef<HTMLDivElement>(null);
@@ -176,8 +179,23 @@ export default function PagosPage() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const updatePagosCache = useCallback((updater: (current: Pago[]) => Pago[]) => {
+    setPagos(prev => {
+      const next = updater(prev);
+      if (gymId) {
+        const cached = getPageCache<{ pagos: Pago[]; cuentas: Cuenta[]; alumnos: AlumnoOption[] }>(`pagos_${gymId}`);
+        setPageCache(`pagos_${gymId}`, {
+          pagos: next,
+          cuentas: cached?.cuentas ?? cuentas,
+          alumnos: cached?.alumnos ?? alumnos,
+        });
+      }
+      return next;
+    });
+  }, [gymId, cuentas, alumnos]);
+
   // ── Renovar membresía del alumno al confirmar pago ────────────────────────
-  const renewMembership = async (alumnoId: string) => {
+  const renewMembership = async (alumnoId: string, paymentDate: string) => {
     const { data: alumno } = await supabase
       .from("alumnos")
       .select("plan_id, next_expiration_date, planes(periodo)")
@@ -193,10 +211,11 @@ export default function PagosPage() {
 
     const periodo = getPlanPeriodo(alumno.planes) ?? "mensual";
 
-    // Extender desde el vencimiento actual si no venció; si no, desde hoy
-    const base = alumno.next_expiration_date && new Date(alumno.next_expiration_date) > new Date()
+    // Extender desde el vencimiento actual si no venció; si no, desde la fecha registrada del pago
+    const paymentBaseDate = new Date(`${paymentDate}T12:00:00`);
+    const base = alumno.next_expiration_date && new Date(alumno.next_expiration_date) > paymentBaseDate
       ? new Date(alumno.next_expiration_date)
-      : new Date();
+      : paymentBaseDate;
 
     let newExpiry: string;
     if (PERIOD_MONTHS[periodo]) {
@@ -208,6 +227,7 @@ export default function PagosPage() {
 
     await supabase.from("alumnos").update({
       status: "activo",
+      last_payment_date: paymentDate,
       next_expiration_date: newExpiry,
     }).eq("id", alumnoId);
   };
@@ -289,6 +309,14 @@ export default function PagosPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    if (!scrollTarget) return;
+    const element = document.getElementById(scrollTarget);
+    if (!element) return;
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+    setScrollTarget(null);
+  }, [scrollTarget, tab]);
+
   // Derived
   const validados  = pagos.filter(p => p.status === "validado");
   const pendientes = pagos.filter(p => p.status === "pendiente");
@@ -299,6 +327,12 @@ export default function PagosPage() {
   const mpTotal     = byMethod("mercadopago");
   const debitTotal  = byMethod("debito");
   const maxMethod   = Math.max(cashTotal, transTotal, mpTotal, debitTotal, 1);
+  const filteredAlumnos = useMemo(
+    () => alumnos
+      .filter(a => a.full_name.toLowerCase().includes(deferredAlumnoSearch.toLowerCase()))
+      .slice(0, 12),
+    [alumnos, deferredAlumnoSearch],
+  );
 
   const validarPago = async (pagoId: string) => {
     setValidating(prev => new Set(prev).add(pagoId));
@@ -309,14 +343,14 @@ export default function PagosPage() {
       // Renovar membresía del alumno
       const pago = pagos.find(p => p.id === pagoId);
       if (pago) {
-        await renewMembership(pago.alumno_id);
+        await renewMembership(pago.alumno_id, pago.date);
         fetch("/api/alumno/send-welcome", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ alumno_id: pago.alumno_id, type: "renewal" }),
         }).catch(() => {});
       }
-      setPagos(prev => prev.map(p => p.id === pagoId ? { ...p, status: "validado" as PagoStatus } : p));
+      updatePagosCache(prev => prev.map(p => p.id === pagoId ? { ...p, status: "validado" as PagoStatus } : p));
       showToast("Transferencia validada ✓", "ok");
     } finally {
       setValidating(prev => { const s = new Set(prev); s.delete(pagoId); return s; });
@@ -328,7 +362,7 @@ export default function PagosPage() {
     try {
       const { error } = await supabase.from("pagos").update({ status: "rechazado" }).eq("id", pagoId);
       if (error) { showToast(`Error: ${error.message}`, "err"); return; }
-      setPagos(prev => prev.map(p => p.id === pagoId ? { ...p, status: "rechazado" as PagoStatus } : p));
+      updatePagosCache(prev => prev.map(p => p.id === pagoId ? { ...p, status: "rechazado" as PagoStatus } : p));
       showToast("Pago rechazado.", "err");
     } finally {
       setValidating(prev => { const s = new Set(prev); s.delete(pagoId); return s; });
@@ -338,6 +372,7 @@ export default function PagosPage() {
   const closePagoModal = () => {
     setNewPagoOpen(false);
     setPagoConcepto("membresia"); setPagoDescripcion("");
+    setPagoFecha(new Date().toISOString().slice(0, 10));
     setPagoMonto(""); setPagoNotes(""); setComproFile(null);
     setSelectedAlumno(null); setAlumnoSearch(""); setShowAlumnoList(false);
   };
@@ -370,7 +405,7 @@ export default function PagosPage() {
       }
 
       const needsValidation = pagoMethod === "transferencia";
-      const { error } = await supabase.from("pagos").insert([{
+      const { data: insertedPago, error } = await supabase.from("pagos").insert([{
         gym_id:          gymId,
         alumno_id:       alumnoId,
         amount:          monto,
@@ -380,8 +415,8 @@ export default function PagosPage() {
         descripcion:     pagoDescripcion.trim() || null,
         comprobante_url: comprUrl,
         notes:           pagoNotes.trim() || null,
-        date:            new Date().toISOString().slice(0, 10),
-      }]);
+        date:            pagoFecha,
+      }]).select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)").single();
       if (error) { showToast(`Error: ${error.message}`, "err"); return; }
 
       // Notificación: pago registrado
@@ -400,16 +435,26 @@ export default function PagosPage() {
       // Renovar membresía solo si el concepto es membresía
       if (pagoConcepto === "membresia") {
         await updateMembresiaPagada(alumnoId);
-        if (!needsValidation) await renewMembership(alumnoId);
+        if (!needsValidation) await renewMembership(alumnoId, pagoFecha);
+      }
+      if (insertedPago) {
+        updatePagosCache(prev => [mapPagoRow(insertedPago as PagoRow), ...prev].slice(0, 100));
       }
       showToast(needsValidation ? "Comprobante enviado. Esperá la validación ✓" : "Pago registrado ✓", "ok");
       closePagoModal();
-      fetchAll();
     } finally { setUploading(false); }
   };
 
   const isAdmin = role === "admin";
   const isStaff = role === "staff";
+
+  const jumpToSection = (
+    nextTab: "resumen" | "pendientes" | "historial" | "cuentas",
+    targetId: string,
+  ) => {
+    setTab(nextTab);
+    setScrollTarget(targetId);
+  };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
@@ -466,18 +511,64 @@ export default function PagosPage() {
         {/* KPI row */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 14 }}>
           {[
-            { label: "Ingresos del Mes",           value: loading ? "—" : fmtARS(totalMes),           icon: <TrendingUp size={16} color="white" />, sub: `${validados.length} pagos validados` },
-            { label: "Transferencias Pendientes",  value: loading ? "—" : String(pendientes.length),  icon: <Clock size={16} color="white" />,      sub: pendientes.length > 0 ? "Requieren validación" : "Todo al día ✓", warn: pendientes.length > 0 },
-            { label: "Cuentas Activas",            value: loading ? "—" : String(cuentas.length),     icon: <CreditCard size={16} color="white" />, sub: "CBU / Alias / MP" },
+            {
+              label: "Ingresos del Mes",
+              value: loading ? "—" : fmtARS(totalMes),
+              icon: <TrendingUp size={16} color="white" />,
+              sub: `${validados.length} pagos validados`,
+              action: () => jumpToSection("resumen", "pagos-resumen"),
+            },
+            {
+              label: "Transferencias Pendientes",
+              value: loading ? "—" : String(pendientes.length),
+              icon: <Clock size={16} color="white" />,
+              sub: pendientes.length > 0 ? "Requieren validación" : "Todo al día ✓",
+              warn: pendientes.length > 0,
+              action: () => jumpToSection("pendientes", "pagos-pendientes"),
+            },
+            {
+              label: "Cuentas Activas",
+              value: loading ? "—" : String(cuentas.length),
+              icon: <CreditCard size={16} color="white" />,
+              sub: "CBU / Alias / MP",
+              action: () => jumpToSection("cuentas", "pagos-cuentas"),
+            },
           ].map(s => (
-            <div key={s.label} style={{ ...card, padding: "16px 18px", border: `1px solid ${s.warn ? "rgba(217,119,6,0.25)" : "rgba(0,0,0,0.05)"}` }}>
+            <button
+              key={s.label}
+              type="button"
+              onClick={s.action}
+              style={{
+                ...card,
+                padding: "16px 18px",
+                border: `1px solid ${s.warn ? "rgba(217,119,6,0.25)" : "rgba(0,0,0,0.05)"}`,
+                textAlign: "left",
+                cursor: "pointer",
+                transition: "transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease",
+              }}
+              onMouseEnter={(event) => {
+                event.currentTarget.style.transform = "translateY(-2px)";
+                event.currentTarget.style.boxShadow = "0 10px 24px rgba(15,23,42,0.10)";
+                event.currentTarget.style.borderColor = s.warn ? "rgba(217,119,6,0.34)" : "rgba(37,99,235,0.16)";
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.style.transform = "translateY(0)";
+                event.currentTarget.style.boxShadow = card.boxShadow as string;
+                event.currentTarget.style.borderColor = s.warn ? "rgba(217,119,6,0.25)" : "rgba(0,0,0,0.05)";
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <span style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
                 <div style={{ width: 30, height: 30, borderRadius: 8, background: "#151515", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
               </div>
               <p style={{ font: `800 1.8rem/1 ${fd}`, color: s.warn ? "#D97706" : t1, marginBottom: 4 }}>{s.value}</p>
-              <p style={{ font: `400 0.72rem/1 ${fb}`, color: s.warn ? "#D97706" : t3 }}>{s.sub}</p>
-            </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                <p style={{ font: `400 0.72rem/1 ${fb}`, color: s.warn ? "#D97706" : t3 }}>{s.sub}</p>
+                <span style={{ font: `700 0.7rem/1 ${fb}`, color: s.warn ? "#B45309" : BLUE, whiteSpace: "nowrap" }}>
+                  Ver detalle
+                </span>
+              </div>
+            </button>
           ))}
         </div>
 
@@ -511,7 +602,7 @@ export default function PagosPage() {
 
         {/* ── TAB: RESUMEN ── */}
         {tab === "resumen" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div id="pagos-resumen" style={{ display: "flex", flexDirection: "column", gap: 14, scrollMarginTop: 110 }}>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
               {(["efectivo", "transferencia", "mercadopago", "debito"] as Method[]).map(m => {
                 const meta  = METHOD_META[m];
@@ -564,7 +655,7 @@ export default function PagosPage() {
 
         {/* ── TAB: PENDIENTES ── */}
         {tab === "pendientes" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div id="pagos-pendientes" style={{ display: "flex", flexDirection: "column", gap: 12, scrollMarginTop: 110 }}>
             {pendientes.length === 0 ? (
               <div style={{ ...card, padding: "48px 28px", textAlign: "center" }}>
                 <CheckCircle size={40} color={GREEN} style={{ margin: "0 auto 14px" }} />
@@ -621,7 +712,7 @@ export default function PagosPage() {
 
         {/* ── TAB: HISTORIAL ── */}
         {tab === "historial" && !isMobile && (
-          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+          <div id="pagos-historial" style={{ ...card, padding: 0, overflow: "hidden", scrollMarginTop: 110 }}>
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "12px 20px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
               {["Alumno", "Fecha", "Método", "Estado", "Monto"].map(h => (
                 <span key={h} style={{ font: `600 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</span>
@@ -650,7 +741,7 @@ export default function PagosPage() {
         )}
 
         {tab === "historial" && isMobile && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div id="pagos-historial" style={{ display: "flex", flexDirection: "column", gap: 10, scrollMarginTop: 110 }}>
             {loading ? (
               <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Cargando...</p>
             ) : pagos.length === 0 ? (
@@ -679,7 +770,7 @@ export default function PagosPage() {
 
         {/* ── TAB: CUENTAS ── */}
         {tab === "cuentas" && isAdmin && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div id="pagos-cuentas" style={{ display: "flex", flexDirection: "column", gap: 12, scrollMarginTop: 110 }}>
             {cuentas.length === 0 ? (
               /* ── Estado vacío ── */
               <div style={{ ...card, padding: "52px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" as const }}>
@@ -818,10 +909,7 @@ export default function PagosPage() {
                   )}
                   {showAlumnoList && !selectedAlumno && (
                     <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", zIndex: 10, maxHeight: 200, overflowY: "auto" as const }}>
-                      {alumnos
-                        .filter(a => a.full_name.toLowerCase().includes(alumnoSearch.toLowerCase()))
-                        .slice(0, 12)
-                        .map(a => (
+                      {filteredAlumnos.map(a => (
                           <button
                             key={a.id}
                             onMouseDown={() => { setSelectedAlumno(a); setAlumnoSearch(""); setShowAlumnoList(false); }}
@@ -836,7 +924,7 @@ export default function PagosPage() {
                           </button>
                         ))
                       }
-                      {alumnos.filter(a => a.full_name.toLowerCase().includes(alumnoSearch.toLowerCase())).length === 0 && (
+                      {filteredAlumnos.length === 0 && (
                         <p style={{ padding: "14px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>Sin resultados</p>
                       )}
                     </div>
@@ -866,6 +954,19 @@ export default function PagosPage() {
                   <input type="number" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="0"
                     style={{ ...inputStyle, paddingLeft: 28, font: `700 1.1rem/1 ${fd}` }} />
                 </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>Fecha del pago</label>
+                <input
+                  type="date"
+                  value={pagoFecha}
+                  onChange={e => setPagoFecha(e.target.value)}
+                  style={{ ...inputStyle, font: `500 0.88rem/1 ${fb}` }}
+                />
+                <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 5 }}>
+                  Empieza con hoy, pero podés corregirla para registrar pagos anteriores.
+                </p>
               </div>
 
               {/* Comprobante */}

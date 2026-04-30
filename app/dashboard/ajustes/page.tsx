@@ -7,12 +7,14 @@ import {
   AlertTriangle,
   Building2,
   ChevronRight,
+  Copy,
   CreditCard,
   ImagePlus,
   Camera,
   Loader2,
   Lock,
   Mail,
+  MessageCircle,
   RefreshCw,
   Save,
   Smartphone,
@@ -196,7 +198,17 @@ function AjustesContent() {
   const [staffSaving, setStaffSaving] = useState(false);
   const [staffError, setStaffError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [staffAccessInfo, setStaffAccessInfo] = useState<{ email: string; password: string; loginUrl: string } | null>(null);
+  const [staffAccessCopied, setStaffAccessCopied] = useState(false);
   const [hasMercadoPagoLink, setHasMercadoPagoLink] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   useEffect(() => {
     setActiveTab(normalizeTab(searchTab));
@@ -373,11 +385,59 @@ function AjustesContent() {
       ...prev,
       { id: data.id, email: staffEmail.trim(), full_name: staffName.trim() || null },
     ]);
+    setStaffAccessInfo({
+      email: staffEmail.trim(),
+      password: staffPassword,
+      loginUrl: typeof window !== "undefined" ? `${window.location.origin}/start?login=1` : "/start?login=1",
+    });
+    setStaffAccessCopied(false);
     setStaffEmail("");
     setStaffPassword("");
     setStaffName("");
     setStaffSaving(false);
     setStaffModalOpen(false);
+  };
+
+  const handleCopyStaffAccess = async () => {
+    if (!staffAccessInfo) return;
+    const accessText = [
+      "Acceso staff FitGrowX",
+      `Ingresar desde: ${staffAccessInfo.loginUrl}`,
+      `Email: ${staffAccessInfo.email}`,
+      `Contraseña: ${staffAccessInfo.password}`,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(accessText);
+      setStaffAccessCopied(true);
+      window.setTimeout(() => setStaffAccessCopied(false), 1800);
+    } catch {
+      setStaffAccessCopied(false);
+    }
+  };
+
+  const buildStaffAccessText = (access: { email: string; password: string; loginUrl: string }) =>
+    [
+      "Hola. Ya está lista tu cuenta de staff en FitGrowX.",
+      "",
+      `Ingresá desde: ${access.loginUrl}`,
+      `Email: ${access.email}`,
+      `Contraseña inicial: ${access.password}`,
+      "",
+      "Una vez dentro, podés cambiar la contraseña si querés.",
+    ].join("\n");
+
+  const handleShareStaffByWhatsApp = () => {
+    if (!staffAccessInfo) return;
+    const text = buildStaffAccessText(staffAccessInfo);
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const handleShareStaffByEmail = () => {
+    if (!staffAccessInfo) return;
+    const subject = "Tu acceso de staff a FitGrowX";
+    const body = buildStaffAccessText(staffAccessInfo);
+    window.location.href = `mailto:${encodeURIComponent(staffAccessInfo.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const handleDeleteStaff = async (id: string) => {
@@ -589,8 +649,8 @@ function AjustesContent() {
                 </button>
               }
             >
-              <div style={{ display: "grid", gap: 22 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 240px", gap: 18 }}>
+              <div style={{ display: "grid", gap: isMobile ? 18 : 22 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 240px", gap: 18 }}>
                   <div style={{ display: "grid", gap: 16 }}>
                     <Field label="Nombre del gimnasio">
                       <input value={gymName} onChange={(event) => setGymName(event.target.value)} style={inputStyle} />
@@ -613,9 +673,9 @@ function AjustesContent() {
                     </Field>
                   </div>
 
-                  <div style={{ padding: "18px", borderRadius: 18, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "grid", gap: 12, alignContent: "start" }}>
+                  <div style={{ padding: "18px", borderRadius: 18, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "grid", gap: 12, alignContent: "start", justifyItems: isMobile ? "stretch" : "start" }}>
                     <p style={{ font: `700 0.8rem/1 ${fd}`, color: t1 }}>Logo del gimnasio</p>
-                    <div style={{ width: 88, height: 88, borderRadius: 20, border: "1px dashed rgba(15,23,42,0.12)", background: "white", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    <div style={{ width: 88, height: 88, borderRadius: 20, border: "1px dashed rgba(15,23,42,0.12)", background: "white", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", justifySelf: isMobile ? "center" : "start" }}>
                       {activeLogoSrc ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={activeLogoSrc} alt="Logo preview" style={{ maxWidth: "84%", maxHeight: "84%", objectFit: "contain" }} />
@@ -624,7 +684,7 @@ function AjustesContent() {
                       )}
                     </div>
 
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, width: "100%" }}>
                       <label
                         htmlFor="logo-file-input"
                         style={{
@@ -737,7 +797,7 @@ function AjustesContent() {
                     </div>
                   )
                 ) : (
-                  <div style={{ padding: "18px", borderRadius: 18, background: "linear-gradient(135deg, #F8FAFC 0%, #EEF4FF 100%)", border: "1px dashed rgba(37,99,235,0.18)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                    <div style={{ padding: "18px", borderRadius: 18, background: "linear-gradient(135deg, #F8FAFC 0%, #EEF4FF 100%)", border: "1px dashed rgba(37,99,235,0.18)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
                     <div>
                       <p style={{ font: `800 0.92rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Branding incluido en Full Marca</p>
                       <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, maxWidth: 460 }}>
@@ -869,7 +929,7 @@ function AjustesContent() {
                       background: "#F8FAFC",
                       border: "1px solid rgba(15,23,42,0.06)",
                       display: "grid",
-                      gridTemplateColumns: "44px minmax(0, 1fr) auto",
+                      gridTemplateColumns: isMobile ? "44px minmax(0, 1fr)" : "44px minmax(0, 1fr) auto",
                       gap: 14,
                       alignItems: "center",
                     }}
@@ -886,7 +946,7 @@ function AjustesContent() {
                       </div>
                       <p style={{ font: `400 0.76rem/1.45 ${fb}`, color: t2 }}>{item.description}</p>
                     </div>
-                    <div>{item.action}</div>
+                    <div style={{ gridColumn: isMobile ? "1 / -1" : undefined }}>{item.action}</div>
                   </div>
                 ))}
               </div>
@@ -909,7 +969,7 @@ function AjustesContent() {
             <SectionCard
               icon={<Users size={18} color="white" />}
               title="Quién puede entrar"
-              desc="Agregá staff para que te ayuden a registrar asistencias y alumnos."
+              desc="Creá cuentas de staff para recepción o entrenadores. Cada miembro entra con su propio email y contraseña desde el mismo botón Entrar."
               actions={
                 <button
                   onClick={() => { setStaffError(null); setStaffModalOpen(true); }}
@@ -932,13 +992,139 @@ function AjustesContent() {
                 </button>
               }
             >
+              <div
+                style={{
+                  marginBottom: 14,
+                  padding: "14px 16px",
+                  borderRadius: 18,
+                  background: "linear-gradient(180deg, rgba(37,99,235,0.06), rgba(37,99,235,0.03))",
+                  border: "1px solid rgba(37,99,235,0.14)",
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                  <div>
+                    <p style={{ font: `800 0.84rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Cómo entra el staff</p>
+                    <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2 }}>
+                      1. Creás el usuario acá. 2. Le compartís email y contraseña. 3. Ingresa desde <span style={{ color: ACCENT, fontWeight: 700 }}>Entrar</span> en <span style={{ color: ACCENT, fontWeight: 700 }}>/start?login=1</span>.
+                    </p>
+                  </div>
+                  <Link
+                    href="/start?login=1"
+                    target="_blank"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "10px 12px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(37,99,235,0.16)",
+                      background: "white",
+                      color: ACCENT_DARK,
+                      font: `800 0.78rem/1 ${fd}`,
+                      textDecoration: "none",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Ver acceso staff
+                    <ChevronRight size={14} />
+                  </Link>
+                </div>
+                {staffAccessInfo && (
+                  <div
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: 16,
+                      background: "white",
+                      border: "1px solid rgba(37,99,235,0.12)",
+                      display: "grid",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                      <p style={{ font: `800 0.79rem/1 ${fd}`, color: t1 }}>Último acceso creado</p>
+                      <button
+                        onClick={handleCopyStaffAccess}
+                        type="button"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 7,
+                          padding: "9px 12px",
+                          borderRadius: 12,
+                          border: "1px solid rgba(15,23,42,0.08)",
+                          background: staffAccessCopied ? "rgba(22,163,74,0.08)" : "#F8FAFC",
+                          color: staffAccessCopied ? "#166534" : t2,
+                          font: `700 0.76rem/1 ${fd}`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Copy size={13} />
+                        {staffAccessCopied ? "Copiado" : "Copiar acceso"}
+                      </button>
+                    </div>
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <p style={{ font: `400 0.76rem/1.45 ${fb}`, color: t2 }}>
+                        <span style={{ color: t1, fontWeight: 700 }}>Ingreso:</span> {staffAccessInfo.loginUrl}
+                      </p>
+                      <p style={{ font: `400 0.76rem/1.45 ${fb}`, color: t2 }}>
+                        <span style={{ color: t1, fontWeight: 700 }}>Email:</span> {staffAccessInfo.email}
+                      </p>
+                      <p style={{ font: `400 0.76rem/1.45 ${fb}`, color: t2 }}>
+                        <span style={{ color: t1, fontWeight: 700 }}>Contraseña inicial:</span> {staffAccessInfo.password}
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        onClick={handleShareStaffByWhatsApp}
+                        type="button"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "9px 12px",
+                          borderRadius: 12,
+                          border: "1px solid rgba(22,163,74,0.14)",
+                          background: "rgba(22,163,74,0.06)",
+                          color: "#166534",
+                          font: `700 0.76rem/1 ${fd}`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <MessageCircle size={13} />
+                        Enviar por WhatsApp
+                      </button>
+                      <button
+                        onClick={handleShareStaffByEmail}
+                        type="button"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "9px 12px",
+                          borderRadius: 12,
+                          border: "1px solid rgba(37,99,235,0.14)",
+                          background: "rgba(37,99,235,0.06)",
+                          color: ACCENT_DARK,
+                          font: `700 0.76rem/1 ${fd}`,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Mail size={13} />
+                        Enviar por email
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
               {staffLoading ? (
                 <p style={{ font: `400 0.84rem/1.4 ${fb}`, color: t3 }}>Cargando equipo...</p>
               ) : staffList.length === 0 ? (
                 <div style={{ padding: "24px 20px", borderRadius: 18, background: "#F8FAFC", border: "1px dashed rgba(15,23,42,0.10)" }}>
                   <p style={{ font: `800 0.92rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Todavía no agregaste miembros de staff</p>
                   <p style={{ font: `400 0.8rem/1.5 ${fb}`, color: t2 }}>
-                    Creá cuentas para recepción o entrenadores. Van a poder ver alumnos, clases y asistencias.
+                    Creá cuentas para recepción o entrenadores. Después entran desde el login general con su email y contraseña.
                   </p>
                 </div>
               ) : (
@@ -960,7 +1146,7 @@ function AjustesContent() {
                           flexWrap: "wrap",
                         }}
                       >
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                           <div
                             style={{
                               width: 40,
@@ -977,9 +1163,9 @@ function AjustesContent() {
                           >
                             {getInitials(displayName)}
                           </div>
-                          <div>
+                          <div style={{ minWidth: 0 }}>
                             <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1 }}>{member.full_name ?? "Staff"}</p>
-                            <p style={{ font: `400 0.76rem/1.4 ${fb}`, color: t3, marginTop: 3 }}>{member.email}</p>
+                            <p style={{ font: `400 0.76rem/1.4 ${fb}`, color: t3, marginTop: 3, overflowWrap: "anywhere" }}>{member.email}</p>
                           </div>
                         </div>
 
@@ -1104,7 +1290,7 @@ function AjustesContent() {
                 </p>
                 <h3 style={{ font: `900 1.2rem/1 ${fd}`, color: t1, marginBottom: 8 }}>Agregar miembro del equipo</h3>
                 <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: t2 }}>
-                  Creá una cuenta para recepción o entrenadores. Tendrán acceso solo a alumnos, clases y asistencias.
+                  Creá una cuenta para recepción o entrenadores. Después entra desde <span style={{ color: ACCENT, fontWeight: 700 }}>/start?login=1</span> con este email y contraseña.
                 </p>
               </div>
               <button
@@ -1124,7 +1310,7 @@ function AjustesContent() {
                 <input type="email" value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder="staff@gym.com" style={inputStyle} />
               </Field>
 
-              <Field label="Contraseña" hint="Mínimo 6 caracteres. Podés compartirla y luego cambiarla.">
+              <Field label="Contraseña" hint="Mínimo 6 caracteres. Esta es la clave inicial que le vas a compartir para que entre.">
                 <input type="password" value={staffPassword} onChange={(event) => setStaffPassword(event.target.value)} placeholder="********" style={inputStyle} />
               </Field>
 

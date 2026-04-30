@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
   Users, CreditCard, AlertCircle, TrendingDown,
   ArrowUpRight, ArrowDownRight, Send, Target,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getPlanNombre, getRelationRecord } from "@/lib/supabase-relations";
-import { getCachedProfile } from "@/lib/gym-cache";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const accent = "#FF6A00";
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -29,6 +29,20 @@ interface EgresoMontoRow { monto: number | null; }
 interface CreatedAtRow { created_at: string; }
 interface PlanPrecioRow { planes: unknown; }
 interface PlanNombreRow { planes: unknown; }
+interface DashboardSnapshot {
+  activosCount: number;
+  totalCount: number;
+  ingresoProyectado: number;
+  gastosTotal: number;
+  churnCount: number;
+  recientes: RecenteAlumno[];
+  captacion5: number[];
+  planDist: PlanDist[];
+  prospectos: number;
+  asistDiarias: { fecha: string; count: number }[];
+  asistHoras: number[];
+  asistHoy: number;
+}
 
 function initials(name: string) {
   if (!name) return "?";
@@ -103,6 +117,7 @@ function buildDonutSegments(slices: { value: number; color: string }[]) {
 }
 
 export default function DashboardPage() {
+  const months5 = useMemo(() => last5Months(), []);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<DateFilter>("mes");
   const gymIdRef = useRef<string | null>(null);
@@ -128,7 +143,22 @@ export default function DashboardPage() {
   const [asistHoras,        setAsistHoras]        = useState<number[]>(Array(24).fill(0));
   const [asistHoy,          setAsistHoy]          = useState(0);
 
-  const fetchData = async (filter: DateFilter) => {
+  const applySnapshot = useCallback((snapshot: DashboardSnapshot) => {
+    setActivosCount(snapshot.activosCount);
+    setTotalCount(snapshot.totalCount);
+    setIngresoProyectado(snapshot.ingresoProyectado);
+    setGastosTotal(snapshot.gastosTotal);
+    setChurnCount(snapshot.churnCount);
+    setRecientes(snapshot.recientes);
+    setCaptacion5(snapshot.captacion5);
+    setPlanDist(snapshot.planDist);
+    setProspectos(snapshot.prospectos);
+    setAsistDiarias(snapshot.asistDiarias);
+    setAsistHoras(snapshot.asistHoras);
+    setAsistHoy(snapshot.asistHoy);
+  }, []);
+
+  const fetchData = useCallback(async (filter: DateFilter) => {
     setLoading(true);
     let gym_id = gymIdRef.current;
     if (!gym_id) {
@@ -137,12 +167,20 @@ export default function DashboardPage() {
       gym_id = profile.gymId;
       gymIdRef.current = gym_id;
     }
+    const cacheKey = `dashboard_${gym_id}_${filter}`;
+    const cached = getPageCache<DashboardSnapshot>(cacheKey);
+    if (cached) {
+      applySnapshot(cached);
+      setLoading(false);
+    }
 
     const { from, to } = getDateRange(filter);
     const today = new Date();
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(today.getDate() - 30);
     const thirtyStr = thirtyDaysAgo.toISOString().slice(0, 10);
+
+    const oldestMonthKey = months5[0]?.key ? `${months5[0].key}-01` : undefined;
 
     const [
       { count: total },
@@ -154,74 +192,80 @@ export default function DashboardPage() {
       { count: churn },
       { data: activosConNombrePlan },
       { count: prospectosPendientes },
+      statsRes,
     ] = await Promise.all([
       supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gym_id),
       supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gym_id).eq("status", "activo"),
-      supabase.from("alumnos").select("created_at").eq("gym_id", gym_id),
+      supabase.from("alumnos").select("created_at").eq("gym_id", gym_id).gte("created_at", oldestMonthKey ?? "1900-01-01"),
       supabase.from("egresos").select("monto").eq("gym_id", gym_id).gte("fecha", from).lte("fecha", to),
       supabase.from("alumnos").select("id, full_name, created_at").eq("gym_id", gym_id).order("created_at", { ascending: false }).limit(4),
       supabase.from("alumnos").select("planes!plan_id(precio)").eq("gym_id", gym_id).eq("status", "activo"),
       supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gym_id).in("status", ["inactivo", "vencido"]).gte("next_expiration_date", thirtyStr),
       supabase.from("alumnos").select("planes!plan_id(nombre)").eq("gym_id", gym_id).eq("status", "activo"),
       supabase.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", gym_id).eq("status", "pendiente"),
+      fetch(`/api/admin/asistencias-stats?gym_id=${gym_id}`).then(async (r) => {
+        if (!r.ok) return null;
+        return r.json() as Promise<{
+          dailyCounts?: { fecha: string; count: number }[];
+          hourlyCounts?: number[];
+          todayCount?: number;
+        }>;
+      }).catch(() => null),
     ] as const);
-
-    setTotalCount(total ?? 0);
-    setActivosCount(activos ?? 0);
     const proyectado = (activosConPlan ?? []).reduce((sum, row) => {
       const plan = getRelationRecord((row as PlanPrecioRow).planes);
       return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
     }, 0);
-    setIngresoProyectado(proyectado);
-    setGastosTotal((egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0));
-    setChurnCount(churn ?? 0);
-    setRecientes((recientesData ?? []) as RecenteAlumno[]);
-    setProspectos(prospectosPendientes ?? 0);
 
-    const months = last5Months();
     const captMap: Record<string, number> = {};
     (todasCreatedAt ?? []).forEach((row) => {
       const m = (row as CreatedAtRow).created_at.slice(0, 7);
       captMap[m] = (captMap[m] || 0) + 1;
     });
-    setCaptacion5(months.map(m => captMap[m.key] || 0));
+    const nextCaptacion5 = months5.map(m => captMap[m.key] || 0);
 
     const planMap: Record<string, number> = {};
     (activosConNombrePlan ?? []).forEach((row) => {
       const nombre = getPlanNombre((row as PlanNombreRow).planes) ?? "Sin plan";
       planMap[nombre] = (planMap[nombre] || 0) + 1;
     });
-    const dist = Object.entries(planMap)
+    const nextPlanDist = Object.entries(planMap)
       .sort((a, b) => b[1] - a[1])
       .map(([nombre, count]) => ({ nombre, count }));
-    setPlanDist(dist);
 
-    // Fetch attendance stats in background (non-blocking)
-    fetch(`/api/admin/asistencias-stats`)
-      .then(r => r.json())
-      .then(d => {
-        setAsistDiarias((d.dailyCounts ?? []).slice(-14));
-        setAsistHoras(d.hourlyCounts ?? Array(24).fill(0));
-        setAsistHoy(d.todayCount ?? 0);
-      })
-      .catch(() => {});
+    const snapshot: DashboardSnapshot = {
+      activosCount: activos ?? 0,
+      totalCount: total ?? 0,
+      ingresoProyectado: proyectado,
+      gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
+      churnCount: churn ?? 0,
+      recientes: (recientesData ?? []) as RecenteAlumno[],
+      captacion5: nextCaptacion5,
+      planDist: nextPlanDist,
+      prospectos: prospectosPendientes ?? 0,
+      asistDiarias: (statsRes?.dailyCounts ?? []).slice(-14),
+      asistHoras: statsRes?.hourlyCounts ?? Array(24).fill(0),
+      asistHoy: statsRes?.todayCount ?? 0,
+    };
+
+    applySnapshot(snapshot);
+    setPageCache(cacheKey, snapshot);
 
     setLoading(false);
-  };
+  }, [months5, applySnapshot]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       void fetchData(dateFilter);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [dateFilter]);
+  }, [dateFilter, fetchData]);
 
   const sinEgresos  = gastosTotal === 0;
   const balanceNeto = sinEgresos ? ingresoProyectado : ingresoProyectado - gastosTotal;
   const churnRate   = activosCount > 0 ? (churnCount / activosCount) * 100 : 0;
   const churnColor  = churnRate <= 5 ? "#FF6A00" : churnRate <= 9 ? "#EAB308" : "#EF4444";
   const churnLabel  = churnRate <= 5 ? "Excelente retención" : churnRate <= 9 ? "Revisar servicio" : "Crítico: fuga";
-  const months5     = last5Months();
   const hasCapt     = captacion5.some(v => v > 0);
   const { line: captLine, area: captArea } = captacionPath(captacion5);
 

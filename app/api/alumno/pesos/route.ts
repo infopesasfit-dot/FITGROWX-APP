@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const supabase = getSupabaseAdminClient();
@@ -29,8 +30,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
   }
 
-  const { error } = await supabase.from("progreso_pesos").insert({ alumno_id, gym_id, ejercicio, peso: Number(peso), notas: notas ?? null, fecha: new Date().toISOString().slice(0, 10) });
+  const { data, error } = await supabase
+    .from("progreso_pesos")
+    .insert({
+      alumno_id,
+      gym_id,
+      ejercicio,
+      peso: Number(peso),
+      notas: notas ?? null,
+      fecha: getTodayDate(),
+    })
+    .select("id, ejercicio, peso, fecha, notas")
+    .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, peso: data });
 }

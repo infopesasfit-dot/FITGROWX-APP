@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Calendar, Dumbbell, User, Target } from "lucide-react";
 
@@ -88,6 +88,7 @@ export default function AlumnoPanelPage() {
   const [checkinResult, setCheckinResult] = useState<{ ok: boolean; already?: boolean; full_name?: string; hora?: string; error?: string } | null>(null);
   const [asistFechas,  setAsistFechas]  = useState<string[]>([]);
   const [asistCount,   setAsistCount]   = useState(0);
+  const [isCompactScreen, setIsCompactScreen] = useState(false);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -115,22 +116,38 @@ export default function AlumnoPanelPage() {
       .catch(() => {});
   }, [router]);
 
-  const fetchClases = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/clases?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}`, {
-      headers: { Authorization: `Bearer ${s.token}` },
-    });
-    const d = await r.json();
-    setClases(d.clases ?? []);
-    setReservas(d.reservas ?? []);
-    setCountsMap(d.counts_map ?? {});
+  useEffect(() => {
+    const check = () => setIsCompactScreen(window.innerWidth <= 430);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
-  const fetchRutina = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/rutina?alumno_id=${s.alumno_id}`, {
+  const fetchBootstrap = useCallback(async (s: Session, includeTraining = false) => {
+    const suffix = includeTraining ? "&include=training" : "";
+    const r = await fetch(`/api/alumno/bootstrap?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}${suffix}`, {
       headers: { Authorization: `Bearer ${s.token}` },
     });
     const d = await r.json();
-    setRutina(d.rutina);
+    if (d.clases) setClases(d.clases);
+    if (d.reservas) setReservas(d.reservas);
+    if (d.counts_map) setCountsMap(d.counts_map);
+    if (d.gym_info) {
+      setGymInfo({
+        gym_name: d.gym_info.gym_name,
+        logo_url: d.gym_info.logo_url,
+        accent_color: d.gym_info.accent_color,
+        plan_type: d.gym_info.plan_type ?? null,
+      });
+    }
+    if (d.asistencias) {
+      setAsistFechas(d.asistencias.fechas ?? []);
+      setAsistCount(d.asistencias.count ?? 0);
+    }
+    if (includeTraining) {
+      setRutina(d.rutina ?? null);
+      setPesos(d.pesos ?? []);
+    }
   }, []);
 
   const fetchPesos = useCallback(async (s: Session) => {
@@ -141,30 +158,23 @@ export default function AlumnoPanelPage() {
     setPesos(d.pesos ?? []);
   }, []);
 
-  const fetchGymInfo = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/gym-info?gym_id=${s.gym_id}`, {
-      headers: { Authorization: `Bearer ${s.token}` },
-    });
-    const d = await r.json();
-    setGymInfo({ gym_name: d.gym_name, logo_url: d.logo_url, accent_color: d.accent_color, plan_type: d.plan_type ?? null });
-  }, []);
-
-  const fetchAsistencias = useCallback(async (s: Session) => {
-    try {
-      const r = await fetch(`/api/alumno/asistencias?alumno_id=${s.alumno_id}`, {
-        headers: { Authorization: `Bearer ${s.token}` },
-      });
-      const d = await r.json();
-      setAsistFechas(d.fechas ?? []);
-      setAsistCount(d.count ?? 0);
-    } catch { /* ignore */ }
-  }, []);
-
   useEffect(() => {
     if (!session) return;
     setLoading(true);
-    Promise.all([fetchClases(session), fetchRutina(session), fetchPesos(session), fetchGymInfo(session), fetchAsistencias(session)]).finally(() => setLoading(false));
-  }, [session, fetchClases, fetchRutina, fetchPesos, fetchGymInfo, fetchAsistencias]);
+    fetchBootstrap(session).finally(() => setLoading(false));
+  }, [session, fetchBootstrap]);
+
+  useEffect(() => {
+    if (!session) return;
+    if (tab !== "entrenamiento" || rutina) return;
+    void fetchBootstrap(session, true);
+  }, [session, tab, rutina, fetchBootstrap]);
+
+  useEffect(() => {
+    if (!session) return;
+    if ((tab !== "entrenamiento" && tab !== "metas" && tab !== "perfil") || pesos.length > 0) return;
+    void fetchBootstrap(session, true);
+  }, [session, tab, pesos.length, fetchBootstrap]);
 
   const handleReservar = async (clase_id: string, fecha: string) => {
     if (!session) return;
@@ -202,7 +212,15 @@ export default function AlumnoPanelPage() {
         body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, ejercicio, peso: parseFloat(val), notas: null }),
       });
       const d = await res.json();
-      if (d.ok) { setInlineKg(prev => ({ ...prev, [ejercicio]: "" })); fetchPesos(session); showToast("Peso registrado!"); }
+      if (d.ok) {
+        setInlineKg(prev => ({ ...prev, [ejercicio]: "" }));
+        if (d.peso) {
+          setPesos(prev => [d.peso as Peso, ...prev].slice(0, 50));
+        } else {
+          void fetchPesos(session);
+        }
+        showToast("Peso registrado!");
+      }
       else showToast(d.error ?? "Error.", false);
     } catch {
       showToast("Error de conexion.", false);
@@ -230,7 +248,16 @@ export default function AlumnoPanelPage() {
 
   const logout = () => { localStorage.removeItem("fitgrowx_alumno"); router.replace("/alumno/login"); };
 
-  const days7 = getNext7Days();
+  const days7 = useMemo(() => getNext7Days(), []);
+  const latestPesoByExercise = useMemo(() => {
+    const map = new Map<string, Peso>();
+    for (const peso of pesos) {
+      if (!map.has(peso.ejercicio)) {
+        map.set(peso.ejercicio, peso);
+      }
+    }
+    return map;
+  }, [pesos]);
 
   if (!session) return null;
 
@@ -287,7 +314,7 @@ export default function AlumnoPanelPage() {
   const selectedDay = days7[selectedDayIdx] ?? days7[0];
 
   return (
-    <div style={{ minHeight: "100svh", background: "#0A0A0F", fontFamily: fd, paddingBottom: 110, position: "relative" }}>
+    <div style={{ minHeight: "100svh", background: "#0A0A0F", fontFamily: fd, paddingBottom: 110, position: "relative", overflowX: "hidden" }}>
 
       <style>{`
         @keyframes spin   { to { transform: rotate(360deg); } }
@@ -299,13 +326,17 @@ export default function AlumnoPanelPage() {
       `}</style>
 
       {/* Subtle top glow only */}
-      <div style={{ position: "fixed", top: -200, left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(255,255,255,0.03) 0%, transparent 70%)", filter: "blur(60px)", pointerEvents: "none", zIndex: 0 }} />
+      {!isCompactScreen && (
+        <div style={{ position: "fixed", top: -200, left: "50%", transform: "translateX(-50%)", width: 600, height: 400, background: "radial-gradient(ellipse, rgba(255,255,255,0.03) 0%, transparent 70%)", filter: "blur(60px)", pointerEvents: "none", zIndex: 0 }} />
+      )}
 
       {/* Grid */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
+      {!isCompactScreen && (
+        <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
+      )}
 
       {/* Header */}
-      <div style={{ position: "sticky", top: 0, zIndex: 50, backdropFilter: "blur(32px)", WebkitBackdropFilter: "blur(32px)", background: "rgba(10,10,15,0.82)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "13px 20px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 50, backdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", WebkitBackdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", background: "rgba(10,10,15,0.9)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: isCompactScreen ? "12px 16px" : "13px 20px" }}>
         <div style={{ maxWidth: 520, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {gymInfo?.plan_type === "full_marca" && gymInfo?.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -315,39 +346,59 @@ export default function AlumnoPanelPage() {
               FitGrow<span style={{ color: "#F97316" }}>X</span>
             </span>
           )}
-          <button onClick={logout} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "6px 12px", font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", cursor: "pointer", letterSpacing: "0.05em" }}>
+          <button onClick={logout} style={{ minHeight: 44, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "0 14px", font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", cursor: "pointer", letterSpacing: "0.05em" }}>
             SALIR
           </button>
         </div>
       </div>
 
       {/* Hero greeting */}
-      <div style={{ position: "relative", zIndex: 1, padding: "28px 20px 16px", maxWidth: 520, margin: "0 auto" }}>
-        <p style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.06em", marginBottom: 8 }}>
-          Bienvenido
-        </p>
-        <h1 style={{ font: `700 2.2rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.04em", marginBottom: 14 }}>
-          {session.full_name.split(" ")[0]}
-        </h1>
-        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ font: `500 0.65rem/1 ${fd}`, color: "#34D399", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.06em" }}>
-            ACTIVO
-          </span>
-          {session.plan && (
-            <span style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.08)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.04em" }}>
-              {session.plan}
-            </span>
-          )}
-          {asistCount > 0 && (
-            <span style={{ font: `600 0.65rem/1 ${fd}`, color: "#F97316", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.02em" }}>
-              {asistCount} asistencia{asistCount !== 1 ? "s" : ""} este mes 💪
-            </span>
-          )}
-        </div>
+      <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "18px 16px 10px" : "28px 20px 16px", maxWidth: 520, margin: "0 auto" }}>
+        {tab === "entrenamiento" && isCompactScreen ? (
+          <div style={{ display: "grid", gap: 8 }}>
+            <p style={{ font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Entrenamiento
+            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <h1 style={{ font: `700 1.7rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.04em" }}>
+                {session.full_name.split(" ")[0]}
+              </h1>
+              {session.plan && (
+                <span style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", padding: "6px 10px", borderRadius: 9999, maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {session.plan}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <p style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.06em", marginBottom: 8 }}>
+              Bienvenido
+            </p>
+            <h1 style={{ font: `700 ${isCompactScreen ? "1.9rem" : "2.2rem"}/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.04em", marginBottom: 14 }}>
+              {session.full_name.split(" ")[0]}
+            </h1>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ font: `500 0.65rem/1 ${fd}`, color: "#34D399", background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.15)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.06em" }}>
+                ACTIVO
+              </span>
+              {session.plan && (
+                <span style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.08)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.04em" }}>
+                  {session.plan}
+                </span>
+              )}
+              {asistCount > 0 && (
+                <span style={{ font: `600 0.65rem/1 ${fd}`, color: "#F97316", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", padding: "4px 10px", borderRadius: 9999, letterSpacing: "0.02em" }}>
+                  {asistCount} asistencia{asistCount !== 1 ? "s" : ""} este mes 💪
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Content */}
-      <div style={{ position: "relative", zIndex: 1, padding: "4px 16px 0", maxWidth: 520, margin: "0 auto" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "2px 12px 0" : "4px 16px 0", maxWidth: 520, margin: "0 auto" }}>
 
         {loading ? (
           <div style={{ textAlign: "center", paddingTop: 80 }}>
@@ -514,19 +565,30 @@ export default function AlumnoPanelPage() {
 
             {/* TAB — ENTRENAMIENTO */}
             {tab === "entrenamiento" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp 0.22s ease" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: isCompactScreen ? 10 : 8, animation: "fadeUp 0.22s ease" }}>
                 {rutina ? (() => {
                   const isWod = !!(rutina.ejercicios[0]?._meta);
                   const wodMeta = isWod ? rutina.ejercicios[0] : null;
                   const items = isWod ? rutina.ejercicios.slice(1) : rutina.ejercicios;
                   return (
                   <>
-                    <div style={{ ...gc, padding: "16px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{
+                      ...(isCompactScreen ? {
+                        background: "rgba(255,255,255,0.03)",
+                        border: "1px solid rgba(255,255,255,0.06)",
+                        borderRadius: 18,
+                      } : gc),
+                      padding: isCompactScreen ? "14px 16px" : "16px 18px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}>
                       <div>
                         <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
                           {isWod ? "Tu WOD" : "Tu rutina"}
                         </p>
-                        <h2 style={{ font: `700 1.2rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.02em" }}>{rutina.nombre}</h2>
+                        <h2 style={{ font: `700 ${isCompactScreen ? "1.04rem" : "1.2rem"}/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.02em" }}>{rutina.nombre}</h2>
                       </div>
                       {isWod && wodMeta ? (
                         <div style={{ textAlign: "right" }}>
@@ -534,18 +596,18 @@ export default function AlumnoPanelPage() {
                           <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>{wodMeta.time_cap} min</p>
                         </div>
                       ) : (
-                        <span style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.25)" }}>{items.length} ejerc.</span>
+                        <span style={{ font: `500 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.32)", flexShrink: 0 }}>{items.length} ejercicios</span>
                       )}
                     </div>
 
                     {isWod ? (
                       // WOD: lista simple de movimientos
-                      <div style={{ ...gc, padding: "14px 16px" }}>
+                      <div style={{ ...(isCompactScreen ? { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 18 } : gc), padding: "14px 16px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                           {items.map((m, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: i < items.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                              <p style={{ font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>{m.nombre}</p>
-                              <span style={{ font: `700 0.88rem/1 ${fd}`, color: "#818cf8", flexShrink: 0 }}>{m.reps}</span>
+                            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: isCompactScreen ? "12px 0" : "10px 0", borderBottom: i < items.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                              <p style={{ font: `500 ${isCompactScreen ? "0.98rem" : "0.9rem"}/1.3 ${fd}`, color: "#FFFFFF" }}>{m.nombre}</p>
+                              <span style={{ font: `700 ${isCompactScreen ? "0.95rem" : "0.88rem"}/1 ${fd}`, color: "#818cf8", flexShrink: 0 }}>{m.reps}</span>
                             </div>
                           ))}
                         </div>
@@ -553,58 +615,76 @@ export default function AlumnoPanelPage() {
                     ) : (
                       // Gym: tabla con kg tracking
                       items.map((ej, i) => {
-                        const lastPeso = pesos.filter(p => p.ejercicio === ej.nombre)[0];
+                        const lastPeso = latestPesoByExercise.get(ej.nombre);
                         const saving = !!inlineSaving[ej.nombre];
                         return (
-                          <div key={i} style={{ ...gc, padding: "15px 16px" }}>
-                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
-                              <div>
-                                <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 10 }}>{ej.nombre}</p>
-                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <div key={i} style={{
+                            ...(isCompactScreen ? {
+                              background: "rgba(255,255,255,0.03)",
+                              border: "1px solid rgba(255,255,255,0.06)",
+                              borderRadius: 18,
+                            } : gc),
+                            padding: isCompactScreen ? "16px 14px" : "15px 16px",
+                          }}>
+                            <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
+                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+                                <p style={{ font: `600 ${isCompactScreen ? "1rem" : "0.95rem"}/1.2 ${fd}`, color: "#FFFFFF", marginBottom: 0, flex: 1 }}>{ej.nombre}</p>
+                                {lastPeso && (
+                                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                    <div style={{ display: "flex", alignItems: "baseline", gap: 3, justifyContent: "flex-end" }}>
+                                      <span style={{ font: `700 ${isCompactScreen ? "1.15rem" : "1.3rem"}/1 ${fd}`, color: "#FFFFFF" }}>{lastPeso.peso}</span>
+                                      <span style={{ font: `500 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>kg</span>
+                                    </div>
+                                    <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.22)", marginTop: 4 }}>último {lastPeso.fecha}</p>
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
                                   {[
                                     { val: ej.series, label: "series" },
                                     { val: ej.repeticiones, label: "reps" },
                                     ...(ej.peso_sugerido ? [{ val: ej.peso_sugerido, label: "sug." }] : []),
-                                  ].map((item, idx, arr) => (
-                                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <div style={{ textAlign: "center" }}>
-                                        <span style={{ font: `600 1rem/1 ${fd}`, color: "#FFFFFF" }}>{item.val}</span>
-                                        <p style={{ font: `400 0.55rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", letterSpacing: "0.06em", textTransform: "uppercase", marginTop: 2 }}>{item.label}</p>
-                                      </div>
-                                      {idx < arr.length - 1 && <span style={{ color: "rgba(255,255,255,0.1)", fontSize: 18, lineHeight: 1 }}>·</span>}
+                                  ].map((item) => (
+                                    <div key={item.label} style={{ minWidth: 68, padding: "8px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, textAlign: "center" }}>
+                                      <span style={{ font: `700 1rem/1 ${fd}`, color: "#FFFFFF" }}>{item.val}</span>
+                                      <p style={{ font: `500 0.56rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 4 }}>{item.label}</p>
                                     </div>
                                   ))}
                                 </div>
                               </div>
-                              {lastPeso && (
-                                <div style={{ textAlign: "right" }}>
-                                  <div style={{ display: "flex", alignItems: "baseline", gap: 2, justifyContent: "flex-end" }}>
-                                    <span style={{ font: `700 1.3rem/1 ${fd}`, color: "#FFFFFF" }}>{lastPeso.peso}</span>
-                                    <span style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.06em" }}>kg</span>
-                                  </div>
-                                  <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", marginTop: 3 }}>{lastPeso.fecha}</p>
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ display: "flex", gap: 10, alignItems: "flex-end", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 11 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isCompactScreen ? "1fr" : "1fr auto", gap: 10, alignItems: "stretch", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 12 }}>
                               <div style={{ position: "relative", flex: 1 }}>
                                 <input
                                   type="number" step="0.5" min="0" placeholder="kg hoy"
                                   value={inlineKg[ej.nombre] ?? ""}
                                   onChange={e => setInlineKg(prev => ({ ...prev, [ej.nombre]: e.target.value }))}
                                   onKeyDown={e => e.key === "Enter" && handleInlineKgSave(ej.nombre)}
-                                  style={{ width: "100%", padding: "4px 0 6px", background: "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.12)", font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }}
-                                  onFocus={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.5)")}
-                                  onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(255,255,255,0.12)")}
+                                  inputMode="decimal"
+                                  style={{ width: "100%", minHeight: 48, padding: "0 44px 0 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 14, font: `600 0.98rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }}
+                                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(249,115,22,0.55)")}
+                                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)")}
                                 />
-                                <span style={{ position: "absolute", right: 0, bottom: 7, font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", pointerEvents: "none" }}>kg</span>
+                                <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", pointerEvents: "none", letterSpacing: "0.05em" }}>KG</span>
                               </div>
                               <button
                                 onClick={() => handleInlineKgSave(ej.nombre)}
                                 disabled={saving || !inlineKg[ej.nombre]}
-                                style={{ padding: "5px 0 6px", background: "transparent", border: "none", borderBottom: `1px solid ${saving || !inlineKg[ej.nombre] ? "transparent" : "rgba(249,115,22,0.5)"}`, color: saving || !inlineKg[ej.nombre] ? "rgba(255,255,255,0.15)" : "#F97316", font: `500 0.72rem/1 ${fd}`, cursor: saving || !inlineKg[ej.nombre] ? "not-allowed" : "pointer", whiteSpace: "nowrap", letterSpacing: "0.05em", transition: "all 0.15s" }}
+                                style={{
+                                  minHeight: 48,
+                                  minWidth: isCompactScreen ? "100%" : 120,
+                                  padding: isCompactScreen ? "0 14px" : "0 16px",
+                                  background: saving || !inlineKg[ej.nombre] ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
+                                  border: "none",
+                                  borderRadius: 14,
+                                  color: saving || !inlineKg[ej.nombre] ? "rgba(255,255,255,0.22)" : "#FFFFFF",
+                                  font: `700 0.82rem/1 ${fd}`,
+                                  cursor: saving || !inlineKg[ej.nombre] ? "not-allowed" : "pointer",
+                                  whiteSpace: "nowrap",
+                                  letterSpacing: "0.03em",
+                                  transition: "all 0.15s",
+                                }}
                               >
-                                {saving ? "..." : "GUARDAR"}
+                                {saving ? "Guardando..." : "Guardar kg"}
                               </button>
                             </div>
                           </div>
@@ -793,10 +873,10 @@ export default function AlumnoPanelPage() {
         position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)",
         width: "92%", maxWidth: 520, zIndex: 100,
         display: "flex", alignItems: "flex-end",
-        backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)",
+        backdropFilter: isCompactScreen ? "blur(18px)" : "blur(40px)", WebkitBackdropFilter: isCompactScreen ? "blur(18px)" : "blur(40px)",
         background: "rgba(18,18,24,0.92)",
         border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 28, padding: "6px 6px 8px",
+        borderRadius: 28, padding: isCompactScreen ? "8px 6px 10px" : "6px 6px 8px",
         boxShadow: "0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
       }}>
         {([
@@ -805,7 +885,7 @@ export default function AlumnoPanelPage() {
         ] as const).map(({ key, label, Icon }) => {
           const active = tab === key;
           return (
-            <button key={key} onClick={() => setTab(key)} className="tap-active" style={{ flex: 1, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <button key={key} onClick={() => setTab(key)} className="tap-active" style={{ flex: 1, minHeight: 52, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
               <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
               <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>{label}</span>
               <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />
@@ -818,7 +898,7 @@ export default function AlumnoPanelPage() {
           <button
             onClick={() => { setCheckinMode("qr"); setCheckinResult(null); setShowQR(true); }}
             className="tap-active"
-            style={{ position: "relative", bottom: 16, width: 62, height: 62, background: "rgba(12,12,18,0.98)", border: "1px solid rgba(249,115,22,0.4)", borderRadius: 20, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, animation: "qrPulse 3s ease-in-out infinite" }}
+            style={{ position: "relative", bottom: 16, width: isCompactScreen ? 58 : 62, height: isCompactScreen ? 58 : 62, background: "rgba(12,12,18,0.98)", border: "1px solid rgba(249,115,22,0.4)", borderRadius: 20, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, animation: "qrPulse 3s ease-in-out infinite" }}
           >
             <svg width="26" height="26" viewBox="0 0 28 28" fill="none">
               <path d="M4 11V5a1 1 0 0 1 1-1h6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round"/>
@@ -838,7 +918,7 @@ export default function AlumnoPanelPage() {
         ] as const).map(({ key, label, Icon }) => {
           const active = tab === key;
           return (
-            <button key={key} onClick={() => setTab(key)} className="tap-active" style={{ flex: 1, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <button key={key} onClick={() => setTab(key)} className="tap-active" style={{ flex: 1, minHeight: 52, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
               <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
               <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>{label}</span>
               <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />

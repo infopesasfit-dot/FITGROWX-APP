@@ -31,26 +31,22 @@ export function DemoSection() {
   const dashX = useSpring(dashRawX, { stiffness: 70, damping: 22 });
   const dashY = useSpring(dashRawY, { stiffness: 70, damping: 22 });
 
-  // ── Phone layer: floaty independent (±70px) ──
-  const phoneRawX = useTransform(pointerX, [0, 1], [-70, 70]);
-  const phoneRawY = useTransform(pointerY, [0, 1], [-55, 55]);
-  useSpring(phoneRawX, { stiffness: 45, damping: 14 });
-  useSpring(phoneRawY, { stiffness: 45, damping: 14 });
-
   // ── Phone tilt (rotateX/Y for 3-D feel) ──
   const phoneTiltXRaw = useTransform(pointerY, [0, 1], [12, -12]);
   const phoneTiltYRaw = useTransform(pointerX, [0, 1], [-12, 12]);
   const phoneTiltX = useSpring(phoneTiltXRaw, { stiffness: 45, damping: 14 });
   const phoneTiltY = useSpring(phoneTiltYRaw, { stiffness: 45, damping: 14 });
 
-  // ── Touch handler (mobile parallax) ──
+  // ── Pointer handlers scoped to the section ──
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
+    const currentSection = section;
+    let raf = 0;
 
     function onTouchMove(e: TouchEvent) {
       const touch = e.touches[0];
-      const rect = section!.getBoundingClientRect();
+      const rect = currentSection.getBoundingClientRect();
       pointerX.set((touch.clientX - rect.left) / rect.width);
       pointerY.set((touch.clientY - rect.top) / rect.height);
     }
@@ -59,35 +55,31 @@ export function DemoSection() {
       pointerY.set(0.5);
     }
 
-    section.addEventListener("touchmove", onTouchMove, { passive: true });
-    section.addEventListener("touchend", onTouchEnd);
-    return () => {
-      section.removeEventListener("touchmove", onTouchMove);
-      section.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [pointerX, pointerY]);
-
-  // ── Gyroscope handler (mobile device orientation) ──
-  useEffect(() => {
-    function onOrientation(e: DeviceOrientationEvent) {
-      const gamma = e.gamma ?? 0; // left/right tilt: -90 to 90
-      const beta = e.beta ?? 45;  // front/back tilt: 0 to 90 typical range
-      pointerX.set(Math.min(1, Math.max(0, (gamma + 45) / 90)));
-      pointerY.set(Math.min(1, Math.max(0, (beta - 20) / 70)));
-    }
-
-    window.addEventListener("deviceorientation", onOrientation);
-    return () => window.removeEventListener("deviceorientation", onOrientation);
-  }, [pointerX, pointerY]);
-
-  // ── Global mouse tracking ──
-  useEffect(() => {
     function onMouseMove(e: MouseEvent) {
-      pointerX.set(e.clientX / window.innerWidth);
-      pointerY.set(e.clientY / window.innerHeight);
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const rect = currentSection.getBoundingClientRect();
+        pointerX.set((e.clientX - rect.left) / rect.width);
+        pointerY.set((e.clientY - rect.top) / rect.height);
+      });
     }
-    window.addEventListener("mousemove", onMouseMove);
-    return () => window.removeEventListener("mousemove", onMouseMove);
+
+    function onMouseLeave() {
+      pointerX.set(0.5);
+      pointerY.set(0.5);
+    }
+
+    currentSection.addEventListener("touchmove", onTouchMove, { passive: true });
+    currentSection.addEventListener("touchend", onTouchEnd);
+    currentSection.addEventListener("mousemove", onMouseMove);
+    currentSection.addEventListener("mouseleave", onMouseLeave);
+    return () => {
+      currentSection.removeEventListener("touchmove", onTouchMove);
+      currentSection.removeEventListener("touchend", onTouchEnd);
+      currentSection.removeEventListener("mousemove", onMouseMove);
+      currentSection.removeEventListener("mouseleave", onMouseLeave);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, [pointerX, pointerY]);
 
   return (

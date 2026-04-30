@@ -171,6 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   type Notif = { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; link?: string | null };
   const [notifOpen,   setNotifOpen]   = useState(false);
   const [notifs,      setNotifs]      = useState<Notif[]>([]);
+  const [notifLoadedGymId, setNotifLoadedGymId] = useState<string | null>(null);
   const [gymId,       setGymId]       = useState<string | null>(null);
   const [role,        setRole]        = useState<"admin" | "staff">("admin");
   const [attractOpen, setAttractOpen] = useState(() => ATTRACT_ROUTES.some(r => pathname.startsWith(r)));
@@ -260,14 +261,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Fetch notifications when gymId is known
+  // Fetch notifications lazily on demand
   useEffect(() => {
-    if (!gymId) return;
+    if (!gymId || !notifOpen || notifLoadedGymId === gymId) return;
     fetch(`/api/notifications?gym_id=${gymId}`)
       .then(r => r.json())
-      .then(d => { if (d.notifications) setNotifs(d.notifications); })
+      .then(d => {
+        if (d.notifications) setNotifs(d.notifications);
+        setNotifLoadedGymId(gymId);
+      })
       .catch(() => {});
-  }, [gymId]);
+  }, [gymId, notifOpen, notifLoadedGymId]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
   const notificationsNowMs = notifs.length > 0 ? new Date(notifs[0].created_at).getTime() : 0;
@@ -371,7 +375,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── Sidebar ── */}
       <aside style={{
         background: "linear-gradient(160deg, #000000 0%, #0e0e0e 35%, #151515 100%)",
-        width: isMobile ? 260 : w,
+        width: isMobile ? "min(86vw, 320px)" : w,
         height: isMobile ? "100vh" : "calc(100vh - 24px)",
         minHeight: isMobile ? "100vh" : "calc(100vh - 24px)",
         position: isMobile ? "fixed" : "sticky",
@@ -582,7 +586,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div ref={notifRef} style={{ position: "relative" }}>
               <button
                 onClick={handleOpenNotifs}
-                style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.6)" : "#6B7280", padding: 5, display: "flex", alignItems: "center" }}
+                style={{ position: "relative", background: isMobile ? "rgba(255,255,255,0.06)" : "none", border: isMobile ? "1px solid rgba(255,255,255,0.08)" : "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.78)" : "#6B7280", padding: isMobile ? "0 12px" : 5, minWidth: isMobile ? 44 : undefined, minHeight: 44, borderRadius: isMobile ? 14 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <Bell size={19} />
                 {unreadCount > 0 && (
@@ -593,7 +597,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {notifOpen && (
                 <div style={{
                   position: "absolute", top: "calc(100% + 10px)", right: 0,
-                  width: isMobile ? "calc(100vw - 28px)" : 340,
+                  width: isMobile ? "min(calc(100vw - 24px), 360px)" : 340,
                   background: "#FFFFFF",
                   border: "1px solid rgba(0,0,0,0.08)",
                   borderRadius: 16,
@@ -648,7 +652,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div ref={menuRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setMenuOpen(o => !o)}
-                style={{ display: "flex", alignItems: "center", gap: 8, background: menuOpen ? (isMobile ? "rgba(255,255,255,0.08)" : "#F4F5F9") : "none", border: menuOpen ? (isMobile ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(0,0,0,0.08)") : "1px solid transparent", borderRadius: 10, padding: "5px 8px 5px 5px", cursor: "pointer", transition: "all 0.14s" }}
+                style={{ display: "flex", alignItems: "center", gap: 8, minHeight: isMobile ? 44 : undefined, background: menuOpen ? (isMobile ? "rgba(255,255,255,0.08)" : "#F4F5F9") : "none", border: menuOpen ? (isMobile ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(0,0,0,0.08)") : "1px solid transparent", borderRadius: 10, padding: isMobile ? "5px 10px 5px 5px" : "5px 8px 5px 5px", cursor: "pointer", transition: "all 0.14s" }}
                 onMouseEnter={e => { if (!menuOpen) e.currentTarget.style.background = isMobile ? "rgba(255,255,255,0.08)" : "#F4F5F9"; }}
                 onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = "none"; }}
               >
@@ -765,7 +769,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: isMobile ? "14px 12px 90px" : "20px 20px 28px", display: "flex", flexDirection: "column", gap: 18, background: isVaultRoute ? "#ECEFF3" : "transparent" }}>
+        <main style={{ flex: 1, padding: isMobile ? "12px 10px calc(96px + env(safe-area-inset-bottom, 0px))" : "20px 20px 28px", display: "flex", flexDirection: "column", gap: isMobile ? 14 : 18, background: isVaultRoute ? "#ECEFF3" : "transparent", overflowX: "hidden" }}>
 
           {/* ── Sub-nav shortcut bar (Atraer Clientes) ── */}
           {ATTRACT_ROUTES.some(r => pathname.startsWith(r)) && (
@@ -815,13 +819,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const active = isActive(href);
             return (
               <Link key={href} href={href} style={{
-                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                gap: 4, padding: "10px 4px 8px", textDecoration: "none",
+                flex: 1, minHeight: 56, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                gap: 5, padding: "10px 4px 8px", textDecoration: "none",
                 color: active ? "#FF6A00" : "rgba(255,255,255,0.38)",
                 transition: "color 0.15s",
               }}>
                 <div style={{
-                  width: 38, height: 28, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                  width: 40, height: 30, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
                   background: active ? "rgba(255,106,0,0.14)" : "transparent",
                   transition: "background 0.15s",
                 }}>
@@ -833,13 +837,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
           {/* Más — opens sidebar drawer */}
           <button onClick={() => setMobileNavOpen(true)} style={{
-            flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            gap: 4, padding: "10px 4px 8px", background: "none", border: "none", cursor: "pointer",
+            flex: 1, minHeight: 56, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: 5, padding: "10px 4px 8px", background: "none", border: "none", cursor: "pointer",
             color: mobileNavOpen ? "#FF6A00" : "rgba(255,255,255,0.38)",
             transition: "color 0.15s",
           }}>
             <div style={{
-              width: 38, height: 28, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+              width: 40, height: 30, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
               background: mobileNavOpen ? "rgba(255,106,0,0.14)" : "transparent",
               transition: "background 0.15s",
             }}>

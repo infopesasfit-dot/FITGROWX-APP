@@ -46,6 +46,16 @@ export default function EgresosPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [gymId, setGymId]         = useState<string | null>(null);
 
+  const updateEgresosCache = useCallback((updater: (current: Egreso[]) => Egreso[]) => {
+    setEgresos(prev => {
+      const next = updater(prev);
+      if (gymId) {
+        setPageCache(`egresos_${gymId}`, next);
+      }
+      return next;
+    });
+  }, [gymId]);
+
   const fetchEgresos = useCallback(async (background = false) => {
     const profile = await getCachedProfile();
     if (!profile) { setLoading(false); return; }
@@ -92,20 +102,26 @@ export default function EgresosPage() {
     setSaving(true);
     setFormError(null);
 
-    const { error } = await supabase.from("egresos").insert([{
+    const { data: inserted, error } = await supabase.from("egresos").insert([{
       gym_id:    gymId,
       titulo:    form.titulo.trim(),
       monto,
       categoria: form.categoria,
       fecha:     form.fecha,
-    }]);
+    }]).select("id, titulo, monto, categoria, fecha, gym_id").single();
 
     if (error) { setFormError(error.message); setSaving(false); return; }
 
     setModalOpen(false);
     setForm(EMPTY_FORM);
     setSaving(false);
-    fetchEgresos();
+    if (inserted) {
+      updateEgresosCache(prev => {
+        const next = [inserted as Egreso, ...prev];
+        next.sort((a, b) => b.fecha.localeCompare(a.fecha));
+        return next.slice(0, 200);
+      });
+    }
   };
 
   const now = new Date();

@@ -137,6 +137,18 @@ export default function MembresiasPage() {
   const [alumnosPorPlan, setAlumnosPorPlan] = useState<Record<string, number>>({});
   const [activosCount,   setActivosCount]   = useState(0);
 
+  const syncMembresiasCache = useCallback((nextPlanes: PlanDB[], nextCounts = alumnosPorPlan, nextActivos = activosCount) => {
+    if (nextPlanes.length === 0) return;
+    getCachedProfile().then(profile => {
+      if (!profile) return;
+      setPageCache(`membresias_${profile.gymId}`, {
+        planes: nextPlanes,
+        alumnosPorPlan: nextCounts,
+        activosCount: nextActivos,
+      });
+    });
+  }, [alumnosPorPlan, activosCount]);
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -248,7 +260,11 @@ export default function MembresiasPage() {
         if (error) { clearSaving(); showToast(`Error: ${error.message}`, "err"); return; }
         if (!inserted) { clearSaving(); showToast("No se pudo crear el plan. Verificá tu sesión.", "err"); return; }
         const newPlan = inserted as PlanDB;
-        setPlanes(prev => [...prev, newPlan]);
+        setPlanes(prev => {
+          const next = [...prev, newPlan];
+          syncMembresiasCache(next);
+          return next;
+        });
         setDrafts(prev => {
           const { [planId]: removedDraft, ...rest } = prev;
           void removedDraft;
@@ -260,11 +276,15 @@ export default function MembresiasPage() {
           .from("planes")
           .upsert([{ id: planId, ...payload }], { onConflict: "id" })
           .eq("gym_id", gymId)
-          .select("id, nombre, precio, periodo, features, destacado, accent_color")
+          .select("id, nombre, precio, periodo, duracion_dias, active, features, destacado, accent_color")
           .maybeSingle();
         if (error) { clearSaving(); showToast(`Error: ${error.message}`, "err"); return; }
         if (!updated) { clearSaving(); showToast("No se pudo guardar. Verificá permisos en Supabase (RLS).", "err"); return; }
-        setPlanes(prev => prev.map(p => p.id === planId ? (updated as PlanDB) : p));
+        setPlanes(prev => {
+          const next = prev.map(p => p.id === planId ? (updated as PlanDB) : p);
+          syncMembresiasCache(next);
+          return next;
+        });
         setDirty(prev => { const s = new Set(prev); s.delete(planId); return s; });
       }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -202,6 +202,11 @@ export default function ClasesPage() {
     if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     if (reservas[id]) return;
+    const cached = getPageCache<Reserva[]>(`clase_reservas_${id}`);
+    if (cached) {
+      setReservas(prev => ({ ...prev, [id]: cached }));
+      return;
+    }
     setLoadingRes(id);
     const today = new Date();
     const dates = Array.from({ length: 7 }, (_, i) => {
@@ -215,7 +220,9 @@ export default function ClasesPage() {
       .eq("estado", "confirmada")
       .in("fecha", dates)
       .order("fecha");
-    setReservas(prev => ({ ...prev, [id]: (data ?? []).map((row) => mapReservaRow(row)) }));
+    const nextReservas = (data ?? []).map((row) => mapReservaRow(row));
+    setReservas(prev => ({ ...prev, [id]: nextReservas }));
+    setPageCache(`clase_reservas_${id}`, nextReservas);
     setLoadingRes(null);
   };
 
@@ -228,8 +235,14 @@ export default function ClasesPage() {
     }));
   };
 
-  const byDay: Record<number, GymClass[]> = {};
-  clases.forEach(c => { if (!byDay[c.day_of_week]) byDay[c.day_of_week] = []; byDay[c.day_of_week].push(c); });
+  const byDay = useMemo(() => {
+    const nextByDay: Record<number, GymClass[]> = {};
+    clases.forEach(c => {
+      if (!nextByDay[c.day_of_week]) nextByDay[c.day_of_week] = [];
+      nextByDay[c.day_of_week].push(c);
+    });
+    return nextByDay;
+  }, [clases]);
 
   const totalReservas = clases.reduce((sum, c) => sum + (c.reservas_count ?? 0), 0);
   const clasesHoy = clases.filter(c => c.day_of_week === todayDow).length;
@@ -238,14 +251,14 @@ export default function ClasesPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
         <div>
           <h1 style={{ font: `800 ${isMobile ? "1.4rem" : "1.6rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.035em" }}>{isMobile ? "Clases" : "Calendario de Clases"}</h1>
           {!isMobile && <p style={{ font: `400 0.85rem/1 ${fd}`, color: t2, marginTop: 4 }}>Gestioná las clases de tu gimnasio</p>}
         </div>
         <button
           onClick={openAdd}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", background: t1, color: "white", border: "none", borderRadius: 10, font: `600 0.85rem/1 ${fd}`, cursor: "pointer" }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 46, width: isMobile ? "100%" : undefined, padding: "10px 18px", background: t1, color: "white", border: "none", borderRadius: 10, font: `600 0.85rem/1 ${fd}`, cursor: "pointer" }}
         >
           <Plus size={15} /> {isMobile ? "Nueva" : "Nueva clase"}
         </button>
@@ -258,7 +271,7 @@ export default function ClasesPage() {
           { label: "Clases hoy", value: clasesHoy, icon: Clock, color: "#F97316" },
           { label: "Reservas (7 días)", value: totalReservas, icon: Users, color: "#FF6A00" },
         ].map(k => (
-          <div key={k.label} style={{ ...card, padding: "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div key={k.label} style={{ ...card, padding: isMobile ? "14px 14px" : "16px 18px", display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: `${k.color}14`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <k.icon size={17} color={k.color} />
             </div>
@@ -302,7 +315,7 @@ export default function ClasesPage() {
                     const isEspecial = c.event_type === "especial";
                     return (
                       <div key={c.id} style={{ border: `1px solid ${isEspecial ? "rgba(245,158,11,0.2)" : "rgba(0,0,0,0.06)"}`, borderRadius: 10, overflow: "hidden", background: isEspecial ? "rgba(245,158,11,0.02)" : "transparent" }}>
-                        <div style={{ padding: "11px 14px", display: "flex", alignItems: "center", gap: 10, background: isExp ? (isEspecial ? "rgba(245,158,11,0.04)" : "#F8FAFF") : "transparent" }}>
+                        <div style={{ padding: "11px 14px", display: "grid", gridTemplateColumns: "minmax(0, 1fr)" + (isMobile ? "" : " auto auto auto"), alignItems: "center", gap: 10, background: isExp ? (isEspecial ? "rgba(245,158,11,0.04)" : "#F8FAFF") : "transparent" }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
                               <p style={{ font: `600 0.9rem/1 ${fd}`, color: t1 }}>{c.class_name}</p>
@@ -335,15 +348,17 @@ export default function ClasesPage() {
                               )}
                             </div>
                           </div>
-                          <button onClick={() => openEdit(c)} style={{ padding: "5px 8px", background: "none", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 7, cursor: "pointer", color: t2, display: "flex", alignItems: "center" }}>
-                            <Edit2 size={13} />
-                          </button>
-                          <button onClick={() => setDeleteId(c.id)} style={{ padding: "5px 8px", background: "none", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 7, cursor: "pointer", color: "#DC2626", display: "flex", alignItems: "center" }}>
-                            <Trash2 size={13} />
-                          </button>
-                          <button onClick={() => toggleExpand(c.id)} style={{ padding: "5px 8px", background: "none", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 7, cursor: "pointer", color: t2, display: "flex", alignItems: "center", gap: 4, font: `500 0.72rem/1 ${fd}` }}>
-                            Alumnos {isExp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                          </button>
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: isMobile ? "stretch" : "flex-end", gridColumn: isMobile ? "1 / -1" : undefined }}>
+                            <button onClick={() => openEdit(c)} style={{ minHeight: 40, padding: "0 12px", background: "none", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 9, cursor: "pointer", color: t2, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Edit2 size={14} />
+                            </button>
+                            <button onClick={() => setDeleteId(c.id)} style={{ minHeight: 40, padding: "0 12px", background: "none", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 9, cursor: "pointer", color: "#DC2626", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Trash2 size={14} />
+                            </button>
+                            <button onClick={() => toggleExpand(c.id)} style={{ minHeight: 40, flex: isMobile ? 1 : undefined, padding: "0 12px", background: "none", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 9, cursor: "pointer", color: t2, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, font: `500 0.72rem/1 ${fd}` }}>
+                              Alumnos {isExp ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            </button>
+                          </div>
                         </div>
                         {isExp && (
                           <div style={{ borderTop: "1px solid rgba(0,0,0,0.05)", background: "#F8FAFF", padding: "10px 14px" }}>
@@ -472,7 +487,7 @@ export default function ClasesPage() {
               )}
 
               {/* Horario + Capacidad */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   <span style={{ font: `500 0.75rem/1 ${fd}`, color: t2 }}>Horario</span>
                   <input

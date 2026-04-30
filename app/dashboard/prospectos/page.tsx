@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useDeferredValue, useMemo, useCallback } from "react";
 import {
   Target, Phone, Mail, Clock, CheckCircle, X, MessageSquare, Search,
 } from "lucide-react";
@@ -50,6 +50,8 @@ export default function ProspectosPage() {
   const [loading,    setLoading]    = useState(true);
   const [search,     setSearch]     = useState("");
   const [filter,     setFilter]     = useState<Status | "todos">("todos");
+  const [gymId,      setGymId]      = useState<string | null>(null);
+  const deferredSearch = useDeferredValue(search);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
     check();
@@ -61,6 +63,7 @@ export default function ProspectosPage() {
     (async () => {
       const profile = await getCachedProfile();
       if (!profile) { setLoading(false); return; }
+      setGymId(profile.gymId);
 
       const cached = getPageCache<Prospecto[]>(`prospectos_${profile.gymId}`);
       if (cached) { setProspectos(cached); setLoading(false); }
@@ -78,10 +81,25 @@ export default function ProspectosPage() {
     })();
   }, []);
 
-  const updateStatus = async (id: string, newStatus: Status) => {
-    setProspectos(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
-    await supabase.from("prospectos").update({ status: newStatus }).eq("id", id);
+  const scrollToList = () => {
+    window.requestAnimationFrame(() => {
+      const element = document.getElementById("prospectos-listado");
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   };
+
+  const updateStatus = useCallback(async (id: string, newStatus: Status) => {
+    setProspectos(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+    if (gymId) {
+      const cached = getPageCache<Prospecto[]>(`prospectos_${gymId}`) ?? prospectos;
+      setPageCache(
+        `prospectos_${gymId}`,
+        cached.map(p => (p.id === id ? { ...p, status: newStatus } : p)),
+      );
+    }
+    await supabase.from("prospectos").update({ status: newStatus }).eq("id", id);
+  }, [gymId, prospectos]);
 
   const sendWelcome = (phone: string | null, name: string) => {
     if (!phone) return;
@@ -89,11 +107,33 @@ export default function ProspectosPage() {
     window.open(`https://wa.me/${phone.replace(/\D/g, "")}?text=${msg}`, "_blank");
   };
 
-  const filtered = prospectos
-    .filter(p => filter === "todos" || p.status === filter)
-    .filter(p => p.full_name.toLowerCase().includes(search.toLowerCase()) || (p.phone ?? "").includes(search));
+  const filtered = useMemo(() => {
+    const searchValue = deferredSearch.trim().toLowerCase();
+    return prospectos
+      .filter(p => filter === "todos" || p.status === filter)
+      .filter(p => {
+        if (!searchValue) return true;
+        return p.full_name.toLowerCase().includes(searchValue) || (p.phone ?? "").includes(searchValue);
+      });
+  }, [prospectos, filter, deferredSearch]);
 
-  const pendingCount = prospectos.filter(p => p.status === "pendiente").length;
+  const pendingCount = useMemo(
+    () => prospectos.filter(p => p.status === "pendiente").length,
+    [prospectos],
+  );
+  const contactedCount = useMemo(
+    () => prospectos.filter(p => p.status === "contactado").length,
+    [prospectos],
+  );
+  const discardedCount = useMemo(
+    () => prospectos.filter(p => p.status === "descartado").length,
+    [prospectos],
+  );
+
+  const jumpToFilter = (nextFilter: Status | "todos") => {
+    setFilter(nextFilter);
+    scrollToList();
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -114,8 +154,51 @@ export default function ProspectosPage() {
         )}
       </div>
 
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12 }}>
+        {[
+          { label: "Todos", value: prospectos.length, color: "#1A1D23", bg: "rgba(15,23,42,0.06)", icon: <Target size={15} color="#1A1D23" />, action: () => jumpToFilter("todos") },
+          { label: "Sin contactar", value: pendingCount, color: "#D97706", bg: "rgba(217,119,6,0.09)", icon: <Clock size={15} color="#D97706" />, action: () => jumpToFilter("pendiente") },
+          { label: "Contactados", value: contactedCount, color: "#FF6A00", bg: "rgba(255,106,0,0.09)", icon: <CheckCircle size={15} color="#FF6A00" />, action: () => jumpToFilter("contactado") },
+          { label: "Descartados", value: discardedCount, color: "#9CA3AF", bg: "rgba(156,163,175,0.12)", icon: <X size={15} color="#9CA3AF" />, action: () => jumpToFilter("descartado") },
+        ].map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={item.action}
+            style={{
+              ...card,
+              padding: "16px 18px",
+              textAlign: "left",
+              cursor: "pointer",
+              transition: "transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease",
+            }}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.transform = "translateY(-2px)";
+              event.currentTarget.style.boxShadow = "0 10px 24px rgba(15,23,42,0.10)";
+              event.currentTarget.style.borderColor = "rgba(249,115,22,0.14)";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.transform = "translateY(0)";
+              event.currentTarget.style.boxShadow = card.boxShadow as string;
+              event.currentTarget.style.borderColor = "rgba(0,0,0,0.05)";
+            }}
+          >
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+              {item.icon}
+            </div>
+            <p style={{ font: `800 1.6rem/1 ${fd}`, color: t1, letterSpacing: "-0.03em", marginBottom: 4 }}>
+              {loading ? "—" : item.value}
+            </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>{item.label}</p>
+              <span style={{ font: `700 0.66rem/1 ${fb}`, color: item.color, whiteSpace: "nowrap" }}>Filtrar</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div id="prospectos-filtros" style={{ display: "flex", flexDirection: "column", gap: 8, scrollMarginTop: 110 }}>
         {/* Search */}
         <div style={{ position: "relative" }}>
           <Search size={13} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: t3 }} />
@@ -148,7 +231,7 @@ export default function ProspectosPage() {
 
       {/* Desktop table */}
       {!isMobile && (
-      <div style={{ ...card, overflow: "hidden" }}>
+      <div id="prospectos-listado" style={{ ...card, overflow: "hidden", scrollMarginTop: 110 }}>
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 140px 130px 120px 180px",
           padding: "12px 22px", borderBottom: "1px solid rgba(0,0,0,0.06)",
@@ -245,7 +328,7 @@ export default function ProspectosPage() {
 
       {/* Mobile card list */}
       {isMobile && (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div id="prospectos-listado" style={{ display: "flex", flexDirection: "column", gap: 10, scrollMarginTop: 110 }}>
         {loading && <p style={{ padding: "48px 22px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando prospectos…</p>}
         {!loading && filtered.length === 0 && (
           <div style={{ ...card, padding: "48px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>

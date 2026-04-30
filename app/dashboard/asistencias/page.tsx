@@ -5,7 +5,7 @@ import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight,
 import Link from "next/link";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
-import { getCachedProfile } from "@/lib/gym-cache";
+import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -62,6 +62,8 @@ export default function AsistenciasPage() {
   const [todayClasses, setTodayClasses] = useState<TodayClass[]>([]);
   const [gymId, setGymId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [ausentesLoading, setAusentesLoading] = useState(false);
+  const [ausentesLoaded, setAusentesLoaded] = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -72,15 +74,50 @@ export default function AsistenciasPage() {
 
   const today = getTodayDate();
 
+  const applySnapshot = useCallback((snapshot: {
+    todayCount: number;
+    totalMonth: number;
+    weeklyAvg: number;
+    dailyBars: DayBar[];
+    hourlyCounts: number[];
+    presentes: Presente[];
+    todayClasses: TodayClass[];
+  }) => {
+    setTodayCount(snapshot.todayCount);
+    setTotalMonth(snapshot.totalMonth);
+    setWeeklyAvg(snapshot.weeklyAvg);
+    setDailyBars(snapshot.dailyBars);
+    setHourlyCounts(snapshot.hourlyCounts);
+    setPresentes(snapshot.presentes);
+    setTodayClasses(snapshot.todayClasses);
+  }, []);
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const profile = await getCachedProfile();
     if (!profile) { setLoading(false); return; }
     setGymId(profile.gymId);
+    setAusentes([]);
+    setAusentesLoaded(false);
+
+    const cacheKey = `asistencias_${profile.gymId}_${today}`;
+    const cached = getPageCache<{
+      todayCount: number;
+      totalMonth: number;
+      weeklyAvg: number;
+      dailyBars: DayBar[];
+      hourlyCounts: number[];
+      presentes: Presente[];
+      todayClasses: TodayClass[];
+    }>(cacheKey);
+    if (cached) {
+      applySnapshot(cached);
+      setLoading(false);
+    }
 
     const dayOfWeek = new Date().getDay();
 
-    const [statsRes, presentesRes, activosRes, clasesRes] = await Promise.all([
+    const [statsRes, presentesRes, clasesRes] = await Promise.all([
       fetch(`/api/admin/asistencias-stats?gym_id=${profile.gymId}`),
       supabase
         .from("asistencias")
@@ -89,11 +126,6 @@ export default function AsistenciasPage() {
         .eq("fecha", today)
         .order("hora", { ascending: false }),
       supabase
-        .from("alumnos")
-        .select("id, full_name, planes!plan_id(nombre, accent_color)")
-        .eq("gym_id", profile.gymId)
-        .eq("status", "activo"),
-      supabase
         .from("gym_classes")
         .select("id, class_name, start_time, max_capacity, class_reservations!class_id(id)")
         .eq("gym_id", profile.gymId)
@@ -101,8 +133,16 @@ export default function AsistenciasPage() {
         .order("start_time"),
     ]);
 
-    if (statsRes.ok) {
-      const stats = await statsRes.json();
+    const stats = statsRes.ok
+      ? await statsRes.json() as {
+          todayCount?: number;
+          totalMonth?: number;
+          weeklyAvg?: number;
+          dailyCounts?: DayBar[];
+          hourlyCounts?: number[];
+        }
+      : null;
+    if (stats) {
       setTodayCount(stats.todayCount ?? 0);
       setTotalMonth(stats.totalMonth ?? 0);
       setWeeklyAvg(stats.weeklyAvg ?? 0);
@@ -114,23 +154,44 @@ export default function AsistenciasPage() {
       id: string; class_name: string; start_time: string; max_capacity: number;
       class_reservations: Array<{ id: string }>;
     }>;
-    setTodayClasses(rawClases.map(c => ({
+    const nextTodayClasses = rawClases.map(c => ({
       id: c.id,
       class_name: c.class_name,
       start_time: c.start_time,
       max_capacity: c.max_capacity,
       reservas: c.class_reservations?.length ?? 0,
-    })));
+    }));
+    setTodayClasses(nextTodayClasses);
 
     const presenteRows = (presentesRes.data ?? []) as unknown as Presente[];
     setPresentes(presenteRows);
-
-    const presenteIds = new Set(presenteRows.map(p => p.alumno_id));
-    const activos = (activosRes.data ?? []) as unknown as Ausente[];
-    setAusentes(activos.filter(a => !presenteIds.has(a.id)));
+    setPageCache(cacheKey, {
+      todayCount: stats?.todayCount ?? 0,
+      totalMonth: stats?.totalMonth ?? 0,
+      weeklyAvg: stats?.weeklyAvg ?? 0,
+      dailyBars: (stats?.dailyCounts ?? []).slice(-14),
+      hourlyCounts: stats?.hourlyCounts ?? Array(24).fill(0),
+      presentes: presenteRows,
+      todayClasses: nextTodayClasses,
+    });
 
     setLoading(false);
-  }, [today]);
+  }, [today, applySnapshot]);
+
+  const loadAusentes = useCallback(async () => {
+    if (!gymId || ausentesLoaded || ausentesLoading) return;
+    setAusentesLoading(true);
+    const { data } = await supabase
+      .from("alumnos")
+      .select("id, full_name, planes!plan_id(nombre, accent_color)")
+      .eq("gym_id", gymId)
+      .eq("status", "activo");
+    const presenteIds = new Set(presentes.map(p => p.alumno_id));
+    const activos = (data ?? []) as unknown as Ausente[];
+    setAusentes(activos.filter(a => !presenteIds.has(a.id)));
+    setAusentesLoaded(true);
+    setAusentesLoading(false);
+  }, [gymId, ausentesLoaded, ausentesLoading, presentes]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -139,6 +200,27 @@ export default function AsistenciasPage() {
 
     return () => window.clearTimeout(timeoutId);
   }, [fetchAll]);
+
+  const scrollToSection = (targetId: string) => {
+    window.requestAnimationFrame(() => {
+      const element = document.getElementById(targetId);
+      if (!element) return;
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const jumpToSection = async (
+    targetId: string,
+    nextTab?: "presentes" | "ausentes",
+  ) => {
+    if (nextTab) {
+      setTab(nextTab);
+      if (nextTab === "ausentes") {
+        await loadAusentes();
+      }
+    }
+    scrollToSection(targetId);
+  };
 
   const maxBar = Math.max(...dailyBars.map(d => d.count), 1);
   const maxHour = Math.max(...hourlyCounts, 1);
@@ -161,16 +243,68 @@ export default function AsistenciasPage() {
       {/* Stats row */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 12 }}>
         {[
-          { label: "Presentes hoy", value: loading ? "—" : todayCount, icon: <CheckCircle size={15} color="#FF6A00" />, bg: "rgba(255,106,0,0.07)", color: "#FF6A00" },
-          { label: "Ausentes hoy", value: loading ? "—" : ausentes.length, icon: <XCircle size={15} color="#EF4444" />, bg: "rgba(239,68,68,0.07)", color: "#EF4444" },
-          { label: "Total del mes", value: loading ? "—" : totalMonth, icon: <TrendingUp size={15} color="#6366F1" />, bg: "rgba(99,102,241,0.07)", color: "#6366F1" },
-          { label: "Prom. semanal", value: loading ? "—" : weeklyAvg, icon: <Users size={15} color="#0EA5E9" />, bg: "rgba(14,165,233,0.07)", color: "#0EA5E9" },
+          {
+            label: "Presentes hoy",
+            value: loading ? "—" : todayCount,
+            icon: <CheckCircle size={15} color="#FF6A00" />,
+            bg: "rgba(255,106,0,0.07)",
+            color: "#FF6A00",
+            action: () => void jumpToSection("asistencias-listado", "presentes"),
+          },
+          {
+            label: "Ausentes hoy",
+            value: loading ? "—" : ausentes.length,
+            icon: <XCircle size={15} color="#EF4444" />,
+            bg: "rgba(239,68,68,0.07)",
+            color: "#EF4444",
+            action: () => void jumpToSection("asistencias-listado", "ausentes"),
+          },
+          {
+            label: "Total del mes",
+            value: loading ? "—" : totalMonth,
+            icon: <TrendingUp size={15} color="#6366F1" />,
+            bg: "rgba(99,102,241,0.07)",
+            color: "#6366F1",
+            action: () => void jumpToSection("asistencias-diaria"),
+          },
+          {
+            label: "Prom. semanal",
+            value: loading ? "—" : weeklyAvg,
+            icon: <Users size={15} color="#0EA5E9" />,
+            bg: "rgba(14,165,233,0.07)",
+            color: "#0EA5E9",
+            action: () => void jumpToSection("asistencias-pico"),
+          },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
+          <button
+            key={s.label}
+            type="button"
+            onClick={s.action}
+            style={{
+              ...card,
+              padding: "16px 18px",
+              textAlign: "left",
+              cursor: "pointer",
+              transition: "transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease",
+            }}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.transform = "translateY(-2px)";
+              event.currentTarget.style.boxShadow = "0 10px 22px rgba(15,23,42,0.10)";
+              event.currentTarget.style.borderColor = "rgba(255,106,0,0.16)";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.transform = "translateY(0)";
+              event.currentTarget.style.boxShadow = card.boxShadow as string;
+              event.currentTarget.style.borderColor = "rgba(0,0,0,0.05)";
+            }}
+          >
             <div style={{ width: 32, height: 32, borderRadius: 10, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>{s.icon}</div>
             <p style={{ font: `800 1.6rem/1 ${fd}`, color: t1, letterSpacing: "-0.03em", marginBottom: 4 }}>{s.value}</p>
-            <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>{s.label}</p>
-          </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>{s.label}</p>
+              <span style={{ font: `700 0.66rem/1 ${fb}`, color: s.color, whiteSpace: "nowrap" }}>Ver detalle</span>
+            </div>
+          </button>
         ))}
       </div>
 
@@ -224,7 +358,7 @@ export default function AsistenciasPage() {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.6fr 1fr", gap: 16 }}>
 
         {/* Daily bar chart */}
-        <div style={{ ...card, padding: "20px 22px" }}>
+        <div id="asistencias-diaria" style={{ ...card, padding: "20px 22px", scrollMarginTop: 110 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Asistencia diaria</span>
             <span style={{ font: `500 0.65rem/1 ${fb}`, color: t3, background: "#F1F2F6", borderRadius: 9999, padding: "3px 9px" }}>Últimos 14 días</span>
@@ -257,7 +391,7 @@ export default function AsistenciasPage() {
         </div>
 
         {/* Peak hours chart */}
-        <div style={{ ...card, padding: "20px 22px" }}>
+        <div id="asistencias-pico" style={{ ...card, padding: "20px 22px", scrollMarginTop: 110 }}>
           <div style={{ marginBottom: 14 }}>
             <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Horario pico</span>
             {!loading && maxHour >= 0 && hourlyCounts[peakHour] > 0 && (
@@ -290,12 +424,17 @@ export default function AsistenciasPage() {
       </div>
 
       {/* Presentes / Ausentes tabs */}
-      <div style={{ ...card, overflow: "hidden" }}>
+      <div id="asistencias-listado" style={{ ...card, overflow: "hidden", scrollMarginTop: 110 }}>
         <div style={{ display: "flex", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
           {(["presentes", "ausentes"] as const).map(t => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => {
+                setTab(t);
+                if (t === "ausentes") {
+                  void loadAusentes();
+                }
+              }}
               style={{
                 flex: 1, padding: "14px 0", border: "none", background: "transparent", cursor: "pointer",
                 font: `${tab === t ? "700" : "500"} 0.82rem/1 ${fd}`,
@@ -304,7 +443,11 @@ export default function AsistenciasPage() {
                 transition: "all 0.15s",
               }}
             >
-              {t === "presentes" ? `Presentes (${presentes.length})` : `Ausentes (${ausentes.length})`}
+              {t === "presentes"
+                ? `Presentes (${presentes.length})`
+                : ausentesLoaded
+                  ? `Ausentes (${ausentes.length})`
+                  : "Ausentes"}
             </button>
           ))}
         </div>
@@ -340,6 +483,8 @@ export default function AsistenciasPage() {
                 })}
               </div>
             )
+          ) : ausentesLoading ? (
+            <p style={{ textAlign: "center", padding: "32px 0", font: `400 0.8rem/1 ${fb}`, color: t3 }}>Cargando ausentes...</p>
           ) : (
             ausentes.length === 0 ? (
               <div style={{ textAlign: "center", padding: "48px 24px" }}>

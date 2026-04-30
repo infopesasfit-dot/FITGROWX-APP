@@ -1,15 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { BentoBackground } from "@/components/bento-background";
 import { HeroSection } from "@/components/hero-section";
-import { BenefitsSection } from "@/components/benefits-section";
-import { DemoSection } from "@/components/demo-section";
-import { PricingSection } from "@/components/pricing-section";
 import { LandingHeader } from "@/components/landing-header";
 import { LogosSection } from "@/components/logos-section";
 import { FITGROWX_PLANS, formatArs } from "@/lib/fitgrowx-plans";
-import { LandingWhatsApp } from "@/components/landing-whatsapp";
-import { CookieBanner } from "@/components/cookie-banner";
+
+const BenefitsSection = dynamic(() => import("@/components/benefits-section").then((m) => m.BenefitsSection));
+const OutcomesSection = dynamic(() => import("@/components/outcomes-section").then((m) => m.OutcomesSection));
+const DemoSection = dynamic(() => import("@/components/demo-section").then((m) => m.DemoSection));
+const PricingSection = dynamic(() => import("@/components/pricing-section").then((m) => m.PricingSection));
+const LandingWhatsApp = dynamic(() => import("@/components/landing-whatsapp").then((m) => m.LandingWhatsApp));
+const CookieBanner = dynamic(() => import("@/components/cookie-banner").then((m) => m.CookieBanner));
 
 const plans = FITGROWX_PLANS.map((plan) => ({
   name: plan.name,
@@ -25,15 +28,13 @@ const plans = FITGROWX_PLANS.map((plan) => ({
 export default function Home() {
   return (
     <main className="relative isolate min-h-screen font-sans text-white antialiased bg-[#050505]">
-      {/* CAPA DE TEXTURA (GRAIN) GLOBAL */}
-      <div className="fixed inset-0 z-[99] pointer-events-none opacity-[0.035] mix-blend-overlay">
-        <svg className="h-full w-full">
-          <filter id="noise">
-            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch" />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#noise)" />
-        </svg>
-      </div>
+      <div
+        className="fixed inset-0 z-[99] pointer-events-none opacity-[0.018] mix-blend-overlay"
+        style={{
+          backgroundImage: "radial-gradient(rgba(255,255,255,0.22) 0.55px, transparent 0.55px)",
+          backgroundSize: "7px 7px",
+        }}
+      />
 
       <BentoBackground />
 
@@ -57,6 +58,10 @@ export default function Home() {
             }}
           />
           <BenefitsSection />
+        </div>
+
+        <div className="relative z-10 overflow-hidden">
+          <OutcomesSection />
         </div>
 
         {/* SECCIÓN DEMO */}
@@ -93,7 +98,7 @@ export default function Home() {
 
         <footer className="mx-auto max-w-7xl px-6 py-12 lg:px-10 border-t border-white/[0.03]">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
-            <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} className="h-8 w-auto object-contain opacity-30" unoptimized />
+            <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} className="h-8 w-auto object-contain opacity-30" />
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] font-light text-white/22 uppercase tracking-[0.16em]">
               <Link href="/terminos" className="hover:text-white/50 transition-colors">Términos y Condiciones</Link>
               <span className="text-white/10">·</span>
