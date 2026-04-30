@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download } from "lucide-react";
+import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
+import { CsvAlumnosImportContent } from "@/app/dashboard/components/CsvAlumnosImportContent";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -75,6 +76,8 @@ export default function AlumnosPage() {
   const [search,          setSearch]          = useState("");
   const [filtro,          setFiltro]          = useState("todos");
   const [modalOpen,       setModalOpen]       = useState(false);
+  const [csvImportOpen,   setCsvImportOpen]   = useState(false);
+  const [addMenuOpen,     setAddMenuOpen]     = useState(false);
   const [form,            setForm]            = useState(EMPTY_FORM);
   const [saving,          setSaving]          = useState(false);
   const [formError,       setFormError]       = useState<string | null>(null);
@@ -231,6 +234,11 @@ export default function AlumnosPage() {
     if (list.length > 0) {
       setForm(f => ({ ...f, plan_id: list[0].id }));
     }
+  };
+
+  const openImportModal = () => {
+    setAddMenuOpen(false);
+    setCsvImportOpen(true);
   };
 
   // ── Normalize phone to 549XXXXXXXXXX format ───────────────────────
@@ -763,12 +771,54 @@ export default function AlumnosPage() {
           <h1 style={{ font: `800 ${isMobile ? "1.25rem" : "1.9rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Alumnos</h1>
           {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Administra y monitorea a todos los miembros.</p>}
         </div>
-        <button
-          onClick={openModal}
-          style={{ flexShrink: 0, minHeight: 46, width: isMobile ? "100%" : undefined, justifyContent: "center", display: "flex", alignItems: "center", gap: 6, background: "#F97316", color: "white", border: "none", padding: isMobile ? "10px 16px" : "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)" }}
-        >
-          <Plus size={15} />{isMobile ? "Nuevo" : "Nuevo Alumno"}
-        </button>
+        <div style={{ position: "relative", flexShrink: 0, width: isMobile ? "100%" : undefined }}>
+          <button
+            onClick={() => setAddMenuOpen((current) => !current)}
+            style={{ minHeight: 46, width: isMobile ? "100%" : undefined, justifyContent: "center", display: "flex", alignItems: "center", gap: 8, background: "#F97316", color: "white", border: "none", padding: isMobile ? "10px 16px" : "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)" }}
+          >
+            <Plus size={15} />
+            {isMobile ? "Nuevo" : "Agregar Alumno"}
+            <ChevronDown size={15} />
+          </button>
+          {addMenuOpen && (
+            <>
+              <div onClick={() => setAddMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 41, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 14, boxShadow: "0 16px 38px rgba(0,0,0,0.14)", minWidth: isMobile ? "100%" : 240, overflow: "hidden" }}>
+                {[
+                  {
+                    label: "Manual",
+                    hint: "Cargar un alumno individual",
+                    icon: <User size={16} />,
+                    action: async () => {
+                      setAddMenuOpen(false);
+                      await openModal();
+                    },
+                  },
+                  {
+                    label: "Importar CSV",
+                    hint: "Subir una lista desde archivo",
+                    icon: <FileSpreadsheet size={16} />,
+                    action: openImportModal,
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={() => void item.action()}
+                    style={{ width: "100%", display: "grid", gridTemplateColumns: "36px minmax(0, 1fr)", gap: 10, alignItems: "center", textAlign: "left", padding: "12px 14px", background: "none", border: "none", cursor: "pointer" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(249,115,22,0.1)", color: "#F97316", display: "flex", alignItems: "center", justifyContent: "center" }}>{item.icon}</span>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: "block", font: `700 0.85rem/1 ${fd}`, color: t1 }}>{item.label}</span>
+                      <span style={{ display: "block", font: `400 0.74rem/1.35 ${fb}`, color: t3, marginTop: 3 }}>{item.hint}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* KPI row */}
@@ -1154,6 +1204,63 @@ export default function AlumnosPage() {
               {saving ? "Registrando..." : "Registrar Alumno"}
             </button>
           </form>
+        </div>
+      </div>
+    )}
+
+    {csvImportOpen && gymId && (
+      <div
+        onClick={() => setCsvImportOpen(false)}
+        style={{
+          position: "fixed", inset: 0, zIndex: 110,
+          background: "rgba(0,0,0,0.40)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+          display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center",
+          padding: isMobile ? 0 : 20,
+          paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined,
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "#FFFFFF",
+            borderRadius: isMobile ? "20px 20px 0 0" : 20,
+            boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)",
+            width: "100%", maxWidth: isMobile ? "100%" : 560,
+            maxHeight: isMobile ? "calc(90vh - 64px)" : "88vh",
+            overflowY: "auto",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
+            <div>
+              <h2 style={{ font: `800 1.15rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Importar Alumnos</h2>
+              <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: t3, marginTop: 4 }}>Subí un CSV para cargar varios alumnos sin salir de esta pantalla.</p>
+            </div>
+            <button
+              onClick={() => setCsvImportOpen(false)}
+              style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 24px" }} />
+
+          <div style={{ padding: "20px 24px 24px" }}>
+            <CsvAlumnosImportContent
+              gymId={gymId}
+              onImported={async (count) => {
+                setCsvImportOpen(false);
+                await fetchAlumnos(true);
+                setToast(`✓ ${count} alumnos importados`);
+                setTimeout(() => setToast(null), 3000);
+              }}
+              onSecondaryAction={() => setCsvImportOpen(false)}
+              secondaryLabel="Cancelar"
+              confirmLabel="Importar alumnos"
+            />
+          </div>
         </div>
       </div>
     )}
