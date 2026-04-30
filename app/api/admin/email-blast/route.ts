@@ -50,12 +50,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ sent: 0, message: "No hay destinatarios con ese filtro" });
   }
 
-  // Fetch emails from auth.users via admin API
-  const emails: string[] = [];
-  for (const uid of userIds) {
-    const { data: u } = await supabase.auth.admin.getUserById(uid);
-    if (u?.user?.email) emails.push(u.user.email);
-  }
+  // Fetch all auth users in one batch call, then filter to our targets
+  const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const userIdSet = new Set(userIds);
+  const emails = users
+    .filter(u => userIdSet.has(u.id) && u.email)
+    .map(u => u.email!);
 
   if (emails.length === 0) {
     return NextResponse.json({ sent: 0, message: "No se encontraron emails" });

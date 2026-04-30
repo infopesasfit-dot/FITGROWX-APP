@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
 import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
-import Papa from "papaparse";
-
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
@@ -36,6 +34,12 @@ interface Alumno {
   planes: { nombre: string; accent_color: string | null; precio: number; duracion_dias: number } | null;
   status: Status;
   next_expiration_date: string | null;
+}
+
+interface RutinaDraft {
+  nombre: string;
+  ejercicios: unknown;
+  notas: string | null;
 }
 
 const STATUS_STYLE: Record<Status, { color: string; bg: string; label: string }> = {
@@ -86,6 +90,7 @@ export default function AlumnosPage() {
   const [pagoModalOpen,   setPagoModalOpen]   = useState(false);
   const [pagoTarget,      setPagoTarget]      = useState<Alumno | null>(null);
   const [pagoMonto,       setPagoMonto]       = useState("");
+  const [pagoFecha,       setPagoFecha]       = useState(new Date().toISOString().slice(0, 10));
   const [pagoSaving,      setPagoSaving]      = useState(false);
   const [pagoError,       setPagoError]       = useState<string | null>(null);
   const [toast,           setToast]           = useState<string | null>(null);
@@ -115,6 +120,65 @@ export default function AlumnosPage() {
   const [membresiaFecha,   setMembresiaFecha]   = useState(defaultExpiry());
   const [membresiaSaving,  setMembresiaSaving]  = useState(false);
   const [membresiaError,   setMembresiaError]   = useState<string | null>(null);
+  const [rutinasCache,     setRutinasCache]     = useState<Record<string, RutinaDraft | null>>({});
+  const deferredSearch = useDeferredValue(search);
+
+  const replaceAlumno = useCallback((id: string, updater: (current: Alumno) => Alumno) => {
+    setAlumnos(prev => {
+      const next = prev.map(alumno => (alumno.id === id ? updater(alumno) : alumno));
+      if (gymId) {
+        setPageCache(`alumnos_${gymId}`, next);
+      }
+      return next;
+    });
+  }, [gymId]);
+
+  const loadUltimasAsistencias = useCallback(async (gid: string) => {
+    const cacheKey = `alumnos_ultima_${gid}`;
+    const cached = getPageCache<Record<string, string>>(cacheKey);
+    if (cached) {
+      setUltimaMap(cached);
+    }
+
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+    const { data } = await supabase
+      .from("asistencias")
+      .select("alumno_id, fecha")
+      .eq("gym_id", gid)
+      .gte("fecha", sixtyDaysAgo.toISOString().slice(0, 10))
+      .order("fecha", { ascending: false });
+
+    const nextMap: Record<string, string> = {};
+    for (const row of (data ?? []) as { alumno_id: string; fecha: string }[]) {
+      if (!nextMap[row.alumno_id]) nextMap[row.alumno_id] = row.fecha;
+    }
+    setUltimaMap(nextMap);
+    setPageCache(cacheKey, nextMap);
+  }, []);
+
+  const loadPlanes = useCallback(async (gid: string) => {
+    const cacheKey = `planes_${gid}`;
+    const cached = getPageCache<PlanOption[]>(cacheKey);
+    if (cached) {
+      setPlanes(cached);
+      return cached;
+    }
+
+    setPlanesLoading(true);
+    const { data } = await supabase
+      .from("planes")
+      .select("id, nombre, precio, periodo, duracion_dias, accent_color")
+      .eq("gym_id", gid)
+      .eq("active", true)
+      .order("created_at");
+
+    const list = (data as PlanOption[]) ?? [];
+    setPlanes(list);
+    setPageCache(cacheKey, list);
+    setPlanesLoading(false);
+    return list;
+  }, []);
 
   // ── Fetch alumnos ─────────────────────────────────────────────────
   const fetchAlumnos = useCallback(async (background = false) => {
@@ -128,41 +192,20 @@ export default function AlumnosPage() {
       else setLoading(true);
     }
 
-    const [{ data }, { count }] = await Promise.all([
-      supabase
-        .from("alumnos")
-        .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
-        .eq("gym_id", profile.gymId)
-        .order("full_name"),
-      supabase
-        .from("alumnos")
-        .select("id", { count: "exact", head: true })
-        .eq("gym_id", profile.gymId),
-    ]);
+    const { data } = await supabase
+      .from("alumnos")
+      .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
+      .eq("gym_id", profile.gymId)
+      .order("full_name");
 
     const rows = (data as unknown as Alumno[]) ?? [];
     setAlumnos(rows);
-    setTotalCount(count ?? 0);
+    setTotalCount(rows.length);
     setPageCache(`alumnos_${profile.gymId}`, rows);
 
-    // Fetch ultima asistencia per alumno (last 60 days)
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-    const { data: asistData } = await supabase
-      .from("asistencias")
-      .select("alumno_id, fecha")
-      .eq("gym_id", profile.gymId)
-      .gte("fecha", sixtyDaysAgo.toISOString().slice(0, 10))
-      .order("fecha", { ascending: false });
-
-    const map: Record<string, string> = {};
-    for (const row of (asistData ?? []) as { alumno_id: string; fecha: string }[]) {
-      if (!map[row.alumno_id]) map[row.alumno_id] = row.fecha;
-    }
-    setUltimaMap(map);
-
     setLoading(false);
-  }, []);
+    void loadUltimasAsistencias(profile.gymId);
+  }, [loadUltimasAsistencias]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void fetchAlumnos(); }, 0);
@@ -182,19 +225,8 @@ export default function AlumnosPage() {
     setFormError(null);
     setModalOpen(true);
 
-    setPlanesLoading(true);
     if (!gymId) { setPlanesLoading(false); return; }
-
-    const { data } = await supabase
-      .from("planes")
-      .select("id, nombre, precio, periodo, duracion_dias, accent_color")
-      .eq("gym_id", gymId)
-      .eq("active", true)
-      .order("created_at");
-
-    const list = (data as PlanOption[]) ?? [];
-    setPlanes(list);
-    setPlanesLoading(false);
+    const list = await loadPlanes(gymId);
 
     if (list.length > 0) {
       setForm(f => ({ ...f, plan_id: list[0].id }));
@@ -331,6 +363,7 @@ export default function AlumnosPage() {
   const openPagoModal = (a: Alumno) => {
     setPagoTarget(a);
     setPagoMonto(String(a.planes?.precio ?? ""));
+    setPagoFecha(today);
     setPagoError(null);
     setPagoModalOpen(true);
   };
@@ -346,26 +379,27 @@ export default function AlumnosPage() {
 
     if (!gymId) { setPagoError("Sesión expirada."); setPagoSaving(false); return; }
 
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const paymentDate = pagoFecha || today;
+    const paymentBaseDate = new Date(`${paymentDate}T12:00:00`);
 
     const duracion = pagoTarget.planes?.duracion_dias ?? 30;
     const currentExpiry = pagoTarget.next_expiration_date ? new Date(pagoTarget.next_expiration_date) : null;
-    const base = currentExpiry && currentExpiry > today ? currentExpiry : today;
+    const base = currentExpiry && currentExpiry > paymentBaseDate ? currentExpiry : paymentBaseDate;
     const newExpiry = new Date(base);
     newExpiry.setDate(newExpiry.getDate() + duracion);
     const newExpiryStr = newExpiry.toISOString().slice(0, 10);
+    const nextStatus = statusFromDate(newExpiryStr);
 
     const [{ error: pagoErr }, { error: alumnoErr }] = await Promise.all([
       supabase.from("pagos").insert([{
         gym_id:    gymId,
         alumno_id: pagoTarget.id,
         amount:    monto,
-        date:      todayStr,
+        date:      paymentDate,
       }]),
       supabase.from("alumnos").update({
-        status:              "activo" as Status,
-        last_payment_date:   todayStr,
+        status:              nextStatus,
+        last_payment_date:   paymentDate,
         next_expiration_date: newExpiryStr,
       }).eq("id", pagoTarget.id),
     ]);
@@ -408,7 +442,11 @@ export default function AlumnosPage() {
     setPagoModalOpen(false);
     setPagoTarget(null);
     setToast("¡Pago registrado con éxito!");
-    fetchAlumnos();
+    replaceAlumno(pagoTarget.id, (current) => ({
+      ...current,
+      status: nextStatus,
+      next_expiration_date: newExpiryStr,
+    }));
   };
 
   // ── Rutina ────────────────────────────────────────────────────────
@@ -428,7 +466,12 @@ export default function AlumnosPage() {
     setWodTimeCap("15");
     setPublicado(false);
     setRutinaModalOpen(true);
-    const { data } = await supabase.from("rutinas").select("nombre, ejercicios, notas").eq("alumno_id", a.id).maybeSingle();
+    let data = rutinasCache[a.id];
+    if (data === undefined) {
+      const result = await supabase.from("rutinas").select("nombre, ejercicios, notas").eq("alumno_id", a.id).maybeSingle();
+      data = (result.data as RutinaDraft | null) ?? null;
+      setRutinasCache(prev => ({ ...prev, [a.id]: data }));
+    }
     if (data) {
       setRutinaNombre(data.nombre);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -471,6 +514,14 @@ export default function AlumnosPage() {
     });
     const d = await res.json();
     if (!res.ok || d.error) { setRutinaError(d.error ?? "Error al guardar."); setRutinaSaving(false); return; }
+    setRutinasCache(prev => ({
+      ...prev,
+      [rutinaTarget.id]: {
+        nombre: rutinaNombre.trim(),
+        ejercicios: ejerciciosToSave,
+        notas: notas.trim() || null,
+      },
+    }));
     setRutinaSaving(false);
     setPublicado(true);
     setTimeout(() => {
@@ -520,19 +571,31 @@ export default function AlumnosPage() {
   // ── Pausar / Reanudar ─────────────────────────────────────────────
   const handlePausar = async (id: string) => {
     const { error } = await supabase.from("alumnos").update({ status: "pausado" as Status }).eq("id", id);
-    if (!error) fetchAlumnos();
+    if (!error) {
+      replaceAlumno(id, (current) => ({ ...current, status: "pausado" }));
+    }
   };
 
   const handleReanudar = async (id: string) => {
     const { error } = await supabase.from("alumnos").update({ status: "activo" as Status }).eq("id", id);
-    if (!error) fetchAlumnos();
+    if (!error) {
+      replaceAlumno(id, (current) => ({ ...current, status: "activo" }));
+    }
   };
 
   // ── Eliminar Alumno ───────────────────────────────────────────────
   const handleEliminar = async (id: string, name: string) => {
     if (!confirm(`¿Eliminar a ${name}? Esta acción no se puede deshacer.`)) return;
     const { error } = await supabase.from("alumnos").delete().eq("id", id);
-    if (!error) fetchAlumnos();
+    if (!error) {
+      setAlumnos(prev => prev.filter(alumno => alumno.id !== id));
+      setTotalCount(prev => Math.max(0, prev - 1));
+      setUltimaMap(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   };
 
   // ── Exportar ──────────────────────────────────────────────────────
@@ -546,7 +609,8 @@ export default function AlumnosPage() {
     "Últ. asistencia": ultimaMap[a.id] ?? "",
   }));
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
+    const { default: Papa } = await import("papaparse");
     const csv = Papa.unparse(buildRows());
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
@@ -590,12 +654,7 @@ export default function AlumnosPage() {
     setMembresiaPlanId(a.plan_id ?? "");
     setMembresiaFecha(a.next_expiration_date ?? defaultExpiry());
     setMembresiaError(null);
-    if (planes.length === 0 && gymId) {
-      setPlanesLoading(true);
-      const { data } = await supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, accent_color").eq("gym_id", gymId).eq("active", true).order("created_at");
-      setPlanes((data as PlanOption[]) ?? []);
-      setPlanesLoading(false);
-    }
+    if (planes.length === 0 && gymId) await loadPlanes(gymId);
   };
 
   const handleMembresiaSubmit = async (e: React.FormEvent) => {
@@ -613,7 +672,21 @@ export default function AlumnosPage() {
     setMembresiaTarget(null);
     setToast("Membresía asignada");
     setTimeout(() => setToast(null), 3000);
-    fetchAlumnos(true);
+    const selectedPlan = planes.find(plan => plan.id === membresiaPlanId) ?? null;
+    replaceAlumno(membresiaTarget.id, (current) => ({
+      ...current,
+      plan_id: membresiaPlanId || null,
+      next_expiration_date: membresiaFecha || null,
+      status: newStatus,
+      planes: selectedPlan
+        ? {
+            nombre: selectedPlan.nombre,
+            accent_color: selectedPlan.accent_color,
+            precio: selectedPlan.precio,
+            duracion_dias: selectedPlan.duracion_dias,
+          }
+        : null,
+    }));
   };
 
   // ── Editar Alumno ─────────────────────────────────────────────────
@@ -621,12 +694,7 @@ export default function AlumnosPage() {
     setEditForm({ id: a.id, full_name: a.full_name, phone: a.phone ?? "", plan_id: a.plan_id ?? "", next_expiration_date: a.next_expiration_date ?? "" });
     setEditError(null);
     setEditModalOpen(true);
-    if (planes.length === 0 && gymId) {
-      setPlanesLoading(true);
-      const { data } = await supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, accent_color").eq("gym_id", gymId).eq("active", true).order("created_at");
-      setPlanes((data as PlanOption[]) ?? []);
-      setPlanesLoading(false);
-    }
+    if (planes.length === 0 && gymId) await loadPlanes(gymId);
   };
 
   const handleEditSave = async (e: React.FormEvent) => {
@@ -643,24 +711,46 @@ export default function AlumnosPage() {
     if (error) { setEditError(error.message); setEditSaving(false); return; }
     setEditModalOpen(false);
     setEditSaving(false);
-    fetchAlumnos();
+    const selectedPlan = planes.find(plan => plan.id === editForm.plan_id) ?? null;
+    replaceAlumno(editForm.id, (current) => ({
+      ...current,
+      full_name: editForm.full_name.trim(),
+      phone: normalizePhone(editForm.phone.trim()),
+      plan_id: editForm.plan_id || null,
+      next_expiration_date: editForm.next_expiration_date || null,
+      status: statusFromDate(editForm.next_expiration_date || null),
+      planes: selectedPlan
+        ? {
+            nombre: selectedPlan.nombre,
+            accent_color: selectedPlan.accent_color,
+            precio: selectedPlan.precio,
+            duracion_dias: selectedPlan.duracion_dias,
+          }
+        : current.planes,
+    }));
   };
 
   // ── Derived state ─────────────────────────────────────────────────
-  const lista = alumnos.filter(a => {
-    const q = search.toLowerCase();
-    return (
-      (a.full_name.toLowerCase().includes(q) ||
-       (a.planes?.nombre ?? "").toLowerCase().includes(q) ||
-       (a.phone ?? "").toLowerCase().includes(q) ||
-       (a.dni ?? "").toLowerCase().includes(q)) &&
-      (filtro === "todos" || a.status === filtro)
-    );
-  });
+  const q = deferredSearch.toLowerCase();
+  const lista = alumnos.filter(a => (
+    (a.full_name.toLowerCase().includes(q) ||
+     (a.planes?.nombre ?? "").toLowerCase().includes(q) ||
+     (a.phone ?? "").toLowerCase().includes(q) ||
+     (a.dni ?? "").toLowerCase().includes(q)) &&
+    (filtro === "todos" || a.status === filtro)
+  ));
 
-  const activos    = alumnos.filter(a => a.status === "activo").length;
-  const vencidos   = alumnos.filter(a => a.status === "vencido").length;
-  const pendientes = alumnos.filter(a => a.status === "pendiente").length;
+  let activos = 0;
+  let vencidos = 0;
+  let pendientes = 0;
+  for (const alumno of alumnos) {
+    if (alumno.status === "activo") activos += 1;
+    else if (alumno.status === "vencido") vencidos += 1;
+    else if (alumno.status === "pendiente") pendientes += 1;
+  }
+
+  const menuTarget = menuOpenId ? alumnos.find(a => a.id === menuOpenId) ?? null : null;
+  const portalRoot = typeof document !== "undefined" ? document.body : null;
 
   return (
     <>
@@ -1069,31 +1159,25 @@ export default function AlumnosPage() {
     )}
 
     {/* ── Portal: More Actions dropdown ── */}
-    {menuOpenId && menuPos && typeof document !== "undefined" && createPortal(
-      (() => {
-        const target = alumnos.find(a => a.id === menuOpenId);
-        if (!target) return null;
-        return (
-          <div onClick={e => e.stopPropagation()} style={{ position: "fixed", ...(menuPos.openUp ? { bottom: window.innerHeight - menuPos.top } : { top: menuPos.top }), right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
-            {[
-              { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(target); setMenuOpenId(null); setMenuPos(null); } },
-              { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(target); setMenuOpenId(null); setMenuPos(null); } },
-              { label: "Editar Datos", color: t1, action: () => { openEditModal(target); setMenuOpenId(null); setMenuPos(null); } },
-              target.status === "pausado"
-                ? { label: "Reanudar Membresía", color: "#22C55E", action: () => { handleReanudar(target.id); setMenuOpenId(null); setMenuPos(null); } }
-                : { label: "Pausar Membresía",   color: "#64748B", action: () => { handlePausar(target.id);   setMenuOpenId(null); setMenuPos(null); } },
-              { label: "Eliminar Alumno", color: "#DC2626", action: () => { handleEliminar(target.id, target.full_name); setMenuOpenId(null); setMenuPos(null); } },
-            ].map(item => (
-              <button key={item.label} onClick={item.action}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", font: `500 0.825rem/1 ${fb}`, color: item.color, cursor: "pointer" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-                onMouseLeave={e => (e.currentTarget.style.background = "none")}
-              >{item.label}</button>
-            ))}
-          </div>
-        );
-      })(),
-      document.body
+    {menuTarget && menuPos && portalRoot && createPortal(
+      <div onClick={e => e.stopPropagation()} style={{ position: "fixed", ...(menuPos.openUp ? { bottom: window.innerHeight - menuPos.top } : { top: menuPos.top }), right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
+        {[
+          { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          { label: "Editar Datos", color: t1, action: () => { openEditModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          menuTarget.status === "pausado"
+            ? { label: "Reanudar Membresía", color: "#22C55E", action: () => { handleReanudar(menuTarget.id); setMenuOpenId(null); setMenuPos(null); } }
+            : { label: "Pausar Membresía",   color: "#64748B", action: () => { handlePausar(menuTarget.id);   setMenuOpenId(null); setMenuPos(null); } },
+          { label: "Eliminar Alumno", color: "#DC2626", action: () => { handleEliminar(menuTarget.id, menuTarget.full_name); setMenuOpenId(null); setMenuPos(null); } },
+        ].map(item => (
+          <button key={item.label} onClick={item.action}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", font: `500 0.825rem/1 ${fb}`, color: item.color, cursor: "pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none")}
+          >{item.label}</button>
+        ))}
+      </div>,
+      portalRoot
     )}
 
     {/* ── Modal: Editar Alumno ── */}
@@ -1285,6 +1369,23 @@ export default function AlumnosPage() {
                   Plan: {pagoTarget.planes.nombre} — ${pagoTarget.planes.precio}/mes
                 </p>
               )}
+            </div>
+            <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>
+                Fecha del pago
+              </label>
+              <input
+                required
+                type="date"
+                value={pagoFecha}
+                onChange={e => setPagoFecha(e.target.value)}
+                style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `500 0.9rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
+                onFocus={e => (e.currentTarget.style.borderColor = "#4B6BFB")}
+                onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+              />
+              <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 5 }}>
+                Arranca con hoy, pero podés corregirla si estás registrando un pago anterior.
+              </p>
             </div>
             <div style={{ background: "rgba(75,107,251,0.06)", border: "1px solid rgba(75,107,251,0.14)", borderRadius: 10, padding: "10px 14px", font: `400 0.78rem/1.5 ${fb}`, color: "#4B6BFB" }}>
               Esto marcará al alumno como <strong>Activo</strong> y extenderá su vencimiento 30 días.

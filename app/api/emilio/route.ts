@@ -1,10 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY_FITGROWX,
-});
-
 const SYSTEM_PROMPT = `Sos Emilio. Ex dueño de gym en Argentina. Hoy ayudás a dueños a vender mejor. Hablás como un socio que ya pasó por eso, no como consultor.
 
 OBJETIVO:
@@ -62,6 +56,9 @@ FORMATO FINAL:
 `;
 
 export async function POST(req: NextRequest) {
+  const { default: OpenAI } = await import("openai");
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
+
   try {
     const { messages, gymData } = await req.json() as {
       messages: { role: "user" | "assistant"; content: string }[];

@@ -19,16 +19,6 @@ function getStore(): RateLimitStore {
   return globalThis.__fitgrowxRateLimitStore;
 }
 
-function pruneExpiredEntries(now: number) {
-  const store = getStore();
-
-  for (const [key, value] of store.entries()) {
-    if (value.resetAt <= now) {
-      store.delete(key);
-    }
-  }
-}
-
 export function getClientIp(req: NextRequest) {
   const forwardedFor = req.headers.get("x-forwarded-for");
   if (forwardedFor) {
@@ -49,8 +39,6 @@ export function applyRateLimit(options: {
   maxAttempts: number;
 }) {
   const now = Date.now();
-  pruneExpiredEntries(now);
-
   const store = getStore();
   const key = `${options.namespace}:${options.identifier}`;
   const existing = store.get(key);

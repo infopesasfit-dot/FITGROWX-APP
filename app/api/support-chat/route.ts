@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
 
 const SYSTEM_PROMPT = `Sos el asistente de soporte de FitGrowX, una plataforma de gestión para gimnasios y boxes en Argentina.
 
@@ -28,6 +25,9 @@ ESTILO:
 - Si no sabés algo, decís "Escribinos a soporte@fitgrowx.com y te ayudamos"`;
 
 export async function POST(req: NextRequest) {
+  const { default: OpenAI } = await import("openai");
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
+
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });

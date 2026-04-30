@@ -66,45 +66,46 @@ export async function GET(req: NextRequest) {
     const notifCutoff = new Date();
     notifCutoff.setDate(notifCutoff.getDate() - dias);
 
-    for (const alumno of alumnos) {
-      if (asistidosSet.has(alumno.id)) continue; // attended recently
-
-      // Skip if notified recently
+    const pending = alumnos.filter(alumno => {
+      if (asistidosSet.has(alumno.id)) return false;
       if (alumno.ultima_notif_inactividad) {
         const lastNotif = new Date(alumno.ultima_notif_inactividad);
-        if (lastNotif > notifCutoff) continue;
+        if (lastNotif > notifCutoff) return false;
       }
+      return true;
+    });
 
-      const defaultMsg = `¡Hola [Nombre]! 💪 Te extrañamos en *[Gym]*. Hace más de ${dias} días que no te vemos. ¡Volvé cuando quieras, te esperamos!`;
-      const template = gym.inactividad_msg?.trim() || defaultMsg;
-      const message = template
-        .replace(/\[Nombre\]/g, alumno.full_name)
-        .replace(/\[Gym\]/g, gym.gym_name ?? "el gym")
-        .replace(/\[Dias\]/g, String(dias));
+    const defaultMsg = `¡Hola [Nombre]! 💪 Te extrañamos en *[Gym]*. Hace más de ${dias} días que no te vemos. ¡Volvé cuando quieras, te esperamos!`;
+    const template = gym.inactividad_msg?.trim() || defaultMsg;
 
-      const phone = normalizeArgPhone(alumno.phone!);
-
-      try {
-        const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
-          },
-          body: JSON.stringify({ phone, message }),
-          signal: AbortSignal.timeout(8000),
-        });
-        if (res.ok) {
-          // Update last notification timestamp
-          await supabase
-            .from("alumnos")
-            .update({ ultima_notif_inactividad: new Date().toISOString() })
-            .eq("id", alumno.id);
-          totalEnviados++;
-          log.push(`✓ ${alumno.full_name} (${gym.gym_name})`);
-        }
-      } catch (err) {
-        log.push(`✗ ${alumno.full_name} — ${err instanceof Error ? err.message : "error"}`);
+    const CHUNK = 5;
+    for (let i = 0; i < pending.length; i += CHUNK) {
+      const chunk = pending.slice(i, i + CHUNK);
+      const results = await Promise.allSettled(
+        chunk.map(async alumno => {
+          const message = template
+            .replace(/\[Nombre\]/g, alumno.full_name)
+            .replace(/\[Gym\]/g, gym.gym_name ?? "el gym")
+            .replace(/\[Dias\]/g, String(dias));
+          const phone = normalizeArgPhone(alumno.phone!);
+          const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+            body: JSON.stringify({ phone, message }),
+            signal: AbortSignal.timeout(8000),
+          });
+          if (res.ok) {
+            await supabase.from("alumnos").update({ ultima_notif_inactividad: new Date().toISOString() }).eq("id", alumno.id);
+            return alumno.full_name;
+          }
+          throw new Error(`HTTP ${res.status}`);
+        })
+      );
+      for (let j = 0; j < results.length; j++) {
+        const r = results[j];
+        const name = chunk[j].full_name;
+        if (r.status === "fulfilled") { totalEnviados++; log.push(`✓ ${name} (${gym.gym_name})`); }
+        else { log.push(`✗ ${name} — ${r.reason instanceof Error ? r.reason.message : "error"}`); }
       }
     }
   }

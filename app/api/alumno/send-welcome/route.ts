@@ -36,20 +36,13 @@ export async function POST(req: NextRequest) {
     expires_at,
   });
 
-  const { data: settings } = await supabase
-    .from("gym_settings")
-    .select("gym_name, magiclink_msg, renewal_msg, renewal_activo")
-    .eq("gym_id", alumno.gym_id)
-    .maybeSingle();
+  const [{ data: settings }, { data: gym }] = await Promise.all([
+    supabase.from("gym_settings").select("gym_name, magiclink_msg, renewal_msg, renewal_activo").eq("gym_id", alumno.gym_id).maybeSingle(),
+    supabase.from("gyms").select("name").eq("id", alumno.gym_id).maybeSingle(),
+  ]);
 
   // Si es renovación y el gym desactivó el envío, no mandamos nada
   if (type === "renewal" && settings?.renewal_activo === false) return NextResponse.json({ ok: true });
-
-  const { data: gym } = await supabase
-    .from("gyms")
-    .select("name")
-    .eq("id", alumno.gym_id)
-    .maybeSingle();
 
   const gymName = settings?.gym_name || gym?.name || "tu gimnasio";
 

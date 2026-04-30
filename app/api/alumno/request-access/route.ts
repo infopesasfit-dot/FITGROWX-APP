@@ -94,18 +94,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error al generar el acceso." }, { status: 500 });
   }
 
-  // Obtener nombre del gym y plantilla personalizada
-  const { data: settings } = await supabase
-    .from("gym_settings")
-    .select("gym_name, magiclink_msg")
-    .eq("gym_id", alumno.gym_id)
-    .maybeSingle();
-
-  const { data: gym } = await supabase
-    .from("gyms")
-    .select("name")
-    .eq("id", alumno.gym_id)
-    .maybeSingle();
+  // Obtener nombre del gym y plantilla personalizada (en paralelo)
+  const [{ data: settings }, { data: gym }] = await Promise.all([
+    supabase.from("gym_settings").select("gym_name, magiclink_msg").eq("gym_id", alumno.gym_id).maybeSingle(),
+    supabase.from("gyms").select("name").eq("id", alumno.gym_id).maybeSingle(),
+  ]);
 
   const gymName = settings?.gym_name || gym?.name || "tu gimnasio";
 
