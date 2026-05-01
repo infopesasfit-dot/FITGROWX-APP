@@ -181,6 +181,8 @@ export async function GET(req: NextRequest) {
     profile.full_name?.trim() ||
     gymSettings?.owner_name?.trim() ||
     gymRow?.owner_name?.trim() ||
+    (user.user_metadata?.full_name as string | undefined)?.trim() ||
+    (user.user_metadata?.name as string | undefined)?.trim() ||
     user.email?.split("@")[0] ||
     "dueño";
   const gymDisplay =
