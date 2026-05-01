@@ -36,6 +36,78 @@ DO $$ BEGIN
 END $$;
 
 
+-- ── 11. Promos de membresías y descuentos guiados ────────────
+CREATE TABLE IF NOT EXISTS gym_promotions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL,
+  promo_type TEXT NOT NULL DEFAULT 'descuento',
+  discount_type TEXT NOT NULL DEFAULT 'porcentaje',
+  discount_value NUMERIC NOT NULL DEFAULT 0,
+  note TEXT,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'gym_promotions_type_check'
+  ) THEN
+    ALTER TABLE gym_promotions
+      ADD CONSTRAINT gym_promotions_type_check
+      CHECK (promo_type IN ('descuento', 'referido', '2x1'));
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'gym_promotions_discount_type_check'
+  ) THEN
+    ALTER TABLE gym_promotions
+      ADD CONSTRAINT gym_promotions_discount_type_check
+      CHECK (discount_type IN ('monto', 'porcentaje'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_gym_promotions_gym_id ON gym_promotions(gym_id);
+
+ALTER TABLE gym_promotions ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'gym_promotions' AND policyname = 'owner select gym promotions'
+  ) THEN
+    CREATE POLICY "owner select gym promotions" ON gym_promotions FOR SELECT
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'gym_promotions' AND policyname = 'owner upsert gym promotions'
+  ) THEN
+    CREATE POLICY "owner upsert gym promotions" ON gym_promotions FOR ALL TO authenticated
+      USING (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()))
+      WITH CHECK (gym_id = (SELECT gym_id FROM profiles WHERE id = auth.uid()));
+  END IF;
+END $$;
+
+
+-- ── 11. Unificar FitGrowX a un único plan ──────────────────────
+UPDATE gyms
+SET plan_type = 'crecimiento'
+WHERE plan_type IN ('gestion', 'full_marca');
+
+ALTER TABLE gyms DROP CONSTRAINT IF EXISTS gyms_plan_type_check;
+
+ALTER TABLE gyms ADD CONSTRAINT gyms_plan_type_check
+  CHECK (plan_type IS NULL OR plan_type IN ('crecimiento'));
+
+
 -- ── 0. 20260427_egresos (tabla faltante) ─────────────────────
 CREATE TABLE IF NOT EXISTS egresos (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -298,6 +370,24 @@ CREATE TABLE IF NOT EXISTS monthly_dashboard_reports (
 
 CREATE INDEX IF NOT EXISTS idx_monthly_dashboard_reports_gym_month
   ON monthly_dashboard_reports(gym_id, report_month DESC);
+
+
+-- ── 8. 20260501_planes_access_rules ─────────────────────────
+ALTER TABLE planes
+  ADD COLUMN IF NOT EXISTS access_type TEXT NOT NULL DEFAULT 'libre',
+  ADD COLUMN IF NOT EXISTS classes_per_week INT;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'planes_access_type_check'
+  ) THEN
+    ALTER TABLE planes
+      ADD CONSTRAINT planes_access_type_check
+      CHECK (access_type IN ('libre', 'clases_por_semana'));
+  END IF;
+END $$;
 
 
 -- ── 7. 20260427_prospectos (tabla faltante) ───────────────────

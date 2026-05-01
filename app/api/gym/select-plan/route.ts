@@ -12,7 +12,7 @@ const supabase = getSupabaseAdminClient();
 export async function POST(req: NextRequest) {
   const { gym_id, plan_type } = await req.json();
 
-  if (!gym_id || !["gestion", "crecimiento", "full_marca"].includes(plan_type)) {
+  if (!gym_id || plan_type !== "crecimiento") {
     return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
   }
 

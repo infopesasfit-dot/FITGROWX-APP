@@ -33,6 +33,11 @@ export function getPlanPeriodo(input: unknown): string | null {
   return typeof relation?.periodo === "string" ? relation.periodo : null;
 }
 
+export function getPlanDurationDays(input: unknown): number | null {
+  const relation = firstRelationItem(input);
+  return typeof relation?.duracion_dias === "number" ? relation.duracion_dias : null;
+}
+
 export function getGymSettingsSummary(
   input: unknown,
 ): { gym_name: string | null; whatsapp: string | null } | null {

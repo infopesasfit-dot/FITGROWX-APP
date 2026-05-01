@@ -16,11 +16,11 @@ const CookieBanner = dynamic(() => import("@/components/cookie-banner").then((m)
 
 const plans = FITGROWX_PLANS.map((plan) => ({
   name: plan.name,
-  price: `$${formatArs(plan.priceMonthly)}`,
-  period: "ARS / mes",
+  price: `$${formatArs(plan.priceAnnual * 12)}`,
+  period: "ARS / año",
   badge: plan.badge,
   featured: plan.highlight,
-  studentLimit: plan.studentLimit,
+  studentLimit: `Equivale a $${formatArs(plan.priceAnnual)}/mes · 20% OFF`,
   description: plan.description,
   features: plan.features,
 }));

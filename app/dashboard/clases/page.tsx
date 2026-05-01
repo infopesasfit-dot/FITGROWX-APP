@@ -85,7 +85,7 @@ export default function ClasesPage() {
   const [deleteId,      setDeleteId]      = useState<string | null>(null);
 
   useEffect(() => {
-    getCachedProfile().then(p => { if (p) setGymId(p.gymId); });
+    getCachedProfile().then((profile) => { if (profile) setGymId(profile.gymId); });
   }, []);
 
   useEffect(() => {
@@ -176,14 +176,24 @@ export default function ClasesPage() {
     };
 
     if (editId) {
-      const { error } = await supabase.from("gym_classes").update({ ...basePayload, day_of_week: derivedDow }).eq("id", editId);
-      if (error) { setFormError(error.message); setSaving(false); return; }
+      const res = await fetch("/api/admin/classes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editId, payload: { ...basePayload, day_of_week: derivedDow } }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setFormError(data.error ?? "No se pudo editar la clase."); setSaving(false); return; }
     } else {
       const rows = isEspecial
         ? [{ ...basePayload, day_of_week: derivedDow }]
         : form.days_of_week.map(dow => ({ ...basePayload, day_of_week: dow }));
-      const { error } = await supabase.from("gym_classes").insert(rows);
-      if (error) { setFormError(error.message); setSaving(false); return; }
+      const res = await fetch("/api/admin/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setFormError(data.error ?? "No se pudo crear la clase."); setSaving(false); return; }
     }
     setSaving(false);
     setModalOpen(false);
@@ -192,7 +202,13 @@ export default function ClasesPage() {
 
   const handleDelete = async (id: string) => {
     if (!gymId) return;
-    await supabase.from("gym_classes").delete().eq("id", id);
+    const res = await fetch("/api/admin/classes", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) return;
     setDeleteId(null);
     setExpandedId(null);
     fetchClases(gymId);

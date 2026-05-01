@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
         quantity: 1,
         currency_id: "ARS",
         unit_price: Math.round(price_ars),
+        description: "Pago anual FitGrowX con 20% OFF aplicado",
       },
     ],
     back_urls: {

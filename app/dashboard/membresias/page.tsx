@@ -3,11 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   CreditCard, TrendingUp, Calendar,
-  Sparkles, X, Send,
+  MessageSquareText, X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
-import MembershipCards, { type EmilioPlan } from "@/components/MembershipCards";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -28,6 +27,8 @@ interface PlanDB {
   precio: number;
   periodo: string;
   duracion_dias: number;
+  access_type: "libre" | "clases_por_semana";
+  classes_per_week: number | null;
   active: boolean;
   features: string[];
   destacado: boolean;
@@ -39,10 +40,31 @@ type Draft = {
   precio: string;
   periodo: string;
   duracion_dias: string;
+  access_type: "libre" | "clases_por_semana";
+  classes_per_week: string;
   active: boolean;
   features: string;
   destacado: boolean;
   accent_color: string;
+};
+
+interface PromoDB {
+  id: string;
+  nombre: string;
+  promo_type: "descuento" | "referido" | "2x1";
+  discount_type: "monto" | "porcentaje";
+  discount_value: number;
+  note: string | null;
+  active: boolean;
+}
+
+type PromoDraft = {
+  nombre: string;
+  promo_type: "descuento" | "referido" | "2x1";
+  discount_type: "monto" | "porcentaje";
+  discount_value: string;
+  note: string;
+  active: boolean;
 };
 
 // ── Seed templates ────────────────────────────────────────────────────────────
@@ -67,10 +89,23 @@ function planToDraft(p: PlanDB): Draft {
     precio:        String(p.precio),
     periodo:       p.periodo,
     duracion_dias: String(p.duracion_dias ?? 30),
+    access_type:   p.access_type ?? "libre",
+    classes_per_week: p.classes_per_week ? String(p.classes_per_week) : "",
     active:        p.active ?? true,
     features:      (p.features ?? []).join("\n"),
     destacado:     p.destacado,
     accent_color:  p.accent_color ?? "",
+  };
+}
+
+function promoToDraft(p: PromoDB): PromoDraft {
+  return {
+    nombre: p.nombre,
+    promo_type: p.promo_type,
+    discount_type: p.discount_type,
+    discount_value: String(p.discount_value ?? ""),
+    note: p.note ?? "",
+    active: p.active ?? true,
   };
 }
 
@@ -82,7 +117,7 @@ function AdvancedModal({
   onSave: (changes: Pick<Draft, "periodo">) => void;
   onClose: () => void;
 }) {
-  const [periodo, setPeriodo] = useState(draft.periodo);
+    const [periodo, setPeriodo] = useState(draft.periodo);
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -121,33 +156,31 @@ function AdvancedModal({
 export default function MembresiasPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [planes,      setPlanes]      = useState<PlanDB[]>([]);
+  const [promos,      setPromos]      = useState<PromoDB[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [drafts,      setDrafts]      = useState<Record<string, Draft>>({});
+  const [promoDrafts, setPromoDrafts] = useState<Record<string, PromoDraft>>({});
   const [dirty,       setDirty]       = useState<Set<string>>(new Set());
+  const [promoDirty,  setPromoDirty]  = useState<Set<string>>(new Set());
   const [savingSet,   setSavingSet]   = useState<Set<string>>(new Set());
+  const [promoSavingSet, setPromoSavingSet] = useState<Set<string>>(new Set());
   const [advanced,    setAdvanced]    = useState<string | null>(null);
-  const [chatOpen,    setChatOpen]    = useState(false);
-  const [chatMsg,     setChatMsg]     = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [emilioPlans, setEmilioPlans] = useState<EmilioPlan[] | null>(null);
-  const [chatHistory, setChatHistory] = useState<{ role: "user" | "ai"; text: string }[]>([
-    { role: "ai", text: "Bueno. Antes de armar nada, necesito entender qué tenés. ¿Qué tipo de gym/box es y a quién le estás vendiendo hoy?" },
-  ]);
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
   const [alumnosPorPlan, setAlumnosPorPlan] = useState<Record<string, number>>({});
   const [activosCount,   setActivosCount]   = useState(0);
 
-  const syncMembresiasCache = useCallback((nextPlanes: PlanDB[], nextCounts = alumnosPorPlan, nextActivos = activosCount) => {
-    if (nextPlanes.length === 0) return;
+  const syncMembresiasCache = useCallback((nextPlanes: PlanDB[], nextPromos = promos, nextCounts = alumnosPorPlan, nextActivos = activosCount) => {
+    if (nextPlanes.length === 0 && nextPromos.length === 0) return;
     getCachedProfile().then(profile => {
       if (!profile) return;
       setPageCache(`membresias_${profile.gymId}`, {
         planes: nextPlanes,
+        promos: nextPromos,
         alumnosPorPlan: nextCounts,
         activosCount: nextActivos,
       });
     });
-  }, [alumnosPorPlan, activosCount]);
+  }, [promos, alumnosPorPlan, activosCount]);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -166,39 +199,49 @@ export default function MembresiasPage() {
     const profile = await getCachedProfile();
     if (!profile) { setLoading(false); return; }
 
-    type PlanesCache = { planes: PlanDB[]; alumnosPorPlan: Record<string, number>; activosCount: number };
+    type PlanesCache = { planes: PlanDB[]; promos: PromoDB[]; alumnosPorPlan: Record<string, number>; activosCount: number };
     if (!background) {
       const cached = getPageCache<PlanesCache>(`membresias_${profile.gymId}`);
       if (cached) {
         setPlanes(cached.planes);
+        setPromos(cached.promos ?? []);
 
         const d: Record<string, Draft> = {};
         cached.planes.forEach(p => { d[p.id] = planToDraft(p); });
         setDrafts(d); setDirty(new Set());
+        const promoD: Record<string, PromoDraft> = {};
+        (cached.promos ?? []).forEach((p) => { promoD[p.id] = promoToDraft(p); });
+        setPromoDrafts(promoD); setPromoDirty(new Set());
         setAlumnosPorPlan(cached.alumnosPorPlan);
         setActivosCount(cached.activosCount);
         setLoading(false);
       } else setLoading(true);
     }
 
-    const [{ data }, { data: alumnosData }, { count: activos }] = await Promise.all([
-      supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, active, features, destacado, accent_color").eq("gym_id", profile.gymId).order("created_at"),
+      const [{ data }, { data: promosData }, { data: alumnosData }, { count: activos }] = await Promise.all([
+      supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, access_type, classes_per_week, active, features, destacado, accent_color").eq("gym_id", profile.gymId).order("created_at"),
+      supabase.from("gym_promotions").select("id, nombre, promo_type, discount_type, discount_value, note, active").eq("gym_id", profile.gymId).order("created_at"),
       supabase.from("alumnos").select("plan_id").eq("gym_id", profile.gymId).not("plan_id", "is", null),
       supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).eq("status", "activo"),
     ]);
 
     const list: PlanDB[] = data ? (data as PlanDB[]) : [];
+    const promoList: PromoDB[] = promosData ? (promosData as PromoDB[]) : [];
     setPlanes(list);
+    setPromos(promoList);
     const d: Record<string, Draft> = {};
     list.forEach(p => { d[p.id] = planToDraft(p); });
     setDrafts(d); setDirty(new Set());
+    const promoD: Record<string, PromoDraft> = {};
+    promoList.forEach((p) => { promoD[p.id] = promoToDraft(p); });
+    setPromoDrafts(promoD); setPromoDirty(new Set());
     const counts: Record<string, number> = {};
     (alumnosData ?? []).forEach((a: { plan_id: string }) => {
       if (a.plan_id) counts[a.plan_id] = (counts[a.plan_id] ?? 0) + 1;
     });
     setAlumnosPorPlan(counts);
     setActivosCount(activos ?? 0);
-    setPageCache(`membresias_${profile.gymId}`, { planes: list, alumnosPorPlan: counts, activosCount: activos ?? 0 });
+    setPageCache(`membresias_${profile.gymId}`, { planes: list, promos: promoList, alumnosPorPlan: counts, activosCount: activos ?? 0 });
     setLoading(false);
   }, []);
 
@@ -212,15 +255,37 @@ export default function MembresiasPage() {
     setDirty(prev => new Set(prev).add(planId));
   };
 
+  const applyTrialPreset = (planId: string) => {
+    setDrafts(prev => ({
+      ...prev,
+      [planId]: {
+        ...prev[planId],
+        nombre: prev[planId]?.nombre || "Clase de prueba 24hs",
+        precio: "0",
+        periodo: "24h",
+        duracion_dias: "1",
+        access_type: "libre",
+        classes_per_week: "",
+        features: prev[planId]?.features || "Acceso de prueba por 24 horas",
+      },
+    }));
+    setDirty(prev => new Set(prev).add(planId));
+  };
+
   const applyAdvanced = (planId: string, changes: Pick<Draft, "periodo">) => {
     setDrafts(prev => ({ ...prev, [planId]: { ...prev[planId], ...changes } }));
     setDirty(prev => new Set(prev).add(planId));
   };
 
   const updatePeriodo = (planId: string, periodo: string) => {
-    const dias = periodo === "año" ? 365 : periodo === "trimestral" ? 90 : 30;
+    const dias = periodo === "año" ? 365 : periodo === "trimestral" ? 90 : periodo === "24h" ? 1 : 30;
     setDrafts(prev => ({ ...prev, [planId]: { ...prev[planId], periodo, duracion_dias: String(dias) } }));
     setDirty(prev => new Set(prev).add(planId));
+  };
+
+  const updatePromoDraft = (promoId: string, field: keyof PromoDraft, value: string | boolean) => {
+    setPromoDrafts(prev => ({ ...prev, [promoId]: { ...prev[promoId], [field]: value } }));
+    setPromoDirty(prev => new Set(prev).add(promoId));
   };
 
   // ── Save individual card — INSERT if new slot, UPDATE if existing ─────────
@@ -245,6 +310,8 @@ export default function MembresiasPage() {
         precio:        parseFloat(draft.precio) || 0,
         periodo:       draft.periodo,
         duracion_dias: parseInt(draft.duracion_dias) || 30,
+        access_type:   draft.access_type,
+        classes_per_week: draft.access_type === "clases_por_semana" ? (parseInt(draft.classes_per_week) || 0) : null,
         active:        draft.active,
         features:      featuresArr,
         destacado:     draft.destacado,
@@ -276,7 +343,7 @@ export default function MembresiasPage() {
           .from("planes")
           .upsert([{ id: planId, ...payload }], { onConflict: "id" })
           .eq("gym_id", gymId)
-          .select("id, nombre, precio, periodo, duracion_dias, active, features, destacado, accent_color")
+          .select("id, nombre, precio, periodo, duracion_dias, access_type, classes_per_week, active, features, destacado, accent_color")
           .maybeSingle();
         if (error) { clearSaving(); showToast(`Error: ${error.message}`, "err"); return; }
         if (!updated) { clearSaving(); showToast("No se pudo guardar. Verificá permisos en Supabase (RLS).", "err"); return; }
@@ -296,6 +363,73 @@ export default function MembresiasPage() {
     }
   };
 
+  const savePromo = async (promoId: string) => {
+    const isNew = promoId.startsWith("promo-empty-");
+    const draft = promoDrafts[promoId];
+    if (!draft?.nombre.trim()) { showToast("El nombre de la promo es obligatorio.", "err"); return; }
+    if (!(parseFloat(draft.discount_value) > 0)) { showToast("Definí un descuento válido.", "err"); return; }
+
+    setPromoSavingSet(prev => new Set(prev).add(promoId));
+    const clearSaving = () => setPromoSavingSet(prev => { const s = new Set(prev); s.delete(promoId); return s; });
+
+    try {
+      const profile = await getCachedProfile();
+      if (!profile) { clearSaving(); showToast("Sesión expirada. Recargá la página.", "err"); return; }
+
+      const payload = {
+        gym_id: profile.gymId,
+        nombre: draft.nombre.trim(),
+        promo_type: draft.promo_type,
+        discount_type: draft.discount_type,
+        discount_value: parseFloat(draft.discount_value) || 0,
+        note: draft.note.trim() || null,
+        active: draft.active,
+      };
+
+      if (isNew) {
+        const { data: inserted, error } = await supabase
+          .from("gym_promotions")
+          .insert([payload])
+          .select("id, nombre, promo_type, discount_type, discount_value, note, active")
+          .maybeSingle();
+        if (error) { clearSaving(); showToast(`Error: ${error.message}`, "err"); return; }
+        if (!inserted) { clearSaving(); showToast("No se pudo crear la promo.", "err"); return; }
+        const newPromo = inserted as PromoDB;
+        setPromos(prev => {
+          const next = [...prev, newPromo];
+          syncMembresiasCache(planes, next);
+          return next;
+        });
+        setPromoDrafts(prev => {
+          const { [promoId]: removed, ...rest } = prev;
+          void removed;
+          return { ...rest, [newPromo.id]: promoToDraft(newPromo) };
+        });
+      } else {
+        const { data: updated, error } = await supabase
+          .from("gym_promotions")
+          .upsert([{ id: promoId, ...payload }], { onConflict: "id" })
+          .eq("gym_id", profile.gymId)
+          .select("id, nombre, promo_type, discount_type, discount_value, note, active")
+          .maybeSingle();
+        if (error) { clearSaving(); showToast(`Error: ${error.message}`, "err"); return; }
+        if (!updated) { clearSaving(); showToast("No se pudo guardar la promo.", "err"); return; }
+        setPromos(prev => {
+          const next = prev.map(p => p.id === promoId ? (updated as PromoDB) : p);
+          syncMembresiasCache(planes, next);
+          return next;
+        });
+      }
+
+      setPromoDirty(prev => { const s = new Set(prev); s.delete(promoId); return s; });
+      clearSaving();
+      showToast("Promo guardada correctamente.", "ok");
+    } catch (err: unknown) {
+      clearSaving();
+      showToast(`Error inesperado: ${err instanceof Error ? err.message : String(err)}`, "err");
+    }
+  };
+
   // ── Toggle active — va por draft igual que nombre/precio ─────────────────
   const toggleActive = (planId: string, currentActive: boolean) => {
     if (planId.startsWith("empty-")) return;
@@ -304,114 +438,16 @@ export default function MembresiasPage() {
 
   // ── Derived ───────────────────────────────────────────────────────────────
   // Always exactly 3 slots: real planes first, empty placeholders for the rest
-  const EMPTY = (i: number): PlanDB => ({ id: `empty-${i}`, nombre: "", precio: 0, periodo: "mes", duracion_dias: 30, active: true, features: [], destacado: false, accent_color: null });
+  const EMPTY = (i: number): PlanDB => ({ id: `empty-${i}`, nombre: "", precio: 0, periodo: "mes", duracion_dias: 30, access_type: "libre", classes_per_week: null, active: true, features: [], destacado: false, accent_color: null });
+  const EMPTY_PROMO = (i: number): PromoDB => ({ id: `promo-empty-${i}`, nombre: "", promo_type: i === 0 ? "2x1" : "referido", discount_type: "porcentaje", discount_value: i === 0 ? 50 : 10, note: i === 0 ? "Promo 2x1" : "Descuento por referido", active: true });
   const displayPlanes: PlanDB[] = [0, 1, 2].map(i => planes[i] ?? EMPTY(i));
+  const displayPromos: PromoDB[] = [0, 1].map(i => promos[i] ?? EMPTY_PROMO(i));
   const displayIngresos = planes.length > 0
     ? displayPlanes.reduce((s, p) => {
         const mensual = p.periodo === "año" ? p.precio / 12 : p.precio;
         return s + mensual * (alumnosPorPlan[p.id] ?? 0);
       }, 0)
     : 0;
-  // Chat — real OpenAI call
-  const sendChat = async (quickMsg?: string) => {
-    const text = (quickMsg ?? chatMsg).trim();
-    if (!text || chatLoading) return;
-    const nextHistory = [...chatHistory, { role: "user" as const, text }];
-    setChatHistory(nextHistory);
-    setChatMsg("");
-    setChatLoading(true);
-    try {
-      // Inject plan occupancy context as a hidden preamble
-      const planContext = planes.length > 0
-        ? planes.map(p => {
-            const n = alumnosPorPlan[p.id] ?? 0;
-            return `"${p.nombre}" $${p.precio}/${p.periodo} → ${n} alumno${n !== 1 ? "s" : ""}`;
-          }).join(", ")
-        : null;
-
-      const totalAlumnosForContext = Object.values(alumnosPorPlan).reduce((s, n) => s + n, 0);
-      const egresosContext = `[Gym context: ${activosCount} alumnos activos · ${totalAlumnosForContext} alumnos con plan asignado]`;
-
-      const apiMessages = [
-        { role: "user" as const, content: egresosContext },
-        { role: "assistant" as const, content: "Entendido, tengo los números del gym. Voy a asegurarme de que los planes cubran los costos y generen margen real." },
-        ...(planContext ? [
-          { role: "user" as const, content: `[Planes actuales: ${planContext}]` },
-          { role: "assistant" as const, content: "Perfecto, tengo el panorama completo." },
-        ] : []),
-        ...nextHistory.map(m => ({
-          role: m.role === "user" ? "user" as const : "assistant" as const,
-          content: m.text,
-        })),
-      ];
-      const res = await fetch("/api/emilio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: apiMessages,
-          gymData: {
-            price: planes.length > 0 ? Math.max(...planes.map(p => p.precio)) : undefined,
-            students: activosCount,
-            plans: planes.length,
-          }
-        }),
-      });
-      const data = await res.json() as { text: string };
-      const reply = data.text ?? "";
-      // Detect {"plans":[...]} array — extract insight separately
-      const jsonStart = reply.indexOf('{"plans":');
-      if (jsonStart !== -1) {
-        try {
-          let depth = 0, end = jsonStart;
-          for (let j = jsonStart; j < reply.length; j++) {
-            if (reply[j] === "{") depth++;
-            else if (reply[j] === "}") { depth--; if (depth === 0) { end = j + 1; break; } }
-          }
-          const parsed = JSON.parse(reply.slice(jsonStart, end)) as { plans: EmilioPlan[] };
-          setEmilioPlans(parsed.plans);
-          const insightText = reply.slice(0, jsonStart).trim();
-          setChatHistory(h => [...h, { role: "ai", text: insightText || "Acá están los 3 planes." }]);
-        } catch {
-          setChatHistory(h => [...h, { role: "ai", text: reply }]);
-        }
-      } else {
-        setChatHistory(h => [...h, { role: "ai", text: reply }]);
-      }
-    } catch {
-      setChatHistory(h => [...h, { role: "ai", text: "Error de conexión. Intentá de nuevo." }]);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
-  const applyEmilioPlans = (plans: EmilioPlan[]) => {
-    const ACCENT: Record<string, string> = { entry: t2, growth: "#F97316", vip: "#4B6BFB" };
-    const newDrafts: Record<string, Draft> = {};
-    const newDirty = new Set(dirty);
-    plans.forEach((plan, i) => {
-      const slot = displayPlanes[i] ?? { id: `empty-${i}` };
-      newDrafts[slot.id] = {
-        nombre: plan.nombre,
-        precio: String(plan.precio),
-        periodo: "mes",
-        features: [
-          ...plan.bonus,
-          ...(plan.garantia ? [`Garantía: ${plan.garantia}`] : []),
-          ...(plan.cupos > 0 ? [`Cupos: ${plan.cupos}`] : []),
-        ].join("\n"),
-        duracion_dias: "30",
-        active: true,
-        destacado: plan.tier === "growth",
-        accent_color: ACCENT[plan.tier] ?? "#F97316",
-      };
-      newDirty.add(slot.id);
-    });
-    setDrafts(prev => ({ ...prev, ...newDrafts }));
-    setDirty(newDirty);
-    setChatOpen(false);
-    setEmilioPlans(null);
-  };
-
   // ── Input style (looks like text, editable on click) ─────────────────────
   const inlineInput: React.CSSProperties = {
     background: "transparent", border: "none", outline: "none",
@@ -424,19 +460,8 @@ export default function MembresiasPage() {
       <style>{`
         @keyframes slideUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeInUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes pulseGlow { 0%,100% { box-shadow: 0 8px 20px -2px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 0 rgba(249,115,22,0.30); } 50% { box-shadow: 0 8px 20px -2px rgba(249,115,22,0.45), inset 0 1px 0 rgba(255,255,255,0.20), 0 0 0 7px rgba(249,115,22,0); } }
-        @keyframes chatSlideUp { from { opacity:0; transform:translateY(24px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes msgIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes dotBounce { 0%,80%,100% { transform:translateY(0); } 40% { transform:translateY(-5px); } }
-        .pulse-btn { animation: pulseGlow 2.2s ease infinite; }
-        .chat-panel { animation: chatSlideUp 0.32s cubic-bezier(0.34,1.56,0.64,1) both; }
-        .msg-in { animation: msgIn 0.22s ease both; }
-        .dot1 { animation: dotBounce 1.2s ease infinite 0s; }
-        .dot2 { animation: dotBounce 1.2s ease infinite 0.18s; }
-        .dot3 { animation: dotBounce 1.2s ease infinite 0.36s; }
         .inline-field:hover { background: rgba(0,0,0,0.03); }
         .inline-field:focus { background: rgba(0,0,0,0.04); box-shadow: 0 0 0 2px rgba(249,115,22,0.22); }
-        .chip:hover { background: rgba(249,115,22,0.10) !important; border-color: rgba(249,115,22,0.35) !important; color: #EA580C !important; }
       `}</style>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -521,6 +546,13 @@ export default function MembresiasPage() {
                           placeholder="Ej: Plan Básico"
                           style={{ ...inlineInput, font: `800 1.25rem/1.2 ${fd}`, color: t1, display: "block" }}
                         />
+                        <button
+                          type="button"
+                          onClick={() => applyTrialPreset(p.id)}
+                          style={{ marginTop: 8, padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(255,106,0,0.14)", background: "rgba(255,106,0,0.06)", color: "#FF6A00", font: `600 0.7rem/1 ${fb}`, cursor: "pointer" }}
+                        >
+                          Usar como clase de prueba 24hs
+                        </button>
                       </div>
 
                       {/* Precio + Período */}
@@ -542,14 +574,67 @@ export default function MembresiasPage() {
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
                             <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Período</p>
                             <div style={{ display: "flex", gap: 3, background: "#F2F2F7", borderRadius: 8, padding: 2 }}>
-                              {(["mes", "trimestral", "año"] as const).map(op => (
+                              {(["mes", "trimestral", "año", "24h"] as const).map(op => (
                                 <button key={op} type="button" onClick={() => updatePeriodo(p.id, op)} style={{ padding: "4px 8px", borderRadius: 6, border: "none", font: `500 0.68rem/1 ${fb}`, cursor: "pointer", transition: "all 0.16s", background: draft.periodo === op ? "white" : "transparent", color: draft.periodo === op ? "#1C1C1E" : "#8E8E93", boxShadow: draft.periodo === op ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
-                                  {op === "mes" ? "Mensual" : op === "trimestral" ? "Trimestral" : "Anual"}
+                                  {op === "mes" ? "Mensual" : op === "trimestral" ? "Trimestral" : op === "24h" ? "24 hs" : "Anual"}
                                 </button>
                               ))}
                             </div>
                           </div>
                         </div>
+                      </div>
+
+                      <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid rgba(0,0,0,0.06)", display: "grid", gap: 10 }}>
+                        <div>
+                          <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 8 }}>Tipo de acceso</p>
+                          <div style={{ display: "flex", gap: 6, background: "#F2F2F7", borderRadius: 10, padding: 3 }}>
+                            {[
+                              { key: "libre", label: "Libre" },
+                              { key: "clases_por_semana", label: "Clases por semana" },
+                            ].map((option) => (
+                              <button
+                                key={option.key}
+                                type="button"
+                                onClick={() => updateDraft(p.id, "access_type", option.key as Draft["access_type"])}
+                                style={{
+                                  flex: 1,
+                                  padding: "7px 8px",
+                                  borderRadius: 8,
+                                  border: "none",
+                                  font: `600 0.68rem/1.1 ${fb}`,
+                                  cursor: "pointer",
+                                  transition: "all 0.16s",
+                                  background: draft.access_type === option.key ? "white" : "transparent",
+                                  color: draft.access_type === option.key ? "#1C1C1E" : "#8E8E93",
+                                  boxShadow: draft.access_type === option.key ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                                }}
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {draft.access_type === "clases_por_semana" && (
+                          <div>
+                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 8 }}>Cantidad permitida</p>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <input
+                                className="inline-field no-spin"
+                                type="number"
+                                min={1}
+                                max={14}
+                                value={draft.classes_per_week}
+                                onChange={e => updateDraft(p.id, "classes_per_week", e.target.value.replace(/[^\d]/g, ""))}
+                                placeholder="2"
+                                style={{ ...inlineInput, width: 72, background: "#F2F2F7", padding: "10px 12px", margin: 0, font: `700 0.95rem/1 ${fd}`, color: t1, borderRadius: 10 }}
+                              />
+                              <span style={{ font: `500 0.76rem/1.4 ${fb}`, color: t2 }}>
+                                clases por semana
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Características */}
@@ -604,49 +689,145 @@ export default function MembresiasPage() {
             <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,106,0,0.05)", border: "1px solid rgba(255,106,0,0.12)", borderRadius: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
               <span style={{ fontSize: "1rem", lineHeight: 1, marginTop: 1, flexShrink: 0 }}>💡</span>
               <p style={{ font: `400 0.78rem/1.55 ${fb}`, color: t2, margin: 0 }}>
-                <strong style={{ color: t1, fontWeight: 600 }}>¿Tenés una sola cuota mensual?</strong> Completá solo la primera tarjeta con tu plan y dejá las demás desactivadas. Si ofrecés varios planes (ej. mensual + trimestral), usá una tarjeta por plan. El precio que ponés acá es lo que verán los alumnos al pagar.
+                <strong style={{ color: t1, fontWeight: 600 }}>¿Tenés una sola cuota mensual?</strong> Completá solo la primera tarjeta con tu plan y dejá las demás desactivadas. Si ofrecés varios planes (ej. mensual + trimestral), usá una tarjeta por plan. También podés usar el preset de <strong style={{ color: t1, fontWeight: 600 }}>clase de prueba 24hs</strong> con precio $0 para pruebas rápidas.
               </p>
             </div>
           </div>
 
-          {/* ── Emilio banner — mesh orange texture ── */}
-          <div style={{
-            borderRadius: 18, padding: "28px 32px", position: "relative", overflow: "hidden",
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20,
-            background: "#0D0500",
-            boxShadow: "0 8px 32px rgba(249,115,22,0.16)",
-          }}>
-            {/* Mesh layers */}
-            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 65% 90% at 0% 50%, rgba(249,115,22,0.85) 0%, transparent 55%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 45% 55% at 100% 20%, rgba(251,146,60,0.45) 0%, transparent 55%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 35% 45% at 55% 100%, rgba(234,88,12,0.50) 0%, transparent 50%)", pointerEvents: "none" }} />
-            {/* Dark overlay for legibility */}
-            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.50)", borderRadius: 18, pointerEvents: "none" }} />
-            {/* Decorative circles */}
-            <div style={{ position: "absolute", top: -40, right: 120, width: 180, height: 180, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.07)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -50, right: 40, width: 140, height: 140, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 9999, padding: "4px 12px", marginBottom: 14 }}>
-                <Sparkles size={12} color="white" />
-                <span style={{ font: `700 0.68rem/1 ${fb}`, color: "white", textTransform: "uppercase", letterSpacing: "0.09em" }}>Función Pro · IA</span>
-              </div>
-              <h2 style={{ font: `800 1.35rem/1.25 ${fd}`, color: "white", marginBottom: 8, letterSpacing: "-0.01em" }}>Optimizar tus planes para<br />facturar más</h2>
-              <p style={{ font: `400 0.875rem/1.5 ${fb}`, color: "rgba(255,255,255,0.80)", marginBottom: 6 }}>
-                <strong style={{ color: "white" }}>Emilio</strong> analiza tu gym y te propone mejoras concretas en minutos.
-              </p>
-              <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: "rgba(255,255,255,0.50)" }}>
-                Cuanto más completo esté tu gym (planes, precios y alumnos), más preciso va a ser el análisis.
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <h2 style={{ font: `700 0.95rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Promos</h2>
+              <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: t3, margin: 0 }}>
+                Dejá configuradas promos simples como <strong style={{ color: t1 }}>2x1</strong> o <strong style={{ color: t1 }}>referidos</strong> para que el staff tenga claro qué descuento aplicar y por qué.
               </p>
             </div>
-            <button
-              onClick={() => setChatOpen(true)}
-              style={{ position: "relative", zIndex: 1, flexShrink: 0, display: "flex", alignItems: "center", gap: 8, background: "white", color: "#F97316", border: "none", padding: "13px 24px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 20px rgba(0,0,0,0.20)", transition: "transform 0.14s, box-shadow 0.14s", whiteSpace: "nowrap" as const }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 28px rgba(0,0,0,0.26)"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "none"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(0,0,0,0.20)"; }}
-            >
-              <Sparkles size={15} /> Analizar mis planes
-            </button>
+
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)", gap: 18 }}>
+              {displayPromos.map((promo, index) => {
+                const isEmpty = promo.id.startsWith("promo-empty-");
+                const draft = promoDrafts[promo.id] ?? promoToDraft(promo);
+                const isDirty = promoDirty.has(promo.id);
+                const isSaving = promoSavingSet.has(promo.id);
+                const promoTitle = draft.promo_type === "2x1" ? "Promo 2x1" : draft.promo_type === "referido" ? "Referidos" : "Descuento general";
+                return (
+                  <div key={promo.id} style={{ ...card, padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <p style={{ font: `500 0.65rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>Promo</p>
+                        <input
+                          className="inline-field"
+                          value={draft.nombre}
+                          onChange={e => updatePromoDraft(promo.id, "nombre", e.target.value)}
+                          placeholder={promoTitle}
+                          style={{ ...inlineInput, font: `800 1.02rem/1.2 ${fd}`, color: t1, display: "block" }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updatePromoDraft(promo.id, "active", !draft.active)}
+                        style={{
+                          width: 44,
+                          height: 24,
+                          borderRadius: 999,
+                          border: "none",
+                          cursor: "pointer",
+                          background: draft.active ? "#4ADE80" : "#D1D5DB",
+                          position: "relative",
+                        }}
+                      >
+                        <span style={{ position: "absolute", top: 3, left: draft.active ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.16s" }} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                      <div>
+                        <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Tipo</p>
+                        <select
+                          value={draft.promo_type}
+                          onChange={e => updatePromoDraft(promo.id, "promo_type", e.target.value)}
+                          style={{ width: "100%", padding: "10px 12px", background: "#F2F2F7", border: "1px solid transparent", borderRadius: 10, font: `600 0.78rem/1 ${fb}`, color: t1, outline: "none" }}
+                        >
+                          <option value="2x1">2x1</option>
+                          <option value="referido">Referido</option>
+                          <option value="descuento">Descuento</option>
+                        </select>
+                      </div>
+                      <div>
+                        <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Formato</p>
+                        <select
+                          value={draft.discount_type}
+                          onChange={e => updatePromoDraft(promo.id, "discount_type", e.target.value)}
+                          style={{ width: "100%", padding: "10px 12px", background: "#F2F2F7", border: "1px solid transparent", borderRadius: 10, font: `600 0.78rem/1 ${fb}`, color: t1, outline: "none" }}
+                        >
+                          <option value="porcentaje">Porcentaje</option>
+                          <option value="monto">Monto</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Beneficio</p>
+                      <div style={{ position: "relative" }}>
+                        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: t3, font: `700 0.88rem/1 ${fd}` }}>
+                          {draft.discount_type === "monto" ? "$" : "%"}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={draft.discount_value}
+                          onChange={e => updatePromoDraft(promo.id, "discount_value", e.target.value)}
+                          style={{ width: "100%", padding: "10px 12px 10px 26px", background: "#F2F2F7", border: "1px solid transparent", borderRadius: 10, font: `700 0.92rem/1 ${fd}`, color: t1, outline: "none", boxSizing: "border-box" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Nota para el staff</p>
+                      <textarea
+                        value={draft.note}
+                        onChange={e => updatePromoDraft(promo.id, "note", e.target.value)}
+                        placeholder={index === 0 ? "Ej: Promo 2x1 en inscripción." : "Ej: 10% off por traer a un amigo."}
+                        rows={2}
+                        style={{ width: "100%", padding: "10px 12px", background: "#F2F2F7", border: "1px solid transparent", borderRadius: 10, font: `400 0.8rem/1.5 ${fb}`, color: t1, outline: "none", resize: "none", boxSizing: "border-box" }}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => savePromo(promo.id)}
+                      disabled={isSaving || (!isDirty && !isEmpty)}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "none", font: `700 0.82rem/1 ${fd}`, cursor: isSaving ? "wait" : "pointer", background: isSaving ? "#C7C7CC" : "#1C1C1E", color: "white", opacity: (!isDirty && !isEmpty) ? 0.72 : 1 }}
+                    >
+                      {isSaving ? "Guardando..." : isEmpty ? "Guardar promo" : "Guardar cambios"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{
+            borderRadius: 18,
+            padding: "24px 26px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 18,
+            background: "linear-gradient(135deg, rgba(255,106,0,0.08) 0%, rgba(255,106,0,0.02) 100%)",
+            border: "1px solid rgba(255,106,0,0.14)",
+          }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ width: 42, height: 42, borderRadius: 14, background: "rgba(255,106,0,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <MessageSquareText size={18} color="#F97316" />
+              </div>
+              <div>
+                <p style={{ font: `800 0.98rem/1 ${fd}`, color: t1, marginBottom: 6 }}>¿Querés revisar tu estructura de planes?</p>
+                <p style={{ font: `400 0.8rem/1.55 ${fb}`, color: t2, maxWidth: 620 }}>
+                  Definí primero tus planes base acá y, si necesitás ayuda para ordenarlos o comunicar mejor la propuesta, te acompañamos desde soporte con ChatGPT.
+                </p>
+              </div>
+            </div>
           </div>
 
         </div>
@@ -658,117 +839,6 @@ export default function MembresiasPage() {
             onSave={changes => applyAdvanced(advanced, changes)}
             onClose={() => setAdvanced(null)}
           />
-        )}
-
-        {/* ── Chat Emilio — immersive full-width ── */}
-        {chatOpen && (
-          <div
-            style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(18px) saturate(160%)", WebkitBackdropFilter: "blur(18px) saturate(160%)", background: "rgba(10,10,15,0.62)", padding: "20px 24px" }}
-            onClick={() => setChatOpen(false)}
-          >
-            <div
-              className="chat-panel"
-              onClick={e => e.stopPropagation()}
-              style={{ width: "100%", maxWidth: 920, height: "82vh", display: "flex", flexDirection: "column", background: "#0D0D12", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, overflow: "hidden", boxShadow: "0 40px 100px rgba(0,0,0,0.70)" }}
-            >
-              {/* Header */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: "linear-gradient(135deg,#F97316,#EA580C)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(249,115,22,0.40)" }}>
-                    <Sparkles size={18} color="white" />
-                  </div>
-                  <div>
-                    <p style={{ font: `700 0.95rem/1 ${fd}`, color: "white" }}>Emilio</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#FF6A00", display: "inline-block" }} />
-                      <span style={{ font: `400 0.7rem/1 ${fb}`, color: "rgba(255,255,255,0.45)" }}>Consultor IA · Grand Slam Offers</span>
-                    </div>
-                  </div>
-                </div>
-                <button onClick={() => setChatOpen(false)} style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.55)" }}>
-                  <X size={15} />
-                </button>
-              </div>
-
-              {/* Messages */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "20px 28px", display: "flex", flexDirection: "column", gap: 12 }}>
-                {chatHistory.map((m, i) => (
-                  <div key={i} className="msg-in" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-                    {m.role === "ai" && (
-                      <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#F97316,#EA580C)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 10, marginTop: 2 }}>
-                        <Sparkles size={13} color="white" />
-                      </div>
-                    )}
-                    <div style={{ maxWidth: "72%", padding: "11px 15px", background: m.role === "user" ? "linear-gradient(135deg,#F97316,#EA580C)" : "rgba(255,255,255,0.06)", color: m.role === "user" ? "white" : "rgba(255,255,255,0.90)", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", font: `400 0.875rem/1.6 ${fb}`, border: m.role === "ai" ? "1px solid rgba(255,255,255,0.08)" : "none", whiteSpace: "pre-wrap" as const }}>
-                      {m.text}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Loading — dots + contextual message */}
-                {chatLoading && (
-                  <div className="msg-in" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#F97316,#EA580C)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Sparkles size={13} color="white" />
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "13px 16px", background: "rgba(255,255,255,0.06)", borderRadius: "16px 16px 16px 4px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                      <div style={{ display: "flex", gap: 5 }}>
-                        {["dot1","dot2","dot3"].map(d => <span key={d} className={d} style={{ width: 6, height: 6, borderRadius: "50%", background: "#F97316", display: "inline-block" }} />)}
-                      </div>
-                      {chatHistory.some(m => m.role === "user" && /go|dale|listo|aplicar|sí|si/i.test(m.text)) && (
-                        <span style={{ font: `400 0.75rem/1 ${fb}`, color: "rgba(255,255,255,0.40)" }}>
-                          Analizando tu competencia y estructurando tus 3 niveles de oferta...
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* 3-plan result — MembershipCards component */}
-                {emilioPlans && (
-                  <div className="msg-in">
-                    <MembershipCards plans={emilioPlans} onApply={applyEmilioPlans} />
-                  </div>
-                )}
-              </div>
-
-              {/* Quick chips + input */}
-              <div style={{ padding: "12px 24px 20px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-                {chatHistory.length <= 1 && (
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                    {["Descenso de Peso", "Hipertrofia", "Membresía Premium"].map(chip => (
-                      <button
-                        key={chip}
-                        className="chip"
-                        onClick={() => sendChat(chip)}
-                        disabled={chatLoading}
-                        style={{ padding: "7px 14px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 9999, font: `500 0.78rem/1 ${fb}`, color: "rgba(255,255,255,0.65)", cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap" as const }}
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                  <input
-                    value={chatMsg}
-                    onChange={e => setChatMsg(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendChat()}
-                    placeholder="Describí tu negocio o hacé una pregunta..."
-                    disabled={chatLoading}
-                    style={{ flex: 1, padding: "13px 18px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 14, font: `400 0.875rem/1 ${fb}`, color: "white", outline: "none" }}
-                  />
-                  <button
-                    onClick={() => sendChat()}
-                    disabled={chatLoading || !chatMsg.trim()}
-                    style={{ width: 44, height: 44, borderRadius: 14, background: chatMsg.trim() ? "linear-gradient(135deg,#F97316,#EA580C)" : "rgba(255,255,255,0.06)", border: "none", cursor: chatMsg.trim() ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s", boxShadow: chatMsg.trim() ? "0 4px 14px rgba(249,115,22,0.35)" : "none" }}
-                  >
-                    <Send size={16} color={chatMsg.trim() ? "white" : "rgba(255,255,255,0.25)"} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
 
         {/* ── Toast ── */}

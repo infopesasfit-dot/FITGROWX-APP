@@ -275,7 +275,7 @@ export default function AlumnoPanelPage() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
           </div>
-          {gymInfo?.plan_type === "full_marca" && gymInfo?.logo_url ? (
+          {gymInfo?.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={gymInfo.logo_url} alt={gymName} style={{ height: 28, maxWidth: 140, objectFit: "contain", margin: "0 auto 24px", display: "block", opacity: 0.4, filter: "grayscale(1)" }} />
           ) : (
@@ -338,7 +338,7 @@ export default function AlumnoPanelPage() {
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 50, backdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", WebkitBackdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", background: "rgba(10,10,15,0.9)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: isCompactScreen ? "12px 16px" : "13px 20px" }}>
         <div style={{ maxWidth: 520, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {gymInfo?.plan_type === "full_marca" && gymInfo?.logo_url ? (
+          {gymInfo?.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={gymInfo.logo_url} alt={gymInfo.gym_name ?? "Logo"} style={{ height: 28, maxWidth: 120, objectFit: "contain", borderRadius: 6 }} />
           ) : (

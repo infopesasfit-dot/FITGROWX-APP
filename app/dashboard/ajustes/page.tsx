@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Save,
   Smartphone,
-  Star,
   Trash2,
   Upload,
   UserPlus,
@@ -166,7 +165,6 @@ function AjustesContent() {
   const [lastMonthlyReport, setLastMonthlyReport] = useState<LastMonthlyReport | null>(null);
 
   const [gymId, setGymId] = useState<string | null>(null);
-  const [planType, setPlanType] = useState<string | null>(null);
   const [isTrial, setIsTrial] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -219,7 +217,6 @@ function AjustesContent() {
   }, [searchTab]);
 
   const activeLogoSrc = logoPreview ?? logoUrl;
-  const canUseBranding = isTrial || planType === "full_marca";
 
   const currentTabMeta = useMemo(() => {
     switch (activeTab) {
@@ -297,7 +294,6 @@ function AjustesContent() {
 
       const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
       if (gym) {
-        setPlanType(gym.plan_type ?? null);
         if (!gym.is_subscription_active && gym.trial_expires_at) {
           const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
           const left = Math.max(0, Math.ceil(diff / 86_400_000));
@@ -891,40 +887,12 @@ function AjustesContent() {
                   </button>
                 </div>
 
-                {canUseBranding ? (
-                  isTrial && (
-                    <div style={{ padding: "14px 16px", borderRadius: 16, background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.14)", display: "flex", gap: 9 }}>
-                      <Zap size={14} color={ACCENT} style={{ flexShrink: 0, marginTop: 2 }} />
-                      <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: ACCENT }}>
-                        Tenés branding disponible durante el trial{trialDaysLeft !== null ? ` (${trialDaysLeft} días restantes)` : ""}. Después queda incluido en Full Marca.
-                      </p>
-                    </div>
-                  )
-                ) : (
-                    <div style={{ padding: "18px", borderRadius: 18, background: "linear-gradient(135deg, #F8FAFC 0%, #EEF4FF 100%)", border: "1px dashed rgba(37,99,235,0.18)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-                    <div>
-                      <p style={{ font: `800 0.92rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Branding incluido en Full Marca</p>
-                      <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, maxWidth: 460 }}>
-                        Mostrá tu identidad visual propia en toda la experiencia del gym, sin marca de FitGrowX.
-                      </p>
-                    </div>
-                    <Link
-                      href="/dashboard/suscripcion"
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 7,
-                        padding: "11px 16px",
-                        borderRadius: 14,
-                        background: ACCENT,
-                        color: "white",
-                        textDecoration: "none",
-                        font: `800 0.82rem/1 ${fd}`,
-                      }}
-                    >
-                      <Star size={13} />
-                      Ver plan
-                    </Link>
+                {isTrial && (
+                  <div style={{ padding: "14px 16px", borderRadius: 16, background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.14)", display: "flex", gap: 9 }}>
+                    <Zap size={14} color={ACCENT} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: ACCENT }}>
+                      Ya podés cargar tu logo, nombre e identidad visual del gym{trialDaysLeft !== null ? ` (${trialDaysLeft} días restantes de prueba)` : ""}.
+                    </p>
                   </div>
                 )}
               </div>

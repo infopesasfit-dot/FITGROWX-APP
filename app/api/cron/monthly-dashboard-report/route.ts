@@ -7,6 +7,12 @@ type GymTarget = {
   gym_name: string | null;
   email: string | null;
 };
+type GymBillingRow = {
+  id: string;
+  is_subscription_active: boolean | null;
+  trial_expires_at: string | null;
+  gym_status: string | null;
+};
 
 function isAuthorized(req: NextRequest) {
   const headerAuth = req.headers.get("authorization");
@@ -42,7 +48,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: gymsError.message }, { status: 500 });
   }
 
-  const targets = (gyms ?? []) as GymTarget[];
+  const rawTargets = (gyms ?? []) as GymTarget[];
+  const gymIds = rawTargets.map((gym) => gym.gym_id);
+  const { data: billingRows } = await supabase
+    .from("gyms")
+    .select("id, is_subscription_active, trial_expires_at, gym_status")
+    .in("id", gymIds);
+
+  const todayIso = new Date().toISOString();
+  const billingMap = new Map(
+    ((billingRows ?? []) as GymBillingRow[]).map((row) => [
+      row.id,
+      row.is_subscription_active === true ||
+      (!!row.trial_expires_at && row.trial_expires_at >= todayIso && row.gym_status !== "cancelled"),
+    ]),
+  );
+
+  const targets = rawTargets.filter((gym) => billingMap.get(gym.gym_id) === true);
   const results: Array<{ gym_id: string; status: string; detail?: string }> = [];
 
   for (const gym of targets) {

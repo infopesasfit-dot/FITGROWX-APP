@@ -9,6 +9,13 @@ type AuthorizedProfile = {
   role: "platform_owner" | "admin" | "staff" | string | null;
 };
 
+type BillingStatus = {
+  id: string;
+  is_subscription_active: boolean | null;
+  trial_expires_at: string | null;
+  gym_status: string | null;
+};
+
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -40,6 +47,22 @@ export async function POST(req: NextRequest) {
     .select("email")
     .eq("gym_id", profile.gym_id)
     .maybeSingle<{ email: string | null }>();
+
+  const { data: billingStatus } = await admin
+    .from("gyms")
+    .select("id, is_subscription_active, trial_expires_at, gym_status")
+    .eq("id", profile.gym_id)
+    .maybeSingle<BillingStatus>();
+
+  const isEligible =
+    billingStatus?.is_subscription_active === true ||
+    (!!billingStatus?.trial_expires_at &&
+      billingStatus.trial_expires_at >= new Date().toISOString() &&
+      billingStatus.gym_status !== "cancelled");
+
+  if (!isEligible) {
+    return NextResponse.json({ ok: false, error: "El reporte mensual solo está disponible para gimnasios activos o con trial vigente." }, { status: 403 });
+  }
 
   const email = (gymSettings?.email ?? user.email ?? "").trim();
   if (!email) {

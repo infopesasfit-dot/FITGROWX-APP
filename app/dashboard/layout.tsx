@@ -83,16 +83,10 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
 
 const NAV_SECTIONS_STAFF: NavSection[] = [
   {
-    section: "HOY",
+    section: "OPERACIÓN",
     items: [
-      { href: "/dashboard",             label: "Inicio",      icon: Home },
       { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
       { href: "/dashboard/scanner",     label: "Escáner QR",  icon: ScanLine },
-    ],
-  },
-  {
-    section: "GESTIÓN",
-    items: [
       { href: "/dashboard/alumnos", label: "Alumnos", icon: Users },
       { href: "/dashboard/clases",  label: "Clases",  icon: CalendarDays },
     ],
@@ -100,13 +94,20 @@ const NAV_SECTIONS_STAFF: NavSection[] = [
 ];
 
 const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/publicidad", "/dashboard/landing"];
-const STAFF_ALLOWED_ROUTES = ["/dashboard", "/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
+const STAFF_ALLOWED_ROUTES = ["/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
 
-const BOTTOM_NAV = [
+const BOTTOM_NAV_ADMIN = [
   { href: "/dashboard",         label: "Inicio",   icon: Home },
   { href: "/dashboard/alumnos", label: "Alumnos",  icon: Users },
   { href: "/dashboard/scanner", label: "Escáner",  icon: ScanLine },
   { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
+];
+
+const BOTTOM_NAV_STAFF = [
+  { href: "/dashboard/asistencias", label: "Asist.",  icon: ClipboardList },
+  { href: "/dashboard/alumnos",     label: "Alumnos", icon: Users },
+  { href: "/dashboard/scanner",     label: "Escáner", icon: ScanLine },
+  { href: "/dashboard/clases",      label: "Clases",  icon: CalendarDays },
 ];
 
 
@@ -161,7 +162,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [trialDaysLeft,    setTrialDaysLeft]    = useState<number | null>(null);
   const [showTrialBanner,  setShowTrialBanner]  = useState(false);
   const [showTrialModal,   setShowTrialModal]   = useState(false);
-  const [planType,         setPlanType]         = useState<string | null>(null);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
 
@@ -203,10 +203,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Staff route protection
   useEffect(() => {
     if (role !== "staff") return;
+    if (pathname === "/dashboard") {
+      router.replace("/dashboard/scanner");
+      return;
+    }
     const allowed = STAFF_ALLOWED_ROUTES.some(r =>
-      r === "/dashboard" ? pathname === r : pathname.startsWith(r)
+      pathname.startsWith(r)
     );
-    if (!allowed) router.replace("/dashboard");
+    if (!allowed) router.replace("/dashboard/scanner");
   }, [role, pathname, router]);
 
   // Fetch user + trial info once
@@ -237,7 +241,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setGymDisplayName(settings?.gym_name ?? null);
 
       const gym = getGymSummary(profile?.gyms);
-      setPlanType(gym?.plan_type ?? null);
 
       if (gym && !gym.is_subscription_active && gym.trial_expires_at) {
         const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
@@ -411,7 +414,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40, position: "relative", zIndex: 1 }}>
           {(isMobile || !collapsed) && (
             <div style={{ flexShrink: 0 }}>
-              {planType === "full_marca" && gymLogoUrl
+              {gymLogoUrl
                 ? // eslint-disable-next-line @next/next/no-img-element
                   <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 36, maxWidth: 160, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} />
                 : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} style={{ height: 36, width: "auto", objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} priority unoptimized />
@@ -557,7 +560,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Mobile: show gym logo / brand in topbar instead of hamburger */}
           {isMobile && (
             <div style={{ flexShrink: 0 }}>
-              {planType === "full_marca" && gymLogoUrl
+              {gymLogoUrl
                 ? // eslint-disable-next-line @next/next/no-img-element
                   <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 28, maxWidth: 100, objectFit: "contain", display: "block" }} />
                 : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={300} height={90} style={{ height: 24, width: "auto", objectFit: "contain", display: "block" }} priority unoptimized />
@@ -816,7 +819,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           paddingBottom: "env(safe-area-inset-bottom, 8px)",
           boxShadow: "0 -4px 24px rgba(0,0,0,0.18)",
         }}>
-          {BOTTOM_NAV.map(({ href, label, icon: Icon }) => {
+          {(role === "staff" ? BOTTOM_NAV_STAFF : BOTTOM_NAV_ADMIN).map(({ href, label, icon: Icon }) => {
             const active = isActive(href);
             return (
               <Link key={href} href={href} style={{

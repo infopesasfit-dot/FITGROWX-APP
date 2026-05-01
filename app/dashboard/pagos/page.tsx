@@ -7,7 +7,7 @@ import {
   Users, ShoppingBag,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { getPagoAlumnoSummary, getPlanPeriodo } from "@/lib/supabase-relations";
+import { getPagoAlumnoSummary, getPlanDurationDays, getPlanPeriodo } from "@/lib/supabase-relations";
 import { addMonths } from "@/lib/date-utils";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
@@ -161,6 +161,9 @@ export default function PagosPage() {
   const [pagoMonto,        setPagoMonto]        = useState("");
   const [pagoFecha,        setPagoFecha]        = useState(new Date().toISOString().slice(0, 10));
   const [pagoNotes,        setPagoNotes]        = useState("");
+  const [pagoDiscountType, setPagoDiscountType] = useState<"none" | "monto" | "porcentaje">("none");
+  const [pagoDiscountValue, setPagoDiscountValue] = useState("");
+  const [pagoDiscountReason, setPagoDiscountReason] = useState("");
   const [comproFile,       setComproFile]       = useState<File | null>(null);
   const [uploading,        setUploading]        = useState(false);
 
@@ -198,7 +201,7 @@ export default function PagosPage() {
   const renewMembership = async (alumnoId: string, paymentDate: string) => {
     const { data: alumno } = await supabase
       .from("alumnos")
-      .select("plan_id, next_expiration_date, planes(periodo)")
+      .select("plan_id, next_expiration_date, planes(periodo, duracion_dias)")
       .eq("id", alumnoId)
       .maybeSingle();
 
@@ -210,6 +213,7 @@ export default function PagosPage() {
     const PERIOD_DAYS: Record<string, number> = { semanal: 7, semana: 7 };
 
     const periodo = getPlanPeriodo(alumno.planes) ?? "mensual";
+    const durationDays = getPlanDurationDays(alumno.planes);
 
     // Extender desde el vencimiento actual si no venció; si no, desde la fecha registrada del pago
     const paymentBaseDate = new Date(`${paymentDate}T12:00:00`);
@@ -218,7 +222,10 @@ export default function PagosPage() {
       : paymentBaseDate;
 
     let newExpiry: string;
-    if (PERIOD_MONTHS[periodo]) {
+    if (typeof durationDays === "number" && durationDays > 0) {
+      base.setDate(base.getDate() + durationDays);
+      newExpiry = base.toISOString().slice(0, 10);
+    } else if (PERIOD_MONTHS[periodo]) {
       newExpiry = addMonths(base, PERIOD_MONTHS[periodo]).toISOString().slice(0, 10);
     } else {
       base.setDate(base.getDate() + (PERIOD_DAYS[periodo] ?? 30));
@@ -374,12 +381,31 @@ export default function PagosPage() {
     setPagoConcepto("membresia"); setPagoDescripcion("");
     setPagoFecha(new Date().toISOString().slice(0, 10));
     setPagoMonto(""); setPagoNotes(""); setComproFile(null);
+    setPagoDiscountType("none"); setPagoDiscountValue(""); setPagoDiscountReason("");
     setSelectedAlumno(null); setAlumnoSearch(""); setShowAlumnoList(false);
   };
 
   const submitPago = async () => {
-    const monto = parseFloat(pagoMonto);
-    if (!monto || monto <= 0) { showToast("Ingresá un monto válido.", "err"); return; }
+    const montoBase = parseFloat(pagoMonto);
+    if (!montoBase || montoBase <= 0) { showToast("Ingresá un monto válido.", "err"); return; }
+
+    const discountValue = parseFloat(pagoDiscountValue || "0");
+    if (pagoDiscountType !== "none" && (!discountValue || discountValue <= 0)) {
+      showToast("Ingresá un descuento válido.", "err");
+      return;
+    }
+    if (pagoDiscountType !== "none" && !pagoDiscountReason.trim()) {
+      showToast("Agregá el motivo del descuento.", "err");
+      return;
+    }
+
+    const discountAmount = pagoDiscountType === "monto"
+      ? discountValue
+      : pagoDiscountType === "porcentaje"
+        ? (montoBase * discountValue) / 100
+        : 0;
+    const montoFinal = Math.max(0, montoBase - discountAmount);
+    if (montoFinal <= 0) { showToast("El total final no puede quedar en $0 o menos.", "err"); return; }
 
     let alumnoId: string;
     if (role === "student") {
@@ -405,16 +431,27 @@ export default function PagosPage() {
       }
 
       const needsValidation = pagoMethod === "transferencia";
+      const discountLabel = pagoDiscountType === "monto"
+        ? `Descuento: -${fmtARS(discountAmount)}`
+        : pagoDiscountType === "porcentaje"
+          ? `Descuento: ${discountValue}% (-${fmtARS(discountAmount)})`
+          : null;
+      const notesParts = [
+        pagoNotes.trim() || null,
+        discountLabel,
+        pagoDiscountReason.trim() ? `Motivo: ${pagoDiscountReason.trim()}` : null,
+        discountLabel ? `Base: ${fmtARS(montoBase)} · Final: ${fmtARS(montoFinal)}` : null,
+      ].filter(Boolean);
       const { data: insertedPago, error } = await supabase.from("pagos").insert([{
         gym_id:          gymId,
         alumno_id:       alumnoId,
-        amount:          monto,
+        amount:          montoFinal,
         method:          pagoMethod,
         status:          needsValidation ? "pendiente" : "validado",
         concepto:        pagoConcepto,
         descripcion:     pagoDescripcion.trim() || null,
         comprobante_url: comprUrl,
-        notes:           pagoNotes.trim() || null,
+        notes:           notesParts.join(" · ") || null,
         date:            pagoFecha,
       }]).select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)").single();
       if (error) { showToast(`Error: ${error.message}`, "err"); return; }
@@ -428,7 +465,7 @@ export default function PagosPage() {
           gym_id: gymId,
           type: "new_payment",
           title: `Pago registrado: ${alumnoLabel}`,
-          body: `$${monto.toLocaleString("es-AR")} · ${pagoMethod}${needsValidation ? " (pendiente)" : ""}`,
+          body: `${fmtARS(montoFinal)}${discountLabel ? ` · ${discountLabel}` : ""} · ${pagoMethod}${needsValidation ? " (pendiente)" : ""}`,
         }),
       }).catch(() => {});
 
@@ -980,6 +1017,92 @@ export default function PagosPage() {
                   <input type="number" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="0"
                     style={{ ...inputStyle, paddingLeft: 28, font: `700 1.1rem/1 ${fd}` }} />
                 </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                <div>
+                  <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 8 }}>Descuento (opcional)</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                    {([
+                      { key: "none" as const, label: "Sin desc." },
+                      { key: "monto" as const, label: "Por monto" },
+                      { key: "porcentaje" as const, label: "Por %" },
+                    ]).map((option) => {
+                      const active = pagoDiscountType === option.key;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => {
+                            setPagoDiscountType(option.key);
+                            if (option.key === "none") {
+                              setPagoDiscountValue("");
+                              setPagoDiscountReason("");
+                            }
+                          }}
+                          style={{
+                            minHeight: 42,
+                            borderRadius: 10,
+                            border: `1px solid ${active ? "rgba(255,106,0,0.32)" : "rgba(0,0,0,0.08)"}`,
+                            background: active ? "rgba(255,106,0,0.08)" : "#FFFFFF",
+                            color: active ? ORANGE : t2,
+                            font: `600 0.76rem/1 ${fb}`,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {pagoDiscountType !== "none" && (
+                  <>
+                    <div>
+                      <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>
+                        {pagoDiscountType === "monto" ? "Monto a descontar" : "Porcentaje a descontar"}
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", font: `700 0.92rem/1 ${fd}`, color: t2 }}>
+                          {pagoDiscountType === "monto" ? "$" : "%"}
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={pagoDiscountValue}
+                          onChange={e => setPagoDiscountValue(e.target.value)}
+                          placeholder={pagoDiscountType === "monto" ? "0" : "10"}
+                          style={{ ...inputStyle, paddingLeft: 28, font: `700 0.96rem/1 ${fd}` }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>Motivo del descuento</label>
+                      <input
+                        value={pagoDiscountReason}
+                        onChange={e => setPagoDiscountReason(e.target.value)}
+                        placeholder="Ej: Promo 2x1 o referido"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(255,106,0,0.05)", border: "1px solid rgba(255,106,0,0.14)" }}>
+                      <p style={{ font: `600 0.72rem/1 ${fb}`, color: ORANGE, marginBottom: 6 }}>Resumen del cobro</p>
+                      <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: t2, margin: 0 }}>
+                        Base: <strong style={{ color: t1 }}>{fmtARS(parseFloat(pagoMonto || "0") || 0)}</strong>
+                        {" · "}
+                        Final: <strong style={{ color: t1 }}>
+                          {fmtARS(Math.max(0, (parseFloat(pagoMonto || "0") || 0) - (
+                            pagoDiscountType === "monto"
+                              ? (parseFloat(pagoDiscountValue || "0") || 0)
+                              : ((parseFloat(pagoMonto || "0") || 0) * (parseFloat(pagoDiscountValue || "0") || 0)) / 100
+                          )))}
+                        </strong>
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div>

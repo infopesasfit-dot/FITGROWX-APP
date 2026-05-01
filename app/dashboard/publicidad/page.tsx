@@ -93,7 +93,7 @@ export default function PublicidadPage() {
   const cplDiff = INDUSTRY_CPL - cplVal;
   const cplBetter = cplDiff > 0;
 
-  /* emilio dynamic insights */
+  /* dynamic insights */
   const insights: { type: "good" | "warn" | "action"; text: string }[] = [];
   if (cplBetter) {
     insights.push({ type: "good", text: `Tu CPL está $${cplDiff} por debajo del promedio de la industria. La campaña está funcionando — no toques el creativo, subí el presupuesto.` });
@@ -111,7 +111,7 @@ export default function PublicidadPage() {
     setCopyLoading(true);
     setCopies([]);
     try {
-      const res = await fetch("/api/emilio-ads", {
+      const res = await fetch("/api/chatgpt-ads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planes: "mensual, trimestral, anual", cpl: cplVal, roas }),
@@ -318,10 +318,10 @@ export default function PublicidadPage() {
         </div>
       </div>
 
-      {/* ══ ZONA 4 — EMILIO + COMPARATIVA ══ */}
+      {/* ══ ZONA 4 — IA + COMPARATIVA ══ */}
       <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 20 }}>
 
-        {/* Análisis Estratégico de Emilio */}
+        {/* Análisis Estratégico con ChatGPT */}
         <div
           style={{ borderRadius: 18, background: "linear-gradient(145deg, #0d1117 0%, #161b22 60%, #0a0f18 100%)", boxShadow: "0 20px 40px rgba(0,0,0,0.18)", padding: "24px 26px", position: "relative", overflow: "hidden" }}
         >
@@ -335,7 +335,7 @@ export default function PublicidadPage() {
               <Brain size={18} color={accent} />
             </div>
             <div>
-              <p style={{ font: `800 0.95rem/1 ${fd}`, color: "white", marginBottom: 2 }}>Análisis Estratégico de Emilio</p>
+              <p style={{ font: `800 0.95rem/1 ${fd}`, color: "white", marginBottom: 2 }}>Análisis Estratégico con ChatGPT</p>
               <p style={{ font: `400 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.38)" }}>Basado en tus métricas de esta semana</p>
             </div>
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5, background: "rgba(255,106,0,0.12)", border: "1px solid rgba(255,106,0,0.22)", borderRadius: 9999, padding: "4px 10px" }}>
@@ -367,7 +367,7 @@ export default function PublicidadPage() {
           {/* footer */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 16, position: "relative", zIndex: 1 }}>
             <Sparkles size={12} color="rgba(255,255,255,0.25)" />
-            <span style={{ font: `400 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.25)" }}>Análisis generado con IA basado en tus datos reales</span>
+              <span style={{ font: `400 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.25)" }}>Análisis generado con ChatGPT en base a tus datos reales</span>
           </div>
         </div>
 
@@ -422,7 +422,7 @@ export default function PublicidadPage() {
             </div>
             <div>
               <span style={{ font: `800 1rem/1 ${fd}`, color: t1, display: "block", marginBottom: 3 }}>Generador de Copy para Ads</span>
-              <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>Emilio te redacta 3 textos listos para Instagram basados en tus planes</span>
+              <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>ChatGPT te redacta 3 textos listos para Instagram basados en tus planes</span>
             </div>
           </div>
           <button
