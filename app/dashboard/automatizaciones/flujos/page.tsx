@@ -16,7 +16,7 @@ const COL_PAL: Record<string, { color: string; label: string; emoji: string; dbK
 const MSG_DB_KEY: Record<string, string | null> = {
   "m-v1": "inactividad_msg",
   "m-d4": "vencimiento_msg",
-  "m-b1": "renewal_msg",
+  "m-b1": "magiclink_msg",
 };
 
 const NODE_W = 230;
@@ -458,7 +458,7 @@ export default function FlujosPage() {
 
       const { data: s } = await supabase
         .from("gym_settings")
-        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, vencimiento_msg, renewal_msg, wa_status, wa_phone")
+        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, vencimiento_msg, magiclink_msg, wa_status, wa_phone")
         .eq("gym_id", id)
         .maybeSingle();
 
@@ -479,7 +479,7 @@ export default function FlujosPage() {
         const updates: Record<string, string> = {};
         if (s.inactividad_msg) updates["m-v1"] = s.inactividad_msg;
         if (s.vencimiento_msg) updates["m-d4"] = s.vencimiento_msg;
-        if (s.renewal_msg)     updates["m-b1"] = s.renewal_msg;
+        if (s.magiclink_msg)   updates["m-b1"] = s.magiclink_msg;
         if (Object.keys(updates).length) setMsgMap(prev => ({ ...prev, ...updates }));
 
         if (s.wa_status) { setWaStatus(s.wa_status); setWaPhone(s.wa_phone ?? undefined); }
