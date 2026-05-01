@@ -26,6 +26,14 @@ interface PlanOption {
   accent_color: string | null;
 }
 
+interface PromoOption {
+  id: string;
+  nombre: string;
+  discount_type: "monto" | "porcentaje";
+  discount_value: number;
+  note: string | null;
+}
+
 interface Alumno {
   id: string;
   dni: string | null;
@@ -83,6 +91,7 @@ export default function AlumnosPage() {
   const [saving,          setSaving]          = useState(false);
   const [formError,       setFormError]       = useState<string | null>(null);
   const [planes,          setPlanes]          = useState<PlanOption[]>([]);
+  const [promos,          setPromos]          = useState<PromoOption[]>([]);
   const [planesLoading,   setPlanesLoading]   = useState(false);
   const [totalCount,      setTotalCount]      = useState(0);
   const [menuOpenId,      setMenuOpenId]      = useState<string | null>(null);
@@ -100,6 +109,7 @@ export default function AlumnosPage() {
   const [pagoDiscountType, setPagoDiscountType] = useState<"none" | "monto" | "porcentaje">("none");
   const [pagoDiscountValue, setPagoDiscountValue] = useState("");
   const [pagoDiscountReason, setPagoDiscountReason] = useState("");
+  const [pagoPromoId,     setPagoPromoId]     = useState("");
   const [pagoSaving,      setPagoSaving]      = useState(false);
   const [pagoError,       setPagoError]       = useState<string | null>(null);
   const [toast,           setToast]           = useState<string | null>(null);
@@ -189,6 +199,32 @@ export default function AlumnosPage() {
     return list;
   }, []);
 
+  const loadPromos = useCallback(async (gid: string) => {
+    const cacheKey = `promos_${gid}`;
+    const cached = getPageCache<PromoOption[]>(cacheKey);
+    if (cached) {
+      setPromos(cached);
+      return cached;
+    }
+
+    const { data, error } = await supabase
+      .from("gym_promotions")
+      .select("id, nombre, discount_type, discount_value, note")
+      .eq("gym_id", gid)
+      .eq("active", true)
+      .order("created_at");
+
+    if (error) {
+      setPromos([]);
+      return [];
+    }
+
+    const list = (data as PromoOption[]) ?? [];
+    setPromos(list);
+    setPageCache(cacheKey, list);
+    return list;
+  }, []);
+
   // ── Fetch alumnos ─────────────────────────────────────────────────
   const fetchAlumnos = useCallback(async (background = false) => {
     const profile = await getCachedProfile();
@@ -214,8 +250,9 @@ export default function AlumnosPage() {
     setPageCache(`alumnos_${profile.gymId}`, rows);
 
     setLoading(false);
+    void loadPromos(profile.gymId);
     void loadUltimasAsistencias(profile.gymId);
-  }, [loadUltimasAsistencias]);
+  }, [loadPromos, loadUltimasAsistencias]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void fetchAlumnos(); }, 0);
@@ -384,6 +421,7 @@ export default function AlumnosPage() {
     setPagoDiscountType("none");
     setPagoDiscountValue("");
     setPagoDiscountReason("");
+    setPagoPromoId("");
     setPagoError(null);
     setPagoModalOpen(true);
   };
@@ -1570,6 +1608,42 @@ export default function AlumnosPage() {
               )}
             </div>
             <div style={{ display: "grid", gap: 10 }}>
+              {promos.length > 0 && (
+                <div>
+                  <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>
+                    Promo guardada
+                  </label>
+                  <select
+                    value={pagoPromoId}
+                    onChange={(e) => {
+                      const promoId = e.target.value;
+                      setPagoPromoId(promoId);
+                      if (!promoId) {
+                        setPagoDiscountType("none");
+                        setPagoDiscountValue("");
+                        setPagoDiscountReason("");
+                        return;
+                      }
+                      const promo = promos.find((item) => item.id === promoId);
+                      if (!promo) return;
+                      setPagoDiscountType(promo.discount_type);
+                      setPagoDiscountValue(String(promo.discount_value));
+                      setPagoDiscountReason(promo.note ?? promo.nombre);
+                    }}
+                    style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `500 0.9rem/1 ${fb}`, color: pagoPromoId ? t1 : t3, outline: "none", boxSizing: "border-box" as const }}
+                  >
+                    <option value="">Elegir promo…</option>
+                    {promos.map((promo) => (
+                      <option key={promo.id} value={promo.id}>
+                        {promo.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 5 }}>
+                    Si elegís una promo, completa automáticamente el descuento y el motivo.
+                  </p>
+                </div>
+              )}
               <div>
                 <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 8 }}>
                   Descuento (opcional)

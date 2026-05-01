@@ -15,11 +15,15 @@ let profileEntry: CacheEntry<GymProfile> | null = null;
 const pageCache = new Map<string, CacheEntry<unknown>>();
 
 export async function getCachedProfile(): Promise<GymProfile | null> {
-  if (profileEntry && Date.now() - profileEntry.ts < PROFILE_TTL) {
-    return profileEntry.data;
-  }
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
+  if (
+    profileEntry &&
+    profileEntry.data.userId === session.user.id &&
+    Date.now() - profileEntry.ts < PROFILE_TTL
+  ) {
+    return profileEntry.data;
+  }
   const { data: profile } = await supabase
     .from("profiles").select("gym_id, role").eq("id", session.user.id).single();
   if (!profile) return null;
