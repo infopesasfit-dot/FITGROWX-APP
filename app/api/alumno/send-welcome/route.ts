@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
     ? (settings?.renewal_msg?.trim() || DEFAULT_RENEWAL)
     : (settings?.magiclink_msg?.trim() || DEFAULT_WELCOME);
   const message  = template
-    .replace(/\[Nombre\]/g, alumno.full_name)
-    .replace(/\[Gym\]/g,    gymName)
-    .replace(/\[Link\]/g,   link);
+    .replace(/\[Nombre\]/g, alumno.full_name).replace(/\{nombre\}/gi, alumno.full_name)
+    .replace(/\[Gym\]/g,    gymName)         .replace(/\{gym\}/gi,    gymName)
+    .replace(/\[Link\]/g,   link)            .replace(/\{link\}/gi,   link);
 
   const motorUrl = process.env.WA_MOTOR_URL;
   if (!motorUrl) return NextResponse.json({ ok: true });

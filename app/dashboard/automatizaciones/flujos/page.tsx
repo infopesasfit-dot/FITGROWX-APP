@@ -42,7 +42,7 @@ const MESSAGES: Record<string, MsgData[]> = {
     { id: "m-c4", icon: "🎯", title: "Último intento",   trigger: "3 días sin respuesta",              sent: 34,  read: 22,  msg: "Hola {nombre}, último mensajito 🙌 Si en algún momento querés arrancar, la puerta está abierta. ¡Éxitos!" },
   ],
   bienvenida: [
-    { id: "m-b1", icon: "🎊", title: "¡Bienvenido al equipo!", trigger: "Al confirmar primer pago",     sent: 187, read: 183, msg: "¡Bienvenido/a a Fitgrowx, {nombre}! 🎉 Ya sos parte de nuestra familia.\n\nTu acceso está activo. ¡Te esperamos!" },
+    { id: "m-b1", icon: "🎊", title: "¡Bienvenido al equipo!", trigger: "Al confirmar primer pago",     sent: 187, read: 183, msg: "¡Hola {nombre}! 👋 Te registramos en *{gym}*. 🎉\n\nDesde acá podés ver tu membresía, tu QR y más 👇\n\n{link}\n\n_El acceso dura 30 días._" },
     { id: "m-b2", icon: "🔑", title: "Acceso NFC activo",      trigger: "10 minutos después del alta",  sent: 182, read: 178, msg: "Tu chip NFC ya está listo, {nombre} 📱 Apoyá el celular en el lector y listo — sin tarjetas." },
     { id: "m-b3", icon: "📱", title: "Tutorial de la app",     trigger: "1 día después del alta",       sent: 175, read: 159, msg: "¿Ya descargaste la app de Fitgrowx, {nombre}? Reservá clases y llevá tu historial. [link]" },
     { id: "m-b4", icon: "✅", title: "Primera clase agendada", trigger: "Al reservar su primera clase",  sent: 168, read: 165, msg: "¡Ya tenés tu primera clase, {nombre}! 💪 Llegá 5 minutos antes. ¡Vas a romperla!" },
@@ -292,8 +292,10 @@ function SidePanel({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tone, setTone] = useState("amigable");
-  const vars = ["{nombre}", "{dias}", "{fecha}", "{clase}"];
   const dbCol = msg ? MSG_DB_KEY[msg.id] : null;
+  const vars = dbCol === "magiclink_msg"
+    ? ["{nombre}", "{gym}", "{link}"]
+    : ["{nombre}", "{dias}", "{fecha}", "{clase}"];
 
   useEffect(() => {
     if (msg) { setText(msgMap[msg.id] || msg.msg || ""); setSaved(false); }
@@ -319,7 +321,13 @@ function SidePanel({
     setTimeout(() => { setSaved(false); onClose(); }, 900);
   }
 
-  const preview = (text || "").replace(/{nombre}/g, "Valentina").replace(/{dias}/g, "11").replace(/{fecha}/g, "el lunes").replace(/{clase}/g, "CrossFit");
+  const preview = (text || "")
+    .replace(/{nombre}/g, "Valentina")
+    .replace(/{dias}/g, "11")
+    .replace(/{fecha}/g, "el lunes")
+    .replace(/{clase}/g, "CrossFit")
+    .replace(/{gym}/g, "Mi Gimnasio")
+    .replace(/{link}/g, "https://fitgrowx.com/acceso/demo");
   const sec: React.CSSProperties = { borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "13px 20px" };
 
   return (
