@@ -233,19 +233,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setRoleLoaded(true);
 
       const { data: { user } } = await supabase.auth.getUser();
-      const name = user?.email ?? "Admin";
-      setUserName(name.split("@")[0]);
-      setUserInitials(name.split("@")[0].slice(0, 2).toUpperCase());
 
       const [{ count }, { data: profile }, { data: settings }] = await Promise.all([
         supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", gymIdVal).eq("status", "pendiente"),
         supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status)").eq("id", userIdVal).maybeSingle(),
-        supabase.from("gym_settings").select("logo_url, gym_name").eq("gym_id", gymIdVal).maybeSingle(),
+        supabase.from("gym_settings").select("logo_url, gym_name, owner_name").eq("gym_id", gymIdVal).maybeSingle(),
       ]);
 
       setProspectBadge(count ?? 0);
       setGymLogoUrl(settings?.logo_url ?? null);
       setGymDisplayName(settings?.gym_name ?? null);
+      const displayName = settings?.owner_name?.trim() || user?.email?.split("@")[0] || "Admin";
+      setUserName(displayName);
+      setUserInitials(displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase());
 
       const gym = getGymSummary(profile?.gyms);
 

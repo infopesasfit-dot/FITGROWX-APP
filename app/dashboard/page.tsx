@@ -5,8 +5,6 @@ import {
   Users, CreditCard,
   ArrowUpRight, ArrowDownRight, Send, Target, CircleHelp, BadgeAlert, Activity, UserMinus,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { getPlanNombre, getRelationRecord } from "@/lib/supabase-relations";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const accent = "#FF7A18";
@@ -28,17 +26,6 @@ const cardBase: React.CSSProperties = {
 
 interface RecenteAlumno { id: string; full_name: string; created_at: string; }
 interface PlanDist { nombre: string; count: number; }
-interface EgresoMontoRow { monto: number | null; }
-interface CreatedAtRow { created_at: string; }
-interface PlanPrecioRow { planes: unknown; }
-interface PlanNombreRow { planes: unknown; }
-interface ProspectoRow { created_at: string; }
-interface PagoMetricRow { amount: number; date: string; status: string | null; concepto: string | null; alumno_id: string | null; }
-interface EgresoMetricRow { monto: number | null; fecha: string; categoria: string | null; }
-interface AlumnoMetricRow { id: string; full_name: string; phone: string | null; status: string | null; created_at: string; next_expiration_date: string | null; }
-interface ReservaMetricRow { class_id: string; fecha: string; lead_phone: string | null; estado: string | null; }
-interface AsistenciaMetricRow { alumno_id: string; fecha: string; }
-interface GymClassMetricRow { id: string; day_of_week: number; max_capacity: number; event_type: "regular" | "especial" | null; event_date: string | null; }
 interface DashboardMetric {
   key: string;
   label: string;
@@ -83,19 +70,6 @@ function fmt(n: number) {
 
 type DateFilter = "hoy" | "semana" | "mes";
 
-function getDateRange(filter: DateFilter) {
-  const today = new Date();
-  const to = today.toISOString().slice(0, 10);
-  if (filter === "hoy") return { from: to, to };
-  if (filter === "semana") {
-    const d = new Date(today);
-    d.setDate(d.getDate() - d.getDay() + (d.getDay() === 0 ? -6 : 1));
-    return { from: d.toISOString().slice(0, 10), to };
-  }
-  const from = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
-  return { from, to };
-}
-
 const MONTH_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 function last5Months() {
   const now = new Date();
@@ -120,50 +94,10 @@ function captacionPath(data: number[]) {
   return { line, area: line + " L400,130 L0,130 Z" };
 }
 
-function startOfMonth(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function endOfMonth(date = new Date()) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
-}
-
-function isoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function normalizePhone(raw: string | null | undefined) {
-  return String(raw ?? "").replace(/\D/g, "");
-}
-
-function isWithin(dateStr: string | null | undefined, from: string, to: string) {
-  if (!dateStr) return false;
-  return dateStr >= from && dateStr <= to;
-}
-
 function metricDelta(current: number | null, previous: number | null) {
   if (current == null || previous == null) return null;
   if (previous === 0) return current === 0 ? 0 : 100;
   return ((current - previous) / previous) * 100;
-}
-
-function countWeekdayInMonth(year: number, monthIndex: number, dayOfWeek: number) {
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  let count = 0;
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    if (new Date(year, monthIndex, day).getDay() === dayOfWeek) count += 1;
-  }
-  return count;
-}
-
-function averageMonthsFromCreated(rows: AlumnoMetricRow[]) {
-  if (rows.length === 0) return 0;
-  const now = Date.now();
-  const months = rows.map((row) => {
-    const diffMs = Math.max(0, now - new Date(row.created_at).getTime());
-    return diffMs / (1000 * 60 * 60 * 24 * 30.4375);
-  });
-  return months.reduce((sum, value) => sum + value, 0) / months.length;
 }
 
 function formatMetricValue(metric: DashboardMetric) {
@@ -261,270 +195,30 @@ export default function DashboardPage() {
       setLoading(false);
     }
 
-    const { from, to } = getDateRange(filter);
-    const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-    const thirtyStr = thirtyDaysAgo.toISOString().slice(0, 10);
-    const nowMonthStart = startOfMonth(today);
-    const nowMonthEnd = endOfMonth(today);
-    const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const prevMonthStart = startOfMonth(prevMonthDate);
-    const prevMonthEnd = endOfMonth(prevMonthDate);
-    const thisMonthFrom = isoDate(nowMonthStart);
-    const thisMonthTo = isoDate(nowMonthEnd);
-    const prevMonthFrom = isoDate(prevMonthStart);
-    const prevMonthTo = isoDate(prevMonthEnd);
-    const recentInactiveCutoff = new Date(today);
-    recentInactiveCutoff.setDate(today.getDate() - 7);
-    const recentInactiveCutoffStr = isoDate(recentInactiveCutoff);
-    const expiration72h = new Date(today);
-    expiration72h.setHours(0, 0, 0, 0);
-    expiration72h.setDate(expiration72h.getDate() + 3);
-    const expiration72hStr = isoDate(expiration72h);
+    const res = await fetch(`/api/admin/dashboard?filter=${filter}`, { cache: "no-store" });
+    const payload = await res.json().catch(() => null) as {
+      ok?: boolean;
+      error?: string;
+      ownerName?: string;
+      gymName?: string;
+      snapshot?: DashboardSnapshot;
+    } | null;
 
-    const oldestMonthKey = months5[0]?.key ? `${months5[0].key}-01` : undefined;
-
-    const [
-      { count: total },
-      { count: activos },
-      { data: todasCreatedAt },
-      { data: egresosData },
-      { data: recientesData },
-      { data: activosConPlan },
-      { data: activosConNombrePlan },
-      { count: prospectosPendientes },
-      statsRes,
-      { data: ownerProfile },
-      { data: gymSettings },
-      { data: prospectosRows },
-      { data: pagosMetricRows },
-      { data: egresosMetricRows },
-      { data: alumnosMetricRows },
-      { data: reservasMetricRows },
-      { data: asistenciasMetricRows },
-      { data: gymClassesMetricRows },
-    ] = await Promise.all([
-      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gym_id),
-      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gym_id).eq("status", "activo"),
-      supabase.from("alumnos").select("created_at").eq("gym_id", gym_id).gte("created_at", oldestMonthKey ?? "1900-01-01"),
-      supabase.from("egresos").select("monto").eq("gym_id", gym_id).gte("fecha", from).lte("fecha", to),
-      supabase.from("alumnos").select("id, full_name, created_at").eq("gym_id", gym_id).order("created_at", { ascending: false }).limit(4),
-      supabase.from("alumnos").select("planes!plan_id(precio)").eq("gym_id", gym_id).eq("status", "activo"),
-      supabase.from("alumnos").select("planes!plan_id(nombre)").eq("gym_id", gym_id).eq("status", "activo"),
-      supabase.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", gym_id).eq("status", "pendiente"),
-      fetch(`/api/admin/asistencias-stats?gym_id=${gym_id}`).then(async (r) => {
-        if (!r.ok) return null;
-        return r.json() as Promise<{
-          dailyCounts?: { fecha: string; count: number }[];
-          hourlyCounts?: number[];
-          todayCount?: number;
-        }>;
-      }).catch(() => null),
-      userIdRef.current
-        ? supabase.from("profiles").select("full_name").eq("id", userIdRef.current).maybeSingle()
-        : Promise.resolve({ data: null }),
-      supabase.from("gym_settings").select("gym_name").eq("gym_id", gym_id).maybeSingle(),
-      supabase.from("prospectos").select("created_at").eq("gym_id", gym_id).gte("created_at", prevMonthFrom).lte("created_at", thisMonthTo),
-      supabase.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gym_id).gte("date", prevMonthFrom).lte("date", thisMonthTo),
-      supabase.from("egresos").select("monto, fecha, categoria").eq("gym_id", gym_id).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
-      supabase.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gym_id),
-      supabase.from("reservas").select("class_id, fecha, lead_phone, estado").eq("gym_id", gym_id).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
-      supabase.from("asistencias").select("alumno_id, fecha").eq("gym_id", gym_id).gte("fecha", thirtyStr).lte("fecha", isoDate(today)),
-      supabase.from("gym_classes").select("id, day_of_week, max_capacity, event_type, event_date").eq("gym_id", gym_id),
-    ] as const);
-
-    const ownerDisplay = typeof ownerProfile?.full_name === "string" && ownerProfile.full_name.trim()
-      ? ownerProfile.full_name.trim().split(" ")[0]
-      : "dueño";
-    const gymDisplay = typeof gymSettings?.gym_name === "string" && gymSettings.gym_name.trim()
-      ? gymSettings.gym_name.trim()
-      : "tu gym";
-    setOwnerName(ownerDisplay);
-    setGymName(gymDisplay);
-    const proyectado = (activosConPlan ?? []).reduce((sum, row) => {
-      const plan = getRelationRecord((row as PlanPrecioRow).planes);
-      return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
-    }, 0);
-
-    const captMap: Record<string, number> = {};
-    (todasCreatedAt ?? []).forEach((row) => {
-      const m = (row as CreatedAtRow).created_at.slice(0, 7);
-      captMap[m] = (captMap[m] || 0) + 1;
-    });
-    const nextCaptacion5 = months5.map(m => captMap[m.key] || 0);
-
-    const planMap: Record<string, number> = {};
-    (activosConNombrePlan ?? []).forEach((row) => {
-      const nombre = getPlanNombre((row as PlanNombreRow).planes) ?? "Sin plan";
-      planMap[nombre] = (planMap[nombre] || 0) + 1;
-    });
-    const nextPlanDist = Object.entries(planMap)
-      .sort((a, b) => b[1] - a[1])
-      .map(([nombre, count]) => ({ nombre, count }));
-
-    const prospectRows = (prospectosRows ?? []) as ProspectoRow[];
-    const pagoRows = ((pagosMetricRows ?? []) as PagoMetricRow[]).filter((row) => row.status === "validado");
-    const egresoRows = (egresosMetricRows ?? []) as EgresoMetricRow[];
-    const alumnoRows = (alumnosMetricRows ?? []) as AlumnoMetricRow[];
-    const reservaRows = ((reservasMetricRows ?? []) as ReservaMetricRow[]).filter((row) => row.estado === "confirmada");
-    const asistenciaRows = (asistenciasMetricRows ?? []) as AsistenciaMetricRow[];
-    const classRows = (gymClassesMetricRows ?? []) as GymClassMetricRow[];
-
-    const leadPhonesThisMonth = new Set(
-      reservaRows
-        .filter((row) => isWithin(row.fecha, thisMonthFrom, thisMonthTo))
-        .map((row) => normalizePhone(row.lead_phone))
-        .filter(Boolean),
-    );
-    const leadPhonesPrevMonth = new Set(
-      reservaRows
-        .filter((row) => isWithin(row.fecha, prevMonthFrom, prevMonthTo))
-        .map((row) => normalizePhone(row.lead_phone))
-        .filter(Boolean),
-    );
-
-    const leadCountCurrent = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), thisMonthFrom, thisMonthTo)).length;
-    const leadCountPrevious = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo)).length;
-    const trialCountCurrent = leadPhonesThisMonth.size;
-    const trialCountPrevious = leadPhonesPrevMonth.size;
-
-    const normalizedActivePhonesCurrent = new Set(
-      alumnoRows
-        .filter((row) => row.status === "activo" && isWithin(row.created_at.slice(0, 10), thisMonthFrom, thisMonthTo))
-        .map((row) => normalizePhone(row.phone))
-        .filter(Boolean),
-    );
-    const normalizedActivePhonesPrevious = new Set(
-      alumnoRows
-        .filter((row) => row.status === "activo" && isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo))
-        .map((row) => normalizePhone(row.phone))
-        .filter(Boolean),
-    );
-
-    const trialToMemberCurrentCount = Array.from(leadPhonesThisMonth).filter((phone) => normalizedActivePhonesCurrent.has(phone)).length;
-    const trialToMemberPreviousCount = Array.from(leadPhonesPrevMonth).filter((phone) => normalizedActivePhonesPrevious.has(phone)).length;
-
-    const marketingCurrent = egresoRows
-      .filter((row) => row.categoria === "Marketing" && isWithin(row.fecha, thisMonthFrom, thisMonthTo))
-      .reduce((sum, row) => sum + (row.monto ?? 0), 0);
-    const marketingPrevious = egresoRows
-      .filter((row) => row.categoria === "Marketing" && isWithin(row.fecha, prevMonthFrom, prevMonthTo))
-      .reduce((sum, row) => sum + (row.monto ?? 0), 0);
-
-    const newMembersCurrent = alumnoRows.filter((row) => isWithin(row.created_at.slice(0, 10), thisMonthFrom, thisMonthTo)).length;
-    const newMembersPrevious = alumnoRows.filter((row) => isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo)).length;
-
-    const churnedCurrent = alumnoRows.filter((row) => ["vencido", "inactivo"].includes(row.status ?? "") && isWithin(row.next_expiration_date, thisMonthFrom, thisMonthTo)).length;
-    const churnedPrevious = alumnoRows.filter((row) => ["vencido", "inactivo"].includes(row.status ?? "") && isWithin(row.next_expiration_date, prevMonthFrom, prevMonthTo)).length;
-    const activeBaseCurrent = Math.max(activos ?? 0, 1);
-    const activeBasePrevious = Math.max((activos ?? 0) + churnedCurrent - newMembersCurrent, 1);
-
-    const renewedMembersCurrent = new Set(
-      pagoRows.filter((row) => row.concepto === "membresia" && isWithin(row.date, thisMonthFrom, thisMonthTo) && row.alumno_id).map((row) => row.alumno_id as string),
-    ).size;
-    const renewedMembersPrevious = new Set(
-      pagoRows.filter((row) => row.concepto === "membresia" && isWithin(row.date, prevMonthFrom, prevMonthTo) && row.alumno_id).map((row) => row.alumno_id as string),
-    ).size;
-
-    const retentionDenominatorCurrent = renewedMembersCurrent + churnedCurrent;
-    const retentionDenominatorPrevious = renewedMembersPrevious + churnedPrevious;
-
-    const currentRevenue = pagoRows.filter((row) => isWithin(row.date, thisMonthFrom, thisMonthTo)).reduce((sum, row) => sum + row.amount, 0);
-    const previousRevenue = pagoRows.filter((row) => isWithin(row.date, prevMonthFrom, prevMonthTo)).reduce((sum, row) => sum + row.amount, 0);
-    const currentActiveCount = activos ?? 0;
-    const arpuCurrent = currentActiveCount > 0 ? currentRevenue / currentActiveCount : 0;
-    const previousActiveCount = Math.max((activos ?? 0) + churnedCurrent - newMembersCurrent, 0);
-    const arpuPrevious = previousActiveCount > 0 ? previousRevenue / previousActiveCount : 0;
-    const avgTenureMonths = averageMonthsFromCreated(alumnoRows);
-    const ltvCurrent = arpuCurrent * avgTenureMonths;
-    const ltvPrevious = arpuPrevious * avgTenureMonths;
-
-    const buildOccupancy = (rangeStart: Date) => {
-      const year = rangeStart.getFullYear();
-      const month = rangeStart.getMonth();
-      const monthFrom = isoDate(startOfMonth(rangeStart));
-      const monthTo = isoDate(endOfMonth(rangeStart));
-      const confirmedReservations = reservaRows.filter((row) => isWithin(row.fecha, monthFrom, monthTo)).length;
-      const totalCapacity = classRows.reduce((sum, row) => {
-        if ((row.event_type ?? "regular") === "especial") {
-          return sum + (isWithin(row.event_date, monthFrom, monthTo) ? row.max_capacity : 0);
-        }
-        return sum + countWeekdayInMonth(year, month, row.day_of_week) * row.max_capacity;
-      }, 0);
-      return totalCapacity > 0 ? (confirmedReservations / totalCapacity) * 100 : 0;
-    };
-
-    const occupancyCurrent = buildOccupancy(today);
-    const occupancyPrevious = buildOccupancy(prevMonthDate);
-
-    const lastAttendanceMap: Record<string, string> = {};
-    for (const row of asistenciaRows) {
-      if (!lastAttendanceMap[row.alumno_id] || row.fecha > lastAttendanceMap[row.alumno_id]) {
-        lastAttendanceMap[row.alumno_id] = row.fecha;
-      }
+    if (!res.ok || !payload?.ok || !payload.snapshot) {
+      console.error("dashboard_load_error", payload?.error ?? `HTTP ${res.status}`);
+      setLoading(false);
+      return;
     }
-    const inactiveRows = alumnoRows.filter((row) => {
-      if (row.status !== "activo") return false;
-      if (row.next_expiration_date && row.next_expiration_date < isoDate(today)) return false;
-      const lastAttendance = lastAttendanceMap[row.id];
-      return !lastAttendance || lastAttendance < recentInactiveCutoffStr;
-    });
-    const upcomingExpirations = alumnoRows
-      .filter((row) => row.status === "activo" && isWithin(row.next_expiration_date, isoDate(today), expiration72hStr))
-      .sort((a, b) => (a.next_expiration_date ?? "").localeCompare(b.next_expiration_date ?? ""))
-      .slice(0, 6)
-      .map((row) => ({ id: row.id, full_name: row.full_name, next_expiration_date: row.next_expiration_date }));
 
-    const leadToTrialCurrent = leadCountCurrent > 0 ? (trialCountCurrent / leadCountCurrent) * 100 : 0;
-    const leadToTrialPrevious = leadCountPrevious > 0 ? (trialCountPrevious / leadCountPrevious) * 100 : 0;
-    const trialToMemberCurrent = trialCountCurrent > 0 ? (trialToMemberCurrentCount / trialCountCurrent) * 100 : 0;
-    const trialToMemberPrevious = trialCountPrevious > 0 ? (trialToMemberPreviousCount / trialCountPrevious) * 100 : 0;
-    const cacCurrent = newMembersCurrent > 0 ? marketingCurrent / newMembersCurrent : 0;
-    const cacPrevious = newMembersPrevious > 0 ? marketingPrevious / newMembersPrevious : 0;
-    const churnRateCurrent = activeBaseCurrent > 0 ? (churnedCurrent / activeBaseCurrent) * 100 : 0;
-    const churnRatePrevious = activeBasePrevious > 0 ? (churnedPrevious / activeBasePrevious) * 100 : 0;
-    const retentionCurrent = retentionDenominatorCurrent > 0 ? (renewedMembersCurrent / retentionDenominatorCurrent) * 100 : 0;
-    const retentionPrevious = retentionDenominatorPrevious > 0 ? (renewedMembersPrevious / retentionDenominatorPrevious) * 100 : 0;
-
-    const metricCards: DashboardMetric[] = [
-      { key: "leads", label: "Leads Totales", section: "Embudo", tooltip: "Consultas nuevas que entraron este mes.", value: leadCountCurrent, previous: leadCountPrevious, format: "number", accent: "orange" },
-      { key: "lead_trial", label: "Lead-to-Trial", section: "Embudo", tooltip: "Qué porcentaje de consultas llegó a reservar una prueba.", value: leadToTrialCurrent, previous: leadToTrialPrevious, format: "percent", accent: "soft" },
-      { key: "trial_member", label: "Trial-to-Member", section: "Embudo", tooltip: "Qué porcentaje de pruebas terminó en socio activo.", value: trialToMemberCurrent, previous: trialToMemberPrevious, format: "percent", accent: "soft" },
-      { key: "cac", label: "CAC", section: "Embudo", tooltip: "Cuánto costó conseguir cada socio nuevo este mes.", value: cacCurrent, previous: cacPrevious, format: "currency", accent: "ink" },
-      { key: "churn", label: "Churn Rate", section: "Fidelización", tooltip: "Porcentaje de socios que se cayeron este mes.", value: churnRateCurrent, previous: churnRatePrevious, format: "percent", accent: "orange" },
-      { key: "retention", label: "Retention Rate", section: "Fidelización", tooltip: "Qué parte de los socios que estaban por renovar siguió activa.", value: retentionCurrent, previous: retentionPrevious, format: "percent", accent: "soft" },
-      { key: "ltv", label: "LTV", section: "Fidelización", tooltip: "Valor estimado que deja un alumno durante su permanencia.", value: ltvCurrent, previous: ltvPrevious, format: "currency", accent: "ink" },
-      { key: "arpu", label: "ARPU", section: "Eficiencia", tooltip: "Ingreso promedio por alumno activo este mes.", value: arpuCurrent, previous: arpuPrevious, format: "currency", accent: "soft" },
-      { key: "ocupacion", label: "Ocupación por Clase", section: "Eficiencia", tooltip: "Reserva confirmada sobre cupo disponible del mes.", value: occupancyCurrent, previous: occupancyPrevious, format: "percent", accent: "orange" },
-      { key: "m2", label: "Ingreso/m²", section: "Eficiencia", tooltip: "Facturación total dividida por metros del local. Lo activamos cuando cargues la superficie.", value: null, previous: null, format: "currency", accent: "ink" },
-    ];
-
-    const snapshot: DashboardSnapshot = {
-      activosCount: activos ?? 0,
-      totalCount: total ?? 0,
-      ingresoProyectado: proyectado,
-      gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
-      recientes: (recientesData ?? []) as RecenteAlumno[],
-      captacion5: nextCaptacion5,
-      planDist: nextPlanDist,
-      prospectos: prospectosPendientes ?? 0,
-      asistDiarias: (statsRes?.dailyCounts ?? []).slice(-14),
-      asistHoras: statsRes?.hourlyCounts ?? Array(24).fill(0),
-      asistHoy: statsRes?.todayCount ?? 0,
-      metrics: metricCards,
-      alerts: {
-        inactiveCount: inactiveRows.length,
-        inactiveNames: inactiveRows.slice(0, 6).map((row) => row.full_name),
-        upcomingExpirations,
-      },
-    };
+    setOwnerName(payload.ownerName?.trim() || "dueño");
+    setGymName(payload.gymName?.trim() || "tu gym");
+    const snapshot = payload.snapshot;
 
     applySnapshot(snapshot);
     setPageCache(cacheKey, snapshot);
 
     setLoading(false);
-  }, [months5, applySnapshot]);
+  }, [applySnapshot]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
