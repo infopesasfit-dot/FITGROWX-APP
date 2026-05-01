@@ -489,7 +489,7 @@ export default function PagosPage() {
           {(isAdmin || isStaff) && (
             <button
               onClick={() => setNewPagoOpen(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: ORANGE, color: "white", border: "none", padding: "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)" }}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: ORANGE, color: "white", border: "none", padding: isMobile ? "11px 18px" : "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)", width: isMobile ? "100%" : undefined, justifyContent: isMobile ? "center" : undefined }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
@@ -499,7 +499,7 @@ export default function PagosPage() {
           {role === "student" && (
             <button
               onClick={() => setNewPagoOpen(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, background: ORANGE, color: "white", border: "none", padding: "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)" }}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: ORANGE, color: "white", border: "none", padding: isMobile ? "11px 18px" : "10px 20px", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)", width: isMobile ? "100%" : undefined, justifyContent: isMobile ? "center" : undefined }}
               onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >
@@ -561,7 +561,7 @@ export default function PagosPage() {
                 <span style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
                 <div style={{ width: 30, height: 30, borderRadius: 8, background: "#151515", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
               </div>
-              <p style={{ font: `800 1.8rem/1 ${fd}`, color: s.warn ? "#D97706" : t1, marginBottom: 4 }}>{s.value}</p>
+              <p style={{ font: `800 ${isMobile ? "1.5rem" : "1.8rem"}/1 ${fd}`, color: s.warn ? "#D97706" : t1, marginBottom: 4 }}>{s.value}</p>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                 <p style={{ font: `400 0.72rem/1 ${fb}`, color: s.warn ? "#D97706" : t3 }}>{s.sub}</p>
                 <span style={{ font: `700 0.7rem/1 ${fb}`, color: s.warn ? "#B45309" : BLUE, whiteSpace: "nowrap" }}>
@@ -573,7 +573,7 @@ export default function PagosPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 2, borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: 0, overflowX: isMobile ? "auto" : undefined }}>
+        <div style={{ display: "flex", gap: 2, borderBottom: "1px solid rgba(0,0,0,0.07)", paddingBottom: 0, overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
           {([
             { key: "resumen",    label: "Resumen" },
             { key: "pendientes", label: `Pendientes${pendientes.length > 0 ? ` (${pendientes.length})` : ""}` },
@@ -584,15 +584,17 @@ export default function PagosPage() {
               key={t.key}
               onClick={() => setTab(t.key as typeof tab)}
               style={{
-                padding: "10px 18px",
+                padding: isMobile ? "10px 14px" : "10px 18px",
                 background: "none",
                 border: "none",
                 borderBottom: tab === t.key ? `2px solid ${ORANGE}` : "2px solid transparent",
-                font: `${tab === t.key ? 700 : 500} 0.85rem/1 ${fb}`,
+                font: `${tab === t.key ? 700 : 500} ${isMobile ? "0.8rem" : "0.85rem"}/1 ${fb}`,
                 color: tab === t.key ? ORANGE : t2,
                 cursor: "pointer",
                 transition: "all 0.14s",
                 marginBottom: -1,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
               }}
             >
               {t.label}
@@ -617,8 +619,8 @@ export default function PagosPage() {
                       </div>
                       <span style={{ font: `600 0.82rem/1 ${fd}`, color: t1 }}>{meta.label}</span>
                     </div>
-                    <p style={{ font: `800 1.6rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{fmtARS(total)}</p>
-                    <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{count} pago{count !== 1 ? "s" : ""} validado{count !== 1 ? "s" : ""}</p>
+                    <p style={{ font: `800 ${isMobile ? "1.25rem" : "1.6rem"}/1 ${fd}`, color: t1, marginBottom: 3 }}>{fmtARS(total)}</p>
+                    <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{count} pago{count !== 1 ? "s" : ""}</p>
                     <ProgressBar pct={pct} color={meta.color} />
                   </div>
                 );
@@ -635,19 +637,38 @@ export default function PagosPage() {
               ) : pagos.slice(0, 5).length === 0 ? (
                 <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados aún.</p>
               ) : pagos.slice(0, 5).map((p, i) => (
-                <div key={p.id} className="pago-row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: i < 4 ? "1px solid rgba(0,0,0,0.04)" : "none", transition: "background 0.12s" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
-                    {initials(p.alumnos?.full_name ?? "?")}
+                isMobile ? (
+                  <div key={p.id} style={{ padding: "12px 16px", borderBottom: i < 4 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                        {initials(p.alumnos?.full_name ?? "?")}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</p>
+                        <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.date}</p>
+                      </div>
+                      <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1, flexShrink: 0 }}>{fmtARS(p.amount)}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
+                      <Chip meta={STATUS_META[p.status ?? "validado"]} />
+                    </div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ font: `600 0.82rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</p>
-                    <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.date}</p>
+                ) : (
+                  <div key={p.id} className="pago-row" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: i < 4 ? "1px solid rgba(0,0,0,0.04)" : "none", transition: "background 0.12s" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                      {initials(p.alumnos?.full_name ?? "?")}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.82rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</p>
+                      <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.date}</p>
+                    </div>
+                    <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
+                    <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
+                    <Chip meta={STATUS_META[p.status ?? "validado"]} />
+                    <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, minWidth: 80, textAlign: "right" }}>{fmtARS(p.amount)}</span>
                   </div>
-                  <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
-                  <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
-                  <Chip meta={STATUS_META[p.status ?? "validado"]} />
-                  <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, minWidth: 80, textAlign: "right" }}>{fmtARS(p.amount)}</span>
-                </div>
+                )
               ))}
             </div>
           </div>
@@ -665,43 +686,48 @@ export default function PagosPage() {
             ) : pendientes.map((p, idx) => {
               const isValidating = validating.has(p.id);
               return (
-                <div key={p.id} style={{ ...card, padding: "18px 20px", border: "1px solid rgba(217,119,6,0.20)", animation: `fadeUp 0.22s ease ${idx * 50}ms both` }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(217,119,6,0.08)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.72rem/1 ${fd}`, color: "#D97706", flexShrink: 0 }}>
-                        {initials(p.alumnos?.full_name ?? "?")}
-                      </div>
-                      <div>
-                        <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>{p.alumnos?.full_name ?? "Alumno"}</p>
-                        <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 3 }}>{p.date} · {METHOD_META[p.method].label}</p>
-                        {p.descripcion && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t1, marginTop: 3 }}>{p.descripcion}</p>}
-                        {p.notes && <p style={{ font: `400 0.72rem/1 ${fb}`, color: t2, marginTop: 3, fontStyle: "italic" }}>{p.notes}</p>}
-                      </div>
+                <div key={p.id} style={{ ...card, padding: isMobile ? "14px 16px" : "18px 20px", border: "1px solid rgba(217,119,6,0.20)", animation: `fadeUp 0.22s ease ${idx * 50}ms both` }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 11, background: "rgba(217,119,6,0.08)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.72rem/1 ${fd}`, color: "#D97706", flexShrink: 0 }}>
+                      {initials(p.alumnos?.full_name ?? "?")}
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <span style={{ font: `800 1.3rem/1 ${fd}`, color: "#D97706" }}>{fmtARS(p.amount)}</span>
-                      {p.comprobante_url && (
-                        <a href={p.comprobante_url} target="_blank" rel="noreferrer"
-                          style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", background: "rgba(75,107,251,0.07)", border: "1px solid rgba(75,107,251,0.20)", borderRadius: 9, font: `600 0.72rem/1 ${fb}`, color: BLUE, textDecoration: "none" }}>
-                          <Upload size={11} /> Ver comprobante
-                        </a>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", gap: 8, flexDirection: isMobile ? "column" : "row" }}>
+                        <div>
+                          <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>{p.alumnos?.full_name ?? "Alumno"}</p>
+                          <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 3 }}>{p.date} · {METHOD_META[p.method].label}</p>
+                          {p.descripcion && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t1, marginTop: 3 }}>{p.descripcion}</p>}
+                          {p.notes && <p style={{ font: `400 0.72rem/1 ${fb}`, color: t2, marginTop: 3, fontStyle: "italic" }}>{p.notes}</p>}
+                        </div>
+                        {!isMobile && <span style={{ font: `800 1.3rem/1 ${fd}`, color: "#D97706", flexShrink: 0 }}>{fmtARS(p.amount)}</span>}
+                      </div>
+                      {isMobile && (
+                        <p style={{ font: `800 1.2rem/1 ${fd}`, color: "#D97706", marginTop: 8 }}>{fmtARS(p.amount)}</p>
                       )}
-                      {(isAdmin || isStaff) && (
-                        <>
-                          <button
-                            onClick={() => validarPago(p.id)}
-                            disabled={isValidating}
-                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 16px", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.25)", borderRadius: 9, font: `700 0.78rem/1 ${fb}`, color: "#FF6A00", cursor: isValidating ? "wait" : "pointer" }}>
-                            <CheckCircle size={13} /> {isValidating ? "Validando..." : "Validar"}
-                          </button>
-                          <button
-                            onClick={() => rechazarPago(p.id)}
-                            disabled={isValidating}
-                            style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 12px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.20)", borderRadius: 9, font: `700 0.78rem/1 ${fb}`, color: "#DC2626", cursor: isValidating ? "wait" : "pointer" }}>
-                            <XCircle size={13} /> Rechazar
-                          </button>
-                        </>
-                      )}
+                      <div style={{ display: "flex", gap: 8, marginTop: 10, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", flexWrap: "wrap" }}>
+                        {p.comprobante_url && (
+                          <a href={p.comprobante_url} target="_blank" rel="noreferrer"
+                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 12px", background: "rgba(75,107,251,0.07)", border: "1px solid rgba(75,107,251,0.20)", borderRadius: 9, font: `600 0.72rem/1 ${fb}`, color: BLUE, textDecoration: "none" }}>
+                            <Upload size={11} /> Ver comprobante
+                          </a>
+                        )}
+                        {(isAdmin || isStaff) && (
+                          <>
+                            <button
+                              onClick={() => validarPago(p.id)}
+                              disabled={isValidating}
+                              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "9px 16px", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.25)", borderRadius: 9, font: `700 0.78rem/1 ${fb}`, color: "#FF6A00", cursor: isValidating ? "wait" : "pointer", flex: isMobile ? 1 : undefined }}>
+                              <CheckCircle size={13} /> {isValidating ? "Validando..." : "Validar"}
+                            </button>
+                            <button
+                              onClick={() => rechazarPago(p.id)}
+                              disabled={isValidating}
+                              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "9px 12px", background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.20)", borderRadius: 9, font: `700 0.78rem/1 ${fb}`, color: "#DC2626", cursor: isValidating ? "wait" : "pointer", flex: isMobile ? 1 : undefined }}>
+                              <XCircle size={13} /> Rechazar
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -796,14 +822,14 @@ export default function PagosPage() {
               /* ── Estado activo: tarjetas read-only ── */
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {cuentas.map((c, idx) => (
-                  <div key={c.id} style={{ ...card, padding: "18px 20px", animation: `fadeUp 0.22s ease ${idx * 50}ms both` }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
+                  <div key={c.id} style={{ ...card, padding: isMobile ? "14px 16px" : "18px 20px", animation: `fadeUp 0.22s ease ${idx * 50}ms both` }}>
+                    <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", gap: 12, flexDirection: isMobile ? "column" : "row" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <div style={{ width: 38, height: 38, borderRadius: 10, background: "rgba(249,115,22,0.07)", display: "flex", alignItems: "center", justifyContent: "center", color: ORANGE, flexShrink: 0 }}>
                           {c.tipo === "mercadopago" ? <Smartphone size={17} /> : <Building2 size={17} />}
                         </div>
                         <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, flexWrap: "wrap" }}>
                             <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{c.valor}</span>
                             <span style={{ font: `600 0.62rem/1 ${fb}`, color: ORANGE, background: "rgba(249,115,22,0.08)", padding: "2px 8px", borderRadius: 9999, textTransform: "uppercase" as const }}>
                               {c.tipo === "alias" ? "Alias" : c.tipo === "cbu" ? "CBU" : "Mercado Pago"}
@@ -816,7 +842,7 @@ export default function PagosPage() {
                       </div>
                       <a
                         href="/dashboard/ajustes"
-                        style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.10)", background: "white", color: t2, font: `600 0.72rem/1 ${fb}`, textDecoration: "none", transition: "all 0.12s" }}
+                        style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,0.10)", background: "white", color: t2, font: `600 0.72rem/1 ${fb}`, textDecoration: "none", transition: "all 0.12s", width: isMobile ? "100%" : undefined }}
                         onMouseEnter={e => { e.currentTarget.style.background = "#F4F5F9"; e.currentTarget.style.color = t1; }}
                         onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.color = t2; }}
                       >
