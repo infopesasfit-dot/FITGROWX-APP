@@ -25,16 +25,20 @@ const CAT_COLOR: Record<string, { color: string; bg: string }> = {
   Otros:         { color: "#64748B", bg: "rgba(100,116,139,0.08)" },
 };
 
+const METODOS_PAGO = ["efectivo","transferencia","tarjeta_debito","tarjeta_credito","mercado_pago","otro"] as const;
+const METODO_LABEL: Record<string, string> = { efectivo: "Efectivo", transferencia: "Transferencia", tarjeta_debito: "Débito", tarjeta_credito: "Crédito", mercado_pago: "Mercado Pago", otro: "Otro" };
+
 interface Egreso {
   id: string;
   titulo: string;
   monto: number;
   categoria: string;
+  metodo: string;
   fecha: string;
   gym_id: string;
 }
 
-const EMPTY_FORM = { titulo: "", monto: "", categoria: CATEGORIAS[0], fecha: getTodayDate() };
+const EMPTY_FORM = { titulo: "", monto: "", categoria: CATEGORIAS[0], metodo: "efectivo", fecha: getTodayDate() };
 
 export default function EgresosPage() {
   const [isMobile, setIsMobile]   = useState(false);
@@ -68,7 +72,7 @@ export default function EgresosPage() {
     }
 
     const { data } = await supabase
-      .from("egresos").select("id, titulo, monto, categoria, fecha, gym_id")
+      .from("egresos").select("id, titulo, monto, categoria, metodo, fecha, gym_id")
       .eq("gym_id", profile.gymId).order("fecha", { ascending: false }).limit(200);
 
     const rows = (data as Egreso[]) ?? [];
@@ -107,8 +111,9 @@ export default function EgresosPage() {
       titulo:    form.titulo.trim(),
       monto,
       categoria: form.categoria,
+      metodo:    form.metodo,
       fecha:     form.fecha,
-    }]).select("id, titulo, monto, categoria, fecha, gym_id").single();
+    }]).select("id, titulo, monto, categoria, metodo, fecha, gym_id").single();
 
     if (error) { setFormError(error.message); setSaving(false); return; }
 
@@ -347,6 +352,19 @@ export default function EgresosPage() {
               >
                 {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
+            </div>
+
+            {/* Método de pago */}
+            <div>
+              <label style={{ font: `600 0.78rem/1 ${fb}`, color: t2, display: "block", marginBottom: 8 }}>Método de pago</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {METODOS_PAGO.map(val => (
+                  <button key={val} type="button" onClick={() => setForm(f => ({ ...f, metodo: val }))}
+                    style={{ padding: "8px 6px", borderRadius: 8, border: `1.5px solid ${form.metodo === val ? "#F97316" : "rgba(0,0,0,0.10)"}`, background: form.metodo === val ? "rgba(249,115,22,0.08)" : "white", font: `${form.metodo === val ? 700 : 500} 0.72rem/1 ${fb}`, color: form.metodo === val ? "#F97316" : t2, cursor: "pointer", transition: "all 0.12s" }}>
+                    {METODO_LABEL[val]}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Fecha */}

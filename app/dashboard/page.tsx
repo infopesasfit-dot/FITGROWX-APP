@@ -724,35 +724,6 @@ export default function DashboardPage() {
         );
       })()}
 
-      <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
-          <div>
-            <p style={{ font: `800 0.94rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Registros recientes</p>
-            <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3 }}>Los últimos alumnos cargados en el sistema.</p>
-          </div>
-          <span style={{ font: `700 0.66rem/1 ${fb}`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "7px 10px" }}>Últimos</span>
-        </div>
-        {loading ? (
-          <p style={{ font: `500 0.78rem/1 ${fb}`, color: t3 }}>Cargando…</p>
-        ) : recientes.length === 0 ? (
-          <p style={{ font: `500 0.78rem/1 ${fb}`, color: t3 }}>Sin registros recientes.</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {recientes.map((r) => (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid rgba(17,24,39,0.05)" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 16, background: "linear-gradient(135deg, #191B20, #353844)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.68rem/1 ${fd}`, flexShrink: 0 }}>{initials(r.full_name)}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.full_name}</p>
-                  <p style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3, marginTop: 4 }}>{new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}</p>
-                </div>
-                <div style={{ width: 32, height: 32, borderRadius: 12, background: "#F5F7FA", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Send size={13} color={accentDeep} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
     {activeInfo && (
       <div onClick={() => setActiveInfo(null)} style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end" }}>
@@ -973,38 +944,7 @@ export default function DashboardPage() {
         );
       })()}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(360px, 0.92fr)", gap: 20 }}>
-        <div style={{ ...cardBase, padding: "24px 24px 18px", background: whitePanel }} {...cardHover}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
-            <div>
-              <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Registros recientes</p>
-              <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Los últimos alumnos ingresados al sistema.</p>
-            </div>
-            <span style={{ font: `700 0.7rem/1 ${fb}`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "8px 12px" }}>Recientes</span>
-          </div>
-          {loading ? (
-            <p style={{ color: t3, font: `500 0.8rem/1 ${fb}` }}>Cargando…</p>
-          ) : recientes.length === 0 ? (
-            <p style={{ color: t3, font: `500 0.8rem/1 ${fb}` }}>Sin registros recientes.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {recientes.map((r, i) => (
-                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderBottom: i < recientes.length - 1 ? "1px solid rgba(17,24,39,0.05)" : "none" }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 16, background: "linear-gradient(135deg, #191B20, #353844)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.72rem/1 ${fd}`, flexShrink: 0 }}>{initials(r.full_name)}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.full_name}</p>
-                    <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3, marginTop: 4 }}>{new Date(r.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</p>
-                  </div>
-                  <div style={{ width: 34, height: 34, borderRadius: 14, background: "#F5F7FA", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Send size={13} color={accentDeep} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }} {...cardHover}>
+      <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }} {...cardHover}>
           <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Mix de planes</p>
           <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3, marginBottom: 18 }}>Distribución actual de la base activa.</p>
           {loading || planDist.length === 0 ? (
@@ -1053,7 +993,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
     </div>
     </>
   );

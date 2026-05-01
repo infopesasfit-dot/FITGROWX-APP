@@ -87,14 +87,14 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <section style={{ ...card, padding: 26 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 22 }}>
+    <section style={{ ...card, padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 14 }}>
           <div
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 14,
+              width: 38,
+              height: 38,
+              borderRadius: 12,
               background: "linear-gradient(145deg, #1A1D23 0%, #2B3441 100%)",
               display: "flex",
               alignItems: "center",
@@ -696,9 +696,9 @@ function AjustesContent() {
                 </button>
               }
             >
-              <div style={{ display: "grid", gap: isMobile ? 18 : 22 }}>
-                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 240px", gap: 18 }}>
-                  <div style={{ display: "grid", gap: 16 }}>
+              <div style={{ display: "grid", gap: isMobile ? 14 : 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 200px", gap: 14 }}>
+                  <div style={{ display: "grid", gap: 12 }}>
                     <Field label="Nombre del gimnasio">
                       <input value={gymName} onChange={(event) => setGymName(event.target.value)} style={inputStyle} />
                     </Field>
@@ -720,9 +720,9 @@ function AjustesContent() {
                     </Field>
                   </div>
 
-                  <div style={{ padding: "18px", borderRadius: 18, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "grid", gap: 12, alignContent: "start", justifyItems: isMobile ? "stretch" : "start" }}>
-                    <p style={{ font: `700 0.8rem/1 ${fd}`, color: t1 }}>Logo del gimnasio</p>
-                    <div style={{ width: 88, height: 88, borderRadius: 20, border: "1px dashed rgba(15,23,42,0.12)", background: "white", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", justifySelf: isMobile ? "center" : "start" }}>
+                  <div style={{ padding: "12px", borderRadius: 14, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "grid", gap: 10, alignContent: "start", justifyItems: isMobile ? "stretch" : "start" }}>
+                    <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>Logo del gimnasio</p>
+                    <div style={{ width: 68, height: 68, borderRadius: 14, border: "1px dashed rgba(15,23,42,0.12)", background: "white", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", justifySelf: isMobile ? "center" : "start" }}>
                       {activeLogoSrc ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={activeLogoSrc} alt="Logo preview" style={{ maxWidth: "84%", maxHeight: "84%", objectFit: "contain" }} />

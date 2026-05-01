@@ -33,7 +33,7 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
     ],
   },
   {
-    section: "ALUMNOS",
+    section: "SOCIOS",
     items: [
       { href: "/dashboard/alumnos",    label: "Alumnos",           icon: Users },
       { href: "/dashboard/clases",     label: "Clases y Horarios", icon: CalendarDays },

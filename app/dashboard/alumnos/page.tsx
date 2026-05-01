@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Users, UserCheck, UserX, TrendingUp, CreditCard, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet } from "lucide-react";
+import { Search, Plus, Users, UserCheck, UserX, TrendingUp, DollarSign, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -105,6 +105,7 @@ export default function AlumnosPage() {
   const [pagoMonto,       setPagoMonto]       = useState("");
   const [pagoFecha,       setPagoFecha]       = useState(new Date().toISOString().slice(0, 10));
   const [pagoTipo,        setPagoTipo]        = useState<"cuota" | "otro">("cuota");
+  const [pagoMetodo,      setPagoMetodo]      = useState("efectivo");
   const [pagoDetalle,     setPagoDetalle]     = useState("");
   const [pagoDiscountType, setPagoDiscountType] = useState<"none" | "monto" | "porcentaje">("none");
   const [pagoDiscountValue, setPagoDiscountValue] = useState("");
@@ -388,6 +389,7 @@ export default function AlumnosPage() {
     setPagoMonto(String(a.planes?.precio ?? ""));
     setPagoFecha(today);
     setPagoTipo("cuota");
+    setPagoMetodo("efectivo");
     setPagoDetalle("");
     setPagoDiscountType("none");
     setPagoDiscountValue("");
@@ -463,7 +465,7 @@ export default function AlumnosPage() {
       date:      paymentDate,
       notes:     paymentMeta,
       status:    "validado",
-      method:    "efectivo",
+      method:    pagoMetodo,
     }]);
 
     const alumnoUpdate = isCuota
@@ -996,7 +998,7 @@ export default function AlumnosPage() {
                           <button onClick={() => openPagoModal(a)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
                             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
-                          ><CreditCard size={16} /></button>
+                          ><DollarSign size={16} /></button>
                         </Tooltip>
                         <Tooltip content="Más acciones">
                           <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4 > window.innerHeight - 180 ? rect.top - 4 : rect.bottom + 4, right: window.innerWidth - rect.right, openUp: rect.bottom + 4 > window.innerHeight - 180 }); setMenuOpenId(a.id); }} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -1074,7 +1076,7 @@ export default function AlumnosPage() {
                         <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
                       </button>
                     )}
-                    <button onClick={() => openPagoModal(a)} style={{ minHeight: 42, borderRadius: 10, background: "rgba(75,107,251,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4B6BFB" }}><CreditCard size={16} /></button>
+                    <button onClick={() => openPagoModal(a)} style={{ minHeight: 42, borderRadius: 10, background: "rgba(75,107,251,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4B6BFB" }}><DollarSign size={16} /></button>
                     <button title="Asignar Rutina" onClick={() => openRutinaModal(a)} style={{ minHeight: 42, borderRadius: 10, background: "rgba(124,58,237,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#7C3AED" }}><Sparkles size={16} /></button>
                     <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4 > window.innerHeight - 180 ? rect.top - 4 : rect.bottom + 4, right: window.innerWidth - rect.right, openUp: rect.bottom + 4 > window.innerHeight - 180 }); setMenuOpenId(a.id); }} style={{ minHeight: 42, borderRadius: 10, background: "#F4F5F9", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t3 }}><MoreVertical size={16} /></button>
                   </div>
@@ -1702,6 +1704,17 @@ export default function AlumnosPage() {
               )}
             </div>
             <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 8 }}>Método de pago</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                {[["efectivo","Efectivo"],["transferencia","Transferencia"],["tarjeta_debito","Débito"],["tarjeta_credito","Crédito"],["mercado_pago","Mercado Pago"],["otro","Otro"]].map(([val, lbl]) => (
+                  <button key={val} type="button" onClick={() => setPagoMetodo(val)}
+                    style={{ padding: "8px 6px", borderRadius: 8, border: `1.5px solid ${pagoMetodo === val ? "#4B6BFB" : "rgba(0,0,0,0.09)"}`, background: pagoMetodo === val ? "rgba(75,107,251,0.08)" : "white", font: `${pagoMetodo === val ? 700 : 500} 0.72rem/1 ${fb}`, color: pagoMetodo === val ? "#4B6BFB" : t2, cursor: "pointer", transition: "all 0.12s" }}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
               <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>
                 Fecha del pago
               </label>
@@ -1735,11 +1748,6 @@ export default function AlumnosPage() {
                   ? "Opcional. Te sirve para dejar aclarado qué cuota o período corresponde."
                   : "Obligatorio en la práctica para identificar cobros de productos, clases u otros conceptos."}
               </p>
-            </div>
-            <div style={{ background: "rgba(75,107,251,0.06)", border: "1px solid rgba(75,107,251,0.14)", borderRadius: 10, padding: "10px 14px", font: `400 0.78rem/1.5 ${fb}`, color: "#4B6BFB" }}>
-              {pagoTipo === "cuota"
-                ? <>Esto marcará al alumno como <strong>Activo</strong> y extenderá su vencimiento según el plan asignado.</>
-                : <>Esto solo registrará el cobro. <strong>No cambia</strong> el estado ni el vencimiento del alumno.</>}
             </div>
             {pagoError && (
               <div style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9, padding: "10px 14px", font: `400 0.8rem/1.4 ${fb}`, color: "#DC2626" }}>{pagoError}</div>
@@ -1799,7 +1807,7 @@ export default function AlumnosPage() {
                   {rutinaTarget.full_name.split(" ").slice(0,2).map(w => w[0]).join("").toUpperCase()}
                 </div>
                 <div>
-                  <p style={{ font: `300 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.45)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 5 }}>Rutina para</p>
+                  <p style={{ font: `300 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.45)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 5 }}>Entrenamiento para</p>
                   <h2 style={{ font: `800 1.2rem/1.1 ${fd}`, color: "white", letterSpacing: "-0.025em" }}>{rutinaTarget.full_name}</h2>
                 </div>
               </div>
@@ -1808,29 +1816,8 @@ export default function AlumnosPage() {
               </button>
             </div>
 
-            {/* Tipo toggle */}
-            <div style={{ marginTop: 16, position: "relative", zIndex: 1 }}>
-              <div style={{ display: "flex", gap: 6, background: "rgba(255,255,255,0.05)", borderRadius: 10, padding: 4 }}>
-                {(["gym", "wod"] as const).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setRutinatipo(t)}
-                    style={{
-                      flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer", transition: "all 0.15s",
-                      background: rutinatipo === t ? "white" : "transparent",
-                      color: rutinatipo === t ? "#111318" : "rgba(255,255,255,0.4)",
-                      font: `700 0.78rem/1 ${fd}`,
-                      boxShadow: rutinatipo === t ? "0 1px 4px rgba(0,0,0,0.2)" : "none",
-                    }}
-                  >
-                    {t === "gym" ? "🏋️ Gym" : "⚡ WOD CrossFit"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Gym: objetivo chips */}
-            {rutinatipo === "gym" && (
+            {/* Objetivo chips */}
+            {(
               <div style={{ marginTop: 14, position: "relative", zIndex: 1 }}>
                 <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Objetivo</p>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -1850,36 +1837,7 @@ export default function AlumnosPage() {
               </div>
             )}
 
-            {/* WOD: modalidad + time cap */}
-            {rutinatipo === "wod" && (
-              <div style={{ marginTop: 14, position: "relative", zIndex: 1 }}>
-                <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Modalidad</p>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
-                  {["AMRAP", "For Time", "EMOM", "Chipper"].map(m => (
-                    <button
-                      key={m}
-                      onClick={() => setWodModalidad(m)}
-                      style={{
-                        padding: "6px 14px", borderRadius: 9999, border: `1px solid ${wodModalidad === m ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.1)"}`,
-                        background: wodModalidad === m ? "rgba(99,102,241,0.14)" : "rgba(255,255,255,0.04)",
-                        color: wodModalidad === m ? "#818cf8" : "rgba(255,255,255,0.4)",
-                        font: `${wodModalidad === m ? "700" : "400"} 0.72rem/1 ${fd}`, cursor: "pointer", transition: "all 0.15s",
-                      }}
-                    >{m}</button>
-                  ))}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", textTransform: "uppercase", flexShrink: 0 }}>Time Cap</p>
-                  <input
-                    type="number" min={1} max={90}
-                    value={wodTimeCap}
-                    onChange={e => setWodTimeCap(e.target.value)}
-                    style={{ width: 60, padding: "5px 10px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, font: `600 0.85rem/1 ${fd}`, color: "white", outline: "none", textAlign: "center" }}
-                  />
-                  <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>min</span>
-                </div>
-              </div>
-            )}
+
 
             {/* AI button */}
             <button
@@ -1898,7 +1856,7 @@ export default function AlumnosPage() {
             >
               {aiLoading
                 ? <><div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", animation: "spinAI 0.7s linear infinite" }} /> Generando con IA...</>
-                : <><Sparkles size={16} /> {rutinatipo === "wod" ? "Generar WOD con IA" : "Sugerir con IA"}</>
+                : <><Sparkles size={16} /> Generar entrenamiento con IA</>
               }
             </button>
           </div>
@@ -1908,7 +1866,7 @@ export default function AlumnosPage() {
 
             {/* Nombre de la rutina */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", font: `500 0.72rem/1 ${fb}`, color: t2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" }}>Nombre de la rutina</label>
+              <label style={{ display: "block", font: `500 0.72rem/1 ${fb}`, color: t2, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em" }}>Nombre del entrenamiento</label>
               <input
                 value={rutinaNombre}
                 onChange={e => setRutinaNombre(e.target.value)}
@@ -1989,64 +1947,6 @@ export default function AlumnosPage() {
             )}
 
             {/* WOD: lista de movimientos */}
-            {rutinatipo === "wod" && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                  <label style={{ font: `600 0.72rem/1 ${fd}`, color: t1, textTransform: "uppercase", letterSpacing: "0.07em" }}>Movimientos ({wodMovimientos.length})</label>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <span style={{ padding: "3px 10px", borderRadius: 9999, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", font: `700 0.68rem/1 ${fd}`, color: "#818cf8" }}>{wodModalidad}</span>
-                    <span style={{ font: `400 0.68rem/1 ${fd}`, color: t3 }}>{wodTimeCap} min</span>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {wodMovimientos.map((m, i) => (
-                    <div key={i} style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 14, padding: "12px 14px", display: "flex", gap: 12, alignItems: "flex-start" }}>
-                      <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(99,102,241,0.08)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.72rem/1 ${fd}`, color: "#818cf8", flexShrink: 0, marginTop: 6 }}>
-                        {i + 1}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <input
-                          placeholder="Ej: Thruster"
-                          value={m.nombre}
-                          onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
-                          style={{ width: "100%", padding: "0 0 6px", background: "transparent", border: "none", borderBottom: "1.5px solid rgba(0,0,0,0.08)", font: `600 0.92rem/1.2 ${fd}`, color: t1, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
-                          onFocus={e => (e.currentTarget.style.borderBottomColor = "#6366f1")}
-                          onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(0,0,0,0.08)")}
-                        />
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                          <span style={{ font: `500 0.6rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em" }}>Reps / Dist</span>
-                          <input
-                            placeholder="21-15-9"
-                            value={m.reps}
-                            onChange={e => setWodMovimientos(prev => prev.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))}
-                            style={{ padding: "6px 10px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 8, font: `600 0.82rem/1 ${fb}`, color: "#374151", outline: "none", width: "100%", boxSizing: "border-box" }}
-                            onFocus={e => (e.currentTarget.style.borderColor = "#6366f1")}
-                            onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.07)")}
-                          />
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setWodMovimientos(prev => prev.filter((_, j) => j !== i))}
-                        style={{ width: 28, height: 28, borderRadius: 8, background: "none", border: "none", cursor: "pointer", color: "#D1D5DB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 4, transition: "color 0.15s" }}
-                        onMouseEnter={e => { e.currentTarget.style.color = "#EF4444"; }}
-                        onMouseLeave={e => { e.currentTarget.style.color = "#D1D5DB"; }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setWodMovimientos(prev => [...prev, { ...EMPTY_MOV }])}
-                  style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", background: "none", border: "1.5px dashed rgba(99,102,241,0.25)", borderRadius: 12, font: `600 0.78rem/1 ${fd}`, color: "#818cf8", cursor: "pointer", width: "100%", justifyContent: "center", transition: "all 0.15s" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.04)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
-                >
-                  <Plus size={13} /> Agregar movimiento
-                </button>
-              </div>
-            )}
-
             {/* Notas Pro */}
             <div style={{ marginBottom: 8 }}>
               <label style={{ display: "block", font: `600 0.72rem/1 ${fd}`, color: t1, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
@@ -2090,7 +1990,7 @@ export default function AlumnosPage() {
                 onMouseEnter={e => { if (!rutinaSaving) e.currentTarget.style.opacity = "0.92"; }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
               >
-                {rutinaSaving ? "Publicando..." : rutinatipo === "wod" ? "Publicar WOD" : "Publicar Rutina"}
+                {rutinaSaving ? "Publicando..." : "Publicar Entrenamiento"}
               </button>
             )}
           </div>
