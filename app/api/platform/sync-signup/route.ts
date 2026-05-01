@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
       gymSettings?.gym_name ?? existingGym?.gym_name ?? existingGym?.name ?? null,
     );
 
-    if (existingProfile?.role === "platform_owner") {
-      return NextResponse.json({ ok: true, skipped: "platform_owner" });
+    if (existingProfile?.role === "platform_owner" || existingProfile?.role === "staff") {
+      return NextResponse.json({ ok: true, skipped: existingProfile.role });
     }
 
     const { error: profileUpsertError } = await supabase.from("profiles").upsert(

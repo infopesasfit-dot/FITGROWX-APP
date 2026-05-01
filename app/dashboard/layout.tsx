@@ -175,6 +175,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifLoadedGymId, setNotifLoadedGymId] = useState<string | null>(null);
   const [gymId,       setGymId]       = useState<string | null>(null);
   const [role,        setRole]        = useState<"admin" | "staff">("admin");
+  const [roleLoaded,  setRoleLoaded]  = useState(false);
   const [attractOpen, setAttractOpen] = useState(() => ATTRACT_ROUTES.some(r => pathname.startsWith(r)));
   const [configOpen,  setConfigOpen]  = useState(() => pathname.startsWith("/dashboard/ajustes"));
 
@@ -200,8 +201,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => window.clearTimeout(timeoutId);
   }, [pathname]);
 
-  // Staff route protection
+  // Staff route protection — only runs after role is confirmed from DB
   useEffect(() => {
+    if (!roleLoaded) return;
     if (role !== "staff") return;
     if (pathname === "/dashboard") {
       router.replace("/dashboard/scanner");
@@ -211,7 +213,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       pathname.startsWith(r)
     );
     if (!allowed) router.replace("/dashboard/scanner");
-  }, [role, pathname, router]);
+  }, [role, roleLoaded, pathname, router]);
 
   // Fetch user + trial info once
   useEffect(() => {
@@ -224,6 +226,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       setGymId(gymIdVal);
       setRole(roleVal);
+      setRoleLoaded(true);
 
       const { data: { user } } = await supabase.auth.getUser();
       const name = user?.email ?? "Admin";
@@ -359,6 +362,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     whiteSpace: "nowrap",
   };
 
+
+  if (!roleLoaded) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#0D0F12" }}>
+        <div style={{ width: 24, height: 24, border: "2px solid rgba(255,255,255,0.12)", borderTopColor: "rgba(255,255,255,0.6)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0D0F12" }}>
