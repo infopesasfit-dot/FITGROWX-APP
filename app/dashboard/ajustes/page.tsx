@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -72,6 +72,7 @@ const tabs = [
 
 type SettingsTab = typeof tabs[number]["key"];
 type StaffMember = { id: string; email: string | null; full_name: string | null };
+type LastMonthlyReport = { report_month: string; email: string; created_at: string };
 
 function SectionCard({
   icon,
@@ -160,6 +161,9 @@ function AjustesContent() {
   const [instagramUrl, setInstagramUrl] = useState("");
   const [email, setEmail] = useState("");
   const [saved, setSaved] = useState(false);
+  const [reportSending, setReportSending] = useState(false);
+  const [reportStatus, setReportStatus] = useState<{ tone: "success" | "info" | "error"; message: string } | null>(null);
+  const [lastMonthlyReport, setLastMonthlyReport] = useState<LastMonthlyReport | null>(null);
 
   const [gymId, setGymId] = useState<string | null>(null);
   const [planType, setPlanType] = useState<string | null>(null);
@@ -214,6 +218,47 @@ function AjustesContent() {
     setActiveTab(normalizeTab(searchTab));
   }, [searchTab]);
 
+  const activeLogoSrc = logoPreview ?? logoUrl;
+  const canUseBranding = isTrial || planType === "full_marca";
+
+  const currentTabMeta = useMemo(() => {
+    switch (activeTab) {
+      case "conexiones":
+        return {
+          title: "Canales conectados",
+          desc: "Conectá WhatsApp y Mercado Pago para que todo funcione solo.",
+        };
+      case "equipo":
+        return {
+          title: "Tu equipo",
+          desc: "Agregá personas de confianza para ayudarte a manejar el gym.",
+        };
+      default:
+        return {
+          title: "Tu gimnasio",
+          desc: "Actualizá el nombre, logo y datos principales de tu gym.",
+        };
+    }
+  }, [activeTab]);
+
+  const previousMonthLabel = useMemo(() => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - 1);
+    return date.toLocaleDateString("es-AR", { month: "long", year: "numeric" });
+  }, []);
+
+  const loadLastMonthlyReport = useCallback(async (gymIdValue: string) => {
+    const { data } = await supabase
+      .from("monthly_dashboard_reports")
+      .select("report_month, email, created_at")
+      .eq("gym_id", gymIdValue)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    setLastMonthlyReport((data as LastMonthlyReport | null) ?? null);
+  }, []);
+
   useEffect(() => {
     (async () => {
       const cachedProfile = await getCachedProfile();
@@ -261,6 +306,8 @@ function AjustesContent() {
         }
       }
 
+      void loadLastMonthlyReport(gymIdVal);
+
       fetch("/api/admin/staff")
         .then((response) => response.json())
         .then((data) => {
@@ -268,30 +315,7 @@ function AjustesContent() {
         })
         .finally(() => setStaffLoading(false));
     })();
-  }, []);
-
-  const activeLogoSrc = logoPreview ?? logoUrl;
-  const canUseBranding = isTrial || planType === "full_marca";
-
-  const currentTabMeta = useMemo(() => {
-    switch (activeTab) {
-      case "conexiones":
-        return {
-          title: "Canales conectados",
-          desc: "Conectá WhatsApp y Mercado Pago para que todo funcione solo.",
-        };
-      case "equipo":
-        return {
-          title: "Tu equipo",
-          desc: "Agregá personas de confianza para ayudarte a manejar el gym.",
-        };
-      default:
-        return {
-          title: "Tu gimnasio",
-          desc: "Actualizá el nombre, logo y datos principales de tu gym.",
-        };
-    }
-  }, [activeTab]);
+  }, [loadLastMonthlyReport]);
 
   const handleSaveGym = async () => {
     if (!gymId) return;
@@ -299,6 +323,33 @@ function AjustesContent() {
     await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, instagram_url: instagramUrl.trim() || null }, { onConflict: "gym_id" });
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
+  };
+
+  const handleSendMonthlyReport = async () => {
+    setReportSending(true);
+    setReportStatus(null);
+    try {
+      const response = await fetch("/api/admin/monthly-dashboard-report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        setReportStatus({ tone: "error", message: data.error ?? "No se pudo enviar el reporte." });
+      } else if (data.alreadySent) {
+        setReportStatus({ tone: "info", message: data.message ?? "Ese reporte ya fue enviado." });
+      } else {
+        setReportStatus({ tone: "success", message: data.message ?? "Reporte enviado correctamente." });
+      }
+      if (gymId) {
+        await loadLastMonthlyReport(gymId);
+      }
+    } catch {
+      setReportStatus({ tone: "error", message: "No se pudo enviar el reporte." });
+    } finally {
+      setReportSending(false);
+    }
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -784,6 +835,59 @@ function AjustesContent() {
                     <Lock size={13} />
                     Cambiar contraseña
                     <ChevronRight size={13} />
+                  </button>
+                </div>
+
+                <div style={{ padding: "16px 18px", borderRadius: 16, background: "linear-gradient(180deg, #FFFDF9 0%, #FFF7EF 100%)", border: "1px solid rgba(255,122,24,0.10)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+                  <div>
+                    <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Reporte mensual del dashboard</p>
+                    <p style={{ font: `400 0.75rem/1.5 ${fb}`, color: t2, maxWidth: 520 }}>
+                      Cada primer día del mes te vamos a enviar el resumen de <span style={{ color: ACCENT_DARK, fontWeight: 700 }}>{previousMonthLabel}</span> por email y además te va a aparecer el aviso dentro del sistema.
+                    </p>
+                    {lastMonthlyReport && (
+                      <div style={{ marginTop: 10, display: "grid", gap: 4 }}>
+                        <p style={{ font: `600 0.73rem/1.45 ${fb}`, color: t1 }}>
+                          Último reporte enviado:{" "}
+                          <span style={{ color: ACCENT_DARK }}>
+                            {new Date(`${lastMonthlyReport.report_month}T12:00:00`).toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+                          </span>
+                        </p>
+                        <p style={{ font: `400 0.72rem/1.45 ${fb}`, color: t3 }}>
+                          Salió el {new Date(lastMonthlyReport.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })} a {lastMonthlyReport.email}
+                        </p>
+                      </div>
+                    )}
+                    {reportStatus && (
+                      <p
+                        style={{
+                          marginTop: 10,
+                          font: `600 0.74rem/1.45 ${fb}`,
+                          color: reportStatus.tone === "success" ? "#166534" : reportStatus.tone === "info" ? ACCENT_DARK : "#DC2626",
+                        }}
+                      >
+                        {reportStatus.message}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleSendMonthlyReport}
+                    disabled={reportSending}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      background: reportSending ? "#D1D5DB" : "#FFFFFF",
+                      color: reportSending ? "#6B7280" : ACCENT_DARK,
+                      border: "1px solid rgba(255,122,24,0.14)",
+                      padding: "10px 14px",
+                      borderRadius: 12,
+                      font: `800 0.78rem/1 ${fd}`,
+                      cursor: reportSending ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <Mail size={13} />
+                    {reportSending ? "Enviando..." : "Enviar reporte ahora"}
                   </button>
                 </div>
 

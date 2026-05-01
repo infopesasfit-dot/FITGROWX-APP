@@ -148,7 +148,8 @@ const fb           = "var(--font-inter, 'Inter', sans-serif)";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
-  const isVaultRoute = pathname.startsWith("/dashboard/boveda");
+  const isVaultRoute  = pathname.startsWith("/dashboard/boveda");
+  const isFlujosRoute = pathname.startsWith("/dashboard/automatizaciones/flujos");
 
   const [isMobile,         setIsMobile]         = useState(false);
   const [mobileNavOpen,    setMobileNavOpen]    = useState(false);
@@ -287,8 +288,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   };
 
   const notifIconMap: Record<string, React.ReactNode> = {
-    new_alumno:    <UserPlus size={13} color="#F97316" />,
-    new_payment:   <DollarSign size={13} color="#FF6A00" />,
+    new_alumno:    <UserPlus size={13} color="#1A1D23" />,
+    new_payment:   <DollarSign size={13} color="#1A1D23" />,
     new_prospecto: <Inbox size={13} color="#6ea8fe" />,
     wa_disconnected: <Bell size={13} color="#EF4444" />,
   };
@@ -479,7 +480,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <Icon size={16} style={{ opacity: anyActive ? 1 : 0.65, flexShrink: 0 }} />
                         <span style={{ flex: 1 }}>{item.label}</span>
                         {isAttract && prospectBadge > 0 && !open && (
-                          <span style={{ background: "#F97316", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
+                          <span style={{ background: "#1A1D23", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
                             {prospectBadge}
                           </span>
                         )}
@@ -493,7 +494,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                               <Link key={s.href} href={s.href} style={{
                                 display: "flex", alignItems: "center", gap: 8,
                                 padding: "7px 10px 7px 14px",
-                                borderLeft: `2px solid ${subActive ? "rgba(249,115,22,0.55)" : "rgba(255,255,255,0.09)"}`,
+                                borderLeft: `2px solid ${subActive ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.09)"}`,
                                 borderRadius: "0 8px 8px 0", marginBottom: 1,
                                 textDecoration: "none", fontSize: "0.82rem",
                                 fontWeight: subActive ? 600 : 400, fontFamily: fb,
@@ -503,7 +504,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                               }}>
                                 <span style={{ flex: 1 }}>{s.label}</span>
                                 {s.href === "/dashboard/prospectos" && prospectBadge > 0 && (
-                                  <span style={{ background: "#F97316", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
+                                  <span style={{ background: "#1A1D23", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
                                     {prospectBadge}
                                   </span>
                                 )}
@@ -538,7 +539,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : (isMobile ? "#F0F2F7" : "#f8fafc"), borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "#F5F5F7", borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
 
         {/* Topbar */}
         <header style={{
@@ -547,10 +548,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           margin: isMobile ? "0" : "12px 0 0",
           position: "sticky", top: isMobile ? 0 : 12, zIndex: 10,
           borderRadius: scrolled ? 16 : 0,
-          background: isMobile ? "#151515" : (scrolled ? "rgba(248,250,252,0.82)" : "transparent"),
+          background: isMobile ? "#151515" : isFlujosRoute ? (scrolled ? "rgba(13,15,18,0.88)" : "transparent") : (scrolled ? "rgba(248,250,252,0.82)" : "transparent"),
           backdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
           WebkitBackdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
-          boxShadow: isMobile ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 16px rgba(0,0,0,0.30)" : (scrolled ? "0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)" : "none"),
+          boxShadow: isMobile ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 16px rgba(0,0,0,0.30)" : (scrolled ? (isFlujosRoute ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.3)" : "0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)") : "none"),
           transition: "background 0.25s ease, box-shadow 0.25s ease, backdrop-filter 0.25s ease, border-radius 0.25s ease",
         }}>
           {/* Mobile: show gym logo / brand in topbar instead of hamburger */}
@@ -567,8 +568,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Search — hidden on mobile */}
           {!isMobile && (
             <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
-              <Search size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-              <input style={{ width: "100%", padding: "9px 18px 9px 36px", background: "rgba(0,0,0,0.06)", border: "none", borderRadius: 9999, fontSize: "0.85rem", color: "#475569", outline: "none", fontFamily: fb }} placeholder="Buscar alumnos, planes..." />
+              <Search size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: isFlujosRoute ? "rgba(255,255,255,0.3)" : "#9CA3AF" }} />
+              <input style={{ width: "100%", padding: "9px 18px 9px 36px", background: isFlujosRoute ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)", border: isFlujosRoute ? "1px solid rgba(255,255,255,0.08)" : "none", borderRadius: 9999, fontSize: "0.85rem", color: isFlujosRoute ? "rgba(255,255,255,0.6)" : "#475569", outline: "none", fontFamily: fb }} placeholder="Buscar alumnos, planes..." />
             </div>
           )}
 
@@ -577,20 +578,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, marginLeft: isMobile ? 0 : "auto" }}>
             {!isMobile && (
-              <button style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: "#6B7280", padding: 5, display: "flex", alignItems: "center" }}>
+              <button style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: isFlujosRoute ? "rgba(255,255,255,0.4)" : "#6B7280", padding: 5, display: "flex", alignItems: "center" }}>
                 <Mail size={19} />
-                <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#EF4444", borderRadius: "50%", border: "2px solid white" }} />
+                <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#EF4444", borderRadius: "50%", border: isFlujosRoute ? "2px solid #0D0F12" : "2px solid white" }} />
               </button>
             )}
             {/* ── Notification Bell ── */}
             <div ref={notifRef} style={{ position: "relative" }}>
               <button
                 onClick={handleOpenNotifs}
-                style={{ position: "relative", background: isMobile ? "rgba(255,255,255,0.06)" : "none", border: isMobile ? "1px solid rgba(255,255,255,0.08)" : "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.78)" : "#6B7280", padding: isMobile ? "0 12px" : 5, minWidth: isMobile ? 44 : undefined, minHeight: 44, borderRadius: isMobile ? 14 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{ position: "relative", background: isMobile ? "rgba(255,255,255,0.06)" : "none", border: isMobile ? "1px solid rgba(255,255,255,0.08)" : "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.78)" : (isFlujosRoute ? "rgba(255,255,255,0.4)" : "#6B7280"), padding: isMobile ? "0 12px" : 5, minWidth: isMobile ? 44 : undefined, minHeight: 44, borderRadius: isMobile ? 14 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <Bell size={19} />
                 {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#F97316", borderRadius: "50%", border: `2px solid ${isMobile ? "#151515" : "white"}` }} />
+                  <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#1A1D23", borderRadius: "50%", border: `2px solid ${isMobile ? "#151515" : isFlujosRoute ? "#0D0F12" : "white"}` }} />
                 )}
               </button>
 
@@ -624,22 +625,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <div key={n.id} style={{
                           display: "flex", gap: 10, padding: "11px 16px",
                           borderBottom: "1px solid rgba(0,0,0,0.04)",
-                          background: n.read ? "transparent" : "rgba(249,115,22,0.03)",
+                          background: n.read ? "transparent" : "rgba(0,0,0,0.02)",
                           transition: "background 0.12s",
                         }}>
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: n.type === "new_alumno" ? "rgba(249,115,22,0.1)" : n.type === "new_payment" ? "rgba(255,106,0,0.1)" : "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: (n.type === "new_alumno" || n.type === "new_payment") ? "rgba(0,0,0,0.06)" : "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                             {notifIconMap[n.type] ?? <Bell size={13} color="#6B7280" />}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, font: `600 0.82rem/1.2 ${fd}`, color: "#1A1D23" }}>{n.title}</p>
                             {n.body && (
                               n.link
-                                ? <Link href={n.link} style={{ margin: "2px 0 0", display: "block", font: `400 0.75rem/1.4 ${fd}`, color: "#F97316", textDecoration: "underline" }}>{n.body}</Link>
+                                ? <Link href={n.link} style={{ margin: "2px 0 0", display: "block", font: `400 0.75rem/1.4 ${fd}`, color: "#1A1D23", textDecoration: "underline" }}>{n.body}</Link>
                                 : <p style={{ margin: "2px 0 0", font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280" }}>{n.body}</p>
                             )}
                             <p style={{ margin: "4px 0 0", font: `400 0.7rem/1 ${fd}`, color: "#9CA3AF" }}>{timeAgo(n.created_at)}</p>
                           </div>
-                          {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#F97316", flexShrink: 0, marginTop: 6 }} />}
+                          {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#1A1D23", flexShrink: 0, marginTop: 6 }} />}
                         </div>
                       ))
                     )}
@@ -657,11 +658,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = "none"; }}
               >
                 {/* Avatar */}
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.65rem", color: "white", flexShrink: 0, fontFamily: fd }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.65rem", color: "white", flexShrink: 0, fontFamily: fd }}>
                   {userInitials}
                 </div>
-                {!isMobile && <span style={{ fontWeight: 600, fontSize: "0.875rem", color: "#1A1D23", whiteSpace: "nowrap", fontFamily: fd }}>{userName}</span>}
-                {!isMobile && <ChevronDown size={13} color="#9CA3AF" style={{ transition: "transform 0.18s", transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)" }} />}
+                {!isMobile && <span style={{ fontWeight: 600, fontSize: "0.875rem", color: isFlujosRoute ? "rgba(255,255,255,0.75)" : "#1A1D23", whiteSpace: "nowrap", fontFamily: fd }}>{userName}</span>}
+                {!isMobile && <ChevronDown size={13} color={isFlujosRoute ? "rgba(255,255,255,0.3)" : "#9CA3AF"} style={{ transition: "transform 0.18s", transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)" }} />}
               </button>
 
               {/* Dropdown */}
@@ -687,7 +688,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {/* User info */}
                   <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.68rem", color: "white", flexShrink: 0, fontFamily: fd }}>
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.68rem", color: "white", flexShrink: 0, fontFamily: fd }}>
                         {userInitials}
                       </div>
                       <div style={{ minWidth: 0 }}>
@@ -708,8 +709,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(249,115,22,0.09)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <Zap size={13} color="#F97316" />
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Zap size={13} color="#1A1D23" />
                         </div>
                         Planes y Suscripción
                       </Link>
@@ -769,7 +770,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: isMobile ? "12px 10px calc(96px + env(safe-area-inset-bottom, 0px))" : "20px 20px 28px", display: "flex", flexDirection: "column", gap: isMobile ? 14 : 18, background: isVaultRoute ? "#ECEFF3" : "transparent", overflowX: "hidden" }}>
+        <main style={{ flex: 1, padding: isFlujosRoute ? "12px 12px 12px" : (isMobile ? "12px 10px calc(96px + env(safe-area-inset-bottom, 0px))" : "20px 20px 28px"), display: "flex", flexDirection: "column", gap: isFlujosRoute ? 10 : (isMobile ? 14 : 18), background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "transparent", overflowX: "hidden", overflow: isFlujosRoute ? "hidden" : undefined }}>
 
           {/* ── Sub-nav shortcut bar (Atraer Clientes) ── */}
           {ATTRACT_ROUTES.some(r => pathname.startsWith(r)) && (
@@ -821,12 +822,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link key={href} href={href} style={{
                 flex: 1, minHeight: 56, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 gap: 5, padding: "10px 4px 8px", textDecoration: "none",
-                color: active ? "#FF6A00" : "rgba(255,255,255,0.38)",
+                color: active ? "#FFFFFF" : "rgba(255,255,255,0.38)",
                 transition: "color 0.15s",
               }}>
                 <div style={{
                   width: 40, height: 30, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
-                  background: active ? "rgba(255,106,0,0.14)" : "transparent",
+                  background: active ? "rgba(255,255,255,0.12)" : "transparent",
                   transition: "background 0.15s",
                 }}>
                   <Icon size={19} />
@@ -839,12 +840,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <button onClick={() => setMobileNavOpen(true)} style={{
             flex: 1, minHeight: 56, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             gap: 5, padding: "10px 4px 8px", background: "none", border: "none", cursor: "pointer",
-            color: mobileNavOpen ? "#FF6A00" : "rgba(255,255,255,0.38)",
+            color: mobileNavOpen ? "#FFFFFF" : "rgba(255,255,255,0.38)",
             transition: "color 0.15s",
           }}>
             <div style={{
               width: 40, height: 30, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
-              background: mobileNavOpen ? "rgba(255,106,0,0.14)" : "transparent",
+              background: mobileNavOpen ? "rgba(255,255,255,0.12)" : "transparent",
               transition: "background 0.15s",
             }}>
               <Menu size={19} />
