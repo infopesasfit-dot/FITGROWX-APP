@@ -152,30 +152,6 @@ export default function AlumnosPage() {
     });
   }, [gymId]);
 
-  const loadUltimasAsistencias = useCallback(async (gid: string) => {
-    const cacheKey = `alumnos_ultima_${gid}`;
-    const cached = getPageCache<Record<string, string>>(cacheKey);
-    if (cached) {
-      setUltimaMap(cached);
-    }
-
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-    const { data } = await supabase
-      .from("asistencias")
-      .select("alumno_id, fecha")
-      .eq("gym_id", gid)
-      .gte("fecha", sixtyDaysAgo.toISOString().slice(0, 10))
-      .order("fecha", { ascending: false });
-
-    const nextMap: Record<string, string> = {};
-    for (const row of (data ?? []) as { alumno_id: string; fecha: string }[]) {
-      if (!nextMap[row.alumno_id]) nextMap[row.alumno_id] = row.fecha;
-    }
-    setUltimaMap(nextMap);
-    setPageCache(cacheKey, nextMap);
-  }, []);
-
   const loadPlanes = useCallback(async (gid: string) => {
     const cacheKey = `planes_${gid}`;
     const cached = getPageCache<PlanOption[]>(cacheKey);
@@ -199,32 +175,6 @@ export default function AlumnosPage() {
     return list;
   }, []);
 
-  const loadPromos = useCallback(async (gid: string) => {
-    const cacheKey = `promos_${gid}`;
-    const cached = getPageCache<PromoOption[]>(cacheKey);
-    if (cached) {
-      setPromos(cached);
-      return cached;
-    }
-
-    const { data, error } = await supabase
-      .from("gym_promotions")
-      .select("id, nombre, discount_type, discount_value, note")
-      .eq("gym_id", gid)
-      .eq("active", true)
-      .order("created_at");
-
-    if (error) {
-      setPromos([]);
-      return [];
-    }
-
-    const list = (data as PromoOption[]) ?? [];
-    setPromos(list);
-    setPageCache(cacheKey, list);
-    return list;
-  }, []);
-
   // ── Fetch alumnos ─────────────────────────────────────────────────
   const fetchAlumnos = useCallback(async (background = false) => {
     const profile = await getCachedProfile();
@@ -238,21 +188,42 @@ export default function AlumnosPage() {
       else setLoading(true);
     }
 
-    const { data } = await supabase
-      .from("alumnos")
-      .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
-      .eq("gym_id", profile.gymId)
-      .order("full_name");
+    const res = await fetch("/api/admin/alumnos", { cache: "no-store" });
+    const payload = await res.json().catch(() => null) as {
+      ok?: boolean;
+      gym_id?: string;
+      role?: string;
+      alumnos?: Alumno[];
+      planes?: PlanOption[];
+      promos?: PromoOption[];
+      ultimaMap?: Record<string, string>;
+    } | null;
 
-    const rows = (data as unknown as Alumno[]) ?? [];
+    if (!res.ok || !payload?.ok) {
+      setLoading(false);
+      return;
+    }
+
+    const rows = payload.alumnos ?? [];
+    const nextGymId = payload.gym_id ?? profile.gymId;
+    const nextPlanes = payload.planes ?? [];
+    const nextPromos = payload.promos ?? [];
+    const nextUltimaMap = payload.ultimaMap ?? {};
+
     setAlumnos(rows);
     setTotalCount(rows.length);
-    setPageCache(`alumnos_${profile.gymId}`, rows);
+    setPageCache(`alumnos_${nextGymId}`, rows);
+    setGymId(nextGymId);
+    setRole((payload.role === "staff" ? "staff" : "admin"));
+    setPlanes(nextPlanes);
+    setPromos(nextPromos);
+    setUltimaMap(nextUltimaMap);
+    setPageCache(`planes_${nextGymId}`, nextPlanes);
+    setPageCache(`promos_${nextGymId}`, nextPromos);
+    setPageCache(`alumnos_ultima_${nextGymId}`, nextUltimaMap);
 
     setLoading(false);
-    void loadPromos(profile.gymId);
-    void loadUltimasAsistencias(profile.gymId);
-  }, [loadPromos, loadUltimasAsistencias]);
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void fetchAlumnos(); }, 0);
