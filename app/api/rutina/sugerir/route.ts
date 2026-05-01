@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import OpenAI from "openai";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
 
 export async function POST(req: NextRequest) {
-  const { default: OpenAI } = await import("openai");
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-
   const { objetivo, alumno_name, notas, tipo, modalidad, time_cap } = await req.json();
 
   const notasExtra = notas?.trim() ? `\nIndicaciones adicionales del coach: "${notas}"` : "";
@@ -40,19 +36,19 @@ Reglas:
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.8,
-        max_tokens: 500,
+        max_completion_tokens: 500,
       });
       const raw = completion.choices[0]?.message?.content ?? "";
       const cleaned = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
       return NextResponse.json({ ok: true, tipo: "wod", nombre: parsed.nombre, modalidad: parsed.modalidad, time_cap: parsed.time_cap, movimientos: parsed.movimientos });
     } catch (err) {
-      console.error("[rutina/sugerir wod]", err);
-      return NextResponse.json({ ok: false, error: "No se pudo generar el WOD. Intentá de nuevo." }, { status: 500 });
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[rutina/sugerir wod]", msg);
+      return NextResponse.json({ ok: false, error: `Error al generar el WOD: ${msg}` }, { status: 500 });
     }
   }
 
-  // Gym routine (existing behavior)
   if (!objetivo) return NextResponse.json({ error: "Objetivo requerido." }, { status: 400 });
 
   const prompt = `Eres un entrenador personal experto. Creá una rutina de gimnasio para ${alumno_name ?? "el alumno"} con objetivo de ${objetivo}.${notasExtra}
@@ -83,14 +79,15 @@ Reglas:
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 800,
+      max_completion_tokens: 800,
     });
     const raw = completion.choices[0]?.message?.content ?? "";
     const cleaned = raw.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
     return NextResponse.json({ ok: true, nombre: parsed.nombre, ejercicios: parsed.ejercicios });
   } catch (err) {
-    console.error("[rutina/sugerir]", err);
-    return NextResponse.json({ ok: false, error: "No se pudo generar la rutina. Intentá de nuevo." }, { status: 500 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[rutina/sugerir]", msg);
+    return NextResponse.json({ ok: false, error: `Error al generar la rutina: ${msg}` }, { status: 500 });
   }
 }
