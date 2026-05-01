@@ -20,7 +20,7 @@ type ProspectoRow = { created_at: string };
 type PagoMetricRow = { amount: number; date: string; status: string | null; concepto: string | null; alumno_id: string | null };
 type EgresoMetricRow = { monto: number | null; fecha: string; categoria: string | null };
 type AlumnoMetricRow = { id: string; full_name: string; phone: string | null; status: string | null; created_at: string; next_expiration_date: string | null };
-type ReservaMetricRow = { class_id: string; fecha: string; lead_phone: string | null; estado: string | null };
+type ReservaMetricRow = { clase_id: string; fecha: string; estado: string | null };
 type AsistenciaMetricRow = { alumno_id: string; fecha: string; hora: string | null };
 type GymClassMetricRow = { id: string; day_of_week: number; max_capacity: number; event_type: "regular" | "especial" | null; event_date: string | null };
 type GymSettingsRow = { gym_name: string | null; owner_name: string | null };
@@ -158,7 +158,7 @@ export async function GET(req: NextRequest) {
     admin.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", prevMonthFrom).lte("date", thisMonthTo),
     admin.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
     admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gymId),
-    admin.from("reservas").select("class_id, fecha, lead_phone, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
+    admin.from("reservas").select("clase_id, fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thisMonthFrom).lte("fecha", todayStr),
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("id, day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
@@ -237,12 +237,8 @@ export async function GET(req: NextRequest) {
     dailyCounts.push({ fecha: key, count: dailyMap[key] ?? 0 });
   }
 
-  const leadPhonesThisMonth = new Set(
-    reservaRows.filter((row) => isWithin(row.fecha, thisMonthFrom, thisMonthTo)).map((row) => normalizePhone(row.lead_phone)).filter(Boolean),
-  );
-  const leadPhonesPrevMonth = new Set(
-    reservaRows.filter((row) => isWithin(row.fecha, prevMonthFrom, prevMonthTo)).map((row) => normalizePhone(row.lead_phone)).filter(Boolean),
-  );
+  const leadPhonesThisMonth = new Set<string>();
+  const leadPhonesPrevMonth = new Set<string>();
 
   const leadCountCurrent = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), thisMonthFrom, thisMonthTo)).length;
   const leadCountPrevious = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo)).length;
