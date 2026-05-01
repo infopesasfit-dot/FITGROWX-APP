@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabaseAdmin
     .from("asistencias")
-    .upsert({ gym_id: alumnoRow.gym_id, alumno_id, fecha: dateStr, hora } as never, { onConflict: "alumno_id,fecha" });
+    .insert({ gym_id: alumnoRow.gym_id, alumno_id, fecha: dateStr, hora } as never);
 
   if (error) {
     console.error("[checkin-manual]", error.message);

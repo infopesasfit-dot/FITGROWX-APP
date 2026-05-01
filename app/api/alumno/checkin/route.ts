@@ -19,11 +19,6 @@ type AlumnoRow = {
   next_expiration_date: string | null;
 };
 
-type ExistingAsistenciaRow = {
-  id: string;
-  hora: string | null;
-};
-
 export async function POST(req: NextRequest) {
   const supabaseAdmin = getSupabaseAdminClient();
   const supabase = await createSupabaseServerClient();
@@ -140,29 +135,6 @@ export async function POST(req: NextRequest) {
         expiration,
       },
     }, { status: 409 });
-  }
-
-  // Check if already checked in today
-  const { data: existing } = await supabaseAdmin
-    .from("asistencias")
-    .select("id, hora")
-    .eq("alumno_id", alumno_id)
-    .eq("fecha", today)
-    .maybeSingle();
-  const existingRow = existing as ExistingAsistenciaRow | null;
-
-  if (existingRow) {
-    return NextResponse.json({
-      ok: true,
-      already: true,
-      alumno: {
-        full_name: alumnoRow.full_name,
-        plan: getPlanNombre(alumnoRow.planes),
-        status: alumnoRow.status,
-        expiration: alumnoRow.next_expiration_date,
-      },
-      hora: existingRow.hora,
-    });
   }
 
   const hora = getCurrentTime();
