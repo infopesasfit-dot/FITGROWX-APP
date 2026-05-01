@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { getGymSummary } from "@/lib/supabase-relations";
-import { getCachedProfile, invalidateProfile } from "@/lib/gym-cache";
+import { getCachedProfile } from "@/lib/gym-cache";
 
 type NavItem = {
   href: string;
@@ -218,41 +218,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Fetch user + trial info once
   useEffect(() => {
     (async () => {
-      let cachedProfile = await getCachedProfile();
+      const cachedProfile = await getCachedProfile();
       if (!cachedProfile) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          setRoleLoaded(true);
-          router.replace("/start?login=1");
-          return;
-        }
-
-        try {
-          await fetch("/api/platform/sync-signup", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              fullName:
-                session.user.user_metadata?.full_name ??
-                session.user.user_metadata?.name ??
-                "",
-              email: session.user.email ?? "",
-            }),
-          });
-        } catch {
-          // noop: fallback handled below
-        }
-
-        invalidateProfile();
-        cachedProfile = await getCachedProfile();
-        if (!cachedProfile) {
-          setRoleLoaded(true);
-          router.replace("/start?login=1");
-          return;
-        }
+        setRoleLoaded(true);
+        router.replace("/start?login=1");
+        return;
       }
       const gymIdVal = cachedProfile.gymId;
       const userIdVal = cachedProfile.userId;

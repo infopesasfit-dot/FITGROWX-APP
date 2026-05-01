@@ -137,12 +137,6 @@ const [authError, setAuthError] = useState<string | null>(null);
         if (error) throw error;
         if (!data.user) throw new Error("No se pudo obtener el usuario autenticado.");
 
-        if (data.session?.access_token) {
-          await syncPlatformSignup(data.session.access_token, {
-            email,
-          });
-        }
-
         const destination = await resolveDestinationForUser(data.user.id);
         window.location.href = destination;
       } else {
