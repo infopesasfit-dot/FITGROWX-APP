@@ -43,6 +43,7 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
 
   return (
     <div className="mx-auto max-w-7xl px-6 lg:px-10">
+      {/* Heading */}
       <motion.div
         className="mx-auto max-w-3xl text-center mb-10 lg:mb-14"
         variants={headVariant}
@@ -51,13 +52,14 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
       >
         <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-4">Membresía</h2>
         <p className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.08]">
-          Una sola membresía para que <span className="italic font-normal text-[#FF8C3A]">todo el gym</span> funcione mejor.
+          Una sola membresía para que{" "}
+          <span className="italic font-normal text-[#FF8C3A]">todo el gym</span> funcione mejor.
         </p>
         <p className="mt-5 text-sm sm:text-[15px] font-light text-white/45">
           Probás 15 días gratis, sin tarjeta. Después elegís cómo seguir.
         </p>
 
-        {/* Stripe-style billing toggle */}
+        {/* Billing toggle */}
         <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1">
           {(["mensual", "anual"] as const).map((b) => (
             <button
@@ -74,7 +76,7 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
                 <span
                   className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
                   style={{
-                    background: billing === "anual" ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.08)",
+                    background: billing === "anual" ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.08)",
                     color: billing === "anual" ? "#F97316" : "rgba(255,255,255,0.3)",
                   }}
                 >
@@ -86,86 +88,96 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
         </div>
       </motion.div>
 
+      {/* Single plan card — centered like "Pro" card */}
       <motion.div
-        className="mx-auto max-w-4xl"
+        className="mx-auto max-w-md"
         variants={cardVariant}
         initial={false}
         animate="visible"
       >
-        <article className="relative overflow-hidden rounded-[2.75rem] border border-[#FF6A00]/20 bg-white/[0.03] p-7 sm:p-9 lg:p-12 shadow-[0_0_60px_rgba(255,106,0,0.08)] backdrop-blur-sm">
-          <div className="absolute inset-0 opacity-[0.18] pointer-events-none" style={{ background: "radial-gradient(circle at 20% 25%, rgba(255,106,0,0.22), transparent 36%), radial-gradient(circle at 85% 15%, rgba(255,140,58,0.16), transparent 30%)" }} />
+        <article
+          className="relative overflow-hidden rounded-3xl p-7 sm:p-8"
+          style={{
+            background: "linear-gradient(160deg, #111118 0%, #0c0c12 100%)",
+            border: "1px solid rgba(255,106,0,0.28)",
+            boxShadow: "0 0 0 1px rgba(255,106,0,0.08), 0 24px 64px rgba(0,0,0,0.5), 0 0 80px rgba(255,96,0,0.10)",
+          }}
+        >
+          {/* Glow top-left */}
           <div
-            className="absolute inset-0 opacity-[0.05] pointer-events-none mix-blend-screen"
-            style={{
-              backgroundImage: "radial-gradient(rgba(255,255,255,0.85) 0.7px, transparent 0.7px)",
-              backgroundSize: "8px 8px",
-            }}
+            className="absolute -top-16 -left-16 w-52 h-52 rounded-full pointer-events-none"
+            style={{ background: "radial-gradient(circle, rgba(255,106,0,0.18) 0%, transparent 70%)" }}
           />
 
-          <div className="relative z-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
-            {/* Left — plan info + features */}
-            <div>
-              <h3 className="text-3xl sm:text-[2.6rem] font-light tracking-[-0.05em] text-white">
-                FitGrowX
-              </h3>
-              <p className="mt-4 max-w-2xl text-sm sm:text-[15px] font-light leading-relaxed text-white/55">
-                {plan.description}
-              </p>
-              <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                {plan.features.map((feature) => (
-                  <div key={feature} className="flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-white/62">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#FF8C3A]" />
-                    <span className="font-light leading-relaxed">{feature}</span>
-                  </div>
-                ))}
+          <div className="relative z-10">
+            {/* Name + description */}
+            <p className="text-lg font-semibold text-white tracking-tight">FitGrowX</p>
+            <p className="mt-2 text-sm font-light leading-relaxed text-white/50">
+              {plan.description}
+            </p>
+
+            {/* Price row */}
+            <div className="mt-6 flex items-center gap-3">
+              <span className="text-5xl font-extralight tracking-[-0.06em] text-white">
+                ${fmt(price)}
+              </span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-white/30 uppercase tracking-widest">/mes</span>
+                {billing === "anual" && (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                    style={{ background: "rgba(249,115,22,0.15)", color: "#F97316" }}
+                  >
+                    −20%
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Right — price + CTA */}
-            <div className="rounded-[2rem] border border-white/[0.06] bg-[#0B0B10]/80 p-6 sm:p-7">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/32">
-                {billing === "mensual" ? "Precio mensual" : "Precio anual"}
+            {billing === "anual" ? (
+              <p className="mt-2 text-xs font-light text-white/35">
+                Facturado como ${fmt(plan.annualTotal)} ARS/año · ahorrás ${fmt(plan.savings)}
               </p>
-
-              <div className="mt-4 flex items-end gap-2">
-                <span className="text-4xl sm:text-5xl font-extralight tracking-[-0.06em] text-white">
-                  ${fmt(price)}
-                </span>
-                <span className="pb-2 text-xs font-medium uppercase tracking-[0.14em] text-white/28">/mes</span>
-              </div>
-
-              {billing === "anual" ? (
-                <p className="mt-2 text-sm font-light text-white/45">
-                  Facturado como <span className="text-white/65">${fmt(plan.annualTotal)} ARS/año</span> · ahorrás ${fmt(plan.savings)}
-                </p>
-              ) : (
-                <p className="mt-2 text-sm font-light text-white/38">
-                  Pasá a anual y ahorrás <span className="text-[#FF8C3A]">${fmt(plan.savings)} ARS</span> por año
-                </p>
-              )}
-
-              <div className="mt-6 rounded-2xl border border-[#FF6A00]/14 bg-[#FF6A00]/8 px-4 py-3 text-sm text-white/70">
-                Incluye branding, app del alumno, automatizaciones y gestión completa desde el día uno.
-              </div>
-
-              <Link
-                href="/start"
-                className="group mt-7 inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-full px-7 py-4 text-sm font-semibold text-white transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
-                style={{
-                  background: "linear-gradient(180deg, #ff7a1a 0%, #ff6000 58%, #de4f00 100%)",
-                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(0,0,0,0.18), 0 8px 32px rgba(255,96,0,0.35), 0 2px 8px rgba(255,96,0,0.20)",
-                }}
-              >
-                <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-                <span className="relative z-10">Empezar prueba gratis</span>
-                <ArrowRight className="relative z-10 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-              </Link>
-
-              <p className="mt-4 text-center text-[11px] tracking-wide text-white/22">
-                Sin tarjeta para probar
-                {billing === "anual" ? " · Pago anual al activar" : " · Cancelá cuando quieras"}
+            ) : (
+              <p className="mt-2 text-xs font-light text-white/30">
+                Pasá a anual y ahorrás{" "}
+                <span className="text-[#FF8C3A]/80">${fmt(plan.savings)} ARS</span> por año
               </p>
-            </div>
+            )}
+
+            <div className="mt-6 h-px bg-white/[0.07]" />
+
+            {/* Features */}
+            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/32">
+              Qué incluye
+            </p>
+            <ul className="mt-4 flex flex-col gap-3">
+              {plan.features.map((feature) => (
+                <li key={feature} className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#FF8C3A]" />
+                  <span className="text-sm font-light leading-relaxed text-white/62">{feature}</span>
+                </li>
+              ))}
+            </ul>
+
+            {/* CTA */}
+            <Link
+              href="/start"
+              className="group relative mt-8 inline-flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-7 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:scale-[1.01] active:scale-[0.98]"
+              style={{
+                background: "linear-gradient(180deg, #ff7a1a 0%, #ff6000 58%, #de4f00 100%)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 28px rgba(255,96,0,0.30)",
+              }}
+            >
+              <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+              <span className="relative z-10">Empezar prueba gratis</span>
+              <ArrowRight className="relative z-10 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+            </Link>
+
+            <p className="mt-3 text-center text-[11px] tracking-wide text-white/22">
+              Sin tarjeta para probar
+              {billing === "anual" ? " · Pago anual al activar" : " · Cancelá cuando quieras"}
+            </p>
           </div>
         </article>
       </motion.div>
