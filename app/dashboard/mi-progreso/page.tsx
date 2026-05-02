@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
@@ -59,7 +60,7 @@ export default function MiProgresoPage() {
         <h1 style={{ font: `800 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>
           Mi Progreso
         </h1>
-        <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>
+        <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>
           {loading ? "Cargando..." : `Bienvenido, ${profile?.full_name ?? "alumno"}.`}
         </p>
       </div>

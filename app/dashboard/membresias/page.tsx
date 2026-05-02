@@ -10,6 +10,7 @@ import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
@@ -195,34 +196,30 @@ export default function MembresiasPage() {
   };
 
   // ── Fetch planes ──────────────────────────────────────────────────────────
-  const fetchPlanes = useCallback(async (background = false) => {
+  const fetchPlanes = useCallback(async () => {
     const profile = await getCachedProfile();
     if (!profile) { setLoading(false); return; }
 
     type PlanesCache = { planes: PlanDB[]; promos: PromoDB[]; alumnosPorPlan: Record<string, number>; activosCount: number };
-    if (!background) {
-      const cached = getPageCache<PlanesCache>(`membresias_${profile.gymId}`);
-      if (cached) {
-        setPlanes(cached.planes);
-        setPromos(cached.promos ?? []);
-
-        const d: Record<string, Draft> = {};
-        cached.planes.forEach(p => { d[p.id] = planToDraft(p); });
-        setDrafts(d); setDirty(new Set());
-        const promoD: Record<string, PromoDraft> = {};
-        (cached.promos ?? []).forEach((p) => { promoD[p.id] = promoToDraft(p); });
-        setPromoDrafts(promoD); setPromoDirty(new Set());
-        setAlumnosPorPlan(cached.alumnosPorPlan);
-        setActivosCount(cached.activosCount);
-        setLoading(false);
-      } else setLoading(true);
+    const cached = getPageCache<PlanesCache>(`membresias_${profile.gymId}`);
+    if (cached) {
+      setPlanes(cached.planes);
+      setPromos(cached.promos ?? []);
+      const d: Record<string, Draft> = {};
+      cached.planes.forEach(p => { d[p.id] = planToDraft(p); });
+      setDrafts(d); setDirty(new Set());
+      const promoD: Record<string, PromoDraft> = {};
+      (cached.promos ?? []).forEach((p) => { promoD[p.id] = promoToDraft(p); });
+      setPromoDrafts(promoD); setPromoDirty(new Set());
+      setAlumnosPorPlan(cached.alumnosPorPlan);
+      setActivosCount(cached.activosCount);
+      setLoading(false);
     }
 
-      const [{ data }, { data: promosData }, { data: alumnosData }, { count: activos }] = await Promise.all([
+    // Phase 1: planes + promos — show immediately, don't wait for alumnos counts
+    const [{ data }, { data: promosData }] = await Promise.all([
       supabase.from("planes").select("id, nombre, precio, periodo, duracion_dias, access_type, classes_per_week, active, features, destacado, accent_color").eq("gym_id", profile.gymId).order("created_at"),
       supabase.from("gym_promotions").select("id, nombre, promo_type, discount_type, discount_value, note, active").eq("gym_id", profile.gymId).order("created_at"),
-      supabase.from("alumnos").select("plan_id").eq("gym_id", profile.gymId).not("plan_id", "is", null),
-      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).eq("status", "activo"),
     ]);
 
     const list: PlanDB[] = data ? (data as PlanDB[]) : [];
@@ -235,6 +232,13 @@ export default function MembresiasPage() {
     const promoD: Record<string, PromoDraft> = {};
     promoList.forEach((p) => { promoD[p.id] = promoToDraft(p); });
     setPromoDrafts(promoD); setPromoDirty(new Set());
+    setLoading(false);
+
+    // Phase 2: alumnos counts — background, doesn't block rendering
+    const [{ data: alumnosData }, { count: activos }] = await Promise.all([
+      supabase.from("alumnos").select("plan_id").eq("gym_id", profile.gymId).not("plan_id", "is", null),
+      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).eq("status", "activo"),
+    ]);
     const counts: Record<string, number> = {};
     (alumnosData ?? []).forEach((a: { plan_id: string }) => {
       if (a.plan_id) counts[a.plan_id] = (counts[a.plan_id] ?? 0) + 1;
@@ -242,7 +246,6 @@ export default function MembresiasPage() {
     setAlumnosPorPlan(counts);
     setActivosCount(activos ?? 0);
     setPageCache(`membresias_${profile.gymId}`, { planes: list, promos: promoList, alumnosPorPlan: counts, activosCount: activos ?? 0 });
-    setLoading(false);
   }, []);
 
   useEffect(() => { void fetchPlanes(); }, [fetchPlanes]);
@@ -466,6 +469,11 @@ export default function MembresiasPage() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
+        <div>
+          <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Membresías</h1>
+          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>Configurá tus planes y promociones.</p>}
+        </div>
+
         {/* ── KPI row + cards + banner ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
@@ -501,7 +509,7 @@ export default function MembresiasPage() {
             ) : (
               <div style={{ position: "relative" }}>
               {/* Real cards */}
-              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: isMobile ? 16 : 32 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: isMobile ? 16 : 16 }}>
                 {displayPlanes.map((p, i) => {
                   const isEmpty    = p.id.startsWith("empty-");
                   const draft      = drafts[p.id] ?? planToDraft(p);
@@ -546,13 +554,6 @@ export default function MembresiasPage() {
                           placeholder="Ej: Plan Básico"
                           style={{ ...inlineInput, font: `800 1.25rem/1.2 ${fd}`, color: t1, display: "block" }}
                         />
-                        <button
-                          type="button"
-                          onClick={() => applyTrialPreset(p.id)}
-                          style={{ marginTop: 8, padding: "6px 10px", borderRadius: 999, border: "1px solid rgba(255,106,0,0.14)", background: "rgba(255,106,0,0.06)", color: "#FF6A00", font: `600 0.7rem/1 ${fb}`, cursor: "pointer" }}
-                        >
-                          Usar como clase de prueba 24hs
-                        </button>
                       </div>
 
                       {/* Precio + Período */}
@@ -573,10 +574,10 @@ export default function MembresiasPage() {
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
                             <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Período</p>
-                            <div style={{ display: "flex", gap: 3, background: "#F2F2F7", borderRadius: 8, padding: 2 }}>
+                            <div style={{ display: "flex", gap: 2, background: "#F2F2F7", borderRadius: 8, padding: 2 }}>
                               {(["mes", "trimestral", "año", "24h"] as const).map(op => (
-                                <button key={op} type="button" onClick={() => updatePeriodo(p.id, op)} style={{ padding: "4px 8px", borderRadius: 6, border: "none", font: `500 0.68rem/1 ${fb}`, cursor: "pointer", transition: "all 0.16s", background: draft.periodo === op ? "white" : "transparent", color: draft.periodo === op ? "#1C1C1E" : "#8E8E93", boxShadow: draft.periodo === op ? "0 1px 3px rgba(0,0,0,0.12)" : "none" }}>
-                                  {op === "mes" ? "Mensual" : op === "trimestral" ? "Trimestral" : op === "24h" ? "24 hs" : "Anual"}
+                                <button key={op} type="button" onClick={() => updatePeriodo(p.id, op)} style={{ padding: "4px 6px", borderRadius: 6, border: "none", font: `500 0.63rem/1 ${fb}`, cursor: "pointer", transition: "all 0.16s", background: draft.periodo === op ? "white" : "transparent", color: draft.periodo === op ? "#1C1C1E" : "#8E8E93", boxShadow: draft.periodo === op ? "0 1px 3px rgba(0,0,0,0.12)" : "none", whiteSpace: "nowrap" as const }}>
+                                  {op === "mes" ? "Mensual" : op === "trimestral" ? "Trimest." : op === "24h" ? "24hs" : "Anual"}
                                 </button>
                               ))}
                             </div>
@@ -689,7 +690,7 @@ export default function MembresiasPage() {
             <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(255,106,0,0.05)", border: "1px solid rgba(255,106,0,0.12)", borderRadius: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
               <span style={{ fontSize: "1rem", lineHeight: 1, marginTop: 1, flexShrink: 0 }}>💡</span>
               <p style={{ font: `400 0.78rem/1.55 ${fb}`, color: t2, margin: 0 }}>
-                <strong style={{ color: t1, fontWeight: 600 }}>¿Tenés una sola cuota mensual?</strong> Completá solo la primera tarjeta con tu plan y dejá las demás desactivadas. Si ofrecés varios planes (ej. mensual + trimestral), usá una tarjeta por plan. También podés usar el preset de <strong style={{ color: t1, fontWeight: 600 }}>clase de prueba 24hs</strong> con precio $0 para pruebas rápidas.
+                <strong style={{ color: t1, fontWeight: 600 }}>¿Tenés una sola cuota mensual?</strong> Completá solo la primera tarjeta y dejá las demás inactivas. Si ofrecés varios planes (mensual, trimestral, anual), usá una tarjeta por plan.
               </p>
             </div>
           </div>
@@ -804,29 +805,6 @@ export default function MembresiasPage() {
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          <div style={{
-            borderRadius: 18,
-            padding: "24px 26px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 18,
-            background: "linear-gradient(135deg, rgba(255,106,0,0.08) 0%, rgba(255,106,0,0.02) 100%)",
-            border: "1px solid rgba(255,106,0,0.14)",
-          }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ width: 42, height: 42, borderRadius: 14, background: "rgba(255,106,0,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <MessageSquareText size={18} color="#F97316" />
-              </div>
-              <div>
-                <p style={{ font: `800 0.98rem/1 ${fd}`, color: t1, marginBottom: 6 }}>¿Querés revisar tu estructura de planes?</p>
-                <p style={{ font: `400 0.8rem/1.55 ${fb}`, color: t2, maxWidth: 620 }}>
-                  Definí primero tus planes base acá y, si necesitás ayuda para ordenarlos o comunicar mejor la propuesta, te acompañamos desde soporte con ChatGPT.
-                </p>
-              </div>
             </div>
           </div>
 

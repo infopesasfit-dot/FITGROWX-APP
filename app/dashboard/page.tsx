@@ -596,53 +596,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
-          <p style={{ font: `800 0.94rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Mix de planes</p>
-          <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3, marginBottom: 14 }}>Cómo se reparte la base activa.</p>
-          {loading || planDist.length === 0 ? (
-            <div style={{ height: 104, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <p style={{ font: `500 0.75rem/1 ${fb}`, color: t3 }}>{loading ? "Cargando…" : "Sin datos"}</p>
-            </div>
-          ) : (
-            <>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
-                <svg width="104" height="104" viewBox="0 0 148 148">
-                  <defs>
-                    {PLAN_COLORS.map((color, idx) => (
-                      <linearGradient key={`dgm${idx}`} id={`dgm${idx}`} x1="0" y1="0" x2="148" y2="148" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stopColor={color} stopOpacity="0.72" />
-                        <stop offset="100%" stopColor={color} stopOpacity="1" />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <circle cx={DONUT_CX} cy={DONUT_CY} r={DONUT_R} fill="none" stroke="#F3F4F6" strokeWidth="14" />
-                  {donutSegments.map((seg, i) => (
-                    <circle key={i} cx={DONUT_CX} cy={DONUT_CY} r={DONUT_R} fill="none" stroke={`url(#dgm${i})`} strokeWidth="14" strokeDasharray={seg.dasharray} strokeDashoffset={seg.dashoffset} strokeLinecap="round" transform={`rotate(-90 ${DONUT_CX} ${DONUT_CY})`} />
-                  ))}
-                  <circle cx={DONUT_CX} cy={DONUT_CY} r="35" fill="#fff" />
-                  <text x={DONUT_CX} y="70" textAnchor="middle" fill={t1} fontSize="17" fontWeight="800" fontFamily={fd}>{totalDonut}</text>
-                  <text x={DONUT_CX} y="83" textAnchor="middle" fill={t3} fontSize="9" fontFamily={fb}>activos</text>
-                </svg>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {planDist.slice(0, 3).map((p, i) => {
-                  const color = PLAN_COLORS[i % PLAN_COLORS.length];
-                  const pct = totalDonut > 0 ? ((p.count / totalDonut) * 100).toFixed(0) : "0";
-                  return (
-                    <div key={p.nombre} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                      <span style={{ flex: 1, minWidth: 0, font: `500 0.66rem/1 ${fb}`, color: t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nombre}</span>
-                      <span style={{ font: `700 0.66rem/1 ${fd}`, color: t1 }}>{pct}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="dash-card dashboard-grain" style={{ padding: "18px 16px", borderRadius: 28, background: orangeGlow, color: "white", position: "relative", overflow: "hidden", boxShadow: "0 18px 42px rgba(255,122,24,0.24)" }}>
+      <div className="dash-card dashboard-grain" style={{ padding: "18px 16px", borderRadius: 28, background: orangeGlow, color: "white", position: "relative", overflow: "hidden", boxShadow: "0 18px 42px rgba(255,122,24,0.24)" }}>
           <div style={{ position: "relative", zIndex: 1 }}>
             <p style={{ font: `800 0.94rem/1 ${fd}`, marginBottom: 4 }}>Balance neto</p>
             <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: "rgba(255,255,255,0.78)", marginBottom: 16 }}>Vista rápida del período actual.</p>
@@ -672,7 +626,6 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      </div>
 
       {asistDiarias.length > 0 && (() => {
         const maxA = Math.max(...asistDiarias.map((d) => d.count), 1);
@@ -944,55 +897,6 @@ export default function DashboardPage() {
         );
       })()}
 
-      <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }} {...cardHover}>
-          <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Mix de planes</p>
-          <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3, marginBottom: 18 }}>Distribución actual de la base activa.</p>
-          {loading || planDist.length === 0 ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 140 }}>
-              <p style={{ font: `500 0.8rem/1 ${fb}`, color: t3 }}>{loading ? "Cargando…" : "Sin datos"}</p>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "148px minmax(0, 1fr)", alignItems: "center", gap: 18 }}>
-              <svg width="148" height="148" viewBox="0 0 148 148">
-                <defs>
-                  {PLAN_COLORS.map((color, idx) => (
-                    <linearGradient key={`dg${idx}`} id={`dg${idx}`} x1="0" y1="0" x2="148" y2="148" gradientUnits="userSpaceOnUse">
-                      <stop offset="0%" stopColor={color} stopOpacity="0.68" />
-                      <stop offset="100%" stopColor={color} stopOpacity="1" />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <circle cx={DONUT_CX} cy={DONUT_CY} r={DONUT_R} fill="none" stroke="#F1F4F7" strokeWidth="14" />
-                {donutSegments.map((seg, i) => (
-                  <circle key={i} cx={DONUT_CX} cy={DONUT_CY} r={DONUT_R} fill="none" stroke={`url(#dg${i})`} strokeWidth="14" strokeDasharray={seg.dasharray} strokeDashoffset={seg.dashoffset} strokeLinecap="round" transform={`rotate(-90 ${DONUT_CX} ${DONUT_CY})`} />
-                ))}
-                <circle cx={DONUT_CX} cy={DONUT_CY} r="35" fill="white" />
-                <text x={DONUT_CX} y="70" textAnchor="middle" fill={t1} fontSize="18" fontWeight="800" fontFamily={fd}>{totalDonut}</text>
-                <text x={DONUT_CX} y="84" textAnchor="middle" fill={t3} fontSize="9" fontFamily={fb}>activos</text>
-              </svg>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {planDist.map((p, i) => {
-                  const color = PLAN_COLORS[i % PLAN_COLORS.length];
-                  const pct = totalDonut > 0 ? ((p.count / totalDonut) * 100).toFixed(0) : "0";
-                  return (
-                    <div key={p.nombre}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 5 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                          <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, flexShrink: 0 }} />
-                          <span style={{ font: `600 0.74rem/1 ${fb}`, color: t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nombre}</span>
-                        </div>
-                        <span style={{ font: `700 0.74rem/1 ${fd}`, color: t1 }}>{pct}%</span>
-                      </div>
-                      <div style={{ height: 6, borderRadius: 9999, background: "#F1F4F7", overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 9999, background: color }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
     </div>
     </>
   );

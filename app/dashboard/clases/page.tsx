@@ -8,6 +8,7 @@ import { getPagoAlumnoSummary } from "@/lib/supabase-relations";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const card = { background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.05)", borderRadius: 14, boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)" };
@@ -295,7 +296,7 @@ export default function ClasesPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: isMobile ? "wrap" : "nowrap" }}>
         <div>
           <h1 style={{ font: `800 ${isMobile ? "1.4rem" : "1.6rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.035em" }}>{isMobile ? "Clases" : "Calendario de Clases"}</h1>
-          {!isMobile && <p style={{ font: `400 0.85rem/1 ${fd}`, color: t2, marginTop: 4 }}>Gestioná las clases de tu gimnasio</p>}
+          {!isMobile && <p style={{ font: `400 0.85rem/1 ${fm}`, color: t2, marginTop: 4 }}>Gestioná las clases de tu gimnasio</p>}
         </div>
         <button
           onClick={openAdd}

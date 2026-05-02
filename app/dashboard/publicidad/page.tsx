@@ -12,6 +12,7 @@ const accent  = "#FF6A00";
 const accent2 = "#FF8C38";
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#475569";
 const t3 = "#9CA3AF";
@@ -144,8 +145,8 @@ export default function PublicidadPage() {
       {/* ── HEADER ── */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
         <div>
-          <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Marketing</p>
-          <h1 style={{ font: `800 1.45rem/1 ${fd}`, color: t1, letterSpacing: "-0.025em" }}>Centro de Campañas</h1>
+          <h1 style={{ font: `800 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em", marginBottom: 4 }}>Centro de Campañas</h1>
+          <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2 }}>Gestioná tus campañas y seguí el rendimiento de tus canales.</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.18)", borderRadius: 9999, padding: "7px 14px" }}>
           <div style={{ width: 7, height: 7, borderRadius: "50%", background: accent, boxShadow: `0 0 6px ${accent}` }} />

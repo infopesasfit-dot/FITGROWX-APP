@@ -8,6 +8,7 @@ import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
@@ -149,7 +150,7 @@ export default function EgresosPage() {
         <div>
           {!isMobile && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Finanzas</p>}
           <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Egresos</h1>
-          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Registrá y analizá todos los gastos del gym.</p>}
+          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>Registrá y analizá todos los gastos del gym.</p>}
         </div>
         <button
           onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true); }}

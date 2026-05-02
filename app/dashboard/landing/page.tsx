@@ -339,7 +339,7 @@ export default function LandingBuilderPage() {
           <h1 style={{ font: `800 1.5rem/1.1 ${fd}`, color: t1, margin: "0 0 4px", letterSpacing: "-0.02em" }}>
             Mi Web / Landing
           </h1>
-          <p style={{ font: `400 0.85rem/1 ${fd}`, color: t2, margin: 0 }}>
+          <p style={{ font: `400 0.85rem/1 ${fm}`, color: t2, margin: 0 }}>
             Personalizá la página pública de tu gimnasio para captar nuevos alumnos.
           </p>
         </div>

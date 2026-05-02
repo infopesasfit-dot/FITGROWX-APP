@@ -48,6 +48,11 @@ const CRONS: CronDef[] = [
     label: "WA Keepalive",
     desc: "Hace ping al motor de WhatsApp para mantener las sesiones activas.",
   },
+  {
+    id: "clase-gratis-followup",
+    label: "Seguimiento clase gratis",
+    desc: "Envía WA a prospectos en día 0, día 2 y día 5 después de su clase gratis. Solo gyms con clase_gratis_activo = true.",
+  },
 ];
 
 type LogEntry = {

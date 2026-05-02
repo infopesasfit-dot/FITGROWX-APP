@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useDeferredValue, useMemo, useCallback } from "react";
 import {
-  Target, Phone, Mail, Clock, CheckCircle, X, MessageSquare, Search,
+  Target, Phone, Clock, CheckCircle, X, MessageSquare, Search, CalendarCheck, CalendarPlus,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
@@ -30,7 +31,16 @@ interface Prospecto {
   email: string | null;
   created_at: string;
   status: Status;
+  clase_gratis_date: string | null;
+  followup_step: number;
 }
+
+const FOLLOWUP_LABEL: Record<number, { label: string; color: string }> = {
+  0: { label: "Pendiente",   color: "#9CA3AF" },
+  1: { label: "Día 0 ✓",    color: "#10B981" },
+  2: { label: "Día 2 ✓",    color: "#F59E0B" },
+  3: { label: "Completo ✓",  color: "#EC4899" },
+};
 
 const STATUS_CFG: Record<Status, { label: string; color: string; bg: string; border: string; icon: React.ReactNode }> = {
   pendiente:  { label: "Nuevo",       color: "#D97706", bg: "rgba(217,119,6,0.09)",   border: "rgba(217,119,6,0.22)",   icon: <Clock size={10} color="#D97706" /> },
@@ -45,12 +55,13 @@ const NEXT_STATUS: Record<Status, Status> = {
 };
 
 export default function ProspectosPage() {
-  const [isMobile, setIsMobile]     = useState(false);
-  const [prospectos, setProspectos] = useState<Prospecto[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [search,     setSearch]     = useState("");
-  const [filter,     setFilter]     = useState<Status | "todos">("todos");
-  const [gymId,      setGymId]      = useState<string | null>(null);
+  const [isMobile,        setIsMobile]        = useState(false);
+  const [prospectos,      setProspectos]      = useState<Prospecto[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [search,          setSearch]          = useState("");
+  const [filter,          setFilter]          = useState<Status | "todos">("todos");
+  const [gymId,           setGymId]           = useState<string | null>(null);
+  const [clasePickingId,  setClasePickingId]  = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -70,7 +81,7 @@ export default function ProspectosPage() {
 
       const { data } = await supabase
         .from("prospectos")
-        .select("id, full_name, phone, email, created_at, status")
+        .select("id, full_name, phone, email, created_at, status, clase_gratis_date, followup_step")
         .eq("gym_id", profile.gymId)
         .order("created_at", { ascending: false });
 
@@ -100,6 +111,12 @@ export default function ProspectosPage() {
     }
     await supabase.from("prospectos").update({ status: newStatus }).eq("id", id);
   }, [gymId, prospectos]);
+
+  const setClaseGratis = useCallback(async (id: string, date: string) => {
+    setProspectos(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_date: date, followup_step: 0 } : p));
+    setClasePickingId(null);
+    await supabase.from("prospectos").update({ clase_gratis_date: date, followup_step: 0 }).eq("id", id);
+  }, []);
 
   const sendWelcome = (phone: string | null, name: string) => {
     if (!phone) return;
@@ -142,7 +159,7 @@ export default function ProspectosPage() {
         <div>
           {!isMobile && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Captación</p>}
           <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Prospectos</h1>
-          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>
+          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>
             Leads que agendaron una clase gratis desde tu landing.
           </p>}
         </div>
@@ -233,11 +250,11 @@ export default function ProspectosPage() {
       {!isMobile && (
       <div id="prospectos-listado" style={{ ...card, overflow: "hidden", scrollMarginTop: 110 }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "1fr 140px 130px 120px 180px",
+          display: "grid", gridTemplateColumns: "1fr 130px 110px 120px 160px 150px",
           padding: "12px 22px", borderBottom: "1px solid rgba(0,0,0,0.06)",
           background: "#F9FAFB",
         }}>
-          {["Nombre", "Teléfono", "Fecha", "Estado", "Acción"].map(h => (
+          {["Nombre", "Teléfono", "Fecha", "Estado", "Clase gratis", "Acción"].map(h => (
             <span key={h} style={{ font: `600 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
           ))}
         </div>
@@ -269,12 +286,14 @@ export default function ProspectosPage() {
           const date = new Date(p.created_at);
           const dateStr = date.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
           const timeStr = date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+          const fw = FOLLOWUP_LABEL[p.followup_step] ?? FOLLOWUP_LABEL[0];
+          const isPicking = clasePickingId === p.id;
 
           return (
             <div
               key={p.id}
               style={{
-                display: "grid", gridTemplateColumns: "1fr 140px 130px 120px 180px",
+                display: "grid", gridTemplateColumns: "1fr 130px 110px 120px 160px 150px",
                 padding: "14px 22px", alignItems: "center",
                 borderBottom: i < filtered.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none",
                 transition: "background 0.12s",
@@ -288,18 +307,15 @@ export default function ProspectosPage() {
                     {p.full_name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()}
                   </span>
                 </div>
-                <span style={{ font: `600 0.875rem/1 ${fd}`, color: t1 }}>{p.full_name}</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.full_name}</p>
+                  {p.email && <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.email}</p>}
+                </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <Phone size={12} color={t3} />
                 <span style={{ font: `400 0.82rem/1 ${fb}`, color: t2 }}>{p.phone ?? "—"}</span>
               </div>
-              {p.email && (
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <Mail size={12} color={t3} />
-                  <span style={{ font: `400 0.78rem/1 ${fb}`, color: t2 }}>{p.email}</span>
-                </div>
-              )}
               <div>
                 <p style={{ font: `500 0.82rem/1 ${fb}`, color: t1 }}>{dateStr}</p>
                 <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 3 }}>{timeStr}</p>
@@ -311,14 +327,44 @@ export default function ProspectosPage() {
               >
                 {s.icon}{s.label}
               </button>
+              <div style={{ position: "relative" }}>
+                {isPicking ? (
+                  <input
+                    type="date"
+                    autoFocus
+                    defaultValue={p.clase_gratis_date ?? new Date().toISOString().slice(0, 10)}
+                    onBlur={e => { if (e.target.value) setClaseGratis(p.id, e.target.value); else setClasePickingId(null); }}
+                    onChange={e => { if (e.target.value) setClaseGratis(p.id, e.target.value); }}
+                    style={{ font: `500 0.75rem/1 ${fb}`, color: t1, border: "1px solid rgba(236,72,153,0.4)", borderRadius: 8, padding: "5px 8px", outline: "none", width: "100%" }}
+                  />
+                ) : p.clase_gratis_date ? (
+                  <button
+                    onClick={() => setClasePickingId(p.id)}
+                    style={{ display: "flex", flexDirection: "column", gap: 2, background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" as const }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 4, font: `600 0.75rem/1 ${fb}`, color: "#EC4899" }}>
+                      <CalendarCheck size={11} color="#EC4899" />
+                      {new Date(p.clase_gratis_date + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                    </span>
+                    <span style={{ font: `500 0.66rem/1 ${fb}`, color: fw.color }}>{fw.label}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setClasePickingId(p.id)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, border: "1px dashed rgba(236,72,153,0.35)", background: "rgba(236,72,153,0.04)", color: "#EC4899", font: `600 0.72rem/1 ${fb}`, cursor: "pointer" }}
+                  >
+                    <CalendarPlus size={11} />Marcar clase
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => sendWelcome(p.phone, p.full_name.split(" ")[0])}
                 disabled={!p.phone}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 9, border: "none", background: p.phone ? "#25D366" : "#F0F2F8", color: p.phone ? "white" : t3, font: `600 0.78rem/1 ${fd}`, cursor: p.phone ? "pointer" : "default", boxShadow: p.phone ? "0 2px 8px rgba(37,211,102,0.30)" : "none", transition: "opacity 0.14s" }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, border: "none", background: p.phone ? "#25D366" : "#F0F2F8", color: p.phone ? "white" : t3, font: `600 0.76rem/1 ${fd}`, cursor: p.phone ? "pointer" : "default", boxShadow: p.phone ? "0 2px 8px rgba(37,211,102,0.30)" : "none", transition: "opacity 0.14s" }}
                 onMouseEnter={e => { if (p.phone) e.currentTarget.style.opacity = "0.85"; }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
               >
-                <MessageSquare size={13} />Enviar bienvenida
+                <MessageSquare size={13} />WA
               </button>
             </div>
           );
@@ -340,6 +386,8 @@ export default function ProspectosPage() {
           const s = STATUS_CFG[p.status];
           const date = new Date(p.created_at);
           const dateStr = date.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+          const fw = FOLLOWUP_LABEL[p.followup_step] ?? FOLLOWUP_LABEL[0];
+          const isPicking = clasePickingId === p.id;
           return (
             <div key={p.id} style={{ ...card, padding: "14px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -358,6 +406,28 @@ export default function ProspectosPage() {
                 >
                   {s.icon}{s.label}
                 </button>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                {isPicking ? (
+                  <input
+                    type="date"
+                    autoFocus
+                    defaultValue={p.clase_gratis_date ?? new Date().toISOString().slice(0, 10)}
+                    onBlur={e => { if (e.target.value) setClaseGratis(p.id, e.target.value); else setClasePickingId(null); }}
+                    onChange={e => { if (e.target.value) setClaseGratis(p.id, e.target.value); }}
+                    style={{ flex: 1, font: `500 0.8rem/1 ${fb}`, color: t1, border: "1px solid rgba(236,72,153,0.4)", borderRadius: 8, padding: "8px 10px", outline: "none" }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setClasePickingId(p.id)}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 10, border: p.clase_gratis_date ? "1px solid rgba(236,72,153,0.25)" : "1px dashed rgba(236,72,153,0.35)", background: p.clase_gratis_date ? "rgba(236,72,153,0.06)" : "rgba(236,72,153,0.04)", color: "#EC4899", font: `600 0.78rem/1 ${fb}`, cursor: "pointer" }}
+                  >
+                    {p.clase_gratis_date ? <CalendarCheck size={12} /> : <CalendarPlus size={12} />}
+                    {p.clase_gratis_date
+                      ? `${new Date(p.clase_gratis_date + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })} · ${fw.label}`
+                      : "Marcar clase gratis"}
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => sendWelcome(p.phone, p.full_name.split(" ")[0])}

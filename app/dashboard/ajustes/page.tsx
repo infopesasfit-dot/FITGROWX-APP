@@ -31,6 +31,7 @@ import { getCachedProfile } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
@@ -107,7 +108,7 @@ function SectionCard({
           </div>
           <div>
             <h2 style={{ font: `800 1rem/1.1 ${fd}`, color: t1, marginBottom: 6 }}>{title}</h2>
-            <p style={{ font: `400 0.84rem/1.5 ${fb}`, color: t2, maxWidth: 520 }}>{desc}</p>
+            <p style={{ font: `400 0.84rem/1.5 ${fm}`, color: t2, maxWidth: 520 }}>{desc}</p>
           </div>
         </div>
         {actions}
@@ -715,71 +716,6 @@ function AjustesContent() {
                       <input value={email} readOnly style={mutedInputStyle} />
                     </Field>
 
-                    <Field label="Instagram" hint="Podés pegar tu perfil completo o el usuario, por ejemplo `instagram.com/tugym` o `@tugym`.">
-                      <div style={{ position: "relative" }}>
-                        <Camera size={15} color={t3} style={{ position: "absolute", top: 14, left: 14 }} />
-                        <input
-                          value={instagramUrl}
-                          onChange={(event) => setInstagramUrl(event.target.value)}
-                          placeholder="@tugym"
-                          style={{ ...inputStyle, paddingLeft: 40 }}
-                        />
-                      </div>
-                    </Field>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                        <span style={{ font: `600 0.8rem/1 ${fb}`, color: t1 }}>Cobros con MercadoPago</span>
-                        {mpToken && (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 0.68rem/1 ${fb}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", padding: "3px 9px", borderRadius: 9999 }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", display: "inline-block" }} />
-                            Conectado
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Pasos */}
-                      <div style={{ background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                        <p style={{ font: `600 0.72rem/1 ${fb}`, color: t2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Cómo conectar tu cuenta</p>
-                        {[
-                          { n: "1", text: "Entrá a mercadopago.com.ar con tu cuenta del negocio" },
-                          { n: "2", text: 'En el menú, ir a "Herramientas para desarrolladores" → "Panel de desarrolladores"' },
-                          { n: "3", text: 'Creá una aplicación (o seleccioná una existente)' },
-                          { n: "4", text: 'Ir a "Credenciales de producción" y copiá el Access Token (empieza con APP_USR-)' },
-                          { n: "5", text: "Pegalo acá abajo y guardá" },
-                        ].map(step => (
-                          <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#009EE3", color: "white", font: `700 0.65rem/1 ${fb}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{step.n}</span>
-                            <span style={{ font: `400 0.78rem/1.45 ${fb}`, color: t2 }}>{step.text}</span>
-                          </div>
-                        ))}
-                        <a
-                          href="https://www.mercadopago.com.ar/developers/panel"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 2, padding: "8px 14px", background: "#009EE3", borderRadius: 9, font: `700 0.75rem/1 ${fb}`, color: "white", textDecoration: "none", width: "fit-content" }}
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                          Ir al panel de desarrolladores
-                        </a>
-                      </div>
-
-                      {/* Input */}
-                      <div style={{ position: "relative" }}>
-                        <Smartphone size={15} color={t3} style={{ position: "absolute", top: 14, left: 14 }} />
-                        <input
-                          value={mpToken}
-                          onChange={(event) => setMpToken(event.target.value)}
-                          placeholder="APP_USR-0000000000000000-..."
-                          type="password"
-                          autoComplete="off"
-                          style={{ ...inputStyle, paddingLeft: 40 }}
-                        />
-                      </div>
-                      <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: t3 }}>
-                        Tu token se guarda de forma segura y solo se usa para generar los links de pago de tus alumnos.
-                      </p>
-                    </div>
                   </div>
 
                   <div style={{ padding: "12px", borderRadius: 14, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "grid", gap: 10, alignContent: "start", justifyItems: isMobile ? "stretch" : "start" }}>
@@ -1030,28 +966,28 @@ function AjustesContent() {
                     description: "Preparado para futura integración de envío y bandeja. Hoy no hay backend activo.",
                     badge: { label: "Próximamente", bg: "#F1F5F9", color: t2 },
                     action: (
-                      <button
-                        disabled
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "#E5E7EB", color: "#6B7280", font: `700 0.78rem/1 ${fd}`, cursor: "not-allowed" }}
-                      >
+                      <button disabled style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "#E5E7EB", color: "#6B7280", font: `700 0.78rem/1 ${fd}`, cursor: "not-allowed" }}>
                         Próximamente
                       </button>
                     ),
                   },
                   {
-                    key: "mp",
-                    icon: <CreditCard size={18} color={hasMercadoPagoLink ? ACCENT : t3} />,
-                    title: "Mercado Pago",
-                    description: hasMercadoPagoLink ? "Link de cobro activo configurado para la operación del gym." : "Configurá tu link de cobro desde Membresías para dejar esta conexión lista.",
-                    badge: hasMercadoPagoLink ? { label: "Activo", bg: "rgba(34,197,94,0.10)", color: "#15803D" } : { label: "Desconectado", bg: "#F1F5F9", color: t2 },
+                    key: "ig",
+                    icon: <Camera size={18} color={instagramUrl ? "#E1306C" : t3} />,
+                    title: "Instagram",
+                    description: instagramUrl ? instagramUrl : "Vinculá tu perfil para mostrarlo en tu landing y automatizaciones.",
+                    badge: instagramUrl ? { label: "Vinculado", bg: "rgba(225,48,108,0.08)", color: "#E1306C" } : { label: "Sin vincular", bg: "#F1F5F9", color: t2 },
                     action: (
-                      <button
-                        onClick={() => router.push("/dashboard/membresias")}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "white", color: t2, font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
-                      >
-                        {hasMercadoPagoLink ? "Editar" : "Configurar"}
-                        <ChevronRight size={13} />
-                      </button>
+                      <div style={{ position: "relative" }}>
+                        <Camera size={14} color={t3} style={{ position: "absolute", top: 12, left: 12 }} />
+                        <input
+                          value={instagramUrl}
+                          onChange={e => setInstagramUrl(e.target.value)}
+                          onBlur={handleSaveGym}
+                          placeholder="@tugym"
+                          style={{ ...inputStyle, paddingLeft: 36, width: 200, fontSize: "0.78rem" }}
+                        />
+                      </div>
                     ),
                   },
                 ].map((item) => (
@@ -1093,10 +1029,72 @@ function AjustesContent() {
                 </div>
               )}
             </SectionCard>
+
+            <SectionCard
+              icon={<CreditCard size={18} color="white" />}
+              title="Mercado Pago"
+              desc="Conectá tu cuenta para generar links de cobro para tus alumnos."
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ font: `500 0.78rem/1 ${fb}`, color: t2 }}>Access Token</span>
+                  {mpToken ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 0.68rem/1 ${fb}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", padding: "3px 9px", borderRadius: 9999 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", display: "inline-block" }} />
+                      Conectado
+                    </span>
+                  ) : (
+                    <span style={{ font: `600 0.68rem/1 ${fb}`, color: t3 }}>Desconectado</span>
+                  )}
+                </div>
+
+                <div style={{ background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                  <p style={{ font: `600 0.72rem/1 ${fb}`, color: t2, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Cómo obtener el token</p>
+                  {[
+                    { n: "1", text: "Entrá a mercadopago.com.ar con tu cuenta del negocio" },
+                    { n: "2", text: 'Ir a "Herramientas para desarrolladores" → "Panel de desarrolladores"' },
+                    { n: "3", text: "Creá una aplicación (o seleccioná una existente)" },
+                    { n: "4", text: 'Ir a "Credenciales de producción" y copiá el Access Token (empieza con APP_USR-)' },
+                    { n: "5", text: "Pegalo abajo y guardá" },
+                  ].map(step => (
+                    <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#009EE3", color: "white", font: `700 0.65rem/1 ${fb}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{step.n}</span>
+                      <span style={{ font: `400 0.78rem/1.45 ${fb}`, color: t2 }}>{step.text}</span>
+                    </div>
+                  ))}
+                  <a href="https://www.mercadopago.com.ar/developers/panel" target="_blank" rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 2, padding: "8px 14px", background: "#009EE3", borderRadius: 9, font: `700 0.75rem/1 ${fb}`, color: "white", textDecoration: "none", width: "fit-content" }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    Ir al panel de desarrolladores
+                  </a>
+                </div>
+
+                <div style={{ position: "relative" }}>
+                  <CreditCard size={15} color={t3} style={{ position: "absolute", top: 14, left: 14 }} />
+                  <input
+                    value={mpToken}
+                    onChange={(event) => setMpToken(event.target.value)}
+                    placeholder="APP_USR-0000000000000000-..."
+                    type="password"
+                    autoComplete="off"
+                    style={{ ...inputStyle, paddingLeft: 40 }}
+                  />
+                </div>
+                <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: t3 }}>
+                  Tu token se guarda de forma segura y solo se usa para generar links de pago.
+                </p>
+                <button
+                  onClick={handleSaveGym}
+                  disabled={saved}
+                  style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 12, border: "none", background: saved ? "#E5E7EB" : ACCENT, color: saved ? t2 : "white", font: `700 0.82rem/1 ${fd}`, cursor: saved ? "default" : "pointer", transition: "all 0.2s" }}
+                >
+                  {saved ? "Guardado ✓" : "Guardar token"}
+                </button>
+              </div>
+            </SectionCard>
           </div>
         )}
-
-
 
         {activeTab === "equipo" && (
           <div style={{ display: "grid", gap: 18 }}>

@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
     case "wa-keepalive":
       res = await fetch(`${appUrl}/api/cron/wa-keepalive?secret=${encodeURIComponent(waSecret)}`);
       break;
+    case "clase-gratis-followup":
+      res = await fetch(`${appUrl}/api/cron/clase-gratis-followup?secret=${encodeURIComponent(waSecret)}`);
+      break;
     case "ausentes-trigger":
       if (!gym_id) return NextResponse.json({ error: "gym_id requerido para este cron." }, { status: 400 });
       res = await fetch(`${appUrl}/api/cron/ausentes-trigger`, {

@@ -6,27 +6,32 @@ import Link from "next/link";
 
 /* ─── PALETTE ─── */
 const COL_PAL: Record<string, { color: string; label: string; emoji: string; dbKey: string }> = {
-  contactos:   { color: "#6366F1", label: "Nuevos Contactos", emoji: "👋", dbKey: "lead_auto_welcome"  },
-  bienvenida:  { color: "#8B5CF6", label: "Bienvenida",       emoji: "🎉", dbKey: "bienvenida_activo"  },
-  diadia:      { color: "#10B981", label: "Día a Día",         emoji: "🔥", dbKey: "vencimiento_activo" },
-  vuelvencasa: { color: "#F59E0B", label: "Vuelven a Casa",    emoji: "💌", dbKey: "inactividad_activo" },
+  contactos:    { color: "#6366F1", label: "Nuevos Contactos", emoji: "👋", dbKey: "lead_auto_welcome"   },
+  bienvenida:   { color: "#8B5CF6", label: "Bienvenida",       emoji: "🎉", dbKey: "bienvenida_activo"   },
+  claseGratis:  { color: "#EC4899", label: "Clase Gratis",     emoji: "🎯", dbKey: "clase_gratis_activo" },
+  diadia:       { color: "#10B981", label: "Día a Día",         emoji: "🔥", dbKey: "vencimiento_activo"  },
+  vuelvencasa:  { color: "#F59E0B", label: "Vuelven a Casa",   emoji: "💌", dbKey: "inactividad_activo"  },
 };
 
 /* dbKey → which gym_settings column stores the message body for this card (null = not yet wired) */
 const MSG_DB_KEY: Record<string, string | null> = {
-  "m-v1": "inactividad_msg",
-  "m-d4": "vencimiento_msg",
-  "m-b1": "magiclink_msg",
+  "m-v1":  "inactividad_msg",
+  "m-d4":  "vencimiento_msg",
+  "m-b1":  "magiclink_msg",
+  "m-cg0": "clase_gratis_msg_0",
+  "m-cg2": "clase_gratis_msg_2",
+  "m-cg5": "clase_gratis_msg_5",
 };
 
 const NODE_W = 230;
 
 const INIT_POS = {
-  origin:      { x: 420, y: 40  },
+  origin:      { x: 640, y: 40  },
   contactos:   { x: 60,  y: 310 },
   bienvenida:  { x: 340, y: 310 },
-  diadia:      { x: 620, y: 310 },
-  vuelvencasa: { x: 900, y: 310 },
+  claseGratis: { x: 620, y: 310 },
+  diadia:      { x: 900, y: 310 },
+  vuelvencasa: { x: 1180, y: 310 },
 };
 
 interface MsgData {
@@ -53,6 +58,11 @@ const MESSAGES: Record<string, MsgData[]> = {
     { id: "m-d3", icon: "🗓️", title: "Recordatorio de clase",  trigger: "2 horas antes de la clase",   sent: 416, read: 389, msg: "Ey {nombre}! Tu clase de {clase} arranca en 2 horas ⏰ ¡No te olvides!" },
     { id: "m-d4", icon: "💳", title: "Cuota por vencer",       trigger: "3 días antes del vencimiento", sent: 143, read: 121, msg: "Hola {nombre} 👋 Tu cuota vence el {fecha}. Renovála para no perder tu acceso 😊" },
     { id: "m-d5", icon: "🏅", title: "Logro del mes",          trigger: "Al completar 12 clases",       sent: 67,  read: 64,  msg: "¡Crack total, {nombre}! 🏅 12 clases este mes. ¡Estamos orgullosos de vos!" },
+  ],
+  claseGratis: [
+    { id: "m-cg0", icon: "🎯", title: "Día de la clase",     trigger: "El mismo día de la clase gratis",  sent: 0, read: 0, msg: "¡Hola [Nombre]! 💪 ¿Cómo te fue en la clase de hoy en *[Gym]*? ¡Esperamos que la hayas disfrutado! Cualquier pregunta, escribinos." },
+    { id: "m-cg2", icon: "💡", title: "Seguimiento (día 2)", trigger: "2 días después de la clase",       sent: 0, read: 0, msg: "¡Hola [Nombre]! 👋 Ya pasaron un par de días desde tu clase de prueba en *[Gym]*. ¿Qué te pareció? Te contamos nuestros planes para que puedas arrancar cuando quieras 💥" },
+    { id: "m-cg5", icon: "🚀", title: "Último empuje (día 5)", trigger: "5 días después de la clase",    sent: 0, read: 0, msg: "[Nombre], ¡tu clase de prueba en *[Gym]* fue hace 5 días! 🎯 Si estás listo para arrancar de verdad, este es el momento. ¿Arrancamos?" },
   ],
   vuelvencasa: [
     { id: "m-v1", icon: "😢", title: "Te extrañamos (10d)",   trigger: "Sin visita hace 10 días",  sent: 78, read: 61, msg: "¡{nombre}, te extrañamos en Fitgrowx! 🥊 Hace 10 días que no te vemos. ¿Todo bien?" },
@@ -466,7 +476,7 @@ export default function FlujosPage() {
 
       const { data: s } = await supabase
         .from("gym_settings")
-        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, vencimiento_msg, magiclink_msg, wa_status, wa_phone")
+        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, clase_gratis_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, vencimiento_msg, magiclink_msg, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, wa_status, wa_phone")
         .eq("gym_id", id)
         .maybeSingle();
 
@@ -474,6 +484,7 @@ export default function FlujosPage() {
         setActiveMap({
           contactos:   s.lead_auto_welcome   ?? false,
           bienvenida:  s.bienvenida_activo   ?? true,
+          claseGratis: s.clase_gratis_activo ?? false,
           diadia:      s.vencimiento_activo  ?? false,
           vuelvencasa: s.inactividad_activo  ?? false,
         });
@@ -485,9 +496,12 @@ export default function FlujosPage() {
         });
         // Pre-fill message map with DB values where available
         const updates: Record<string, string> = {};
-        if (s.inactividad_msg) updates["m-v1"] = s.inactividad_msg;
-        if (s.vencimiento_msg) updates["m-d4"] = s.vencimiento_msg;
-        if (s.magiclink_msg)   updates["m-b1"] = s.magiclink_msg;
+        if (s.inactividad_msg)     updates["m-v1"]  = s.inactividad_msg;
+        if (s.vencimiento_msg)     updates["m-d4"]  = s.vencimiento_msg;
+        if (s.magiclink_msg)       updates["m-b1"]  = s.magiclink_msg;
+        if (s.clase_gratis_msg_0)  updates["m-cg0"] = s.clase_gratis_msg_0;
+        if (s.clase_gratis_msg_2)  updates["m-cg2"] = s.clase_gratis_msg_2;
+        if (s.clase_gratis_msg_5)  updates["m-cg5"] = s.clase_gratis_msg_5;
         if (Object.keys(updates).length) setMsgMap(prev => ({ ...prev, ...updates }));
 
         if (s.wa_status) { setWaStatus(s.wa_status); setWaPhone(s.wa_phone ?? undefined); }

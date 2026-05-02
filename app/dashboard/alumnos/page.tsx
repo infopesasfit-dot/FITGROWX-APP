@@ -10,6 +10,7 @@ import { CsvAlumnosImportContent } from "@/app/dashboard/components/CsvAlumnosIm
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
+const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
 const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
@@ -839,7 +840,7 @@ export default function AlumnosPage() {
         <div>
           {!isMobile && <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Gestión</p>}
           <h1 style={{ font: `800 ${isMobile ? "1.25rem" : "1.9rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Alumnos</h1>
-          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fb}`, color: t2, marginTop: 4 }}>Administra y monitorea a todos los miembros.</p>}
+          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>Administra y monitorea a todos los miembros.</p>}
         </div>
         <div style={{ position: "relative", flexShrink: 0, width: isMobile ? "100%" : undefined }}>
           <button
