@@ -53,8 +53,16 @@ function StartPageInner() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [progress, setProgress] = useState(0);
-const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("login") === "1") setIsLogin(true);
+  }, [searchParams]);
 
   useEffect(() => {
     if (screen === "form") nameRef.current?.focus();
@@ -111,6 +119,22 @@ const [authError, setAuthError] = useState<string | null>(null);
     if (!response.ok) {
       const data = (await response.json().catch(() => null)) as { error?: string } | null;
       throw new Error(data?.error ?? "No se pudo completar la configuración inicial.");
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) return;
+    setForgotLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setForgotLoading(false);
+    if (error) {
+      setAuthError(error.message);
+    } else {
+      setForgotSent(true);
+      setAuthError(null);
     }
   };
 
@@ -356,8 +380,47 @@ const [authError, setAuthError] = useState<string | null>(null);
                         <div className="h-px flex-1 bg-white/10" />
                       </div>
 
+                      {/* Forgot password mode */}
+                      {forgotMode && (
+                        <div className="grid gap-3">
+                          {!forgotSent ? (
+                            <form onSubmit={handleForgotPassword} className="grid gap-3">
+                              <p className="text-[13px] text-white/50">Ingresá tu email y te mandamos el link para restablecer tu contraseña.</p>
+                              <div className="relative">
+                                <Mail className="absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+                                <input
+                                  type="email"
+                                  value={forgotEmail}
+                                  onChange={e => setForgotEmail(e.target.value)}
+                                  placeholder="Tu email"
+                                  required
+                                  className="h-13 w-full rounded-xl border border-white/10 bg-white/[0.04] pl-12 pr-5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#FF6A00] focus:bg-white/[0.06] transition"
+                                />
+                              </div>
+                              {authError && <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 text-xs text-red-400 text-center font-medium">{authError}</div>}
+                              <button type="submit" disabled={forgotLoading || !forgotEmail.trim()} className="group relative mt-1 flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full text-sm font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40" style={{ background: "linear-gradient(180deg, #ff7a1a 0%, #ff6000 55%, #e05000 100%)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.28), 0 8px 32px rgba(255,96,0,0.28)" }}>
+                                <span className="relative z-10">{forgotLoading ? "Enviando..." : "Enviar link"}</span>
+                                <ArrowRight className="relative z-10 h-4 w-4" />
+                              </button>
+                              <button type="button" onClick={() => { setForgotMode(false); setAuthError(null); }} className="text-[12px] text-white/30 hover:text-white/60 transition-colors text-center">
+                                ← Volver al inicio de sesión
+                              </button>
+                            </form>
+                          ) : (
+                            <div className="grid gap-4 py-2 text-center">
+                              <div className="text-4xl">📬</div>
+                              <p className="text-sm font-semibold text-white/80">¡Listo! Revisá tu email</p>
+                              <p className="text-[12px] text-white/40">Te enviamos el link a <strong className="text-white/60">{forgotEmail}</strong>. Puede tardar unos minutos.</p>
+                              <button type="button" onClick={() => { setForgotMode(false); setForgotSent(false); setAuthError(null); }} className="text-[12px] text-white/30 hover:text-white/60 transition-colors">
+                                ← Volver al inicio de sesión
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Form email/password */}
-                      <form onSubmit={handleSubmit} className="grid gap-3">
+                      {!forgotMode && <form onSubmit={handleSubmit} className="grid gap-3">
                         {!isLogin && (
                           <>
                             <div className="relative">
@@ -418,7 +481,7 @@ const [authError, setAuthError] = useState<string | null>(null);
 
                         {isLogin && (
                           <div className="text-right">
-                            <button type="button" className="text-[12px] text-white/30 hover:text-white/60 transition-colors duration-200">
+                            <button type="button" onClick={() => { setForgotMode(true); setForgotSent(false); setForgotEmail(email); setAuthError(null); }} className="text-[12px] text-white/30 hover:text-white/60 transition-colors duration-200">
                               ¿Olvidaste tu contraseña?
                             </button>
                           </div>
@@ -446,7 +509,7 @@ const [authError, setAuthError] = useState<string | null>(null);
                           <ArrowRight className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                         </button>
-                      </form>
+                      </form>}
 
                       {!isLogin && (
                         <p className="mt-4 text-center text-[11px] text-white/22">
