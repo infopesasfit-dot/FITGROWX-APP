@@ -31,6 +31,7 @@ export default function PlanesPage() {
   const [mpLoading, setMpLoading] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
   const [payModalOpen, setPayModalOpen] = useState(false);
+  const [billing, setBilling] = useState<"mensual" | "anual">("mensual");
 
   useEffect(() => {
     void (async () => {
@@ -49,6 +50,8 @@ export default function PlanesPage() {
 
   const annualPrice = PLAN.priceAnnual * 12;
   const annualSavings = (PLAN.priceMonthly - PLAN.priceAnnual) * 12;
+  const displayPrice = billing === "mensual" ? PLAN.priceMonthly : annualPrice;
+  const displayLabel = billing === "mensual" ? "por mes" : `por año · equiv. $${fmt(PLAN.priceAnnual)}/mes`;
   const days = daysLeft(trialExpiresAt);
   const trialExpired = trialExpiresAt ? new Date(trialExpiresAt) < new Date() : false;
 
@@ -61,8 +64,8 @@ export default function PlanesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plan_key: PLAN.key,
-          plan_label: `${PLAN.name} anual`,
-          price_ars: annualPrice,
+          plan_label: `${PLAN.name} ${billing}`,
+          price_ars: displayPrice,
         }),
       });
       const data = await res.json();
@@ -83,7 +86,7 @@ export default function PlanesPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div>
         <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Cuenta</p>
-        <h1 style={{ font: `800 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Plan anual FitGrowX</h1>
+        <h1 style={{ font: `800 2rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>FitGrowX</h1>
         <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>
           Unificá captación, retención, cobros y operación en una sola membresía.
         </p>
@@ -145,17 +148,40 @@ export default function PlanesPage() {
           </div>
 
           <div style={{ borderRadius: 22, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", padding: "24px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
-            <p style={{ font: `600 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.32)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Precio final</p>
+            {/* Billing toggle */}
+            <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              {(["mensual", "anual"] as const).map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setBilling(b)}
+                  style={{
+                    flex: 1, padding: "8px 0", borderRadius: 9, border: "none",
+                    background: billing === b ? "rgba(249,115,22,0.85)" : "transparent",
+                    color: billing === b ? "white" : "rgba(255,255,255,0.45)",
+                    font: `700 0.74rem/1 ${fd}`,
+                    cursor: "pointer",
+                    transition: "all 0.18s",
+                  }}
+                >
+                  {b === "mensual" ? "Mensual" : "Anual · 20% OFF"}
+                </button>
+              ))}
+            </div>
+
             <div>
-              <p style={{ font: `800 2.45rem/1 ${fd}`, color: "white", letterSpacing: "-0.04em", marginBottom: 6 }}>${fmt(annualPrice)}</p>
-              <p style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.5)" }}>Pago único anual · equivalente a ${fmt(PLAN.priceAnnual)}/mes</p>
+              <p style={{ font: `800 2.45rem/1 ${fd}`, color: "white", letterSpacing: "-0.04em", marginBottom: 6 }}>${fmt(displayPrice)}</p>
+              <p style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.5)" }}>{displayLabel}</p>
             </div>
-            <div style={{ padding: "14px 16px", borderRadius: 16, background: "rgba(249,115,22,0.10)", border: "1px solid rgba(249,115,22,0.18)" }}>
-              <p style={{ font: `700 0.8rem/1 ${fd}`, color: "#FDBA74", marginBottom: 5 }}>Ahorro anual</p>
-              <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: "rgba(255,255,255,0.7)" }}>
-                Antes ${fmt(PLAN.priceMonthly)}/mes. Pagando anual ahorrás ${fmt(annualSavings)} por año.
-              </p>
-            </div>
+
+            {billing === "anual" && (
+              <div style={{ padding: "14px 16px", borderRadius: 16, background: "rgba(249,115,22,0.10)", border: "1px solid rgba(249,115,22,0.18)" }}>
+                <p style={{ font: `700 0.8rem/1 ${fd}`, color: "#FDBA74", marginBottom: 5 }}>Ahorro anual</p>
+                <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: "rgba(255,255,255,0.7)" }}>
+                  Antes ${fmt(PLAN.priceMonthly)}/mes. Pagando anual ahorrás ${fmt(annualSavings)} por año.
+                </p>
+              </div>
+            )}
+
             <button
               onClick={() => { setPayModalOpen(true); setMpError(null); }}
               style={{
@@ -170,7 +196,7 @@ export default function PlanesPage() {
                 boxShadow: "0 10px 28px rgba(255,96,0,0.28)",
               }}
             >
-              Ver pago anual
+              {billing === "mensual" ? "Suscribirse mensual" : "Suscribirse anual · 20% OFF"}
             </button>
           </div>
         </div>
@@ -189,10 +215,12 @@ export default function PlanesPage() {
               <X size={18} />
             </button>
 
-            <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Checkout anual</p>
+            <p style={{ font: `400 0.65rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Checkout {billing}</p>
             <h2 style={{ font: `800 1.35rem/1 ${fd}`, color: t1, marginBottom: 2 }}>{PLAN.name}</h2>
             <p style={{ font: `400 0.8rem/1.45 ${fb}`, color: t2, marginBottom: 24 }}>
-              Vas a pagar <strong>${fmt(annualPrice)} ARS</strong> en un único pago anual. El descuento del 20% ya está aplicado.
+              {billing === "anual"
+                ? <>Vas a pagar <strong>${fmt(annualPrice)} ARS</strong> en un único pago anual. El descuento del 20% ya está aplicado.</>
+                : <>Vas a pagar <strong>${fmt(PLAN.priceMonthly)} ARS/mes</strong>. Podés cancelar cuando quieras.</>}
             </p>
 
             <div style={{ border: "1.5px solid rgba(0,0,0,0.09)", borderRadius: 14, padding: "18px 20px" }}>
@@ -204,7 +232,7 @@ export default function PlanesPage() {
                   <p style={{ font: `700 0.875rem/1 ${fd}`, color: t1 }}>Mercado Pago</p>
                   <p style={{ font: `400 0.72rem/1 ${fb}`, color: t2 }}>Tarjeta, transferencia o efectivo</p>
                 </div>
-                <p style={{ font: `800 1.1rem/1 ${fd}`, color: t1 }}>${fmt(annualPrice)} ARS</p>
+                <p style={{ font: `800 1.1rem/1 ${fd}`, color: t1 }}>${fmt(displayPrice)} ARS</p>
               </div>
               {mpError && <p style={{ font: `400 0.75rem/1 ${fb}`, color: "#DC2626", marginBottom: 10 }}>{mpError}</p>}
               <button
