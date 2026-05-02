@@ -158,6 +158,7 @@ function AjustesContent() {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [gymName, setGymName] = useState("Power House Gym");
   const [instagramUrl, setInstagramUrl] = useState("");
+  const [mpToken, setMpToken] = useState("");
   const [email, setEmail] = useState("");
   const [saved, setSaved] = useState(false);
   const [reportSending, setReportSending] = useState(false);
@@ -274,7 +275,7 @@ function AjustesContent() {
           .maybeSingle(),
         supabase
           .from("gym_settings")
-          .select("gym_name, logo_url, instagram_url, accent_color, landing_title, landing_desc, slug")
+          .select("gym_name, logo_url, instagram_url, accent_color, landing_title, landing_desc, slug, mp_access_token")
           .eq("gym_id", gymIdVal)
           .maybeSingle(),
         supabase
@@ -290,6 +291,7 @@ function AjustesContent() {
       if (settings?.gym_name) setGymName(settings.gym_name);
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
       if (settings?.instagram_url) setInstagramUrl(settings.instagram_url);
+      if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
       setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
 
       const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
@@ -316,7 +318,7 @@ function AjustesContent() {
   const handleSaveGym = async () => {
     if (!gymId) return;
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
-    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, instagram_url: instagramUrl.trim() || null }, { onConflict: "gym_id" });
+    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null }, { onConflict: "gym_id" });
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
   };
@@ -718,6 +720,59 @@ function AjustesContent() {
                         />
                       </div>
                     </Field>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                        <span style={{ font: `600 0.8rem/1 ${fb}`, color: t1 }}>Cobros con MercadoPago</span>
+                        {mpToken && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 0.68rem/1 ${fb}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", padding: "3px 9px", borderRadius: 9999 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", display: "inline-block" }} />
+                            Conectado
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Pasos */}
+                      <div style={{ background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <p style={{ font: `600 0.72rem/1 ${fb}`, color: t2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Cómo conectar tu cuenta</p>
+                        {[
+                          { n: "1", text: "Entrá a tu cuenta de MercadoPago" },
+                          { n: "2", text: 'Ir a "Tu negocio" → "Configuración" → "Credenciales"' },
+                          { n: "3", text: 'Copiá el "Access Token" de Producción (empieza con APP_USR-)' },
+                          { n: "4", text: "Pegalo acá abajo y guardá" },
+                        ].map(step => (
+                          <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#009EE3", color: "white", font: `700 0.65rem/1 ${fb}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{step.n}</span>
+                            <span style={{ font: `400 0.78rem/1.45 ${fb}`, color: t2 }}>{step.text}</span>
+                          </div>
+                        ))}
+                        <a
+                          href="https://www.mercadopago.com.ar/settings/account/credentials"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 2, padding: "8px 14px", background: "#009EE3", borderRadius: 9, font: `700 0.75rem/1 ${fb}`, color: "white", textDecoration: "none", width: "fit-content" }}
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          Ir a credenciales de MP
+                        </a>
+                      </div>
+
+                      {/* Input */}
+                      <div style={{ position: "relative" }}>
+                        <Smartphone size={15} color={t3} style={{ position: "absolute", top: 14, left: 14 }} />
+                        <input
+                          value={mpToken}
+                          onChange={(event) => setMpToken(event.target.value)}
+                          placeholder="APP_USR-0000000000000000-..."
+                          type="password"
+                          autoComplete="off"
+                          style={{ ...inputStyle, paddingLeft: 40 }}
+                        />
+                      </div>
+                      <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: t3 }}>
+                        Tu token se guarda de forma segura y solo se usa para generar los links de pago de tus alumnos.
+                      </p>
+                    </div>
                   </div>
 
                   <div style={{ padding: "12px", borderRadius: 14, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "grid", gap: 10, alignContent: "start", justifyItems: isMobile ? "stretch" : "start" }}>

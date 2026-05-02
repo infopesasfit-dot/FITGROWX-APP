@@ -1,0 +1,1 @@
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS mp_link TEXT;

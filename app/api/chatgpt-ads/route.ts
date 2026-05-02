@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 export async function POST(req: NextRequest) {
-  const { default: OpenAI } = await import("openai");
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
-
   try {
     const { planes, cpl, roas } = await req.json() as {
       planes?: string;
@@ -11,7 +12,7 @@ export async function POST(req: NextRequest) {
       roas?: string;
     };
 
-    const prompt = `Actuá como ChatGPT, especialista en marketing para gimnasios en Argentina.
+    const prompt = `Actuá como especialista en marketing para gimnasios en Argentina.
 
 Datos del gym:
 - Planes activos: ${planes ?? "anual"}
@@ -25,18 +26,13 @@ Estilos:
 2. "Directo": propuesta de valor concreta, qué ganás
 3. "Urgencia": escasez real, tiempo limitado, acción ahora
 
-Respondé SOLO con este JSON sin ningún texto extra:
+Respondé SOLO con este JSON sin ningún texto extra ni markdown:
 {"copies":[{"estilo":"Persuasivo","texto":"..."},{"estilo":"Directo","texto":"..."},{"estilo":"Urgencia","texto":"..."}]}`;
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.88,
-      max_tokens: 450,
-    });
-
-    const raw = completion.choices[0].message.content ?? "{}";
-    const match = raw.match(/\{[\s\S]*\}/);
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text();
+    const cleaned = raw.replace(/```json|```/g, "").trim();
+    const match = cleaned.match(/\{[\s\S]*\}/);
     const json = match ? JSON.parse(match[0]) : { copies: [] };
     return NextResponse.json(json);
   } catch (err) {

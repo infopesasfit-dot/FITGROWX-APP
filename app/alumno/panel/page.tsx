@@ -79,7 +79,8 @@ export default function AlumnoPanelPage() {
   const [loading,      setLoading]      = useState(true);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [reservando,   setReservando]   = useState<string | null>(null);
-  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; plan_type: string | null } | null>(null);
+  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null } | null>(null);
+  const [loadingPago,  setLoadingPago]  = useState(false);
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
   const [inlineSaving, setInlineSaving] = useState<Record<string, boolean>>({});
   const [showQR,        setShowQR]        = useState(false);
@@ -137,6 +138,7 @@ export default function AlumnoPanelPage() {
         gym_name: d.gym_info.gym_name,
         logo_url: d.gym_info.logo_url,
         accent_color: d.gym_info.accent_color,
+        has_mp: Boolean(d.gym_info.has_mp),
         plan_type: d.gym_info.plan_type ?? null,
       });
     }
@@ -259,6 +261,28 @@ export default function AlumnoPanelPage() {
     return map;
   }, [pesos]);
 
+  const handlePagar = async () => {
+    if (!session || loadingPago) return;
+    setLoadingPago(true);
+    try {
+      const res = await fetch("/api/alumno/pagar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id }),
+      });
+      const d = await res.json();
+      if (d.init_point) {
+        window.open(d.init_point, "_blank");
+      } else {
+        showToast(d.error ?? "No se pudo generar el link de pago.", false);
+      }
+    } catch {
+      showToast("Error de conexión. Intentá de nuevo.", false);
+    } finally {
+      setLoadingPago(false);
+    }
+  };
+
   if (!session) return null;
 
   // Lock screen
@@ -282,19 +306,29 @@ export default function AlumnoPanelPage() {
             <p style={{ font: `300 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.18)", letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 24 }}>{gymName}</p>
           )}
           <h1 style={{ font: `700 1.9rem/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", marginBottom: 6 }}>Acceso suspendido</h1>
-          <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 16, padding: "20px 22px", marginBottom: 28, marginTop: 20 }}>
+          <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 16, padding: "20px 22px", marginBottom: 20, marginTop: 20 }}>
             <p style={{ font: `400 0.85rem/1.65 ${fd}`, color: "rgba(255,255,255,0.5)" }}>
               Tu membresia ha expirado. Comunicate con la recepcion de{" "}
               <span style={{ color: "#FFFFFF", fontWeight: 600 }}>{gymName}</span>{" "}
               para regularizar tu estado.
             </p>
           </div>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 9999, padding: "7px 14px", marginBottom: 36 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 9999, padding: "7px 14px", marginBottom: gymInfo?.has_mp ? 16 : 36 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#EF4444" }} />
             <span style={{ font: `500 0.65rem/1 ${fd}`, color: "#EF4444", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               {session.status === "vencido" ? "Membresia vencida" : "Membresia inactiva"}
             </span>
           </div>
+          {gymInfo?.has_mp && (
+            <button
+              onClick={handlePagar}
+              disabled={loadingPago}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "14px 0", background: loadingPago ? "rgba(0,158,227,0.5)" : "#009EE3", border: "none", borderRadius: 14, font: `700 0.9rem/1 ${fd}`, color: "white", cursor: loadingPago ? "not-allowed" : "pointer", marginBottom: 12, boxShadow: "0 4px 20px rgba(0,158,227,0.35)" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="rgba(255,255,255,0.2)"/><path d="M8 12h8M12 8v8" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+              {loadingPago ? "Generando link..." : "Pagar membresía con MercadoPago"}
+            </button>
+          )}
           <button onClick={logout} style={{ display: "block", width: "100%", padding: "13px 0", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", cursor: "pointer", letterSpacing: "0.08em" }}>
             CERRAR SESION
           </button>
@@ -793,6 +827,18 @@ export default function AlumnoPanelPage() {
                     </div>
                   );
                 })()}
+
+                {/* MP payment button */}
+                {gymInfo?.has_mp && (
+                  <button
+                    onClick={handlePagar}
+                    disabled={loadingPago}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "13px 0", background: loadingPago ? "rgba(0,158,227,0.5)" : "#009EE3", border: "none", borderRadius: 14, font: `700 0.85rem/1 ${fd}`, color: "white", cursor: loadingPago ? "not-allowed" : "pointer", boxShadow: "0 4px 20px rgba(0,158,227,0.25)" }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="rgba(255,255,255,0.25)"/><path d="M8 12h8M12 8v8" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+                    {loadingPago ? "Generando link..." : "Pagar membresía con MercadoPago"}
+                  </button>
+                )}
 
                 {/* Monthly attendance calendar */}
                 {asistCount > 0 && (() => {
