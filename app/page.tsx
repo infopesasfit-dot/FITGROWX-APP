@@ -5,7 +5,7 @@ import { BentoBackground } from "@/components/bento-background";
 import { HeroSection } from "@/components/hero-section";
 import { LandingHeader } from "@/components/landing-header";
 import { LogosSection } from "@/components/logos-section";
-import { FITGROWX_PLANS, formatArs } from "@/lib/fitgrowx-plans";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 const BenefitsSection = dynamic(() => import("@/components/benefits-section").then((m) => m.BenefitsSection));
 const OutcomesSection = dynamic(() => import("@/components/outcomes-section").then((m) => m.OutcomesSection));
@@ -16,11 +16,12 @@ const CookieBanner = dynamic(() => import("@/components/cookie-banner").then((m)
 
 const plans = FITGROWX_PLANS.map((plan) => ({
   name: plan.name,
-  price: `$${formatArs(plan.priceAnnual * 12)}`,
-  period: "ARS / año",
+  priceMonthly: plan.priceMonthly,
+  priceAnnual: plan.priceAnnual,
+  annualTotal: plan.priceAnnual * 12,
+  savings: (plan.priceMonthly - plan.priceAnnual) * 12,
   badge: plan.badge,
   featured: plan.highlight,
-  studentLimit: `Equivale a $${formatArs(plan.priceAnnual)}/mes · 20% OFF`,
   description: plan.description,
   features: plan.features,
 }));

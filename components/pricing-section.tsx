@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
-import { ArrowRight, BadgePercent, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 
@@ -16,26 +17,34 @@ const cardVariant: Variants = {
   visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.75, ease: EASE, delay: 0.12 } },
 };
 
+function fmt(n: number) {
+  return n.toLocaleString("es-AR", { maximumFractionDigits: 0 });
+}
+
 interface Plan {
   name: string;
-  price: string;
-  period: string;
+  priceMonthly: number;
+  priceAnnual: number;
+  annualTotal: number;
+  savings: number;
   badge: string | null;
   featured?: boolean;
-  studentLimit: string;
   description: string;
   features: string[];
 }
 
 export function PricingSection({ plans }: { plans: Plan[] }) {
   const plan = plans[0];
+  const [billing, setBilling] = useState<"mensual" | "anual">("mensual");
 
   if (!plan) return null;
+
+  const price = billing === "mensual" ? plan.priceMonthly : plan.priceAnnual;
 
   return (
     <div className="mx-auto max-w-7xl px-6 lg:px-10">
       <motion.div
-        className="mx-auto max-w-3xl text-center mb-10 lg:mb-16"
+        className="mx-auto max-w-3xl text-center mb-10 lg:mb-14"
         variants={headVariant}
         initial={false}
         animate="visible"
@@ -45,8 +54,36 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
           Una sola membresía para que <span className="italic font-normal text-[#FF8C3A]">todo el gym</span> funcione mejor.
         </p>
         <p className="mt-5 text-sm sm:text-[15px] font-light text-white/45">
-          Probás 15 días gratis. Después seguís con un único plan anual con 20% OFF y acceso completo.
+          Probás 15 días gratis, sin tarjeta. Después elegís cómo seguir.
         </p>
+
+        {/* Stripe-style billing toggle */}
+        <div className="mt-8 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1">
+          {(["mensual", "anual"] as const).map((b) => (
+            <button
+              key={b}
+              onClick={() => setBilling(b)}
+              className="relative flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-all duration-200"
+              style={{
+                background: billing === b ? "white" : "transparent",
+                color: billing === b ? "#0A0A0A" : "rgba(255,255,255,0.45)",
+              }}
+            >
+              {b === "mensual" ? "Mensual" : "Anual"}
+              {b === "anual" && (
+                <span
+                  className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                  style={{
+                    background: billing === "anual" ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.08)",
+                    color: billing === "anual" ? "#F97316" : "rgba(255,255,255,0.3)",
+                  }}
+                >
+                  −20%
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </motion.div>
 
       <motion.div
@@ -66,20 +103,14 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
           />
 
           <div className="relative z-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+            {/* Left — plan info + features */}
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#FF6A00]/25 bg-[#FF6A00]/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#FFB27A]">
-                <BadgePercent className="h-3.5 w-3.5" />
-                {plan.badge ?? "20% OFF anual"}
-              </div>
-
-              <h3 className="mt-5 text-3xl sm:text-[2.6rem] font-light tracking-[-0.05em] text-white">
-                {plan.name}
+              <h3 className="text-3xl sm:text-[2.6rem] font-light tracking-[-0.05em] text-white">
+                FitGrowX
               </h3>
-
               <p className="mt-4 max-w-2xl text-sm sm:text-[15px] font-light leading-relaxed text-white/55">
                 {plan.description}
               </p>
-
               <div className="mt-8 grid gap-3 sm:grid-cols-2">
                 {plan.features.map((feature) => (
                   <div key={feature} className="flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-sm text-white/62">
@@ -90,15 +121,29 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
               </div>
             </div>
 
+            {/* Right — price + CTA */}
             <div className="rounded-[2rem] border border-white/[0.06] bg-[#0B0B10]/80 p-6 sm:p-7">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/32">Opción anual</p>
-              <div className="mt-4 flex items-end gap-2">
-                <span className="text-4xl sm:text-5xl font-extralight tracking-[-0.06em] text-white">{plan.price}</span>
-                <span className="pb-2 text-xs font-medium uppercase tracking-[0.14em] text-white/28">{plan.period}</span>
-              </div>
-              <p className="mt-3 text-sm font-light leading-relaxed text-white/48">
-                {plan.studentLimit}
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/32">
+                {billing === "mensual" ? "Precio mensual" : "Precio anual"}
               </p>
+
+              <div className="mt-4 flex items-end gap-2">
+                <span className="text-4xl sm:text-5xl font-extralight tracking-[-0.06em] text-white">
+                  ${fmt(price)}
+                </span>
+                <span className="pb-2 text-xs font-medium uppercase tracking-[0.14em] text-white/28">/mes</span>
+              </div>
+
+              {billing === "anual" ? (
+                <p className="mt-2 text-sm font-light text-white/45">
+                  Facturado como <span className="text-white/65">${fmt(plan.annualTotal)} ARS/año</span> · ahorrás ${fmt(plan.savings)}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm font-light text-white/38">
+                  Pasá a anual y ahorrás <span className="text-[#FF8C3A]">${fmt(plan.savings)} ARS</span> por año
+                </p>
+              )}
+
               <div className="mt-6 rounded-2xl border border-[#FF6A00]/14 bg-[#FF6A00]/8 px-4 py-3 text-sm text-white/70">
                 Incluye branding, app del alumno, automatizaciones y gestión completa desde el día uno.
               </div>
@@ -117,7 +162,8 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
               </Link>
 
               <p className="mt-4 text-center text-[11px] tracking-wide text-white/22">
-                Sin tarjeta para probar · Pago anual al activar
+                Sin tarjeta para probar
+                {billing === "anual" ? " · Pago anual al activar" : " · Cancelá cuando quieras"}
               </p>
             </div>
           </div>
