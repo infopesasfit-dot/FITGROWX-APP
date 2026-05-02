@@ -65,6 +65,13 @@ interface AlumnoOption {
   full_name: string;
 }
 
+interface GymClass {
+  id: string;
+  class_name: string;
+  day_of_week: number | null;
+  start_time: string | null;
+}
+
 interface Cuenta {
   id: string;
   tipo: "alias" | "cbu" | "mercadopago";
@@ -167,6 +174,9 @@ export default function PagosPage() {
   const [comproFile,       setComproFile]       = useState<File | null>(null);
   const [uploading,        setUploading]        = useState(false);
 
+  const [gymClasses,      setGymClasses]      = useState<GymClass[]>([]);
+  const [claseManual,     setClaseManual]     = useState(false);
+
   // Alumno combobox
   const [alumnos,        setAlumnos]        = useState<AlumnoOption[]>([]);
   const [alumnoSearch,   setAlumnoSearch]   = useState("");
@@ -267,7 +277,7 @@ export default function PagosPage() {
       else setLoading(true);
     }
 
-    const [{ data: pagosData }, { data: cuentasData }, { data: alumnosData }] = await Promise.all([
+    const [{ data: pagosData }, { data: cuentasData }, { data: alumnosData }, { data: clasesData }] = await Promise.all([
       supabase
         .from("pagos")
         .select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)")
@@ -285,6 +295,11 @@ export default function PagosPage() {
         .select("id, full_name")
         .eq("gym_id", profile.gymId)
         .order("full_name"),
+      supabase
+        .from("gym_classes")
+        .select("id, class_name, day_of_week, start_time")
+        .eq("gym_id", profile.gymId)
+        .order("class_name"),
     ]);
 
     const pagos    = (pagosData ?? []).map((row) => mapPagoRow(row));
@@ -293,6 +308,7 @@ export default function PagosPage() {
     setPagos(pagos);
     setCuentas(cuentas);
     setAlumnos(alumnos);
+    setGymClasses((clasesData ?? []) as GymClass[]);
     setPageCache(`pagos_${profile.gymId}`, { pagos, cuentas, alumnos });
     setLoading(false);
   }, []);
@@ -378,7 +394,7 @@ export default function PagosPage() {
 
   const closePagoModal = () => {
     setNewPagoOpen(false);
-    setPagoConcepto("membresia"); setPagoDescripcion("");
+    setPagoConcepto("membresia"); setPagoDescripcion(""); setClaseManual(false);
     setPagoFecha(new Date().toISOString().slice(0, 10));
     setPagoMonto(""); setPagoNotes(""); setComproFile(null);
     setPagoDiscountType("none"); setPagoDiscountValue(""); setPagoDiscountReason("");
@@ -926,7 +942,7 @@ export default function PagosPage() {
                 <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 8 }}>Concepto</label>
                 <div style={{ display: "flex", gap: 6 }}>
                   {(["membresia", "clase", "producto"] as Concepto[]).map(c => (
-                    <button key={c} onClick={() => { setPagoConcepto(c); setPagoDescripcion(""); }}
+                    <button key={c} onClick={() => { setPagoConcepto(c); setPagoDescripcion(""); setClaseManual(false); }}
                       style={{ flex: 1, padding: "8px 4px", borderRadius: 10, border: `1.5px solid ${pagoConcepto === c ? CONCEPTO_META[c].color : "rgba(0,0,0,0.09)"}`, background: pagoConcepto === c ? CONCEPTO_META[c].bg : "transparent", color: pagoConcepto === c ? CONCEPTO_META[c].color : t3, font: `600 0.72rem/1 ${fb}`, cursor: "pointer", transition: "all 0.15s" }}>
                       {CONCEPTO_META[c].label}
                     </button>
@@ -938,11 +954,42 @@ export default function PagosPage() {
               {pagoConcepto !== "membresia" && (
                 <div>
                   <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>
-                    {pagoConcepto === "clase" ? "Nombre de la clase / evento *" : "Nombre del producto *"}
+                    {pagoConcepto === "clase" ? "Clase / evento *" : "Nombre del producto *"}
                   </label>
-                  <input type="text" value={pagoDescripcion} onChange={e => setPagoDescripcion(e.target.value)}
-                    placeholder={pagoConcepto === "clase" ? "Ej: Clase de spinning especial" : "Ej: Proteína Whey 1kg"}
-                    style={{ ...inputStyle }} />
+                  {pagoConcepto === "clase" && gymClasses.length > 0 && !claseManual ? (
+                    <select
+                      value={pagoDescripcion}
+                      onChange={e => {
+                        if (e.target.value === "__manual__") { setClaseManual(true); setPagoDescripcion(""); }
+                        else setPagoDescripcion(e.target.value);
+                      }}
+                      style={{ ...inputStyle, appearance: "none", WebkitAppearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 12px center", paddingRight: 36 }}
+                    >
+                      <option value="">Seleccionar clase...</option>
+                      {gymClasses.map(c => (
+                        <option key={c.id} value={c.class_name}>
+                          {c.class_name}{c.start_time ? ` — ${c.start_time.slice(0, 5)}` : ""}
+                        </option>
+                      ))}
+                      <option value="__manual__">Otra (escribir manualmente)</option>
+                    </select>
+                  ) : (
+                    <>
+                      {claseManual && gymClasses.length > 0 && (
+                        <button onClick={() => { setClaseManual(false); setPagoDescripcion(""); }} style={{ font: `600 0.72rem/1 ${fb}`, color: t2, background: "none", border: "none", cursor: "pointer", marginBottom: 6, padding: 0, display: "block" }}>
+                          ← Volver a la lista
+                        </button>
+                      )}
+                      <input
+                        type="text"
+                        value={pagoDescripcion}
+                        onChange={e => setPagoDescripcion(e.target.value)}
+                        placeholder={pagoConcepto === "clase" ? "Ej: Clase de spinning especial" : "Ej: Proteína Whey 1kg"}
+                        style={{ ...inputStyle }}
+                        autoFocus={claseManual}
+                      />
+                    </>
+                  )}
                 </div>
               )}
 
