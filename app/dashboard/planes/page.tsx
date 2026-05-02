@@ -108,76 +108,116 @@ export default function PlanesPage() {
         </div>
       </div>
 
+      {/* Billing toggle — centered, prominent */}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 0, padding: 4, borderRadius: 14, background: "#F3F4F6", border: "1px solid #E5E7EB" }}>
+          {(["mensual", "anual"] as const).map((b) => (
+            <button
+              key={b}
+              onClick={() => setBilling(b)}
+              style={{
+                padding: "9px 22px",
+                borderRadius: 11,
+                border: "none",
+                background: billing === b ? "white" : "transparent",
+                color: billing === b ? t1 : t2,
+                font: `${billing === b ? 700 : 500} 0.875rem/1 ${fd}`,
+                cursor: "pointer",
+                boxShadow: billing === b ? "0 1px 4px rgba(0,0,0,0.10)" : "none",
+                transition: "all 0.15s",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+              }}
+            >
+              {b === "mensual" ? "Mensual" : (
+                <>
+                  Anual
+                  <span style={{ padding: "2px 7px", borderRadius: 6, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 0.68rem/1 ${fd}` }}>
+                    20% OFF
+                  </span>
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Pricing card */}
       <section
         style={{
           position: "relative",
           overflow: "hidden",
           borderRadius: 24,
-          border: "1px solid rgba(249,115,22,0.14)",
-          background: "linear-gradient(145deg, #0D0D12 0%, #13131A 55%, #0A0A0F 100%)",
-          padding: "32px 30px",
-          boxShadow: "0 20px 48px rgba(0,0,0,0.16)",
+          border: billing === "anual" ? "1.5px solid rgba(249,115,22,0.30)" : "1.5px solid #E5E7EB",
+          background: billing === "anual"
+            ? "linear-gradient(145deg, #0D0D12 0%, #13131A 55%, #0A0A0F 100%)"
+            : "white",
+          padding: "36px 32px",
+          boxShadow: billing === "anual" ? "0 20px 48px rgba(0,0,0,0.16)" : "0 4px 24px rgba(0,0,0,0.06)",
+          transition: "all 0.25s",
         }}
       >
-        <div style={{ position: "absolute", top: -40, left: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(249,115,22,0.20) 0%, transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", inset: 0, opacity: 0.06, pointerEvents: "none", backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 0.7px, transparent 0.7px)", backgroundSize: "8px 8px" }} />
+        {billing === "anual" && (
+          <>
+            <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(249,115,22,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", inset: 0, opacity: 0.04, pointerEvents: "none", backgroundImage: "radial-gradient(rgba(255,255,255,0.9) 0.7px, transparent 0.7px)", backgroundSize: "8px 8px" }} />
+          </>
+        )}
 
-        <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 24, gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 360px)" }}>
+        <div style={{ position: "relative", zIndex: 1, display: "grid", gap: 32, gridTemplateColumns: "minmax(0, 1fr) 300px", alignItems: "start" }}>
+          {/* Left — plan info + features */}
           <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 9999, background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.22)", marginBottom: 18 }}>
-              <Sparkles size={12} color="#FDBA74" />
-              <span style={{ font: `700 0.68rem/1 ${fd}`, color: "#FDBA74", textTransform: "uppercase", letterSpacing: "0.09em" }}>20% OFF anual</span>
-            </div>
-
-            <h2 style={{ font: `800 2rem/1.05 ${fd}`, color: "white", letterSpacing: "-0.03em", marginBottom: 10 }}>{PLAN.name}</h2>
-            <p style={{ font: `500 0.92rem/1.5 ${fb}`, color: "rgba(255,255,255,0.7)", maxWidth: 680, marginBottom: 22 }}>
+            {billing === "anual" && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 11px", borderRadius: 9999, background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.22)", marginBottom: 16 }}>
+                <Sparkles size={11} color="#FDBA74" />
+                <span style={{ font: `700 0.66rem/1 ${fd}`, color: "#FDBA74", textTransform: "uppercase", letterSpacing: "0.09em" }}>Ahorrás ${fmt(annualSavings)} por año</span>
+              </div>
+            )}
+            <h2 style={{ font: `800 1.75rem/1.05 ${fd}`, color: billing === "anual" ? "white" : t1, letterSpacing: "-0.03em", marginBottom: 8 }}>{PLAN.name}</h2>
+            <p style={{ font: `400 0.88rem/1.55 ${fb}`, color: billing === "anual" ? "rgba(255,255,255,0.55)" : t2, maxWidth: 560, marginBottom: 24 }}>
               {PLAN.tagline}
             </p>
-            <p style={{ font: `400 0.84rem/1.65 ${fb}`, color: "rgba(255,255,255,0.5)", maxWidth: 720, marginBottom: 24 }}>
-              {PLAN.description}
-            </p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
               {PLAN.features.map((feature) => (
-                <div key={feature} style={{ display: "flex", alignItems: "flex-start", gap: 9, padding: "12px 14px", borderRadius: 14, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: ORANGE, marginTop: 6, flexShrink: 0 }} />
-                  <span style={{ font: `400 0.8rem/1.45 ${fb}`, color: "rgba(255,255,255,0.62)" }}>{feature}</span>
+                <div key={feature} style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+                  <div style={{ width: 16, height: 16, borderRadius: "50%", background: billing === "anual" ? "rgba(249,115,22,0.18)" : "rgba(249,115,22,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                    <div style={{ width: 5, height: 5, borderRadius: "50%", background: ORANGE }} />
+                  </div>
+                  <span style={{ font: `400 0.8rem/1.45 ${fb}`, color: billing === "anual" ? "rgba(255,255,255,0.58)" : t2 }}>{feature}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div style={{ borderRadius: 22, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", padding: "24px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
-            {/* Billing toggle */}
-            <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              {(["mensual", "anual"] as const).map((b) => (
-                <button
-                  key={b}
-                  onClick={() => setBilling(b)}
-                  style={{
-                    flex: 1, padding: "8px 0", borderRadius: 9, border: "none",
-                    background: billing === b ? "rgba(249,115,22,0.85)" : "transparent",
-                    color: billing === b ? "white" : "rgba(255,255,255,0.45)",
-                    font: `700 0.74rem/1 ${fd}`,
-                    cursor: "pointer",
-                    transition: "all 0.18s",
-                  }}
-                >
-                  {b === "mensual" ? "Mensual" : "Anual · 20% OFF"}
-                </button>
-              ))}
-            </div>
-
+          {/* Right — price + CTA */}
+          <div style={{ borderRadius: 20, background: billing === "anual" ? "rgba(255,255,255,0.05)" : "#F9FAFB", border: billing === "anual" ? "1px solid rgba(255,255,255,0.08)" : "1px solid #E5E7EB", padding: "24px 22px", display: "flex", flexDirection: "column", gap: 20 }}>
             <div>
-              <p style={{ font: `800 2.45rem/1 ${fd}`, color: "white", letterSpacing: "-0.04em", marginBottom: 6 }}>${fmt(displayPrice)}</p>
-              <p style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.5)" }}>{displayLabel}</p>
+              <p style={{ font: `500 0.7rem/1 ${fd}`, color: billing === "anual" ? "rgba(255,255,255,0.3)" : t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
+                {billing === "mensual" ? "Precio mensual" : "Precio anual"}
+              </p>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 4 }}>
+                <p style={{ font: `800 2.8rem/1 ${fd}`, color: billing === "anual" ? "white" : t1, letterSpacing: "-0.04em" }}>
+                  ${fmt(billing === "mensual" ? PLAN.priceMonthly : PLAN.priceAnnual)}
+                </p>
+                <p style={{ font: `500 0.84rem/1 ${fb}`, color: billing === "anual" ? "rgba(255,255,255,0.4)" : t3, marginBottom: 6 }}>/mes</p>
+              </div>
+              {billing === "anual" && (
+                <p style={{ font: `400 0.76rem/1.4 ${fb}`, color: "rgba(255,255,255,0.38)" }}>
+                  Facturado como ${fmt(annualPrice)} ARS/año
+                </p>
+              )}
+              {billing === "mensual" && (
+                <p style={{ font: `400 0.76rem/1.4 ${fb}`, color: t3 }}>
+                  Facturado mensualmente
+                </p>
+              )}
             </div>
 
             {billing === "anual" && (
-              <div style={{ padding: "14px 16px", borderRadius: 16, background: "rgba(249,115,22,0.10)", border: "1px solid rgba(249,115,22,0.18)" }}>
-                <p style={{ font: `700 0.8rem/1 ${fd}`, color: "#FDBA74", marginBottom: 5 }}>Ahorro anual</p>
-                <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: "rgba(255,255,255,0.7)" }}>
-                  Antes ${fmt(PLAN.priceMonthly)}/mes. Pagando anual ahorrás ${fmt(annualSavings)} por año.
+              <div style={{ padding: "12px 14px", borderRadius: 14, background: "rgba(249,115,22,0.10)", border: "1px solid rgba(249,115,22,0.18)" }}>
+                <p style={{ font: `400 0.76rem/1.45 ${fb}`, color: "rgba(255,255,255,0.65)" }}>
+                  Antes ${fmt(PLAN.priceMonthly)}/mes · ahorrás <strong style={{ color: "#FDBA74" }}>${fmt(annualSavings)} ARS</strong> por año.
                 </p>
               </div>
             )}
@@ -187,16 +227,16 @@ export default function PlanesPage() {
               style={{
                 width: "100%",
                 padding: "14px 16px",
-                borderRadius: 14,
+                borderRadius: 13,
                 border: "none",
                 background: "linear-gradient(180deg,#ff7a1a 0%,#ff6000 58%,#de4f00 100%)",
                 color: "white",
-                font: `800 0.92rem/1 ${fd}`,
+                font: `800 0.88rem/1 ${fd}`,
                 cursor: "pointer",
-                boxShadow: "0 10px 28px rgba(255,96,0,0.28)",
+                boxShadow: "0 8px 24px rgba(255,96,0,0.28)",
               }}
             >
-              {billing === "mensual" ? "Suscribirse mensual" : "Suscribirse anual · 20% OFF"}
+              {billing === "mensual" ? "Activar plan mensual" : "Activar plan anual · 20% OFF"}
             </button>
           </div>
         </div>
