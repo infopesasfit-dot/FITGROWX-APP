@@ -7,7 +7,7 @@ import { getCachedProfile } from "@/lib/gym-cache";
 import {
   ExternalLink, Copy, Check, Save, Loader2, Globe, Zap, Users,
   Calendar, Heart, Star, Target, Shield, Clock, Trophy, Plus,
-  Trash2, Dumbbell, ChevronRight, AlertTriangle,
+  Trash2, Dumbbell, ChevronRight, AlertTriangle, X,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -205,6 +205,12 @@ export default function LandingBuilderPage() {
   const [copied,     setCopied]     = useState(false);
   const [isMobile,   setIsMobile]   = useState(false);
   const [iconPickerIdx, setIconPickerIdx] = useState<number | null>(null);
+  const [showLandingUpsell, setShowLandingUpsell] = useState(false);
+  const [upsellName,    setUpsellName]    = useState("");
+  const [upsellEmail,   setUpsellEmail]   = useState("");
+  const [upsellPhone,   setUpsellPhone]   = useState("");
+  const [upsellLoading, setUpsellLoading] = useState(false);
+  const [upsellDone,    setUpsellDone]    = useState(false);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
@@ -278,6 +284,20 @@ export default function LandingBuilderPage() {
     setBenefits(prev => prev.map((b, idx) => idx === i ? { ...b, [field]: val } : b));
   };
 
+  async function submitUpsell(type: "landing_pro" | "whitelabel") {
+    setUpsellLoading(true);
+    try {
+      await fetch("/api/upsell/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: upsellName, email: upsellEmail, phone: upsellPhone, gym_name: gymName, type }),
+      });
+      setUpsellDone(true);
+    } finally {
+      setUpsellLoading(false);
+    }
+  }
+
   const landingUrl = slug
     ? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/gym/${slug}`
     : null;
@@ -291,6 +311,7 @@ export default function LandingBuilderPage() {
 
   // ── Layout ─────────────────────────────────────────────────────────────────
   return (
+    <>
     <div style={{ fontFamily: fd, display: "flex", flexDirection: "column", gap: 0, minHeight: "100%" }}>
 
       {/* ── Header ── */}
@@ -635,6 +656,21 @@ export default function LandingBuilderPage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* ── Upsell: landing profesional ── */}
+                    <div style={{ background: "linear-gradient(135deg,#0D1117 0%,#1A1D23 100%)", borderRadius: 16, padding: "18px 20px", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <p style={{ font: `700 0.65rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Servicio premium</p>
+                      <p style={{ font: `800 0.95rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>¿Te parece básica tu landing?</p>
+                      <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "rgba(255,255,255,0.50)", marginBottom: 14 }}>Te dejamos una web como la de <strong style={{ color: "rgba(255,255,255,0.75)" }}>estilogym.com.ar</strong> — con tu marca, dominio y hosting.</p>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <a href="https://estilogym.com.ar" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.85)", font: `700 0.78rem/1 ${fd}`, textDecoration: "none", cursor: "pointer" }}>
+                          <ExternalLink size={12} /> Ver ejemplo
+                        </a>
+                        <button onClick={() => { setShowLandingUpsell(true); setUpsellDone(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "none", background: "#F97316", color: "#FFFFFF", font: `800 0.78rem/1 ${fd}`, cursor: "pointer" }}>
+                          Quiero la mía →
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -683,6 +719,66 @@ export default function LandingBuilderPage() {
         )}
       </div>
     </div>
+
+    {/* ── Modal: Landing profesional ── */}
+
+    {showLandingUpsell && (
+      <div
+        onClick={() => setShowLandingUpsell(false)}
+        style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+      >
+        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 24, padding: 28, maxWidth: 420, width: "100%", boxShadow: "0 40px 80px rgba(0,0,0,0.30)", position: "relative" }}>
+          <button onClick={() => setShowLandingUpsell(false)} style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: 10, border: "none", background: "#F1F5F9", color: t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <X size={14} />
+          </button>
+
+          {!upsellDone ? (
+            <>
+              <p style={{ font: `700 0.65rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>Oferta de lanzamiento</p>
+              <h2 style={{ font: `900 1.35rem/1.2 ${fd}`, color: t1, marginBottom: 4 }}>Tu web profesional</h2>
+              <p style={{ font: `400 0.82rem/1.4 ${fd}`, color: t2, marginBottom: 18 }}>Diseñada a medida para tu gym, como <a href="https://estilogym.com.ar" target="_blank" rel="noopener noreferrer" style={{ color: "#F97316", fontWeight: 700 }}>estilogym.com.ar</a></p>
+
+              <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "14px 16px", marginBottom: 18, border: "1px solid rgba(15,23,42,0.06)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                  <span style={{ font: `400 0.9rem/1 ${fd}`, color: t3, textDecoration: "line-through" }}>$250</span>
+                  <span style={{ font: `900 1.4rem/1 ${fd}`, color: t1 }}>$150</span>
+                  <span style={{ font: `600 0.72rem/1 ${fd}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.2)", padding: "3px 8px", borderRadius: 9999 }}>40% off</span>
+                </div>
+                {["Dominio incluido", "Hosting sin pagos mensuales", "Diseño con tu marca y colores", "Entrega en 5 días hábiles"].map(f => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }} />
+                    <span style={{ font: `400 0.8rem/1 ${fd}`, color: t2 }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
+                <input value={upsellName} onChange={e => setUpsellName(e.target.value)} placeholder="Tu nombre" style={{ ...inputSt, padding: "12px 14px" }} />
+                <input type="email" value={upsellEmail} onChange={e => setUpsellEmail(e.target.value)} placeholder="Email" style={{ ...inputSt, padding: "12px 14px" }} />
+                <input value={upsellPhone} onChange={e => setUpsellPhone(e.target.value)} placeholder="WhatsApp (ej: 1165432100)" style={{ ...inputSt, padding: "12px 14px" }} />
+              </div>
+
+              <button
+                onClick={() => submitUpsell("landing_pro")}
+                disabled={upsellLoading || (!upsellEmail && !upsellPhone)}
+                style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: upsellLoading ? "#D1D5DB" : "linear-gradient(135deg,#EA6700,#F97316)", color: "#FFFFFF", font: `800 0.9rem/1 ${fd}`, cursor: upsellLoading ? "not-allowed" : "pointer" }}
+              >
+                {upsellLoading ? "Enviando..." : "Me interesa, contactame →"}
+              </button>
+            </>
+          ) : (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(22,163,74,0.10)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <Check size={22} color="#16A34A" />
+              </div>
+              <h3 style={{ font: `800 1.1rem/1.2 ${fd}`, color: t1, marginBottom: 8 }}>¡Listo!</h3>
+              <p style={{ font: `400 0.84rem/1.5 ${fd}`, color: t2 }}>Nos ponemos en contacto en las próximas horas para arrancar.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

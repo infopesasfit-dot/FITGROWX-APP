@@ -204,6 +204,12 @@ function AjustesContent() {
   const [staffAccessInfo, setStaffAccessInfo] = useState<{ email: string; password: string; loginUrl: string } | null>(null);
   const [staffAccessCopied, setStaffAccessCopied] = useState(false);
   const [hasMercadoPagoLink, setHasMercadoPagoLink] = useState(false);
+  const [showWLModal, setShowWLModal] = useState(false);
+  const [wlName,      setWlName]      = useState("");
+  const [wlEmail,     setWlEmail]     = useState("");
+  const [wlPhone,     setWlPhone]     = useState("");
+  const [wlLoading,   setWlLoading]   = useState(false);
+  const [wlDone,      setWlDone]      = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -736,10 +742,11 @@ function AjustesContent() {
                       <div style={{ background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
                         <p style={{ font: `600 0.72rem/1 ${fb}`, color: t2, textTransform: "uppercase", letterSpacing: "0.08em" }}>Cómo conectar tu cuenta</p>
                         {[
-                          { n: "1", text: "Entrá a tu cuenta de MercadoPago" },
-                          { n: "2", text: 'Ir a "Tu negocio" → "Configuración" → "Credenciales"' },
-                          { n: "3", text: 'Copiá el "Access Token" de Producción (empieza con APP_USR-)' },
-                          { n: "4", text: "Pegalo acá abajo y guardá" },
+                          { n: "1", text: "Entrá a mercadopago.com.ar con tu cuenta del negocio" },
+                          { n: "2", text: 'En el menú, ir a "Herramientas para desarrolladores" → "Panel de desarrolladores"' },
+                          { n: "3", text: 'Creá una aplicación (o seleccioná una existente)' },
+                          { n: "4", text: 'Ir a "Credenciales de producción" y copiá el Access Token (empieza con APP_USR-)' },
+                          { n: "5", text: "Pegalo acá abajo y guardá" },
                         ].map(step => (
                           <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                             <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#009EE3", color: "white", font: `700 0.65rem/1 ${fb}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{step.n}</span>
@@ -747,13 +754,13 @@ function AjustesContent() {
                           </div>
                         ))}
                         <a
-                          href="https://www.mercadopago.com.ar/settings/account/credentials"
+                          href="https://www.mercadopago.com.ar/developers/panel"
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 2, padding: "8px 14px", background: "#009EE3", borderRadius: 9, font: `700 0.75rem/1 ${fb}`, color: "white", textDecoration: "none", width: "fit-content" }}
                         >
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                          Ir a credenciales de MP
+                          Ir al panel de desarrolladores
                         </a>
                       </div>
 
@@ -1324,7 +1331,88 @@ function AjustesContent() {
           </div>
         )}
 
+        {/* ── White-label upsell ── */}
+        <section style={{ ...card, padding: 24, background: "linear-gradient(135deg,#0D1117 0%,#1A1D23 100%)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <p style={{ font: `700 0.65rem/1 ${fd}`, color: "#A78BFA", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>White-label</p>
+              <h2 style={{ font: `900 1.1rem/1.2 ${fd}`, color: "#FFFFFF", marginBottom: 8 }}>¿Te gusta el sistema?</h2>
+              <p style={{ font: `400 0.82rem/1.45 ${fb}`, color: "rgba(255,255,255,0.50)", maxWidth: 480 }}>
+                Lo adaptamos a tu marca con tu nombre, logo y app propia. Tus alumnos ven tu identidad, no FitGrowX.
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowWLModal(true); setWlDone(false); }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 18px", borderRadius: 12, border: "none", background: "#7C3AED", color: "#FFFFFF", font: `800 0.82rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              <Zap size={14} />
+              Me interesa
+            </button>
+          </div>
+        </section>
+
       </div>
+
+      {/* ── Modal: White-label ── */}
+      {showWLModal && (
+        <div
+          onClick={() => setShowWLModal(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 300, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: 24, padding: 28, maxWidth: 420, width: "100%", boxShadow: "0 40px 80px rgba(0,0,0,0.30)", position: "relative" }}>
+            <button onClick={() => setShowWLModal(false)} style={{ position: "absolute", top: 16, right: 16, width: 32, height: 32, borderRadius: 10, border: "none", background: "#F1F5F9", color: t2, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={14} />
+            </button>
+
+            {!wlDone ? (
+              <>
+                <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(124,58,237,0.10)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                  <Zap size={20} color="#7C3AED" />
+                </div>
+                <p style={{ font: `700 0.65rem/1 ${fd}`, color: "#7C3AED", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 8 }}>White-label</p>
+                <h2 style={{ font: `900 1.3rem/1.2 ${fd}`, color: t1, marginBottom: 8 }}>FitGrowX con tu marca</h2>
+                <p style={{ font: `400 0.82rem/1.4 ${fd}`, color: t2, marginBottom: 20 }}>
+                  Tus alumnos ven tu nombre, tu logo, tu app. Nosotros nos ocupamos de toda la tecnología.
+                </p>
+
+                <div style={{ display: "grid", gap: 10, marginBottom: 16 }}>
+                  <input value={wlName} onChange={e => setWlName(e.target.value)} placeholder="Tu nombre" style={inputStyle} />
+                  <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="Email" style={inputStyle} />
+                  <input value={wlPhone} onChange={e => setWlPhone(e.target.value)} placeholder="WhatsApp (ej: 1165432100)" style={inputStyle} />
+                </div>
+
+                <button
+                  disabled={wlLoading || (!wlEmail && !wlPhone)}
+                  onClick={async () => {
+                    setWlLoading(true);
+                    try {
+                      await fetch("/api/upsell/lead", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: wlName, email: wlEmail, phone: wlPhone, type: "whitelabel" }),
+                      });
+                      setWlDone(true);
+                    } finally {
+                      setWlLoading(false);
+                    }
+                  }}
+                  style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: wlLoading ? "#D1D5DB" : "linear-gradient(135deg,#6D28D9,#7C3AED)", color: "#FFFFFF", font: `800 0.9rem/1 ${fd}`, cursor: wlLoading ? "not-allowed" : "pointer" }}
+                >
+                  {wlLoading ? "Enviando..." : "Me interesa, contactame →"}
+                </button>
+              </>
+            ) : (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(124,58,237,0.10)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  <Zap size={22} color="#7C3AED" />
+                </div>
+                <h3 style={{ font: `800 1.1rem/1.2 ${fd}`, color: t1, marginBottom: 8 }}>¡Recibido!</h3>
+                <p style={{ font: `400 0.84rem/1.5 ${fd}`, color: t2 }}>Te contactamos pronto para arrancar con tu versión personalizada.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {qrModalOpen && (
         <div
