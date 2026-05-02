@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY_FITGROWX });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export async function POST(req: NextRequest) {
   const { objetivo, alumno_name, notas, tipo, modalidad, time_cap } = await req.json();
@@ -26,19 +27,13 @@ Devolvé SOLO un JSON válido con esta estructura exacta (sin markdown, sin text
 
 Reglas:
 - Entre 3 y 6 movimientos funcionales
-- Reps en formato string (puede ser "21-15-9", "10 cal", "400m", "AMRAP", etc.)
-- Movimientos típicos de CrossFit: Thruster, Wall Ball, Box Jump, Burpee, Clean, Snatch, Pull-up, Row, Double Under, etc.
-- Nombre del WOD en español o hero WOD en inglés si aplica
-- El tiempo total debe ser coherente con la modalidad y los movimientos`;
+- Reps en formato string (puede ser "21-15-9", "10 cal", "400m", etc.)
+- Movimientos típicos de CrossFit: Thruster, Wall Ball, Box Jump, Burpee, Clean, Snatch, Pull-up, Row, Double Under
+- Nombre del WOD en español o hero WOD en inglés si aplica`;
 
     try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.8,
-        max_completion_tokens: 500,
-      });
-      const raw = completion.choices[0]?.message?.content ?? "";
+      const result = await model.generateContent(prompt);
+      const raw = result.response.text();
       const cleaned = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
       return NextResponse.json({ ok: true, tipo: "wod", nombre: parsed.nombre, modalidad: parsed.modalidad, time_cap: parsed.time_cap, movimientos: parsed.movimientos });
@@ -75,13 +70,8 @@ Reglas:
 - Nombre de rutina en español, específico para el objetivo`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_completion_tokens: 800,
-    });
-    const raw = completion.choices[0]?.message?.content ?? "";
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text();
     const cleaned = raw.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
     return NextResponse.json({ ok: true, nombre: parsed.nombre, ejercicios: parsed.ejercicios });
