@@ -7,7 +7,7 @@ import { getCachedProfile } from "@/lib/gym-cache";
 import {
   ExternalLink, Copy, Check, Save, Loader2, Globe, Zap, Users,
   Calendar, Heart, Star, Target, Shield, Clock, Trophy, Plus,
-  Trash2, Dumbbell, ChevronRight, AlertTriangle, X,
+  Trash2, Dumbbell, ChevronRight, AlertTriangle, X, Link2, Sparkles,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -87,6 +87,7 @@ const TABS = [
   { key: "contenido",  label: "Contenido" },
   { key: "diseno",     label: "Diseño"    },
   { key: "publicar",   label: "Publicar"  },
+  { key: "midominio",  label: "Mi dominio" },
 ] as const;
 type Tab = typeof TABS[number]["key"];
 
@@ -205,6 +206,10 @@ export default function LandingBuilderPage() {
   const [copied,     setCopied]     = useState(false);
   const [isMobile,   setIsMobile]   = useState(false);
   const [iconPickerIdx, setIconPickerIdx] = useState<number | null>(null);
+  const [customWebsite, setCustomWebsite] = useState("");
+  const [customDomain,  setCustomDomain]  = useState("");
+  const [domainSaving,  setDomainSaving]  = useState(false);
+  const [domainSaved,   setDomainSaved]   = useState(false);
   const [showLandingUpsell, setShowLandingUpsell] = useState(false);
   const [upsellName,    setUpsellName]    = useState("");
   const [upsellEmail,   setUpsellEmail]   = useState("");
@@ -227,7 +232,7 @@ export default function LandingBuilderPage() {
 
       const { data } = await supabase
         .from("gym_settings")
-        .select("gym_name, logo_url, accent_color, landing_title, landing_desc, landing_template, landing_subtitle, landing_cta_text, landing_benefits, slug")
+        .select("gym_name, logo_url, accent_color, landing_title, landing_desc, landing_template, landing_subtitle, landing_cta_text, landing_benefits, slug, custom_website, custom_domain")
         .eq("gym_id", profile.gymId)
         .maybeSingle();
 
@@ -244,6 +249,8 @@ export default function LandingBuilderPage() {
         if (Array.isArray(data.landing_benefits) && data.landing_benefits.length > 0) {
           setBenefits(data.landing_benefits as Benefit[]);
         }
+        if (data.custom_website) setCustomWebsite(data.custom_website);
+        if (data.custom_domain)  setCustomDomain(data.custom_domain);
       }
       setLoading(false);
     })();
@@ -264,6 +271,18 @@ export default function LandingBuilderPage() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleDomainSave = async () => {
+    if (!gymId || domainSaving) return;
+    setDomainSaving(true);
+    await supabase.from("gym_settings").update({
+      custom_website: customWebsite.trim() || null,
+      custom_domain:  customDomain.trim()  || null,
+    }).eq("gym_id", gymId);
+    setDomainSaving(false);
+    setDomainSaved(true);
+    setTimeout(() => setDomainSaved(false), 2500);
   };
 
   const copyLink = () => {
@@ -616,31 +635,50 @@ export default function LandingBuilderPage() {
                   </div>
                 ) : (
                   <>
-                    <FieldGroup label="Tu link de landing" hint="Compartilo en redes o usalo en tus anuncios">
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <input
-                          readOnly
-                          value={`fitgrowx.com/gym/${slug}`}
-                          style={{ ...inputSt, flex: 1, background: "#F1F5F9", color: t2 }}
-                        />
-                        <button
-                          onClick={copyLink}
-                          style={{ display: "flex", alignItems: "center", gap: 6, padding: "11px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: copied ? "#16A34A" : "#FFFFFF", color: copied ? "#FFFFFF" : t1, font: `600 0.82rem/1 ${fd}`, cursor: "pointer", transition: "all .15s", whiteSpace: "nowrap" }}
-                        >
-                          {copied ? <Check size={13} /> : <Copy size={13} />}
-                          {copied ? "Copiado" : "Copiar"}
+                    {customWebsite ? (
+                      <div style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.2)", borderRadius: 14, padding: "16px 18px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A" }} />
+                          <p style={{ font: `700 0.78rem/1 ${fd}`, color: "#15803D" }}>Sitio web propio conectado</p>
+                        </div>
+                        <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#166534", marginBottom: 12 }}>
+                          Este link reemplaza tu landing de FitGrowX en todos lados.
+                        </p>
+                        <a href={customWebsite} target="_blank" rel="noopener noreferrer" style={{ font: `600 0.8rem/1 ${fd}`, color: "#15803D", wordBreak: "break-all" }}>
+                          {customWebsite}
+                        </a>
+                        <button onClick={() => setTab("midominio")} style={{ display: "block", marginTop: 10, font: `600 0.72rem/1 ${fd}`, color: t2, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                          Cambiar → Mi dominio
                         </button>
                       </div>
-                    </FieldGroup>
-
-                    <Link
-                      href={`/gym/${slug}`}
-                      target="_blank"
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 12, background: "#1A1D23", color: "#FFFFFF", textDecoration: "none", font: `600 0.875rem/1 ${fd}` }}
-                    >
-                      <Globe size={15} />
-                      Ver mi landing en vivo
-                    </Link>
+                    ) : (
+                      <>
+                        <FieldGroup label="Tu link de landing" hint="Compartilo en redes o usalo en tus anuncios">
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input
+                              readOnly
+                              value={`fitgrowx.com/gym/${slug}`}
+                              style={{ ...inputSt, flex: 1, background: "#F1F5F9", color: t2 }}
+                            />
+                            <button
+                              onClick={copyLink}
+                              style={{ display: "flex", alignItems: "center", gap: 6, padding: "11px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: copied ? "#16A34A" : "#FFFFFF", color: copied ? "#FFFFFF" : t1, font: `600 0.82rem/1 ${fd}`, cursor: "pointer", transition: "all .15s", whiteSpace: "nowrap" }}
+                            >
+                              {copied ? <Check size={13} /> : <Copy size={13} />}
+                              {copied ? "Copiado" : "Copiar"}
+                            </button>
+                          </div>
+                        </FieldGroup>
+                        <Link
+                          href={`/gym/${slug}`}
+                          target="_blank"
+                          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 12, background: "#1A1D23", color: "#FFFFFF", textDecoration: "none", font: `600 0.875rem/1 ${fd}` }}
+                        >
+                          <Globe size={15} />
+                          Ver mi landing en vivo
+                        </Link>
+                      </>
+                    )}
 
                     <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px", border: "1px solid rgba(15,23,42,0.06)" }}>
                       <p style={{ font: `600 0.78rem/1 ${fd}`, color: t2, marginBottom: 10, letterSpacing: ".06em", textTransform: "uppercase" }}>Dónde usar este link</p>
@@ -673,6 +711,96 @@ export default function LandingBuilderPage() {
                     </div>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* ── TAB: Mi dominio ── */}
+            {tab === "midominio" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+                {/* Ya tengo web */}
+                <div style={{ ...card, padding: "18px 20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(22,163,74,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Globe size={16} color="#16A34A" />
+                    </div>
+                    <div>
+                      <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Ya tengo un sitio web</p>
+                      <p style={{ font: `400 0.73rem/1 ${fd}`, color: t3 }}>Conectalo y reemplaza la landing de FitGrowX</p>
+                    </div>
+                  </div>
+                  <p style={{ font: `400 0.78rem/1.5 ${fd}`, color: t2, marginBottom: 14 }}>
+                    Si ya tenés tu propio sitio, ingresá la URL. Va a reemplazar el link de landing generado por FitGrowX en todos lados.
+                  </p>
+                  <FieldGroup label="URL de tu sitio web">
+                    <input
+                      value={customWebsite}
+                      onChange={e => setCustomWebsite(e.target.value)}
+                      placeholder="https://migimnasio.com"
+                      style={{ ...inputSt }}
+                    />
+                  </FieldGroup>
+                  {customWebsite && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }} />
+                      <p style={{ font: `600 0.75rem/1.4 ${fd}`, color: "#15803D" }}>Tu sitio va a aparecer en lugar de la landing de FitGrowX.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Dominio propio para la landing */}
+                <div style={{ ...card, padding: "18px 20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(37,99,235,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Link2 size={16} color="#2563EB" />
+                    </div>
+                    <div>
+                      <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Dominio propio para tu landing FitGrowX</p>
+                      <p style={{ font: `400 0.73rem/1 ${fd}`, color: t3 }}>Tu landing, en tu dominio</p>
+                    </div>
+                  </div>
+                  <p style={{ font: `400 0.78rem/1.5 ${fd}`, color: t2, marginBottom: 14 }}>
+                    Si querés que tu landing FitGrowX se vea en tu propio dominio (ej: <em>reservas.migimnasio.com</em>), ingresalo acá y seguí los pasos.
+                  </p>
+                  <FieldGroup label="Tu dominio">
+                    <input
+                      value={customDomain}
+                      onChange={e => setCustomDomain(e.target.value)}
+                      placeholder="reservas.migimnasio.com"
+                      style={{ ...inputSt }}
+                    />
+                  </FieldGroup>
+                  {customDomain && (
+                    <div style={{ background: "#F8FAFC", borderRadius: 12, padding: "14px 16px", marginTop: 12, border: "1px solid rgba(15,23,42,0.07)" }}>
+                      <p style={{ font: `600 0.72rem/1 ${fd}`, color: t2, marginBottom: 12, textTransform: "uppercase", letterSpacing: ".06em" }}>Pasos para activar</p>
+                      {[
+                        `Ingresá al panel de tu proveedor de dominio (Nic.ar, GoDaddy, Namecheap…)`,
+                        `Creá un registro CNAME: ${customDomain} → cname.vercel-dns.com`,
+                        `Avisanos por WhatsApp o email para activarlo de nuestro lado (manual por ahora)`,
+                      ].map((step, i) => (
+                        <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
+                          <span style={{ width: 18, height: 18, borderRadius: "50%", background: "#2563EB", color: "white", font: `700 0.6rem/1 ${fd}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
+                          <span style={{ font: `400 0.78rem/1.45 ${fd}`, color: t2 }}>{step}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "rgba(37,99,235,0.06)", borderRadius: 10, border: "1px solid rgba(37,99,235,0.12)", marginTop: 4 }}>
+                        <Sparkles size={13} color="#2563EB" />
+                        <p style={{ font: `600 0.72rem/1.4 ${fd}`, color: "#1D4ED8", margin: 0 }}>
+                          Activación gratuita incluida en tu plan.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Save button */}
+                <button
+                  onClick={handleDomainSave}
+                  disabled={domainSaving}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 12, border: "none", background: domainSaved ? "#16A34A" : domainSaving ? "#D1D5DB" : "#1A1D23", color: "#FFFFFF", font: `700 0.875rem/1 ${fd}`, cursor: domainSaving ? "not-allowed" : "pointer", transition: "background .2s" }}
+                >
+                  {domainSaved ? <><Check size={15} /> Guardado</> : domainSaving ? <><Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Guardando...</> : <><Save size={15} /> Guardar dominio</>}
+                </button>
               </div>
             )}
           </div>
