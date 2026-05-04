@@ -1,9 +1,9 @@
 "use client";
 
 import { motion, type Variants } from "framer-motion";
-import { BrainCircuit, Coins, ScanLine, TrendingUp, Users } from "lucide-react";
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const FM = "var(--font-mono,'JetBrains Mono',monospace)";
 
 const headingVariant: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -20,46 +20,35 @@ const cardVariant: Variants = {
   visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.75, ease: EASE } },
 };
 
-const outcomes = [
+const stats = [
   {
-    title: "Más retención",
-    description: "Seguimiento automático para que menos alumnos se enfríen.",
-    metric: "Menos fugas",
-    icon: Users,
+    value: "98%",
+    label: "Retención",
+    desc: "El sistema cuida a tu gente.",
     tone: "from-[#1E5EF0]/16 via-[#174BFF]/8 to-transparent",
-    borderGlow: "rgba(30,94,240,0.65)",
+    border: "rgba(30,94,240,0.18)",
   },
   {
-    title: "Más conversión",
-    description: "Los leads entran, avanzan y convierten con menos fricción.",
-    metric: "Más cierres",
-    icon: TrendingUp,
+    value: "24/7",
+    label: "Tu negocio corre solo.",
+    desc: "",
     tone: "from-[#FF6A00]/18 via-[#FF6A00]/10 to-transparent",
-    borderGlow: "rgba(255,106,0,0.68)",
+    border: "rgba(255,106,0,0.20)",
   },
   {
-    title: "Menos fricción",
-    description: "QR, NFC, DNI, clases y rutina en un mismo flujo.",
-    metric: "Operación simple",
-    icon: ScanLine,
+    value: "1 clic",
+    label: "Migración",
+    desc: "200 alumnos cargados al instante.",
     tone: "from-[#6D4BFF]/16 via-[#2C63FF]/8 to-transparent",
-    borderGlow: "rgba(109,75,255,0.62)",
+    border: "rgba(109,75,255,0.18)",
   },
   {
-    title: "Más control",
-    description: "Cobros, prospectos y operación visibles en un solo panel.",
-    metric: "Negocio visible",
-    icon: Coins,
+    value: "0%",
+    label: "Fricción",
+    desc: "Cobrás sin pedir por favor.",
     tone: "from-[#123A9A]/18 via-[#1E5EF0]/10 to-transparent",
-    borderGlow: "rgba(23,75,255,0.62)",
+    border: "rgba(23,75,255,0.18)",
   },
-];
-
-const signals = [
-  "Leads entrando",
-  "Seguimiento automático",
-  "Check-in ordenado",
-  "Cobros visibles",
 ];
 
 export function OutcomesSection() {
@@ -89,114 +78,48 @@ export function OutcomesSection() {
       />
 
       <div className="mx-auto grid max-w-7xl gap-8 px-6 lg:grid-cols-[0.82fr_1.18fr] lg:items-start lg:gap-10 lg:px-10">
-        <motion.div variants={headingVariant} initial={false} animate="visible" className="relative z-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#1E5EF0]/20 bg-white/[0.04] px-4 py-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.28em] text-[#8AB3FF]">Impacto real</span>
-          </div>
-
-          <h2 className="mt-6 max-w-xl text-[2rem] font-semibold leading-[1.04] tracking-[-0.055em] text-white sm:text-[2.6rem] lg:text-[3.5rem]">
-            Cuando todo entra
-            <br />
-            en un solo sistema,
+        <motion.div variants={headingVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.4 }} className="relative z-10">
+          <h2 className="max-w-xs text-[2.4rem] font-semibold leading-[1.06] tracking-[-0.055em] text-white sm:text-[2.8rem] lg:text-[3.6rem]">
+            Menos caos.{" "}
             <span className="block bg-gradient-to-r from-white via-white/92 to-white/46 bg-clip-text text-transparent">
-              el gym empieza a moverse distinto.
+              Más negocio.
             </span>
           </h2>
-
-          <p className="mt-5 max-w-md text-[0.95rem] leading-7 text-white/44">
-            Captación, retención, cobros y operación conectados para que el gym crezca con menos fricción.
-          </p>
         </motion.div>
 
         <motion.div
           variants={containerVariant}
-          initial={false}
-          animate="visible"
-          className="relative grid gap-4 md:grid-cols-2"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          className="grid gap-4 md:grid-cols-2"
         >
-          {outcomes.map((item) => (
+          {stats.map((item) => (
             <motion.article
-              key={item.title}
+              key={item.value}
               variants={cardVariant}
-              className={`group relative overflow-hidden rounded-[1.7rem] border border-white/[0.07] bg-gradient-to-br ${item.tone} bg-white/[0.035] p-5 backdrop-blur-2xl`}
+              className={`relative overflow-hidden rounded-[1.7rem] border bg-gradient-to-br ${item.tone} bg-white/[0.035] p-6 backdrop-blur-2xl`}
               style={{
-                boxShadow:
-                  "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.2), 0 16px 38px rgba(0,0,0,0.26)",
+                borderColor: item.border,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.2), 0 16px 38px rgba(0,0,0,0.26)",
               }}
             >
-              <motion.div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 rounded-[1.7rem] p-px"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 10, ease: "linear", repeat: Infinity }}
-                style={{
-                  background: `conic-gradient(from 0deg, transparent 0deg, transparent 215deg, ${item.borderGlow} 280deg, transparent 340deg, transparent 360deg)`,
-                  WebkitMask:
-                    "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                  WebkitMaskComposite: "xor",
-                  maskComposite: "exclude",
-                }}
-              />
-              <div className="pointer-events-none absolute right-0 top-0 h-24 w-24 bg-white/[0.03] blur-3xl transition-opacity duration-300 group-hover:opacity-100" />
               <div className="relative z-10">
-                <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.08] bg-black/18">
-                  <item.icon className="h-5 w-5 text-white/86" />
-                </div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/34">{item.metric}</p>
-                <h3 className="mt-2 text-[1.35rem] font-semibold tracking-[-0.04em] text-white">{item.title}</h3>
-                <p className="mt-2.5 max-w-[24ch] text-[13px] leading-5 text-white/56">{item.description}</p>
+                <p
+                  className="text-[2.6rem] font-bold leading-none tracking-[-0.04em] text-white"
+                  style={{ fontFamily: FM }}
+                >
+                  {item.value}
+                </p>
+                <p className="mt-3 text-[0.95rem] font-semibold tracking-[-0.02em] text-white/90">
+                  {item.label}
+                </p>
+                {item.desc && (
+                  <p className="mt-1 text-[13px] leading-5 text-white/46">{item.desc}</p>
+                )}
               </div>
             </motion.article>
           ))}
-
-          <motion.div
-            variants={cardVariant}
-            className="relative overflow-hidden rounded-[1.9rem] border border-[#1E5EF0]/12 bg-[linear-gradient(145deg,rgba(16,24,45,0.96),rgba(8,10,16,0.96))] p-5 md:col-span-2"
-            style={{
-              boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(0,0,0,0.2), 0 22px 48px rgba(0,0,0,0.28)",
-            }}
-          >
-            <motion.div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 rounded-[1.9rem] p-px"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 13, ease: "linear", repeat: Infinity }}
-              style={{
-                background:
-                  "conic-gradient(from 0deg, transparent 0deg, transparent 220deg, rgba(30,94,240,0.62) 286deg, rgba(255,106,0,0.58) 320deg, transparent 350deg, transparent 360deg)",
-                WebkitMask:
-                  "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                WebkitMaskComposite: "xor",
-                maskComposite: "exclude",
-              }}
-            />
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#8AB3FF]">Señales del sistema</p>
-                <p className="mt-1 text-[13px] text-white/54">Lo que el sistema empieza a mover solo.</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.04]">
-                <BrainCircuit className="h-5 w-5 text-[#8AB3FF]" />
-              </div>
-            </div>
-
-            <div className="grid gap-2.5 sm:grid-cols-2">
-              {signals.map((signal, index) => (
-                <motion.div
-                  key={signal}
-                  initial={{ opacity: 0.55 }}
-                  animate={{ opacity: [0.55, 1, 0.55] }}
-                  transition={{ duration: 4.6, repeat: Infinity, delay: index * 0.35, ease: "easeInOut" }}
-                  className="flex items-center gap-3 rounded-[1.05rem] border border-white/[0.06] bg-white/[0.03] px-4 py-2.5"
-                >
-                  <span className="h-2 w-2 rounded-full bg-[#FF6A00] shadow-[0_0_12px_rgba(255,106,0,0.55)]" />
-                  <p className="text-[12.5px] leading-5 text-white/72">{signal}</p>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
         </motion.div>
       </div>
     </section>
