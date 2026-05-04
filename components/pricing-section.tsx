@@ -99,16 +99,17 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
         <article
           className="relative overflow-hidden rounded-3xl p-7 sm:p-8"
           style={{
-            background: "linear-gradient(160deg, rgba(28,28,38,0.92) 0%, rgba(14,14,20,0.96) 100%)",
+            background: "linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.72) 60%, rgba(0,0,0,0.88) 100%)",
             border: "1px solid rgba(255,106,0,0.55)",
             boxShadow: [
               "0 0 0 1px rgba(255,106,0,0.12)",
-              "0 2px 0 rgba(255,255,255,0.04) inset",
-              "0 32px 80px rgba(0,0,0,0.70)",
-              "0 8px 32px rgba(0,0,0,0.50)",
+              "0 2px 0 rgba(255,255,255,0.06) inset",
+              "0 32px 80px rgba(0,0,0,0.80)",
+              "0 8px 32px rgba(0,0,0,0.60)",
               "0 0 120px rgba(255,96,0,0.14)",
             ].join(", "),
-            backdropFilter: "blur(20px)",
+            backdropFilter: "blur(28px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(28px) saturate(1.4)",
           }}
         >
           {/* Grain overlay — mirror/glass texture */}
