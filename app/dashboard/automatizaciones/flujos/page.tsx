@@ -175,11 +175,12 @@ function OriginNode({
 /* ─── Flow Node ─── */
 function FlowNode({
   nodeId, pos, active, selected, dragging, waConnected,
-  onToggle, onCardClick, onMouseDown, selectedMsgId, msgMap,
+  onToggle, onCardClick, onMouseDown, onDelete, selectedMsgId, msgMap,
 }: {
   nodeId: string; pos: { x: number; y: number }; active: boolean; selected: boolean; dragging: boolean; waConnected: boolean;
   onToggle: () => void; onCardClick: (nid: string, msg: MsgData) => void;
   onMouseDown: (e: React.MouseEvent, id: string) => void;
+  onDelete: () => void;
   selectedMsgId?: string; msgMap: Record<string, string>;
 }) {
   const pal = COL_PAL[nodeId];
@@ -205,6 +206,15 @@ function FlowNode({
           </div>
         </div>
         <Toggle checked={active} onChange={onToggle} color={pal.color}/>
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          style={{ marginLeft: 6, width: 18, height: 18, borderRadius: 5, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: "rgba(255,255,255,0.3)", transition: "all 0.15s" }}
+          onMouseOver={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.18)"; (e.currentTarget as HTMLElement).style.color = "#FCA5A5"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(239,68,68,0.3)"; }}
+          onMouseOut={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.3)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.12)"; }}
+        >
+          <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
+        </button>
       </div>
 
       {/* WA not connected warning */}
@@ -457,6 +467,7 @@ export default function FlujosPage() {
   const [pan, setPan]       = useState({ x: 40, y: 20 });
   const [panActive, setPanActive]   = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [deletedNodes, setDeletedNodes] = useState<Set<string>>(new Set());
   const [loading, setLoading]       = useState(true);
 
   const outerRef       = useRef<HTMLDivElement>(null);
@@ -614,6 +625,28 @@ export default function FlujosPage() {
         <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.2)" }}>Scroll para zoom · Arrastrá los nodos</span>
       </div>
 
+      {/* WA Alert banners */}
+      {waStatus === "qr" && (
+        <Link href="/dashboard/ajustes?tab=conexiones" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 12, background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.30)", flexShrink: 0 }}>
+          <span style={{ fontSize: 16 }}>📱</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#FCD34D", display: "block" }}>WhatsApp no está activado</span>
+            <span style={{ fontSize: 11, color: "rgba(252,211,77,0.65)" }}>Escaneá el QR en Ajustes → Conexiones para empezar a enviar mensajes.</span>
+          </div>
+          <span style={{ fontSize: 11, color: "#FCD34D", fontWeight: 600, whiteSpace: "nowrap" }}>Activar →</span>
+        </Link>
+      )}
+      {waStatus !== "active" && waStatus !== "qr" && waStatus !== "unknown" && (
+        <Link href="/dashboard/ajustes?tab=conexiones" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 12, background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.30)", flexShrink: 0 }}>
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#FCA5A5", display: "block" }}>El celular se desconectó</span>
+            <span style={{ fontSize: 11, color: "rgba(252,165,165,0.65)" }}>Las automatizaciones están activas pero los mensajes no se envían. Reconectá WhatsApp.</span>
+          </div>
+          <span style={{ fontSize: 11, color: "#FCA5A5", fontWeight: 600, whiteSpace: "nowrap" }}>Reconectar →</span>
+        </Link>
+      )}
+
       {/* Canvas */}
       <div
         ref={outerRef}
@@ -632,7 +665,7 @@ export default function FlujosPage() {
             onChannelToggle={toggleChannel}
             onMouseDown={onNodeMouseDown}
           />
-          {Object.keys(COL_PAL).map(nodeId => (
+          {Object.keys(COL_PAL).filter(nodeId => !deletedNodes.has(nodeId)).map(nodeId => (
             <FlowNode key={nodeId}
               nodeId={nodeId}
               pos={positions[nodeId as keyof typeof positions]}
@@ -643,6 +676,7 @@ export default function FlujosPage() {
               onToggle={() => togglePhase(nodeId)}
               onCardClick={(nid, msg) => setSelected({ nodeId: nid, msg })}
               onMouseDown={onNodeMouseDown}
+              onDelete={() => setDeletedNodes(prev => new Set([...prev, nodeId]))}
               selectedMsgId={selected?.msg?.id}
               msgMap={msgMap}
             />
