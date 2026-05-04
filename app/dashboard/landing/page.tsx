@@ -17,6 +17,7 @@ type Benefit    = { icon: BenefitKey; title: string; desc: string };
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const fd = "var(--font-inter,'Inter',sans-serif)";
+const fm = "var(--font-mono,'JetBrains Mono',monospace)";
 const t1 = "#1A1D23"; const t2 = "#6B7280"; const t3 = "#9CA3AF";
 const card: React.CSSProperties = {
   background: "#FFFFFF",
