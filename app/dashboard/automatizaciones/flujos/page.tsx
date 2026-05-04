@@ -175,16 +175,31 @@ function OriginNode({
 /* ─── Flow Node ─── */
 function FlowNode({
   nodeId, pos, active, selected, dragging, waConnected,
-  onToggle, onCardClick, onMouseDown, onDelete, selectedMsgId, msgMap,
+  onToggle, onMouseDown, deletedMsgIds, onDeleteMsg, onSaveMsg, msgMap,
 }: {
   nodeId: string; pos: { x: number; y: number }; active: boolean; selected: boolean; dragging: boolean; waConnected: boolean;
-  onToggle: () => void; onCardClick: (nid: string, msg: MsgData) => void;
+  onToggle: () => void;
   onMouseDown: (e: React.MouseEvent, id: string) => void;
-  onDelete: () => void;
-  selectedMsgId?: string; msgMap: Record<string, string>;
+  deletedMsgIds: Set<string>;
+  onDeleteMsg: (msgId: string) => void;
+  onSaveMsg: (msgId: string, text: string) => void;
+  msgMap: Record<string, string>;
 }) {
   const pal = COL_PAL[nodeId];
-  const msgs = MESSAGES[nodeId];
+  const msgs = MESSAGES[nodeId].filter(m => !deletedMsgIds.has(m.id));
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  function startEdit(e: React.MouseEvent, msgId: string) {
+    e.stopPropagation();
+    setEditingId(msgId);
+    setEditText(msgMap[msgId] ?? "");
+  }
+
+  function commitEdit(msgId: string) {
+    onSaveMsg(msgId, editText);
+    setEditingId(null);
+  }
 
   return (
     <div
@@ -206,15 +221,6 @@ function FlowNode({
           </div>
         </div>
         <Toggle checked={active} onChange={onToggle} color={pal.color}/>
-        <button
-          onMouseDown={e => e.stopPropagation()}
-          onClick={e => { e.stopPropagation(); onDelete(); }}
-          style={{ marginLeft: 6, width: 18, height: 18, borderRadius: 5, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: "rgba(255,255,255,0.3)", transition: "all 0.15s" }}
-          onMouseOver={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.18)"; (e.currentTarget as HTMLElement).style.color = "#FCA5A5"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(239,68,68,0.3)"; }}
-          onMouseOut={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.3)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.12)"; }}
-        >
-          <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
-        </button>
       </div>
 
       {/* WA not connected warning */}
@@ -227,26 +233,52 @@ function FlowNode({
 
       <div style={{ padding: "8px 10px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
         {msgs.map(msg => {
-          const isSel = selectedMsgId === msg.id;
-          const pct = Math.round(msg.read / msg.sent * 100);
+          const isEditing = editingId === msg.id;
+          const currentText = msgMap[msg.id] ?? msg.msg;
           const hasDbColumn = !!MSG_DB_KEY[msg.id];
           return (
             <div key={msg.id}
-              onClick={e => { e.stopPropagation(); active && onCardClick(nodeId, msg); }}
-              style={{ borderRadius: 10, padding: "8px 10px", cursor: active ? "pointer" : "default", background: isSel ? `${pal.color}22` : "rgba(255,255,255,0.04)", border: `1px solid ${isSel ? pal.color + "66" : "rgba(255,255,255,0.07)"}`, transition: "all 0.18s", opacity: active ? 1 : 0.4 }}
+              onMouseDown={e => e.stopPropagation()}
+              style={{ borderRadius: 10, padding: "8px 10px", background: isEditing ? `${pal.color}14` : "rgba(255,255,255,0.04)", border: `1px solid ${isEditing ? pal.color + "55" : "rgba(255,255,255,0.07)"}`, transition: "all 0.18s", opacity: active ? 1 : 0.4 }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
+              {/* Header row: icon + title + X */}
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
                 <span style={{ fontSize: 13 }}>{msg.icon}</span>
                 <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.8)", flex: 1, lineHeight: 1.3 }}>{msg.title}</span>
                 {hasDbColumn && <span style={{ fontSize: 8, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 4, padding: "1px 4px" }}>ACTIVO</span>}
-                <IcoWA c={active ? "#25D366" : "rgba(255,255,255,0.2)"} s={11}/>
+                {/* X button */}
+                <button
+                  onClick={e => { e.stopPropagation(); onDeleteMsg(msg.id); }}
+                  title="Eliminar mensaje del flujo"
+                  style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: "rgba(255,255,255,0.25)", transition: "all 0.15s" }}
+                  onMouseOver={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(239,68,68,0.20)"; el.style.color = "#FCA5A5"; el.style.borderColor = "rgba(239,68,68,0.35)"; }}
+                  onMouseOut={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.color = "rgba(255,255,255,0.25)"; el.style.borderColor = "rgba(255,255,255,0.10)"; }}
+                >
+                  <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
+                </button>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <div style={{ flex: 1, height: 2, borderRadius: 1, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${pct}%`, background: pal.color, borderRadius: 1 }}/>
+
+              {/* Editable message text */}
+              {isEditing ? (
+                <textarea
+                  autoFocus
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  onBlur={() => commitEdit(msg.id)}
+                  onKeyDown={e => { if (e.key === "Escape") setEditingId(null); }}
+                  style={{ width: "100%", minHeight: 80, borderRadius: 7, border: `1px solid ${pal.color}55`, background: "rgba(0,0,0,0.3)", color: "#f1f5f9", fontSize: 11, lineHeight: 1.55, padding: "7px 8px", resize: "vertical", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                />
+              ) : (
+                <div
+                  onClick={e => { e.stopPropagation(); if (active) startEdit(e, msg.id); }}
+                  title="Clic para editar"
+                  style={{ fontSize: 10.5, color: "rgba(255,255,255,0.38)", lineHeight: 1.55, cursor: active ? "text" : "default", padding: "4px 6px", borderRadius: 6, border: "1px solid transparent", transition: "all 0.15s", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 52, overflow: "hidden" }}
+                  onMouseOver={e => { if (active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; } }}
+                  onMouseOut={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+                >
+                  {currentText.length > 100 ? currentText.slice(0, 100) + "…" : currentText}
                 </div>
-                <span style={{ fontSize: 9, color: pal.color, fontWeight: 700, whiteSpace: "nowrap" }}>{msg.sent >= 1000 ? `${(msg.sent / 1000).toFixed(1)}k` : msg.sent} · {pct}%</span>
-              </div>
+              )}
             </div>
           );
         })}
@@ -468,6 +500,7 @@ export default function FlujosPage() {
   const [panActive, setPanActive]   = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [deletedNodes, setDeletedNodes] = useState<Set<string>>(new Set());
+  const [deletedMsgs, setDeletedMsgs] = useState<Set<string>>(new Set());
   const [loading, setLoading]       = useState(true);
 
   const outerRef       = useRef<HTMLDivElement>(null);
@@ -674,10 +707,14 @@ export default function FlujosPage() {
               dragging={draggingId === nodeId}
               waConnected={waConnected}
               onToggle={() => togglePhase(nodeId)}
-              onCardClick={(nid, msg) => setSelected({ nodeId: nid, msg })}
               onMouseDown={onNodeMouseDown}
-              onDelete={() => setDeletedNodes(prev => new Set([...prev, nodeId]))}
-              selectedMsgId={selected?.msg?.id}
+              deletedMsgIds={deletedMsgs}
+              onDeleteMsg={msgId => setDeletedMsgs(prev => new Set([...prev, msgId]))}
+              onSaveMsg={(msgId, text) => {
+                setMsgMap(prev => ({ ...prev, [msgId]: text }));
+                const dbCol = MSG_DB_KEY[msgId];
+                if (dbCol && gymId) supabase.from("gym_settings").update({ [dbCol]: text }).eq("gym_id", gymId).then(() => {});
+              }}
               msgMap={msgMap}
             />
           ))}
