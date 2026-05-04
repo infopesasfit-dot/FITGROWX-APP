@@ -8,7 +8,7 @@ import { LogosSection } from "@/components/logos-section";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 const BenefitsSection = dynamic(() => import("@/components/benefits-section").then((m) => m.BenefitsSection));
-const DemoSection = dynamic(() => import("@/components/demo-section").then((m) => m.DemoSection));
+const VideoSection = dynamic(() => import("@/components/video-section").then((m) => m.VideoSection));
 const PricingSection = dynamic(() => import("@/components/pricing-section").then((m) => m.PricingSection));
 const LandingWhatsApp = dynamic(() => import("@/components/landing-whatsapp").then((m) => m.LandingWhatsApp));
 const CookieBanner = dynamic(() => import("@/components/cookie-banner").then((m) => m.CookieBanner));
@@ -60,17 +60,8 @@ export default function Home() {
           <BenefitsSection />
         </div>
 
-        {/* SECCIÓN DEMO */}
-        <div className="relative z-20 pt-12 pb-8 lg:pt-24 lg:pb-16">
-          {/* Luz naranja focal */}
-          <div
-            className="pointer-events-none absolute top-[10%] left-1/2 -translate-x-1/2 h-[500px] w-[600px] opacity-[0.13] -z-10"
-            style={{
-              background: "radial-gradient(circle at center, #FF6A00 0%, transparent 70%)",
-              filter: "blur(100px)",
-            }}
-          />
-          <DemoSection />
+        <div className="relative z-20">
+          <VideoSection />
         </div>
 
         {/* SECCIÓN PLANES (MANTENIDA) */}
