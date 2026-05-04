@@ -1,10 +1,62 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { MessageCircleMore, CreditCard, ScanLine, LayoutDashboard } from "lucide-react";
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const FM = "var(--font-mono,'JetBrains Mono',monospace)";
 
+/* ── Count-up hook ──────────────────────────────────────────────── */
+function useCountUp(target: number, duration = 1400) {
+  const [val, setVal] = useState(0);
+  const fired = useRef(false);
+  const elRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || fired.current) return;
+        fired.current = true;
+        const t0 = performance.now();
+        const tick = (now: number) => {
+          const p = Math.min((now - t0) / duration, 1);
+          const eased = 1 - Math.pow(1 - p, 4);
+          setVal(Math.round(eased * target));
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.5 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [target, duration]);
+
+  return { val, elRef };
+}
+
+/* ── Stat with count-up ─────────────────────────────────────────── */
+function Stat({ value, prefix = "", suffix = "", label }: {
+  value: number; prefix?: string; suffix?: string; label: string;
+}) {
+  const { val, elRef } = useCountUp(value);
+  return (
+    <div ref={elRef} className="flex flex-col items-center gap-2 text-center">
+      <p
+        className="text-[3.2rem] sm:text-[4rem] font-extralight tracking-[-0.06em] text-white leading-none"
+        style={{ fontFamily: FM }}
+      >
+        {prefix}{val}{suffix}
+      </p>
+      <p className="text-[12px] font-medium uppercase tracking-[0.18em] text-white/35">{label}</p>
+    </div>
+  );
+}
+
+/* ── Bento cards ────────────────────────────────────────────────── */
 const stagger: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
@@ -14,7 +66,7 @@ const cardV: Variants = {
   visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.72, ease: EASE } },
 };
 
-const base: React.CSSProperties = {
+const glass: React.CSSProperties = {
   background: "rgba(255,255,255,0.03)",
   border: "1px solid rgba(255,255,255,0.07)",
   backdropFilter: "blur(20px)",
@@ -37,8 +89,6 @@ const cells = [
     eyebrow: "Panel de control",
     headline: "Todo\nvisible.",
     sub: "Alumnos, cobros y prospectos en una sola superficie.",
-    big: "142",
-    bigLabel: "alumnos activos",
   },
   {
     span: "md:col-span-1",
@@ -52,28 +102,51 @@ const cells = [
     span: "md:col-span-1",
     icon: ScanLine,
     iconColor: "#FF6A00",
-    eyebrow: "Check-in",
+    eyebrow: "Check-in & Clases",
     headline: "Operación\nsin papel.",
     sub: "QR, asistencia y clases en un solo flujo.",
   },
 ];
 
+/* ── Main ───────────────────────────────────────────────────────── */
 export function BenefitsSection() {
   return (
     <section id="beneficios" className="scroll-mt-24 relative py-20 lg:py-32">
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
 
-        <motion.h2
-          className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.08] mb-12 lg:mb-16 max-w-lg"
-          initial={{ opacity: 0, y: 18 }}
+        {/* Header — same style as pricing section */}
+        <motion.div
+          className="mx-auto max-w-3xl text-center mb-16 lg:mb-20"
+          initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.5 }}
           transition={{ duration: 0.75, ease: EASE }}
         >
-          Un sistema que trabaja{" "}
-          <span className="text-white/35">mientras vos entrenás.</span>
-        </motion.h2>
+          <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-5">Producto</h2>
+          <p className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.08]">
+            Resultados reales.{" "}
+            <span className="text-white/35">No solo tecnología.</span>
+          </p>
+        </motion.div>
 
+        {/* Count-up stats row */}
+        <motion.div
+          className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16 lg:mb-20"
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.8, ease: EASE, delay: 0.1 }}
+        >
+          <Stat value={98}  suffix="%" label="Retención" />
+          <Stat value={24}  suffix="/7"  label="Tu negocio activo" />
+          <Stat value={200} prefix="+" label="Alumnos migrados en 1 clic" />
+          <Stat value={0}   suffix="%" label="Fricción en cobros" />
+        </motion.div>
+
+        {/* Divider */}
+        <div className="h-px bg-white/[0.05] mb-16 lg:mb-20" />
+
+        {/* Bento grid */}
         <motion.div
           className="grid grid-cols-1 md:grid-cols-3 gap-3"
           variants={stagger}
@@ -85,41 +158,25 @@ export function BenefitsSection() {
             <motion.article
               key={c.eyebrow}
               variants={cardV}
-              className={`${c.span} rounded-[1.6rem] p-7 lg:p-8 flex flex-col justify-between min-h-[220px]`}
-              style={base}
+              className={`${c.span} rounded-[1.6rem] p-7 lg:p-8 flex flex-col justify-between min-h-[200px]`}
+              style={glass}
             >
-              {/* Top */}
               <div>
-                <div className="flex items-center gap-2 mb-6">
-                  <c.icon size={15} style={{ color: c.iconColor }} strokeWidth={1.8} />
+                <div className="flex items-center gap-2 mb-5">
+                  <c.icon size={14} style={{ color: c.iconColor }} strokeWidth={1.8} />
                   <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">
                     {c.eyebrow}
                   </span>
                 </div>
-
-                <h3
-                  className="text-[1.55rem] sm:text-[1.75rem] font-light tracking-[-0.04em] text-white leading-[1.1] whitespace-pre-line"
-                >
+                <h3 className="text-[1.5rem] font-light tracking-[-0.04em] text-white leading-[1.1] whitespace-pre-line">
                   {c.headline}
                 </h3>
               </div>
-
-              {/* Bottom */}
-              <div className="mt-6">
-                {c.big && (
-                  <p className="text-[3.5rem] font-extralight tracking-[-0.06em] text-white leading-none mb-1"
-                    style={{ fontFamily: "var(--font-mono,'JetBrains Mono',monospace)" }}>
-                    {c.big}
-                    <span className="text-[1rem] text-white/25 ml-2 font-light tracking-normal" style={{ fontFamily: "inherit" }}>
-                      {c.bigLabel}
-                    </span>
-                  </p>
-                )}
-                <p className="text-[13px] leading-relaxed text-white/35">{c.sub}</p>
-              </div>
+              <p className="mt-5 text-[13px] leading-relaxed text-white/30">{c.sub}</p>
             </motion.article>
           ))}
         </motion.div>
+
       </div>
     </section>
   );

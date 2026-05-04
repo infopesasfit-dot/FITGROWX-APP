@@ -8,7 +8,6 @@ import { LogosSection } from "@/components/logos-section";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 const BenefitsSection = dynamic(() => import("@/components/benefits-section").then((m) => m.BenefitsSection));
-const OutcomesSection = dynamic(() => import("@/components/outcomes-section").then((m) => m.OutcomesSection));
 const DemoSection = dynamic(() => import("@/components/demo-section").then((m) => m.DemoSection));
 const PricingSection = dynamic(() => import("@/components/pricing-section").then((m) => m.PricingSection));
 const LandingWhatsApp = dynamic(() => import("@/components/landing-whatsapp").then((m) => m.LandingWhatsApp));
@@ -59,10 +58,6 @@ export default function Home() {
             }}
           />
           <BenefitsSection />
-        </div>
-
-        <div className="relative z-10 overflow-hidden">
-          <OutcomesSection />
         </div>
 
         {/* SECCIÓN DEMO */}
