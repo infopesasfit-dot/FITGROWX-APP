@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, type Variants } from "framer-motion";
-import { MessageCircleMore, CreditCard, ScanLine, LayoutDashboard } from "lucide-react";
+import { motion } from "framer-motion";
 
 const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const FM = "var(--font-mono,'JetBrains Mono',monospace)";
@@ -56,57 +55,6 @@ function Stat({ value, prefix = "", suffix = "", label }: {
   );
 }
 
-/* ── Bento cards ────────────────────────────────────────────────── */
-const stagger: Variants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
-};
-const cardV: Variants = {
-  hidden: { opacity: 0, y: 20, filter: "blur(6px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.72, ease: EASE } },
-};
-
-const glass: React.CSSProperties = {
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.07)",
-  backdropFilter: "blur(20px)",
-  WebkitBackdropFilter: "blur(20px)",
-};
-
-const cells = [
-  {
-    span: "md:col-span-2",
-    icon: MessageCircleMore,
-    iconColor: "#FF6A00",
-    eyebrow: "WhatsApp Automation",
-    headline: "Cada consulta\nse responde sola.",
-    sub: "Los leads entran, avanzan y cierran sin que muevas un dedo.",
-  },
-  {
-    span: "md:col-span-1 md:row-span-2",
-    icon: LayoutDashboard,
-    iconColor: "#818CF8",
-    eyebrow: "Panel de control",
-    headline: "Todo\nvisible.",
-    sub: "Alumnos, cobros y prospectos en una sola superficie.",
-  },
-  {
-    span: "md:col-span-1",
-    icon: CreditCard,
-    iconColor: "#34D399",
-    eyebrow: "Cobros",
-    headline: "Cobrás sin\npedir por favor.",
-    sub: "Vencimientos y recordatorios automáticos.",
-  },
-  {
-    span: "md:col-span-1",
-    icon: ScanLine,
-    iconColor: "#FF6A00",
-    eyebrow: "Check-in & Clases",
-    headline: "Operación\nsin papel.",
-    sub: "QR, asistencia y clases en un solo flujo.",
-  },
-];
 
 /* ── Main ───────────────────────────────────────────────────────── */
 export function BenefitsSection() {
@@ -143,39 +91,6 @@ export function BenefitsSection() {
           <Stat value={0}   suffix="%" label="Fricción en cobros" />
         </motion.div>
 
-        {/* Divider */}
-        <div className="h-px bg-white/[0.05] mb-16 lg:mb-20" />
-
-        {/* Bento grid */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-3"
-          variants={stagger}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.12 }}
-        >
-          {cells.map((c) => (
-            <motion.article
-              key={c.eyebrow}
-              variants={cardV}
-              className={`${c.span} rounded-[1.6rem] p-7 lg:p-8 flex flex-col justify-between min-h-[200px]`}
-              style={glass}
-            >
-              <div>
-                <div className="flex items-center gap-2 mb-5">
-                  <c.icon size={14} style={{ color: c.iconColor }} strokeWidth={1.8} />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/30">
-                    {c.eyebrow}
-                  </span>
-                </div>
-                <h3 className="text-[1.5rem] font-light tracking-[-0.04em] text-white leading-[1.1] whitespace-pre-line">
-                  {c.headline}
-                </h3>
-              </div>
-              <p className="mt-5 text-[13px] leading-relaxed text-white/30">{c.sub}</p>
-            </motion.article>
-          ))}
-        </motion.div>
 
       </div>
     </section>
