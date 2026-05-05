@@ -16,5 +16,8 @@ export async function GET(req: NextRequest) {
 
   if (!data) return NextResponse.json({ error: "Gimnasio no encontrado." }, { status: 404 });
 
-  return NextResponse.json({ gym_name: data.gym_name ?? null, logo_url: data.logo_url ?? null });
+  return NextResponse.json(
+    { gym_name: data.gym_name ?? null, logo_url: data.logo_url ?? null },
+    { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } },
+  );
 }

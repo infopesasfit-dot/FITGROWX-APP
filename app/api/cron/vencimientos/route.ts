@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,10 +18,7 @@ function normalizeArgPhone(raw: string): string {
 }
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.WA_MOTOR_API_KEY) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
+  if (!isCronAuthorized(req)) return cronUnauthorized();
 
   const motorUrl = process.env.WA_MOTOR_URL;
   if (!motorUrl) return NextResponse.json({ error: "Motor WA no configurado." }, { status: 500 });

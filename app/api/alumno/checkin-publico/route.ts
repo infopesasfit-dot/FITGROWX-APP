@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPlanNombre } from "@/lib/supabase-relations";
 import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
 type TokenRow  = { alumno_id: string; gym_id: string; expires_at: string };
 type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string | null; planes: unknown; next_expiration_date: string | null };
 type ExistingRow = { id: string; hora: string | null };
 
 export async function POST(req: NextRequest) {
+  const limit = applyRateLimit({ namespace: "checkin:ip", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 20 });
+  if (!limit.allowed) return NextResponse.json({ ok: false, error: "Demasiados intentos." }, { status: 429 });
+
   const { gym_id } = await req.json();
   if (!gym_id) return NextResponse.json({ ok: false, error: "gym_id requerido." }, { status: 400 });
 

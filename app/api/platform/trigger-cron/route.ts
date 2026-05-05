@@ -18,30 +18,33 @@ export async function POST(req: NextRequest) {
 
   let res: Response;
 
+  const waHeader  = { Authorization: `Bearer ${waSecret}` };
+  const cronHeader = { Authorization: `Bearer ${cronSecret}` };
+
   switch (cron) {
     case "vencimientos":
-      res = await fetch(`${appUrl}/api/cron/vencimientos?secret=${encodeURIComponent(waSecret)}`);
+      res = await fetch(`${appUrl}/api/cron/vencimientos`, { headers: waHeader });
       break;
     case "ausentes":
-      res = await fetch(`${appUrl}/api/cron/ausentes?secret=${encodeURIComponent(waSecret)}`);
+      res = await fetch(`${appUrl}/api/cron/ausentes`, { headers: waHeader });
       break;
     case "trial-check":
-      res = await fetch(`${appUrl}/api/cron/trial-check?secret=${encodeURIComponent(waSecret)}`);
+      res = await fetch(`${appUrl}/api/cron/trial-check`, { headers: waHeader });
       break;
     case "monthly-report":
-      res = await fetch(`${appUrl}/api/cron/monthly-dashboard-report?secret=${encodeURIComponent(cronSecret)}`);
+      res = await fetch(`${appUrl}/api/cron/monthly-dashboard-report`, { headers: cronHeader });
       break;
     case "wa-keepalive":
-      res = await fetch(`${appUrl}/api/cron/wa-keepalive?secret=${encodeURIComponent(waSecret)}`);
+      res = await fetch(`${appUrl}/api/cron/wa-keepalive`, { headers: waHeader });
       break;
     case "clase-gratis-followup":
-      res = await fetch(`${appUrl}/api/cron/clase-gratis-followup?secret=${encodeURIComponent(waSecret)}`);
+      res = await fetch(`${appUrl}/api/cron/clase-gratis-followup`, { headers: waHeader });
       break;
     case "ausentes-trigger":
       if (!gym_id) return NextResponse.json({ error: "gym_id requerido para este cron." }, { status: 400 });
       res = await fetch(`${appUrl}/api/cron/ausentes-trigger`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...waHeader },
         body: JSON.stringify({ gym_id }),
       });
       break;

@@ -1,4 +1,15 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+export function isCronAuthorized(req: NextRequest): boolean {
+  const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
+  const expected1 = process.env.WA_MOTOR_API_KEY;
+  const expected2 = process.env.CRON_SECRET ?? process.env.FITGROWX_ADMIN_SECRET;
+  return Boolean(bearer && (bearer === expected1 || bearer === expected2));
+}
+
+export function cronUnauthorized() {
+  return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+}
 
 type RateLimitEntry = {
   count: number;

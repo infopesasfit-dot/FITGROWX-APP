@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
 
 const ADMIN_EMAIL = "elianafrancoanahi@gmail.com";
@@ -19,10 +19,7 @@ export async function POST(req: NextRequest) {
 
   const resend = new Resend(process.env.RESEND_API_KEY!);
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  const supabase = getSupabaseAdminClient();
 
   // Fetch all gym owners from auth.users (joined via profiles → gyms)
   const { data: profiles, error: profilesErr } = await supabase
@@ -98,10 +95,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  const supabase = getSupabaseAdminClient();
 
   const { count } = await supabase
     .from("profiles")

@@ -334,10 +334,11 @@ function Edges({ positions, activeMap }: { positions: typeof INIT_POS; activeMap
 
 /* ─── Side Panel ─── */
 function SidePanel({
-  nodeId, msg, open, onClose, gymId, msgMap, onSave,
+  nodeId, msg, open, onClose, gymId, msgMap, onSave, isMobile,
 }: {
   nodeId: string | null; msg: MsgData | null; open: boolean; onClose: () => void;
   gymId: string | null; msgMap: Record<string, string>; onSave: (id: string, text: string) => void;
+  isMobile?: boolean;
 }) {
   const pal = nodeId ? COL_PAL[nodeId] : null;
   const [text, setText] = useState("");
@@ -383,7 +384,11 @@ function SidePanel({
   const sec: React.CSSProperties = { borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "13px 20px" };
 
   return (
-    <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 370, background: "#1e1e36", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "-16px 0 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", zIndex: 300 }}>
+    <div style={isMobile
+      ? { position: "fixed", bottom: 0, left: 0, right: 0, maxHeight: "90dvh", background: "#1e1e36", borderTop: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 -16px 48px rgba(0,0,0,0.6)", display: "flex", flexDirection: "column", transform: open ? "translateY(0)" : "translateY(110%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", zIndex: 600, borderRadius: "20px 20px 0 0" }
+      : { position: "fixed", right: 0, top: 0, bottom: 0, width: 370, background: "#1e1e36", borderLeft: "1px solid rgba(255,255,255,0.08)", boxShadow: "-16px 0 48px rgba(0,0,0,0.5)", display: "flex", flexDirection: "column", transform: open ? "translateX(0)" : "translateX(100%)", transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)", zIndex: 500 }
+    }>
+      {isMobile && <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "12px auto 0", flexShrink: 0 }}/>}
       <div style={{ ...sec, flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
@@ -483,6 +488,116 @@ function SidePanel({
   );
 }
 
+/* ─── Mobile Origin Card ─── */
+function MobileOriginCard({
+  channelActive, onChannelToggle,
+}: {
+  channelActive: Record<string, boolean>;
+  onChannelToggle: (id: string) => void;
+}) {
+  const activeCount = Object.values(channelActive).filter(Boolean).length;
+  return (
+    <div style={{ borderRadius: 16, border: "1.5px solid rgba(255,107,0,0.25)", background: "linear-gradient(135deg,#1f1f3a,#2a2a4a)", overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid rgba(255,255,255,0.07)", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ width: 42, height: 42, borderRadius: 11, background: "linear-gradient(135deg,#FF6B00,#e85d00)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 3px 12px rgba(255,107,0,0.45)" }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.01em" }}>Origen de Contactos</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{activeCount} de 4 canales activos</div>
+        </div>
+      </div>
+      <div style={{ padding: "10px 12px 12px", display: "flex", flexDirection: "column", gap: 7 }}>
+        {CHANNELS.map(ch => {
+          const on = channelActive[ch.id];
+          const inner = (
+            <div
+              key={ch.id}
+              onClick={() => { if (!ch.readonly) onChannelToggle(ch.id); }}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 13px", borderRadius: 11, cursor: ch.readonly ? "default" : "pointer", background: on ? `${ch.color}18` : "rgba(255,255,255,0.04)", border: `1px solid ${on ? ch.color + "44" : "rgba(255,255,255,0.07)"}`, minHeight: 48 }}
+            >
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{ch.icon}</span>
+              <span style={{ fontSize: 14, fontWeight: 600, color: on ? ch.color : "rgba(255,255,255,0.35)", flex: 1 }}>{ch.label}</span>
+              {ch.readonly && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", fontStyle: "italic" }}>auto</span>}
+              <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 8, background: on ? ch.color : "rgba(255,255,255,0.08)", color: on ? "#fff" : "rgba(255,255,255,0.3)", flexShrink: 0 }}>{on ? "ON" : "OFF"}</span>
+            </div>
+          );
+          return ch.readonly && ch.configHref
+            ? <Link key={ch.id} href={ch.configHref} style={{ textDecoration: "none", display: "block" }}>{inner}</Link>
+            : <div key={ch.id}>{inner}</div>;
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Mobile Flow Card ─── */
+function MobileFlowCard({
+  nodeId, active, waConnected, onToggle, msgMap, onSelectMsg,
+}: {
+  nodeId: string; active: boolean; waConnected: boolean;
+  onToggle: () => void;
+  msgMap: Record<string, string>;
+  onSelectMsg: (nodeId: string, msg: MsgData) => void;
+}) {
+  const pal = COL_PAL[nodeId];
+  const msgs = MESSAGES[nodeId];
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div style={{ borderRadius: 16, background: "#242442", border: `1.5px solid ${active ? pal.color + "44" : "rgba(255,255,255,0.07)"}`, overflow: "hidden" }}>
+      <div style={{ height: 3, background: active ? pal.color : "rgba(255,255,255,0.06)" }}/>
+      <div
+        onClick={() => setExpanded(e => !e)}
+        style={{ padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", minHeight: 64 }}
+      >
+        <div style={{ width: 44, height: 44, borderRadius: 11, background: active ? `${pal.color}28` : "rgba(255,255,255,0.06)", border: `1px solid ${active ? pal.color + "44" : "rgba(255,255,255,0.08)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0 }}>
+          {pal.emoji}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: active ? "#f1f5f9" : "rgba(255,255,255,0.35)" }}>{pal.label}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}>
+            <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: active ? pal.color : "rgba(255,255,255,0.15)" }}/>
+            <span style={{ fontSize: 11, color: active ? pal.color : "rgba(255,255,255,0.2)", fontWeight: 600 }}>{active ? "ACTIVO" : "PAUSADO"}</span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>· {msgs.length} mensajes</span>
+          </div>
+        </div>
+        <div onClick={e => { e.stopPropagation(); onToggle(); }} style={{ padding: 10, margin: -6, flexShrink: 0 }}>
+          <Toggle checked={active} onChange={onToggle} color={pal.color}/>
+        </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" strokeLinecap="round" style={{ transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      {active && !waConnected && (
+        <div style={{ margin: "0 12px 8px", padding: "8px 12px", borderRadius: 9, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 13 }}>⚠️</span>
+          <span style={{ fontSize: 12, color: "#FCA5A5", fontWeight: 500 }}>WA desconectado — mensajes no se enviarán</span>
+        </div>
+      )}
+      {expanded && (
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: "10px 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {msgs.map(msg => (
+            <div
+              key={msg.id}
+              onClick={() => onSelectMsg(nodeId, msg)}
+              style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "flex-start", gap: 12, cursor: "pointer", opacity: active ? 1 : 0.5, minHeight: 56 }}
+            >
+              <span style={{ fontSize: 20, flexShrink: 0, marginTop: 1 }}>{msg.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>{msg.title}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 3, lineHeight: 1.4 }}>{msg.trigger}</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={`${pal.color}88`} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 3 }}>
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Page ─── */
 export default function FlujosPage() {
   const [gymId, setGymId] = useState<string | null>(null);
@@ -502,6 +617,7 @@ export default function FlujosPage() {
   const [deletedNodes, setDeletedNodes] = useState<Set<string>>(new Set());
   const [deletedMsgs, setDeletedMsgs] = useState<Set<string>>(new Set());
   const [loading, setLoading]       = useState(true);
+  const [isMobile, setIsMobile]     = useState(false);
 
   const outerRef       = useRef<HTMLDivElement>(null);
   const isPanning      = useRef(false);
@@ -552,6 +668,13 @@ export default function FlujosPage() {
       }
       setLoading(false);
     })();
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   /* ── Persist phase toggle ── */
@@ -655,7 +778,7 @@ export default function FlujosPage() {
         <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", padding: "5px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)" }}>
           {loading ? "Cargando…" : `${totalActive}/4 fases activas`}
         </span>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.2)" }}>Scroll para zoom · Arrastrá los nodos</span>
+        <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.2)" }}>{isMobile ? "Tocá para expandir cada flujo" : "Scroll para zoom · Arrastrá los nodos"}</span>
       </div>
 
       {/* WA Alert banners */}
@@ -680,68 +803,94 @@ export default function FlujosPage() {
         </Link>
       )}
 
-      {/* Canvas */}
-      <div
-        ref={outerRef}
-        onMouseDown={onCanvasMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
-        onClick={() => setSelected(null)}
-        style={{ flex: 1, position: "relative", borderRadius: 16, overflow: "hidden", minHeight: 0, backgroundColor: "#1a1a2e", backgroundImage: "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)", backgroundSize: "28px 28px", cursor: panActive ? "grabbing" : "grab", userSelect: "none", boxShadow: "0 0 0 1px rgba(255,255,255,0.05)" }}
-      >
-        <div style={{ position: "absolute", inset: 0, transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
-          <Edges positions={positions} activeMap={activeMap}/>
-          <OriginNode
-            pos={positions.origin}
-            channelActive={channelActive}
-            onChannelToggle={toggleChannel}
-            onMouseDown={onNodeMouseDown}
-          />
-          {Object.keys(COL_PAL).filter(nodeId => !deletedNodes.has(nodeId)).map(nodeId => (
-            <FlowNode key={nodeId}
+      {/* Mobile list / Desktop canvas */}
+      {isMobile ? (
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingBottom: 32 }}>
+          <MobileOriginCard channelActive={channelActive} onChannelToggle={toggleChannel} />
+          {Object.keys(COL_PAL).filter(nid => !deletedNodes.has(nid)).map(nodeId => (
+            <MobileFlowCard key={nodeId}
               nodeId={nodeId}
-              pos={positions[nodeId as keyof typeof positions]}
               active={activeMap[nodeId]}
-              selected={selected?.nodeId === nodeId}
-              dragging={draggingId === nodeId}
               waConnected={waConnected}
               onToggle={() => togglePhase(nodeId)}
-              onMouseDown={onNodeMouseDown}
-              deletedMsgIds={deletedMsgs}
-              onDeleteMsg={msgId => setDeletedMsgs(prev => new Set([...prev, msgId]))}
-              onSaveMsg={(msgId, text) => {
-                setMsgMap(prev => ({ ...prev, [msgId]: text }));
-                const dbCol = MSG_DB_KEY[msgId];
-                if (dbCol && gymId) supabase.from("gym_settings").update({ [dbCol]: text }).eq("gym_id", gymId).then(() => {});
-              }}
               msgMap={msgMap}
+              onSelectMsg={(nid, msg) => setSelected({ nodeId: nid, msg })}
             />
           ))}
         </div>
+      ) : (
+        <div
+          ref={outerRef}
+          onMouseDown={onCanvasMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseUp}
+          onClick={() => setSelected(null)}
+          style={{ flex: 1, position: "relative", borderRadius: 16, overflow: "hidden", minHeight: 0, backgroundColor: "#1a1a2e", backgroundImage: "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)", backgroundSize: "28px 28px", cursor: panActive ? "grabbing" : "grab", userSelect: "none", boxShadow: "0 0 0 1px rgba(255,255,255,0.05)" }}
+        >
+          <div style={{ position: "absolute", inset: 0, transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
+            <Edges positions={positions} activeMap={activeMap}/>
+            <OriginNode
+              pos={positions.origin}
+              channelActive={channelActive}
+              onChannelToggle={toggleChannel}
+              onMouseDown={onNodeMouseDown}
+            />
+            {Object.keys(COL_PAL).filter(nodeId => !deletedNodes.has(nodeId)).map(nodeId => (
+              <FlowNode key={nodeId}
+                nodeId={nodeId}
+                pos={positions[nodeId as keyof typeof positions]}
+                active={activeMap[nodeId]}
+                selected={selected?.nodeId === nodeId}
+                dragging={draggingId === nodeId}
+                waConnected={waConnected}
+                onToggle={() => togglePhase(nodeId)}
+                onMouseDown={onNodeMouseDown}
+                deletedMsgIds={deletedMsgs}
+                onDeleteMsg={msgId => setDeletedMsgs(prev => new Set([...prev, msgId]))}
+                onSaveMsg={(msgId, text) => {
+                  setMsgMap(prev => ({ ...prev, [msgId]: text }));
+                  const dbCol = MSG_DB_KEY[msgId];
+                  if (dbCol && gymId) supabase.from("gym_settings").update({ [dbCol]: text }).eq("gym_id", gymId).then(() => {});
+                }}
+                msgMap={msgMap}
+              />
+            ))}
+          </div>
 
-        {/* Zoom controls */}
-        <div style={{ position: "absolute", bottom: 16, right: 16, zIndex: 50, display: "flex", flexDirection: "column", gap: 5 }}>
-          {[{ label: "+", action: () => handleZoomBtn(0.15) }, { label: `${Math.round(zoom * 100)}%`, action: undefined, pct: true }, { label: "−", action: () => handleZoomBtn(-0.15) }].map((item, i) =>
-            item.pct
-              ? <div key={i} style={{ width: 32, fontSize: 9, fontWeight: 700, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>{item.label}</div>
-              : <div key={i} onClick={item.action} style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "#242442", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 15, fontWeight: 700, boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{item.label}</div>
-          )}
-          <div onClick={() => { setZoom(0.85); setPan({ x: 40, y: 20 }); }} style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "#242442", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          {/* Zoom controls */}
+          <div style={{ position: "absolute", bottom: 16, right: 16, zIndex: 50, display: "flex", flexDirection: "column", gap: 5 }}>
+            {[{ label: "+", action: () => handleZoomBtn(0.15) }, { label: `${Math.round(zoom * 100)}%`, action: undefined, pct: true }, { label: "−", action: () => handleZoomBtn(-0.15) }].map((item, i) =>
+              item.pct
+                ? <div key={i} style={{ width: 32, fontSize: 9, fontWeight: 700, textAlign: "center", color: "rgba(255,255,255,0.3)" }}>{item.label}</div>
+                : <div key={i} onClick={item.action} style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "#242442", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 15, fontWeight: 700, boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>{item.label}</div>
+            )}
+            <div onClick={() => { setZoom(0.85); setPan({ x: 40, y: 20 }); }} style={{ width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "#242442", color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.4)" }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
           </div>
         </div>
+      )}
 
-        <SidePanel
-          nodeId={selected?.nodeId ?? null}
-          msg={selected?.msg ?? null}
-          open={!!selected}
-          onClose={() => setSelected(null)}
-          gymId={gymId}
-          msgMap={msgMap}
-          onSave={(id, text) => setMsgMap(m => ({ ...m, [id]: text }))}
+      {/* Backdrop for bottom sheet on mobile */}
+      {isMobile && selected && (
+        <div
+          onClick={() => setSelected(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 599, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)" }}
         />
-      </div>
+      )}
+
+      {/* Side panel / bottom sheet — outside canvas so it's never clipped */}
+      <SidePanel
+        nodeId={selected?.nodeId ?? null}
+        msg={selected?.msg ?? null}
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        gymId={gymId}
+        msgMap={msgMap}
+        onSave={(id, text) => setMsgMap(m => ({ ...m, [id]: text }))}
+        isMobile={isMobile}
+      />
     </>
   );
 }

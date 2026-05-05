@@ -10,6 +10,7 @@ import {
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
+  CheckCircle,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { getGymSummary } from "@/lib/supabase-relations";
@@ -160,6 +161,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userInitials,     setUserInitials]     = useState("FG");
   const [prospectBadge,    setProspectBadge]    = useState(0);
   const [trialDaysLeft,    setTrialDaysLeft]    = useState<number | null>(null);
+  const [trialExpired,     setTrialExpired]     = useState(false);
+  const [isSubscribed,     setIsSubscribed]     = useState(false);
   const [showTrialBanner,  setShowTrialBanner]  = useState(false);
   const [showTrialModal,   setShowTrialModal]   = useState(false);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
@@ -249,14 +252,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       const gym = getGymSummary(profile?.gyms);
 
-      if (gym && !gym.is_subscription_active && gym.trial_expires_at) {
-        const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
-        const left = Math.max(0, Math.ceil(diff / 86_400_000));
-        setTrialDaysLeft(left);
-        if (left <= 6) setShowTrialBanner(true);
-        if (left <= 1) {
-          const dismissed = localStorage.getItem("fitgrowx_trial_modal_dismissed");
-          if (dismissed !== new Date().toDateString()) setShowTrialModal(true);
+      if (gym) {
+        const subscribed = Boolean(gym.is_subscription_active);
+        setIsSubscribed(subscribed);
+        if (!subscribed && gym.trial_expires_at) {
+          const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
+          const left = Math.max(0, Math.ceil(diff / 86_400_000));
+          const expired = diff <= 0;
+          setTrialDaysLeft(left);
+          setTrialExpired(expired);
+          if (!expired && left <= 6) setShowTrialBanner(true);
+          if (!expired && left <= 3) {
+            const dismissKey = `fitgrowx_trial_modal_d${left}`;
+            const dismissed = localStorage.getItem(dismissKey);
+            if (dismissed !== new Date().toDateString()) setShowTrialModal(true);
+          }
         }
       }
     })();
@@ -876,57 +886,115 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
       {/* ── Trial last-24h modal ── */}
-      {showTrialModal && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(0,0,0,0.72)",
-          backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        }}>
-          <div style={{
-            background: "#FFFFFF", borderRadius: 22, padding: "36px 32px", maxWidth: 420, width: "100%",
-            boxShadow: "0 32px 80px rgba(0,0,0,0.25)",
-            animation: "dropIn 0.28s cubic-bezier(0.16,1,0.3,1) both",
-            textAlign: "center",
-          }}>
-            <div style={{ width: 60, height: 60, borderRadius: 18, background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.16)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-              <AlertTriangle size={26} color="#DC2626" />
+      {/* ── Trial ending modal ── */}
+      {showTrialModal && trialDaysLeft !== null && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.68)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 24, padding: "32px 28px", maxWidth: 400, width: "100%", boxShadow: "0 40px 100px rgba(0,0,0,0.28)", animation: "dropIn 0.28s cubic-bezier(0.16,1,0.3,1) both", position: "relative" }}>
+
+            {/* Urgency bar */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, borderRadius: "24px 24px 0 0", background: trialDaysLeft <= 1 ? "linear-gradient(90deg,#DC2626,#EF4444)" : "linear-gradient(90deg,#D97706,#F59E0B)" }} />
+
+            <div style={{ textAlign: "center" }}>
+              {/* Icon */}
+              <div style={{ width: 56, height: 56, borderRadius: 16, margin: "0 auto 18px", display: "flex", alignItems: "center", justifyContent: "center", background: trialDaysLeft <= 1 ? "rgba(220,38,38,0.08)" : "rgba(217,119,6,0.08)", border: `1px solid ${trialDaysLeft <= 1 ? "rgba(220,38,38,0.20)" : "rgba(217,119,6,0.20)"}` }}>
+                <Clock size={24} color={trialDaysLeft <= 1 ? "#DC2626" : "#D97706"} />
+              </div>
+
+              {/* Pill */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 12px", borderRadius: 9999, background: trialDaysLeft <= 1 ? "rgba(220,38,38,0.08)" : "rgba(217,119,6,0.08)", marginBottom: 12 }}>
+                <span style={{ font: `700 0.68rem/1 ${fd}`, color: trialDaysLeft <= 1 ? "#DC2626" : "#D97706", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                  {trialDaysLeft <= 1 ? "Últimas 24 horas" : `${trialDaysLeft} días restantes`}
+                </span>
+              </div>
+
+              <h2 style={{ font: `800 1.35rem/1.15 ${fd}`, color: "#0F172A", letterSpacing: "-0.03em", marginBottom: 10 }}>
+                {trialDaysLeft <= 1 ? "Tu prueba vence mañana" : "Tu prueba está por terminar"}
+              </h2>
+              <p style={{ font: `400 0.85rem/1.55 ${fd}`, color: "#64748B", marginBottom: 24 }}>
+                {trialDaysLeft <= 1
+                  ? "Mañana perderás acceso al panel, tus alumnos, automatizaciones y cobros. Activá tu plan ahora para no perder nada."
+                  : `En ${trialDaysLeft} días perdés el acceso a tus alumnos, automatizaciones y cobros. Activá tu plan y seguís sin interrupciones.`}
+              </p>
+
+              {/* What you lose */}
+              <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "14px 16px", marginBottom: 22, textAlign: "left" }}>
+                {["Tus alumnos y pagos", "Automatizaciones de WhatsApp", "Landing y prospectos", "Clases y asistencias"].map((item) => (
+                  <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0" }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#CBD5E1", flexShrink: 0 }} />
+                    <span style={{ font: `400 0.78rem/1 ${fd}`, color: "#475569" }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Link
+                  href="/dashboard/planes"
+                  onClick={() => {
+                    localStorage.setItem(`fitgrowx_trial_modal_d${trialDaysLeft}`, new Date().toDateString());
+                    setShowTrialModal(false);
+                  }}
+                  style={{ display: "block", padding: "13px", borderRadius: 13, background: "linear-gradient(180deg,#ff7a1a 0%,#ff6000 58%,#de4f00 100%)", color: "white", textDecoration: "none", font: `700 0.875rem/1 ${fd}`, textAlign: "center", boxShadow: "0 8px 24px rgba(255,96,0,0.28)" }}
+                >
+                  Activar plan ahora
+                </Link>
+                <button
+                  onClick={() => {
+                    localStorage.setItem(`fitgrowx_trial_modal_d${trialDaysLeft}`, new Date().toDateString());
+                    setShowTrialModal(false);
+                  }}
+                  style={{ padding: "11px", borderRadius: 13, background: "none", border: "1px solid #E2E8F0", color: "#94A3B8", font: `500 0.82rem/1 ${fd}`, cursor: "pointer" }}
+                >
+                  Recordarme más tarde
+                </button>
+              </div>
             </div>
-            <p style={{ font: `800 1.4rem/1.1 ${fd}`, color: "#1A1D23", marginBottom: 8, letterSpacing: "-0.025em" }}>
-              Últimas 24 horas de prueba
-            </p>
-            <p style={{ font: `400 0.875rem/1.55 ${fd}`, color: "#6B7280", marginBottom: 28 }}>
-              Tu período de prueba gratuita vence mañana. Elegí un plan ahora para seguir usando FitGrowX sin interrupciones.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <Link
-                href="/dashboard/suscripcion"
-                onClick={() => {
-                  localStorage.setItem("fitgrowx_trial_modal_dismissed", new Date().toDateString());
-                  setShowTrialModal(false);
-                }}
-                style={{
-                  display: "block", padding: "13px", borderRadius: 14,
-                  background: "#1A1D23", color: "white", textDecoration: "none",
-                  font: `700 0.875rem/1 ${fd}`, textAlign: "center",
-                }}
-              >
-                Ver planes y suscribirme
-              </Link>
-              <button
-                onClick={() => {
-                  localStorage.setItem("fitgrowx_trial_modal_dismissed", new Date().toDateString());
-                  setShowTrialModal(false);
-                }}
-                style={{
-                  padding: "11px", borderRadius: 14, background: "none",
-                  border: "1px solid rgba(0,0,0,0.08)", color: "#9CA3AF",
-                  font: `500 0.82rem/1 ${fd}`, cursor: "pointer",
-                }}
-              >
-                Recordarme más tarde
-              </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Trial expired paywall ── */}
+      {!isSubscribed && trialExpired && role === "admin" && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
+
+            {/* Logo mark */}
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: "linear-gradient(135deg,#ff7a1a,#e05000)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", boxShadow: "0 12px 32px rgba(255,96,0,0.28)" }}>
+              <Zap size={28} color="white" />
             </div>
+
+            <p style={{ font: `700 0.68rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.10em", marginBottom: 10 }}>
+              Período de prueba finalizado
+            </p>
+            <h1 style={{ font: `800 2rem/1.1 ${fd}`, color: "#0F172A", letterSpacing: "-0.04em", marginBottom: 12 }}>
+              Tu acceso está pausado
+            </h1>
+            <p style={{ font: `400 0.9rem/1.6 ${fd}`, color: "#64748B", marginBottom: 32, maxWidth: 360, margin: "0 auto 32px" }}>
+              Tu período de prueba gratuita terminó. Activá tu plan para retomar el control de tu gimnasio sin perder ningún dato.
+            </p>
+
+            {/* Reassurance */}
+            <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 16, padding: "16px 20px", marginBottom: 24, textAlign: "left" }}>
+              <p style={{ font: `600 0.78rem/1 ${fd}`, color: "#0F172A", marginBottom: 10 }}>Tus datos están seguros</p>
+              {["Alumnos y pagos guardados", "Automatizaciones conservadas", "Landing y prospectos intactos"].map((item) => (
+                <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                  <CheckCircle size={13} color="#16A34A" />
+                  <span style={{ font: `400 0.78rem/1 ${fd}`, color: "#475569" }}>{item}</span>
+                </div>
+              ))}
+            </div>
+
+            <Link
+              href="/dashboard/planes"
+              style={{ display: "block", padding: "15px", borderRadius: 14, background: "linear-gradient(180deg,#ff7a1a 0%,#ff6000 58%,#de4f00 100%)", color: "white", textDecoration: "none", font: `700 0.9rem/1 ${fd}`, textAlign: "center", boxShadow: "0 10px 28px rgba(255,96,0,0.30)", marginBottom: 12 }}
+            >
+              Activar mi plan ahora
+            </Link>
+            <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#94A3B8" }}>
+              ¿Tenés dudas?{" "}
+              <a href={`https://wa.me/${process.env.NEXT_PUBLIC_FITGROWX_SUPPORT_WA ?? "5491100000000"}`} target="_blank" rel="noopener noreferrer" style={{ color: "#F97316", textDecoration: "none", fontWeight: 600 }}>
+                Escribinos por WhatsApp
+              </a>
+            </p>
           </div>
         </div>
       )}

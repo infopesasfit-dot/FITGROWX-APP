@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getGymSettingsSummary } from "@/lib/supabase-relations";
+import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,10 +9,7 @@ const supabase = createClient(
 );
 
 export async function GET(req: NextRequest) {
-  const secret = req.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.WA_MOTOR_API_KEY) {
-    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  }
+  if (!isCronAuthorized(req)) return cronUnauthorized();
 
   const motorUrl = process.env.WA_MOTOR_URL;
   const today = new Date().toISOString().slice(0, 10);
@@ -69,7 +67,18 @@ export async function GET(req: NextRequest) {
         signal: AbortSignal.timeout(8000),
       });
       if (res.ok) {
-        await supabase.from("gyms").update({ [notifCol]: new Date().toISOString() }).eq("id", gym.id);
+        await Promise.all([
+          supabase.from("gyms").update({ [notifCol]: new Date().toISOString() }).eq("id", gym.id),
+          supabase.from("notifications").insert({
+            gym_id: gym.id,
+            type: "trial_warning",
+            title: daysLeft === 1 ? "⚠️ Tu prueba vence mañana" : `⏳ ${daysLeft} días de prueba restantes`,
+            body: daysLeft === 1
+              ? "Mañana perdés el acceso. Activá tu plan ahora para no interrumpir tu operación."
+              : `En ${daysLeft} días perdés acceso a alumnos, cobros y automatizaciones.`,
+            link: "/dashboard/planes",
+          }),
+        ]);
         log.push(`✓ Día ${daysLeft === 1 ? 15 : 13} → ${gymName}`);
       } else {
         log.push(`✗ Día ${daysLeft === 1 ? 15 : 13} → ${gymName} (HTTP ${res.status}, se reintentará)`);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,6 +18,7 @@ function normalizeArgPhone(raw: string): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!isCronAuthorized(req)) return cronUnauthorized();
   const { gym_id } = await req.json();
   if (!gym_id) return NextResponse.json({ ok: false, error: "gym_id requerido." }, { status: 400 });
 

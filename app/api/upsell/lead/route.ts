@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
 const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
+  const limit = applyRateLimit({ namespace: "upsell:lead", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 5 });
+  if (!limit.allowed) return NextResponse.json({ error: "Demasiados intentos. Esperá un momento." }, { status: 429 });
+
   try {
     const { name, email, phone, gym_name, type } = await req.json();
     if (!email && !phone) return NextResponse.json({ error: "Email o teléfono requerido." }, { status: 400 });

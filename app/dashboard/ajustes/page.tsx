@@ -169,6 +169,9 @@ function AjustesContent() {
   const [gymId, setGymId] = useState<string | null>(null);
   const [isTrial, setIsTrial] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
+  const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
+  const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -277,7 +280,7 @@ function AjustesContent() {
         supabase.auth.getUser(),
         supabase
           .from("profiles")
-          .select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type)")
+          .select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, subscription_expires_at)")
           .eq("id", userIdVal)
           .maybeSingle(),
         supabase
@@ -303,11 +306,15 @@ function AjustesContent() {
 
       const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
       if (gym) {
-        if (!gym.is_subscription_active && gym.trial_expires_at) {
+        setIsSubscriptionActive(Boolean(gym.is_subscription_active));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setSubscriptionExpiresAt((gym as any).subscription_expires_at ?? null);
+        if (gym.trial_expires_at) {
+          setTrialExpiresAt(gym.trial_expires_at);
           const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
           const left = Math.max(0, Math.ceil(diff / 86_400_000));
           setTrialDaysLeft(left);
-          setIsTrial(left > 0);
+          setIsTrial(!gym.is_subscription_active && left > 0);
         }
       }
 
@@ -885,14 +892,41 @@ function AjustesContent() {
                   </button>
                 </div>
 
-                {isTrial && (
-                  <div style={{ padding: "14px 16px", borderRadius: 16, background: "rgba(37,99,235,0.05)", border: "1px solid rgba(37,99,235,0.14)", display: "flex", gap: 9 }}>
-                    <Zap size={14} color={ACCENT} style={{ flexShrink: 0, marginTop: 2 }} />
-                    <p style={{ font: `400 0.78rem/1.45 ${fb}`, color: ACCENT }}>
-                      Ya podés cargar tu logo, nombre e identidad visual del gym{trialDaysLeft !== null ? ` (${trialDaysLeft} días restantes de prueba)` : ""}.
-                    </p>
-                  </div>
-                )}
+                {/* ── Suscripción ── */}
+                {(() => {
+                  const trialExpired = trialExpiresAt ? new Date(trialExpiresAt) < new Date() : false;
+                  const statusColor = isSubscriptionActive ? "#15803D" : trialExpired ? "#DC2626" : "#C2410C";
+                  const statusBg    = isSubscriptionActive ? "rgba(22,163,74,0.06)" : trialExpired ? "rgba(220,38,38,0.06)" : "rgba(249,115,22,0.06)";
+                  const statusBorder = isSubscriptionActive ? "rgba(22,163,74,0.18)" : trialExpired ? "rgba(220,38,38,0.18)" : "rgba(249,115,22,0.18)";
+                  const expLabel = isSubscriptionActive && subscriptionExpiresAt
+                    ? `Válido hasta ${new Date(subscriptionExpiresAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}`
+                    : trialExpiresAt && !trialExpired
+                    ? `Prueba vence el ${new Date(trialExpiresAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}`
+                    : trialExpired ? "Tu período de prueba venció" : null;
+                  return (
+                    <div style={{ padding: "14px 16px", borderRadius: 16, background: statusBg, border: `1px solid ${statusBorder}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <p style={{ font: `700 0.84rem/1 ${fd}`, color: statusColor, marginBottom: 3 }}>
+                          {isSubscriptionActive ? "Plan activo — FitGrowX Crecimiento" : trialExpired ? "Prueba vencida" : `${trialDaysLeft ?? "—"} días de prueba restantes`}
+                        </p>
+                        {expLabel && <p style={{ font: `400 0.74rem/1.4 ${fb}`, color: t2 }}>{expLabel}</p>}
+                      </div>
+                      <Link
+                        href="/dashboard/planes"
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 6,
+                          padding: "8px 14px", borderRadius: 10, textDecoration: "none",
+                          background: isSubscriptionActive ? "rgba(22,163,74,0.10)" : "rgba(249,115,22,0.10)",
+                          color: isSubscriptionActive ? "#15803D" : "#C2410C",
+                          font: `700 0.76rem/1 ${fd}`, whiteSpace: "nowrap",
+                        }}
+                      >
+                        <CreditCard size={12} />
+                        {isSubscriptionActive ? "Ver plan" : "Activar plan"}
+                      </Link>
+                    </div>
+                  );
+                })()}
               </div>
             </SectionCard>
           </div>
