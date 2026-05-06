@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   TrendingUp, Target, Users, DollarSign,
   Copy, Check, MessageCircle, Rocket,
-  Zap, Brain, Sparkles,
+  Zap, Brain, Sparkles, Clock,
   RefreshCw, ChevronRight, AlertTriangle, ArrowRight,
 } from "lucide-react";
 

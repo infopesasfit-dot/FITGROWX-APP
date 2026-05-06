@@ -211,6 +211,10 @@ export default function LandingBuilderPage() {
   const [customDomain,  setCustomDomain]  = useState("");
   const [domainSaving,  setDomainSaving]  = useState(false);
   const [domainSaved,   setDomainSaved]   = useState(false);
+  const [slugInput,     setSlugInput]     = useState("");
+  const [slugSaving,    setSlugSaving]    = useState(false);
+  const [slugSaved,     setSlugSaved]     = useState(false);
+  const [slugError,     setSlugError]     = useState("");
   const [showLandingUpsell, setShowLandingUpsell] = useState(false);
   const [upsellName,    setUpsellName]    = useState("");
   const [upsellEmail,   setUpsellEmail]   = useState("");
@@ -241,6 +245,7 @@ export default function LandingBuilderPage() {
         setGymName(data.gym_name ?? "");
         setLogoUrl(data.logo_url ?? null);
         setSlug(data.slug ?? "");
+        setSlugInput(data.slug ?? "");
         if (data.landing_template) setTemplate(data.landing_template as Template);
         if (data.accent_color)     setAccent(data.accent_color);
         if (data.landing_title)    setTitle(data.landing_title);
@@ -284,6 +289,22 @@ export default function LandingBuilderPage() {
     setDomainSaving(false);
     setDomainSaved(true);
     setTimeout(() => setDomainSaved(false), 2500);
+  };
+
+  const handleSlugSave = async () => {
+    if (!gymId || slugSaving) return;
+    const clean = slugInput.toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    if (!clean) { setSlugError("Ingresá un nombre válido (letras, números y guiones)."); return; }
+    setSlugSaving(true);
+    setSlugError("");
+    const { data: existing } = await supabase.from("gym_settings").select("gym_id").eq("slug", clean).neq("gym_id", gymId).maybeSingle();
+    if (existing) { setSlugError("Ese nombre ya está en uso. Probá con otro."); setSlugSaving(false); return; }
+    await supabase.from("gym_settings").update({ slug: clean }).eq("gym_id", gymId);
+    setSlug(clean);
+    setSlugInput(clean);
+    setSlugSaving(false);
+    setSlugSaved(true);
+    setTimeout(() => setSlugSaved(false), 2500);
   };
 
   const copyLink = () => {
@@ -626,13 +647,27 @@ export default function LandingBuilderPage() {
             {tab === "publicar" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 {!slug ? (
-                  <div style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: "14px 16px" }}>
-                    <p style={{ font: `600 0.82rem/1.5 ${fd}`, color: "#92400E", margin: 0 }}>
-                      Configurá el slug de tu gym en Ajustes → General para obtener tu link único.
-                    </p>
-                    <Link href="/dashboard/ajustes?tab=general" style={{ font: `600 0.78rem/1 ${fd}`, color: "#B45309", marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
-                      Ir a Ajustes <ChevronRight size={12} />
-                    </Link>
+                  <div style={{ ...card, padding: "20px 22px" }}>
+                    <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Elegí el nombre de tu gym en el link</p>
+                    <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: t2, marginBottom: 14 }}>Usá solo letras minúsculas, números y guiones. Una vez elegido lo podés cambiar cuando quieras.</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 0, background: "#F8FAFC", border: `1px solid ${slugError ? "#EF4444" : "rgba(15,23,42,0.08)"}`, borderRadius: 12, overflow: "hidden" }}>
+                      <span style={{ padding: "11px 10px 11px 14px", font: `400 0.85rem/1 ${fd}`, color: t3, whiteSpace: "nowrap" }}>fitgrowx.com/gym/</span>
+                      <input
+                        value={slugInput}
+                        onChange={e => { setSlugInput(e.target.value); setSlugError(""); }}
+                        onKeyDown={e => e.key === "Enter" && handleSlugSave()}
+                        placeholder="mi-gimnasio"
+                        style={{ flex: 1, padding: "11px 14px 11px 0", background: "transparent", border: "none", font: `600 0.85rem/1 ${fd}`, color: t1, outline: "none", minWidth: 0 }}
+                      />
+                    </div>
+                    {slugError && <p style={{ font: `400 0.72rem/1 ${fd}`, color: "#EF4444", marginTop: 6 }}>{slugError}</p>}
+                    <button
+                      onClick={handleSlugSave}
+                      disabled={slugSaving || !slugInput.trim()}
+                      style={{ marginTop: 12, padding: "10px 20px", borderRadius: 10, border: "none", background: slugSaving ? "#D1D5DB" : accent, color: "#fff", font: `700 0.82rem/1 ${fd}`, cursor: slugSaving ? "not-allowed" : "pointer" }}
+                    >
+                      {slugSaving ? "Guardando..." : slugSaved ? "¡Guardado!" : "Guardar y obtener mi link"}
+                    </button>
                   </div>
                 ) : (
                   <>
@@ -671,7 +706,7 @@ export default function LandingBuilderPage() {
                         </div>
 
                         <FieldGroup label="Tu link único" hint="Copialo y compartilo donde quieras — cada visita que complete el form llega directo a Prospectos">
-                          <div style={{ display: "flex", gap: 8 }}>
+                          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                             <input
                               readOnly
                               value={`fitgrowx.com/gym/${slug}`}
@@ -685,6 +720,25 @@ export default function LandingBuilderPage() {
                               {copied ? "Copiado" : "Copiar"}
                             </button>
                           </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ display: "flex", alignItems: "center", flex: 1, background: "#F8FAFC", border: `1px solid ${slugError ? "#EF4444" : "rgba(15,23,42,0.08)"}`, borderRadius: 10, overflow: "hidden" }}>
+                              <span style={{ padding: "9px 8px 9px 12px", font: `400 0.78rem/1 ${fd}`, color: t3, whiteSpace: "nowrap" }}>fitgrowx.com/gym/</span>
+                              <input
+                                value={slugInput}
+                                onChange={e => { setSlugInput(e.target.value); setSlugError(""); }}
+                                onKeyDown={e => e.key === "Enter" && handleSlugSave()}
+                                style={{ flex: 1, padding: "9px 10px 9px 0", background: "transparent", border: "none", font: `600 0.78rem/1 ${fd}`, color: t1, outline: "none", minWidth: 0 }}
+                              />
+                            </div>
+                            <button
+                              onClick={handleSlugSave}
+                              disabled={slugSaving || slugInput === slug}
+                              style={{ padding: "9px 14px", borderRadius: 10, border: "none", background: slugSaved ? "#16A34A" : slugSaving || slugInput === slug ? "#E5E7EB" : accent, color: slugSaving || slugInput === slug ? t3 : "#fff", font: `600 0.78rem/1 ${fd}`, cursor: slugSaving || slugInput === slug ? "default" : "pointer", whiteSpace: "nowrap", transition: "all .15s" }}
+                            >
+                              {slugSaved ? "¡Guardado!" : slugSaving ? "..." : "Cambiar"}
+                            </button>
+                          </div>
+                          {slugError && <p style={{ font: `400 0.72rem/1 ${fd}`, color: "#EF4444", marginTop: 5 }}>{slugError}</p>}
                         </FieldGroup>
                         <Link
                           href={`/gym/${slug}`}
