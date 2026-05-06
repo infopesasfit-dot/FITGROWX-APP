@@ -83,6 +83,48 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Error al guardar la reserva" }, { status: 500 });
   }
 
+  // Próxima ocurrencia del día de la clase
+  const today = new Date();
+  const daysUntil = (cls.day_of_week - today.getDay() + 7) % 7;
+  const classDate = new Date(today);
+  classDate.setDate(today.getDate() + daysUntil);
+  const claseDateStr = classDate.toISOString().slice(0, 10);
+
+  // Upsert prospecto — entra directo al flujo Clase de Prueba
+  try {
+    const { data: existing } = await supabase
+      .from("prospectos")
+      .select("id, clase_gratis_date")
+      .eq("gym_id", gymId)
+      .eq("phone", cleanPhone)
+      .maybeSingle();
+
+    if (existing) {
+      if (!existing.clase_gratis_date) {
+        await supabase.from("prospectos")
+          .update({ clase_gratis_date: claseDateStr, clase_gratis_status: "registrado", full_name: leadName.trim() })
+          .eq("id", existing.id);
+      }
+    } else {
+      await supabase.from("prospectos").insert({
+        gym_id:              gymId,
+        full_name:           leadName.trim(),
+        phone:               cleanPhone,
+        status:              "pendiente",
+        contactos_step:      3, // saltea Nuevos Contactos, ya reservó clase
+        clase_gratis_date:   claseDateStr,
+        clase_gratis_status: "registrado",
+      });
+    }
+
+    await supabase.from("notifications").insert([{
+      gym_id: gymId,
+      type:   "new_prospecto",
+      title:  `Nueva reserva: ${leadName.trim()}`,
+      body:   `Clase de prueba el ${claseDateStr} · ${cleanPhone}`,
+    }]);
+  } catch { /* non-fatal */ }
+
   // Enviar confirmación por WhatsApp
   const motor = process.env.WA_MOTOR_URL;
   if (motor) {
