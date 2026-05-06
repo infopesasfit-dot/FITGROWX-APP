@@ -47,7 +47,8 @@
       "Bash(vercel --prod)",
       "Bash(npx vercel *)",
       "Bash(open -a \"Google Chrome\" https://fitgrowx.vercel.app)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(npm i *)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/.ssh"
