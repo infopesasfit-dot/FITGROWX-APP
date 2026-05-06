@@ -158,6 +158,8 @@ function AjustesContent() {
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [gymName, setGymName] = useState("Power House Gym");
+  const [slug, setSlug] = useState("");
+  const [slugError, setSlugError] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [mpToken, setMpToken] = useState("");
   const [email, setEmail] = useState("");
@@ -299,6 +301,7 @@ function AjustesContent() {
 
       setEmail(authData.user?.email ?? "");
       if (settings?.gym_name) setGymName(settings.gym_name);
+      if (settings?.slug) setSlug(settings.slug);
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
       if (settings?.instagram_url) setInstagramUrl(settings.instagram_url);
       if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
@@ -331,8 +334,17 @@ function AjustesContent() {
 
   const handleSaveGym = async () => {
     if (!gymId) return;
+    const cleanSlug = slug.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    if (slug.trim() && cleanSlug !== slug.trim()) {
+      setSlug(cleanSlug);
+    }
+    if (cleanSlug) {
+      const { data: existing } = await supabase.from("gym_settings").select("gym_id").eq("slug", cleanSlug).neq("gym_id", gymId).maybeSingle();
+      if (existing) { setSlugError("Este link ya está en uso. Elegí otro."); return; }
+    }
+    setSlugError("");
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
-    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null }, { onConflict: "gym_id" });
+    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null }, { onConflict: "gym_id" });
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
   };
@@ -721,6 +733,29 @@ function AjustesContent() {
 
                     <Field label="Email de acceso" hint="El cambio de email se gestiona desde autenticación, por eso hoy lo mostramos como referencia.">
                       <input value={email} readOnly style={mutedInputStyle} />
+                    </Field>
+
+                    <Field label="Link de tu landing" hint="Solo letras, números y guiones. Se usa para compartir tu página pública.">
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 0, border: `1.5px solid ${slugError ? "#EF4444" : "rgba(15,23,42,0.12)"}`, borderRadius: 10, overflow: "hidden", background: "white" }}>
+                          <span style={{ padding: "10px 10px 10px 13px", fontSize: "0.82rem", color: t3, whiteSpace: "nowrap", borderRight: "1px solid rgba(15,23,42,0.08)", background: "#F8FAFC" }}>fitgrowx.vercel.app/gym/</span>
+                          <input
+                            value={slug}
+                            onChange={e => { setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
+                            placeholder="mi-gimnasio"
+                            style={{ ...inputStyle, border: "none", borderRadius: 0, flex: 1, outline: "none", padding: "10px 12px" }}
+                          />
+                        </div>
+                        {slugError && <span style={{ fontSize: "0.77rem", color: "#EF4444", fontWeight: 600 }}>{slugError}</span>}
+                        {slug && !slugError && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: "0.77rem", color: "#16A34A", fontWeight: 600 }}>✓ Tu link público:</span>
+                            <a href={`/gym/${slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.77rem", color: ACCENT, fontWeight: 600, textDecoration: "none" }}>
+                              fitgrowx.vercel.app/gym/{slug} →
+                            </a>
+                          </div>
+                        )}
+                      </div>
                     </Field>
 
                   </div>
