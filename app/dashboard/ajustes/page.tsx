@@ -738,7 +738,7 @@ function AjustesContent() {
                     <Field label="Link de tu landing" hint="Solo letras, números y guiones. Se usa para compartir tu página pública.">
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 0, border: `1.5px solid ${slugError ? "#EF4444" : "rgba(15,23,42,0.12)"}`, borderRadius: 10, overflow: "hidden", background: "white" }}>
-                          <span style={{ padding: "10px 10px 10px 13px", fontSize: "0.82rem", color: t3, whiteSpace: "nowrap", borderRight: "1px solid rgba(15,23,42,0.08)", background: "#F8FAFC" }}>fitgrowx.vercel.app/gym/</span>
+                          <span style={{ padding: "10px 10px 10px 13px", fontSize: "0.82rem", color: t3, whiteSpace: "nowrap", borderRight: "1px solid rgba(15,23,42,0.08)", background: "#F8FAFC" }}>fitgrowx.com/gym/</span>
                           <input
                             value={slug}
                             onChange={e => { setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setSlugError(""); }}
@@ -751,7 +751,7 @@ function AjustesContent() {
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: "0.77rem", color: "#16A34A", fontWeight: 600 }}>✓ Tu link público:</span>
                             <a href={`/gym/${slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.77rem", color: ACCENT, fontWeight: 600, textDecoration: "none" }}>
-                              fitgrowx.vercel.app/gym/{slug} →
+                              fitgrowx.com/gym/{slug} →
                             </a>
                           </div>
                         )}
