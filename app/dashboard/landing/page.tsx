@@ -654,7 +654,23 @@ export default function LandingBuilderPage() {
                       </div>
                     ) : (
                       <>
-                        <FieldGroup label="Tu link de landing" hint="Compartilo en redes o usalo en tus anuncios">
+                        {/* Explicación del flujo */}
+                        <div style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.06),rgba(139,92,246,0.06))", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 14, padding: "16px 18px" }}>
+                          <p style={{ font: `700 0.82rem/1 ${fd}`, color: "#4F46E5", marginBottom: 12 }}>¿Cómo funciona?</p>
+                          {[
+                            { n: "1", text: "Compartís este link en tus redes, historias o Google Maps." },
+                            { n: "2", text: "El interesado completa el formulario con su nombre, WhatsApp y email." },
+                            { n: "3", text: "Aparece automáticamente en Prospectos y recibe un mensaje de WhatsApp." },
+                            { n: "4", text: "Las automatizaciones de seguimiento arrancan solas." },
+                          ].map(s => (
+                            <div key={s.n} style={{ display: "flex", gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
+                              <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#4F46E5", color: "#fff", font: `700 0.7rem/1 ${fd}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{s.n}</span>
+                              <p style={{ font: `400 0.8rem/1.45 ${fd}`, color: "#374151", margin: 0 }}>{s.text}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <FieldGroup label="Tu link único" hint="Copialo y compartilo donde quieras — cada visita que complete el form llega directo a Prospectos">
                           <div style={{ display: "flex", gap: 8 }}>
                             <input
                               readOnly
