@@ -714,16 +714,21 @@ export default function LandingBuilderPage() {
 
                     {/* ── Upsell: landing profesional ── */}
                     <div style={{ background: "linear-gradient(135deg,#0D1117 0%,#1A1D23 100%)", borderRadius: 16, padding: "18px 20px", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      <p style={{ font: `700 0.65rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Servicio premium</p>
-                      <p style={{ font: `800 0.95rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>¿Te parece básica tu landing?</p>
-                      <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "rgba(255,255,255,0.50)", marginBottom: 14 }}>Te dejamos una web como la de <strong style={{ color: "rgba(255,255,255,0.75)" }}>estilogym.com.ar</strong> — con tu marca, dominio y hosting.</p>
+                      <p style={{ font: `700 0.65rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Diseño profesional</p>
+                      <p style={{ font: `800 0.95rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>¿Querés una web que impresione?</p>
+                      <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "rgba(255,255,255,0.50)", marginBottom: 14 }}>Nuestros diseñadores te arman una web como <strong style={{ color: "rgba(255,255,255,0.75)" }}>estilogym.com.ar</strong> — con tu marca, dominio y hosting incluido.</p>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <a href="https://estilogym.com.ar" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.85)", font: `700 0.78rem/1 ${fd}`, textDecoration: "none", cursor: "pointer" }}>
                           <ExternalLink size={12} /> Ver ejemplo
                         </a>
-                        <button onClick={() => { setShowLandingUpsell(true); setUpsellDone(false); }} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "none", background: "#F97316", color: "#FFFFFF", font: `800 0.78rem/1 ${fd}`, cursor: "pointer" }}>
-                          Quiero la mía →
-                        </button>
+                        <a
+                          href={`https://wa.me/${process.env.NEXT_PUBLIC_FITGROWX_SUPPORT_WA ?? "5491100000000"}?text=${encodeURIComponent(`Hola! Soy dueño de un gym y me interesa una landing profesional como estilogym.com.ar. ¿Me podés dar info?`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "none", background: "#F97316", color: "#FFFFFF", font: `800 0.78rem/1 ${fd}`, textDecoration: "none", cursor: "pointer" }}
+                        >
+                          Hablar con un diseñador →
+                        </a>
                       </div>
                     </div>
                   </>
