@@ -829,6 +829,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Suspense fallback={null}><ConfigSubNav /></Suspense>
 
           {children}
+
+          {/* ── Footer ── */}
+          {!isMobile && (
+            <footer style={{ padding: "0 2px 4px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const }}>
+              <span style={{ font: `400 0.68rem/1 ${fb}`, color: "#B0B8C8" }}>
+                © {new Date().getFullYear()} FitGrowX · Todos los derechos reservados
+              </span>
+              <span style={{ font: `400 0.68rem/1 ${fb}`, color: "#B0B8C8" }}>
+                Soporte:{" "}
+                <a href="https://wa.me/5491165909374" target="_blank" rel="noopener noreferrer" style={{ color: "#B0B8C8", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                  +54 9 11 6590-9374
+                </a>
+              </span>
+            </footer>
+          )}
         </main>
         <WelcomeModal />
       </div>

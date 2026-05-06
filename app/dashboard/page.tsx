@@ -137,7 +137,7 @@ export default function DashboardPage() {
   const gymIdRef = useRef<string | null>(null);
   const userIdRef = useRef<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [ownerName, setOwnerName] = useState("dueño");
+  const [ownerName, setOwnerName] = useState<string | null>(null);
   const [gymName, setGymName] = useState("tu gym");
 
   useEffect(() => {
@@ -210,7 +210,7 @@ export default function DashboardPage() {
       return;
     }
 
-    setOwnerName(payload.ownerName?.trim() || "dueño");
+    setOwnerName(payload.ownerName?.trim() || null);
     setGymName(payload.gymName?.trim() || "tu gym");
     const snapshot = payload.snapshot;
 
@@ -513,7 +513,7 @@ export default function DashboardPage() {
         <div className="dashboard-grain" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <p style={{ font: `500 0.66rem/1.4 ${fm}`, color: "#7A3E13", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`Dashboard de ${gymName} | vista general`}</p>
-          <h1 style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{`Hola, ${ownerName}`}</h1>
+          <h1 style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{ownerName ? `Hola, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.8rem/1.55 ${fb}`, color: t2, marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
           {renderFilters(true)}
           <div style={{ marginTop: 16, padding: "16px 16px 14px", borderRadius: 22, background: orangeGlow, color: "white", position: "relative", overflow: "hidden", boxShadow: "0 16px 34px rgba(255,122,24,0.26)" }}>
@@ -713,7 +713,7 @@ export default function DashboardPage() {
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <p style={{ font: `500 0.7rem/1.4 ${fm}`, color: "#8A4516", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`Dashboard de ${gymName} | vista general`}</p>
-          <h1 style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{`Hola, ${ownerName}`}</h1>
+          <h1 style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{ownerName ? `Hola, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.86rem/1.6 ${fb}`, color: t2, maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
         <div style={{ minWidth: 240, maxWidth: 300, width: "100%" }}>
