@@ -80,6 +80,15 @@ export async function POST(req: NextRequest) {
     .insert({ class_id: classId, lead_name: leadName.trim(), lead_phone: cleanPhone });
 
   if (insertError) {
+    // Unique violation = reserva duplicada (race condition entre requests)
+    if (insertError.code === "23505") {
+      return NextResponse.json({ ok: true, already: true });
+    }
+    // Capacity exceeded via DB trigger/check
+    if (insertError.code === "23514" || insertError.message?.includes("max_capacity")) {
+      return NextResponse.json({ error: "La clase ya está completa" }, { status: 409 });
+    }
+    console.error("[book] insert error:", insertError.message);
     return NextResponse.json({ error: "Error al guardar la reserva" }, { status: 500 });
   }
 
@@ -123,7 +132,7 @@ export async function POST(req: NextRequest) {
       title:  `Nueva reserva: ${leadName.trim()}`,
       body:   `Clase de prueba el ${claseDateStr} · ${cleanPhone}`,
     }]);
-  } catch { /* non-fatal */ }
+  } catch (e) { console.error("[book] prospecto/notif upsert failed:", e instanceof Error ? e.message : e); }
 
   // Enviar confirmación por WhatsApp
   const motor = process.env.WA_MOTOR_URL;

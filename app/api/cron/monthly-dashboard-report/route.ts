@@ -17,9 +17,8 @@ type GymBillingRow = {
 function isAuthorized(req: NextRequest) {
   const headerAuth = req.headers.get("authorization");
   const bearer = headerAuth?.startsWith("Bearer ") ? headerAuth.slice(7) : null;
-  const querySecret = req.nextUrl.searchParams.get("secret");
   const expected = process.env.CRON_SECRET ?? process.env.FITGROWX_ADMIN_SECRET;
-  return Boolean(expected && (bearer === expected || querySecret === expected));
+  return Boolean(expected && bearer === expected);
 }
 
 export async function GET(req: NextRequest) {

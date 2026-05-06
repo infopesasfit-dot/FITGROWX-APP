@@ -20,7 +20,37 @@
       "Bash(osascript -e 'tell application \"Google Chrome\" to open location \"http://localhost:3000/alumno/panel\"')",
       "Bash(osascript -e 'tell application \"Google Chrome\" to open location \"http://localhost:3000/alumno/dev-login\"')",
       "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/rest/v1/rpc/query -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT 1\"}')",
-      "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/pg/query -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT 1\"}')"
+      "Bash(curl -s -X POST https://lazsjmwjnsgvibpyagcr.supabase.co/pg/query -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhenNqbXdqbnNndmlicHlhZ2NyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NTc4Mjc0MiwiZXhwIjoyMDkxMzU4NzQyfQ.Crb81tIFLX1toYTYtefcGNOXtmeNzVnw5XPyDR_R6vM' -H 'Content-Type: application/json' -d '{\"query\": \"SELECT 1\"}')",
+      "Bash(grep -rn \"0\\\\.875rem/1\\\\.4.*\\\\\\\\\\\\${fb}\" /Users/eliydan/Desktop/fitgrowx/app/dashboard/ --include=\"*.tsx\")",
+      "Bash(grep -rn \"marginTop: 4.*\\\\${fb}\\\\|\\\\${fb}.*marginTop: 4\" /Users/eliydan/Desktop/fitgrowx/app/dashboard/ --include=\"*.tsx\")",
+      "Bash(git remote *)",
+      "Bash(ssh-keyscan github.com)",
+      "Bash(git config *)",
+      "Bash(gh auth *)",
+      "Bash(security find-internet-password *)",
+      "Bash(git -c credential.helper='osxkeychain' push origin main)",
+      "Bash(grep -v \"^$\")",
+      "Bash(security find-generic-password *)",
+      "Bash(security unlock-keychain *)",
+      "Bash(open -a \"Google Chrome\" http://localhost:3000/dashboard)",
+      "Bash(lsof -iTCP -sTCP:LISTEN -P)",
+      "Bash(awk '{print $NF}')",
+      "Bash(grep \"req\\\\.\\\\|params\\\\.\\\\|\\\\`\\\\${\")",
+      "Bash(sed -n '18,26p' /Users/eliydan/Desktop/fitgrowx/app/api/cron/vencimientos/route.ts)",
+      "Bash(sed -n '18,26p' /Users/eliydan/Desktop/fitgrowx/app/api/cron/ausentes/route.ts)",
+      "Bash(sed -n '22,30p' /Users/eliydan/Desktop/fitgrowx/app/api/cron/clase-gratis-followup/route.ts)",
+      "Bash(sed -n '18,26p' /Users/eliydan/Desktop/fitgrowx/app/api/cron/ausentes-trigger/route.ts)",
+      "Bash(sed -n '41,50p' /Users/eliydan/Desktop/fitgrowx/app/api/cron/wa-keepalive/route.ts)",
+      "Bash(lsof -ti:3000)",
+      "Bash(open -a \"Google Chrome\" http://localhost:3000/dashboard/automatizaciones/flujos)",
+      "Bash(npx next *)",
+      "Bash(vercel --prod)",
+      "Bash(npx vercel *)",
+      "Bash(open -a \"Google Chrome\" https://fitgrowx.vercel.app)",
+      "Bash(git rm *)"
+    ],
+    "additionalDirectories": [
+      "/Users/eliydan/.ssh"
     ]
   }
 }

@@ -243,6 +243,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: accountError.message }, { status: 500 });
     }
 
+    // Notificar al dueño de la plataforma sobre nuevo gym registrado (solo en primer registro)
+    if (!existingAccount) {
+      const resendKey = process.env.RESEND_API_KEY;
+      const alertEmail = process.env.ALERT_EMAIL ?? "elianafrancoanahi@gmail.com";
+      if (resendKey) {
+        try {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
+            body: JSON.stringify({
+              from: "FitGrowX <radar@fitgrowx.com>",
+              to: [alertEmail],
+              subject: `🏋️ Nuevo gym registrado: ${companyName}`,
+              text: `Nombre: ${normalizedName || "—"}\nEmail: ${normalizedEmail}\nWhatsApp: ${normalizedPhone || "—"}\nGym: ${companyName}\nTrial hasta: ${defaultTrialEnd.slice(0,10)}\n\nVer en plataforma: https://fitgrowx.com/platform`,
+            }),
+            signal: AbortSignal.timeout(5000),
+          });
+        } catch { /* non-fatal */ }
+      }
+    }
+
     return NextResponse.json({ ok: true, platformLeadId });
   } catch (error) {
     return NextResponse.json(

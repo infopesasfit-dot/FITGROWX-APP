@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
   const { data: gyms } = await supabase
     .from("gym_settings")
-    .select("gym_id, gym_name, inactividad_dias, inactividad_msg, inactividad_msg_2, inactividad_msg_3")
+    .select("gym_id, gym_name, inactividad_dias, inactividad_msg, inactividad_msg_3")
     .eq("inactividad_activo", true);
 
   if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, detalle: "No hay gyms con automatización activa." });
@@ -55,16 +55,13 @@ export async function GET(req: NextRequest) {
 
     if (!alumnos?.length) continue;
 
-    // Last attendance per alumno
-    const { data: asistencias } = await supabase
-      .from("asistencias")
-      .select("alumno_id, fecha")
-      .eq("gym_id", gym.gym_id)
-      .order("fecha", { ascending: false });
+    // Last attendance per alumno — one row per alumno via DISTINCT ON (server-side, no full scan)
+    const alumnoIds = (alumnos ?? []).map(a => a.id);
+    const { data: asistencias } = await supabase.rpc("last_asistencia_per_alumno", { gym_id_input: gym.gym_id, alumno_ids: alumnoIds });
 
     const lastAttend: Record<string, string> = {};
     for (const a of asistencias ?? []) {
-      if (!lastAttend[a.alumno_id]) lastAttend[a.alumno_id] = a.fecha;
+      lastAttend[a.alumno_id] = a.fecha;
     }
 
     const gymName = gym.gym_name ?? "el gym";
