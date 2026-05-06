@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ingresá un teléfono válido." }, { status: 400 });
   }
 
-  const ipLimit = applyRateLimit({
+  const ipLimit = await applyRateLimit({
     namespace: "booking:ip",
     identifier: normalizeIdentifier(ip),
     windowMs: 15 * 60 * 1000,
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Recibimos demasiadas reservas desde esta conexión. Probá de nuevo en unos minutos." }, { status: 429 });
   }
 
-  const reservationLimit = applyRateLimit({
+  const reservationLimit = await applyRateLimit({
     namespace: "booking:phone",
     identifier: `${classId}:${cleanPhone}`,
     windowMs: 30 * 60 * 1000,

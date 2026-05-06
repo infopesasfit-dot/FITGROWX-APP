@@ -196,7 +196,14 @@ function AjustesContent() {
   const [qrAttempt, setQrAttempt] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const MOTOR = process.env.NEXT_PUBLIC_WA_MOTOR_URL ?? "https://motor-wsp-fitgrowx-production.up.railway.app";
+  const waProxy = async (action: string) => {
+    const res = await fetch("/api/wa/proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, gymId }),
+    });
+    return res;
+  };
 
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [staffLoading, setStaffLoading] = useState(true);
@@ -530,7 +537,7 @@ function AjustesContent() {
     if (!gymId) return;
     (async () => {
       try {
-        const response = await fetch(`${MOTOR}/session-status/${gymId}`);
+        const response = await waProxy("session-status");
         const data = await response.json();
         setWaStatus(data.status === "active" ? "connected" : "disconnected");
         if (data.retries != null) setWaRetries(data.retries);
@@ -542,7 +549,7 @@ function AjustesContent() {
         setWaStatus("disconnected");
       }
     })();
-  }, [gymId, MOTOR]);
+  }, [gymId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stopPolling = () => {
     if (pollRef.current) {
@@ -559,7 +566,7 @@ function AjustesContent() {
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
-        const response = await fetch(`${MOTOR}/session-status/${gymId}`);
+        const response = await waProxy("session-status");
         const data = await response.json();
         if (data.retries != null) setWaRetries(data.retries);
         if (data.status === "active") {
@@ -586,10 +593,10 @@ function AjustesContent() {
 
     try {
       if (attempt === 0) {
-        await fetch(`${MOTOR}/session/${gymId}`, { method: "DELETE" }).catch(() => {});
+        await waProxy("session-delete").catch(() => {});
       }
 
-      const response = await fetch(`${MOTOR}/qr/${gymId}/data`, { cache: "no-store" });
+      const response = await waProxy("qr-data");
       const data = await response.json();
 
       if (data.status === "active") {
@@ -634,7 +641,7 @@ function AjustesContent() {
   const disconnectWA = async () => {
     if (!gymId || !window.confirm("¿Desvincular WhatsApp? Se detendrán los mensajes automáticos.")) return;
     stopPolling();
-    await fetch(`${MOTOR}/session/${gymId}`, { method: "DELETE" });
+    await waProxy("session-delete");
     setWaStatus("disconnected");
     setWaPhone(null);
     setWaBattery(null);
@@ -647,10 +654,10 @@ function AjustesContent() {
     if (!gymId || refreshing) return;
     setRefreshing(true);
     try {
-      await fetch(`${MOTOR}/session/${gymId}/reconnect`, { method: "POST" });
+      await waProxy("session-reconnect");
       setTimeout(async () => {
         try {
-          const response = await fetch(`${MOTOR}/session-status/${gymId}`);
+          const response = await waProxy("session-status");
           const data = await response.json();
           setWaStatus(data.status === "active" ? "connected" : "disconnected");
           if (data.retries != null) setWaRetries(data.retries);

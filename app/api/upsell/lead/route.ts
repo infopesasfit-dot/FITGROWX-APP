@@ -5,7 +5,7 @@ import { applyRateLimit, getClientIp } from "@/lib/request-security";
 const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
-  const limit = applyRateLimit({ namespace: "upsell:lead", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 5 });
+  const limit = await applyRateLimit({ namespace: "upsell:lead", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 5 });
   if (!limit.allowed) return NextResponse.json({ error: "Demasiados intentos. Esperá un momento." }, { status: 429 });
 
   try {

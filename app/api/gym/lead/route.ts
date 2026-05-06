@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   }
 
   const emailNormalized = normalizeIdentifier(String(email));
-  const ipLimit = applyRateLimit({
+  const ipLimit = await applyRateLimit({
     namespace: "lead:ip",
     identifier: normalizeIdentifier(ip),
     windowMs: 15 * 60 * 1000,
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Recibimos demasiados intentos desde esta conexión. Probá de nuevo en unos minutos." }, { status: 429 });
   }
 
-  const identityLimit = applyRateLimit({
+  const identityLimit = await applyRateLimit({
     namespace: "lead:identity",
     identifier: `${gymId}:${emailNormalized}`,
     windowMs: 30 * 60 * 1000,

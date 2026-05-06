@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ingresá un DNI válido." }, { status: 400 });
   }
 
-  const ipLimit = applyRateLimit({
+  const ipLimit = await applyRateLimit({
     namespace: "request-access:ip",
     identifier: normalizeIdentifier(ip),
     windowMs: 10 * 60 * 1000,
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     }, { status: 429 });
   }
 
-  const dniLimit = applyRateLimit({
+  const dniLimit = await applyRateLimit({
     namespace: "request-access:dni",
     identifier: dniClean,
     windowMs: 10 * 60 * 1000,

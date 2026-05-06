@@ -9,7 +9,7 @@ type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string
 type ExistingRow = { id: string; hora: string | null };
 
 export async function POST(req: NextRequest) {
-  const limit = applyRateLimit({ namespace: "checkin:ip", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 20 });
+  const limit = await applyRateLimit({ namespace: "checkin:ip", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 20 });
   if (!limit.allowed) return NextResponse.json({ ok: false, error: "Demasiados intentos." }, { status: 429 });
 
   const { gym_id } = await req.json();
