@@ -139,6 +139,7 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [gymName, setGymName] = useState("tu gym");
+  const [greetPhase, setGreetPhase] = useState<"hola" | "exit" | "welcome">("hola");
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -210,8 +211,13 @@ export default function DashboardPage() {
       return;
     }
 
-    setOwnerName(payload.ownerName?.trim() || null);
+    const name = payload.ownerName?.trim() || null;
+    setOwnerName(name);
     setGymName(payload.gymName?.trim() || "tu gym");
+    if (name) {
+      setGreetPhase("exit");
+      setTimeout(() => setGreetPhase("welcome"), 650);
+    }
     const snapshot = payload.snapshot;
 
     applySnapshot(snapshot);
@@ -487,11 +493,16 @@ export default function DashboardPage() {
           from { opacity: 0; transform: translateY(10px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes greetFade {
-          from { opacity: 0; transform: translateY(6px); }
+        @keyframes greetExit {
+          from { opacity: 1; transform: translateY(0); }
+          to   { opacity: 0; transform: translateY(-8px); }
+        }
+        @keyframes greetEnter {
+          from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .greet-text { animation: greetFade 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+        .greet-exit    { animation: greetExit  0.5s cubic-bezier(0.4,0,1,1) forwards; }
+        .greet-welcome { animation: greetEnter 0.6s cubic-bezier(0.16,1,0.3,1) both; }
         .dash-card { animation: fadeUp 0.28s cubic-bezier(0.16,1,0.3,1) both; }
         .dash-card:nth-child(2) { animation-delay: 0.05s; }
         .dash-card:nth-child(3) { animation-delay: 0.10s; }
@@ -518,7 +529,7 @@ export default function DashboardPage() {
         <div className="dashboard-grain" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <p style={{ font: `500 0.66rem/1.4 ${fm}`, color: "#7A3E13", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`Dashboard de ${gymName} | vista general`}</p>
-          <h1 key={ownerName ?? "init"} className="greet-text" style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{ownerName ? `Bienvenido, ${ownerName}` : ""}</h1>
+          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.8rem/1.55 ${fb}`, color: t2, marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
           {renderFilters(true)}
           <div style={{ marginTop: 16, padding: "16px 16px 14px", borderRadius: 22, background: orangeGlow, color: "white", position: "relative", overflow: "hidden", boxShadow: "0 16px 34px rgba(255,122,24,0.26)" }}>
@@ -700,11 +711,16 @@ export default function DashboardPage() {
     <>
     <div style={pageShell}>
       <style>{`
-        @keyframes greetFade {
-          from { opacity: 0; transform: translateY(6px); }
+        @keyframes greetExit {
+          from { opacity: 1; transform: translateY(0); }
+          to   { opacity: 0; transform: translateY(-8px); }
+        }
+        @keyframes greetEnter {
+          from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .greet-text { animation: greetFade 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+        .greet-exit    { animation: greetExit  0.5s cubic-bezier(0.4,0,1,1) forwards; }
+        .greet-welcome { animation: greetEnter 0.6s cubic-bezier(0.16,1,0.3,1) both; }
         .dashboard-grain::before {
           content: "";
           position: absolute;
@@ -723,7 +739,7 @@ export default function DashboardPage() {
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <p style={{ font: `500 0.7rem/1.4 ${fm}`, color: "#8A4516", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`Dashboard de ${gymName} | vista general`}</p>
-          <h1 key={ownerName ?? "init"} className="greet-text" style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{ownerName ? `Bienvenido, ${ownerName}` : ""}</h1>
+          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.86rem/1.6 ${fb}`, color: t2, maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
         <div style={{ minWidth: 240, maxWidth: 300, width: "100%" }}>
