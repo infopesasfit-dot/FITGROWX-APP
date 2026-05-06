@@ -41,14 +41,21 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseAdminClient();
 
+  const { data: settings } = await supabase
+    .from("gym_settings")
+    .select("gym_name, lead_auto_welcome, contactos_msg_0")
+    .eq("gym_id", gymId)
+    .maybeSingle();
+
   // Guardar lead en prospectos (upsert por email para evitar duplicados)
   const { error } = await supabase.from("prospectos").upsert(
     {
-      gym_id:    gymId,
-      full_name: name,
-      phone:     phone || null,
-      email:     emailNormalized,
-      status:    "pendiente",
+      gym_id:         gymId,
+      full_name:      name,
+      phone:          phone || null,
+      email:          emailNormalized,
+      status:         "pendiente",
+      contactos_step: 0,
     },
     { onConflict: "gym_id,email", ignoreDuplicates: false },
   );
@@ -68,20 +75,35 @@ export async function POST(req: NextRequest) {
     }]);
   } catch { /* non-fatal */ }
 
-  // Enviar bienvenida por WhatsApp si hay teléfono y motor configurado
+  // Enviar mensaje día-0 si WA configurado y automatización activa
   const motor = process.env.WA_MOTOR_URL;
-  if (motor && phone) {
-    try {
-      const msg = `¡Hola ${name.split(" ")[0]}! 👋 Recibimos tu solicitud de clase gratis. Te vamos a contactar pronto para coordinar el horario. ¡Nos vemos! 💪`;
-      await fetch(`${motor}/send/${gymId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, message: msg }),
-        signal: AbortSignal.timeout(8000),
-      });
-    } catch {
-      // No es fatal
+  if (motor && phone && settings?.lead_auto_welcome !== false) {
+    const gymName = settings?.gym_name ?? "el gym";
+    const firstName = name.split(" ")[0];
+
+    if (settings?.contactos_msg_0 !== "") {
+      const DEFAULT_MSG_0 = `¡Hola ${firstName}! 👋 Recibimos tu solicitud de clase de prueba en *${gymName}*. Te contactamos pronto para coordinar el horario. ¡Nos vemos! 💪`;
+      const msg = (settings?.contactos_msg_0?.trim() || DEFAULT_MSG_0)
+        .replace(/\{nombre\}/gi, firstName)
+        .replace(/\{gym\}/gi, gymName);
+
+      try {
+        await fetch(`${motor}/send/${gymId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+          body: JSON.stringify({ phone, message: msg }),
+          signal: AbortSignal.timeout(8000),
+        });
+      } catch { /* non-fatal */ }
     }
+
+    // Avanzar step siempre para que los follow-ups puedan correr
+    try {
+      await supabase.from("prospectos")
+        .update({ contactos_step: 1 })
+        .eq("gym_id", gymId)
+        .eq("email", emailNormalized);
+    } catch { /* non-fatal */ }
   }
 
   return NextResponse.json({ ok: true });

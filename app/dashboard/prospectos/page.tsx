@@ -23,6 +23,7 @@ const card = {
 };
 
 type Status = "pendiente" | "contactado" | "descartado";
+type ClaseStatus = "registrado" | "asistio" | "no_show" | "convertido" | "perdido" | null;
 
 interface Prospecto {
   id: string;
@@ -32,6 +33,7 @@ interface Prospecto {
   created_at: string;
   status: Status;
   clase_gratis_date: string | null;
+  clase_gratis_status: ClaseStatus;
   followup_step: number;
 }
 
@@ -81,7 +83,7 @@ export default function ProspectosPage() {
 
       const { data } = await supabase
         .from("prospectos")
-        .select("id, full_name, phone, email, created_at, status, clase_gratis_date, followup_step")
+        .select("id, full_name, phone, email, created_at, status, clase_gratis_date, clase_gratis_status, followup_step")
         .eq("gym_id", profile.gymId)
         .order("created_at", { ascending: false });
 
@@ -113,9 +115,14 @@ export default function ProspectosPage() {
   }, [gymId, prospectos]);
 
   const setClaseGratis = useCallback(async (id: string, date: string) => {
-    setProspectos(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_date: date, followup_step: 0 } : p));
+    setProspectos(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_date: date, followup_step: 0, clase_gratis_status: "registrado" as ClaseStatus } : p));
     setClasePickingId(null);
-    await supabase.from("prospectos").update({ clase_gratis_date: date, followup_step: 0 }).eq("id", id);
+    await supabase.from("prospectos").update({ clase_gratis_date: date, followup_step: 0, clase_gratis_status: "registrado" }).eq("id", id);
+  }, []);
+
+  const updateClaseStatus = useCallback(async (id: string, claseStatus: ClaseStatus) => {
+    setProspectos(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_status: claseStatus } : p));
+    await supabase.from("prospectos").update({ clase_gratis_status: claseStatus }).eq("id", id);
   }, []);
 
   const sendWelcome = (phone: string | null, name: string) => {
@@ -250,7 +257,7 @@ export default function ProspectosPage() {
       {!isMobile && (
       <div id="prospectos-listado" style={{ ...card, overflow: "hidden", scrollMarginTop: 110 }}>
         <div style={{
-          display: "grid", gridTemplateColumns: "1fr 130px 110px 120px 160px 150px",
+          display: "grid", gridTemplateColumns: "1fr 130px 110px 120px 180px 150px",
           padding: "12px 22px", borderBottom: "1px solid rgba(0,0,0,0.06)",
           background: "#F9FAFB",
         }}>
@@ -293,7 +300,7 @@ export default function ProspectosPage() {
             <div
               key={p.id}
               style={{
-                display: "grid", gridTemplateColumns: "1fr 130px 110px 120px 160px 150px",
+                display: "grid", gridTemplateColumns: "1fr 130px 110px 120px 180px 150px",
                 padding: "14px 22px", alignItems: "center",
                 borderBottom: i < filtered.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none",
                 transition: "background 0.12s",
@@ -338,16 +345,35 @@ export default function ProspectosPage() {
                     style={{ font: `500 0.75rem/1 ${fb}`, color: t1, border: "1px solid rgba(236,72,153,0.4)", borderRadius: 8, padding: "5px 8px", outline: "none", width: "100%" }}
                   />
                 ) : p.clase_gratis_date ? (
-                  <button
-                    onClick={() => setClasePickingId(p.id)}
-                    style={{ display: "flex", flexDirection: "column", gap: 2, background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" as const }}
-                  >
-                    <span style={{ display: "flex", alignItems: "center", gap: 4, font: `600 0.75rem/1 ${fb}`, color: "#EC4899" }}>
-                      <CalendarCheck size={11} color="#EC4899" />
-                      {new Date(p.clase_gratis_date + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
-                    </span>
-                    <span style={{ font: `500 0.66rem/1 ${fb}`, color: fw.color }}>{fw.label}</span>
-                  </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <button
+                      onClick={() => setClasePickingId(p.id)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                    >
+                      <span style={{ display: "flex", alignItems: "center", gap: 4, font: `600 0.75rem/1 ${fb}`, color: "#EC4899" }}>
+                        <CalendarCheck size={11} color="#EC4899" />
+                        {new Date(p.clase_gratis_date + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                      </span>
+                    </button>
+                    {(!p.clase_gratis_status || p.clase_gratis_status === "registrado") && (
+                      <div style={{ display: "flex", gap: 3 }}>
+                        <button onClick={() => updateClaseStatus(p.id, "asistio")} style={{ padding: "2px 6px", borderRadius: 5, border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.08)", color: "#10B981", font: `700 0.64rem/1 ${fb}`, cursor: "pointer" }}>✓ Asistió</button>
+                        <button onClick={() => updateClaseStatus(p.id, "no_show")} style={{ padding: "2px 6px", borderRadius: 5, border: "1px solid rgba(156,163,175,0.3)", background: "rgba(156,163,175,0.06)", color: "#9CA3AF", font: `700 0.64rem/1 ${fb}`, cursor: "pointer" }}>✗ No vino</button>
+                      </div>
+                    )}
+                    {p.clase_gratis_status === "asistio" && (
+                      <span style={{ font: `600 0.66rem/1 ${fb}`, color: "#10B981" }}>✓ Asistió · {fw.label}</span>
+                    )}
+                    {p.clase_gratis_status === "no_show" && (
+                      <span style={{ font: `600 0.66rem/1 ${fb}`, color: "#9CA3AF" }}>✗ No vino</span>
+                    )}
+                    {p.clase_gratis_status === "convertido" && (
+                      <span style={{ font: `700 0.66rem/1 ${fb}`, color: "#F59E0B" }}>🎉 Convirtió</span>
+                    )}
+                    {p.clase_gratis_status === "perdido" && (
+                      <span style={{ font: `600 0.66rem/1 ${fb}`, color: "#EF4444" }}>✗ Sin respuesta</span>
+                    )}
+                  </div>
                 ) : (
                   <button
                     onClick={() => setClasePickingId(p.id)}
@@ -407,7 +433,7 @@ export default function ProspectosPage() {
                   {s.icon}{s.label}
                 </button>
               </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
                 {isPicking ? (
                   <input
                     type="date"
@@ -415,19 +441,29 @@ export default function ProspectosPage() {
                     defaultValue={p.clase_gratis_date ?? new Date().toISOString().slice(0, 10)}
                     onBlur={e => { if (e.target.value) setClaseGratis(p.id, e.target.value); else setClasePickingId(null); }}
                     onChange={e => { if (e.target.value) setClaseGratis(p.id, e.target.value); }}
-                    style={{ flex: 1, font: `500 0.8rem/1 ${fb}`, color: t1, border: "1px solid rgba(236,72,153,0.4)", borderRadius: 8, padding: "8px 10px", outline: "none" }}
+                    style={{ font: `500 0.8rem/1 ${fb}`, color: t1, border: "1px solid rgba(236,72,153,0.4)", borderRadius: 8, padding: "8px 10px", outline: "none" }}
                   />
                 ) : (
                   <button
                     onClick={() => setClasePickingId(p.id)}
-                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 10, border: p.clase_gratis_date ? "1px solid rgba(236,72,153,0.25)" : "1px dashed rgba(236,72,153,0.35)", background: p.clase_gratis_date ? "rgba(236,72,153,0.06)" : "rgba(236,72,153,0.04)", color: "#EC4899", font: `600 0.78rem/1 ${fb}`, cursor: "pointer" }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px", borderRadius: 10, border: p.clase_gratis_date ? "1px solid rgba(236,72,153,0.25)" : "1px dashed rgba(236,72,153,0.35)", background: p.clase_gratis_date ? "rgba(236,72,153,0.06)" : "rgba(236,72,153,0.04)", color: "#EC4899", font: `600 0.78rem/1 ${fb}`, cursor: "pointer" }}
                   >
                     {p.clase_gratis_date ? <CalendarCheck size={12} /> : <CalendarPlus size={12} />}
                     {p.clase_gratis_date
-                      ? `${new Date(p.clase_gratis_date + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })} · ${fw.label}`
+                      ? new Date(p.clase_gratis_date + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })
                       : "Marcar clase gratis"}
                   </button>
                 )}
+                {p.clase_gratis_date && (!p.clase_gratis_status || p.clase_gratis_status === "registrado") && (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => updateClaseStatus(p.id, "asistio")} style={{ flex: 1, padding: "7px", borderRadius: 9, border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.08)", color: "#10B981", font: `700 0.75rem/1 ${fb}`, cursor: "pointer" }}>✓ Asistió</button>
+                    <button onClick={() => updateClaseStatus(p.id, "no_show")} style={{ flex: 1, padding: "7px", borderRadius: 9, border: "1px solid rgba(156,163,175,0.3)", background: "rgba(156,163,175,0.06)", color: "#9CA3AF", font: `700 0.75rem/1 ${fb}`, cursor: "pointer" }}>✗ No vino</button>
+                  </div>
+                )}
+                {p.clase_gratis_status === "asistio"    && <span style={{ font: `600 0.72rem/1 ${fb}`, color: "#10B981", textAlign: "center" as const }}>✓ Asistió · {fw.label}</span>}
+                {p.clase_gratis_status === "no_show"    && <span style={{ font: `600 0.72rem/1 ${fb}`, color: "#9CA3AF", textAlign: "center" as const }}>✗ No vino</span>}
+                {p.clase_gratis_status === "convertido" && <span style={{ font: `700 0.72rem/1 ${fb}`, color: "#F59E0B", textAlign: "center" as const }}>🎉 Convirtió</span>}
+                {p.clase_gratis_status === "perdido"    && <span style={{ font: `600 0.72rem/1 ${fb}`, color: "#EF4444", textAlign: "center" as const }}>✗ Sin respuesta</span>}
               </div>
               <button
                 onClick={() => sendWelcome(p.phone, p.full_name.split(" ")[0])}

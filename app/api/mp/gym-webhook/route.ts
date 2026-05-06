@@ -116,6 +116,17 @@ export async function POST(req: NextRequest) {
     next_expiration_date: newExpiry,
   }).eq("id", alumno_id);
 
+  // Mark any open free-class prospecto as converted (match by phone in same gym)
+  if (alumno.phone) {
+    await supabase
+      .from("prospectos")
+      .update({ clase_gratis_status: "convertido", status: "contactado" })
+      .eq("gym_id", gym_id)
+      .eq("phone", alumno.phone)
+      .not("clase_gratis_date", "is", null)
+      .neq("clase_gratis_status", "convertido");
+  }
+
   // Log payment in pagos table
   await supabase.from("pagos").insert({
     gym_id,

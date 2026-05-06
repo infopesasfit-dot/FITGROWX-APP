@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,7 +29,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#050505" />
       </head>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">{children}<SpeedInsights /></body>
     </html>
   );
 }

@@ -41,6 +41,13 @@ interface TodayClass {
   reservas: number;
 }
 
+interface ClasePrueba {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  clase_gratis_status: string;
+}
+
 function initials(name: string) {
   return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
 }
@@ -60,6 +67,7 @@ export default function AsistenciasPage() {
   const [hourlyCounts, setHourlyCounts] = useState<number[]>(Array(24).fill(0));
   const [tab, setTab] = useState<"presentes" | "ausentes">("presentes");
   const [todayClasses, setTodayClasses] = useState<TodayClass[]>([]);
+  const [clasesPrueba, setClasesPrueba] = useState<ClasePrueba[]>([]);
   const [gymId, setGymId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [ausentesLoading, setAusentesLoading] = useState(false);
@@ -117,7 +125,7 @@ export default function AsistenciasPage() {
 
     const dayOfWeek = new Date().getDay();
 
-    const [statsRes, presentesRes, clasesRes] = await Promise.all([
+    const [statsRes, presentesRes, clasesRes, pruebaRes] = await Promise.all([
       fetch(`/api/admin/asistencias-stats?gym_id=${profile.gymId}`),
       supabase
         .from("asistencias")
@@ -131,6 +139,12 @@ export default function AsistenciasPage() {
         .eq("gym_id", profile.gymId)
         .eq("day_of_week", dayOfWeek)
         .order("start_time"),
+      supabase
+        .from("prospectos")
+        .select("id, full_name, phone, clase_gratis_status")
+        .eq("gym_id", profile.gymId)
+        .eq("clase_gratis_date", today)
+        .in("clase_gratis_status", ["registrado", "asistio", "no_show"]),
     ]);
 
     const stats = statsRes.ok
@@ -163,6 +177,8 @@ export default function AsistenciasPage() {
     }));
     setTodayClasses(nextTodayClasses);
 
+    setClasesPrueba((pruebaRes.data ?? []) as unknown as ClasePrueba[]);
+
     const presenteRows = (presentesRes.data ?? []) as unknown as Presente[];
     setPresentes(presenteRows);
     setPageCache(cacheKey, {
@@ -192,6 +208,11 @@ export default function AsistenciasPage() {
     setAusentesLoaded(true);
     setAusentesLoading(false);
   }, [gymId, ausentesLoaded, ausentesLoading, presentes]);
+
+  const markClasePrueba = useCallback(async (id: string, status: "asistio" | "no_show") => {
+    setClasesPrueba(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_status: status } : p));
+    await supabase.from("prospectos").update({ clase_gratis_status: status }).eq("id", id);
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -353,6 +374,50 @@ export default function AsistenciasPage() {
           </div>
         </div>
       )}
+
+      {/* Clase de Prueba Hoy */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+          <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Clase de prueba hoy</p>
+          <span style={{ font: `600 0.66rem/1 ${fb}`, color: "#EC4899", background: "rgba(236,72,153,0.08)", border: "1px solid rgba(236,72,153,0.2)", borderRadius: 9999, padding: "2px 8px" }}>
+            {clasesPrueba.length}
+          </span>
+        </div>
+        {loading ? (
+          <div style={{ ...card, padding: "16px 20px" }}>
+            <p style={{ font: `400 0.78rem/1 ${fb}`, color: t3 }}>Cargando...</p>
+          </div>
+        ) : clasesPrueba.length === 0 ? (
+          <div style={{ ...card, padding: "18px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🎯</span>
+            <p style={{ font: `400 0.8rem/1.4 ${fb}`, color: t3 }}>No hay alumnos para su clase de prueba hoy.</p>
+          </div>
+        ) : (
+          <div style={{ ...card, overflow: "hidden" }}>
+            {clasesPrueba.map((p, i) => (
+              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: i < clasesPrueba.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#EC4899,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.62rem/1 ${fd}`, color: "white", flexShrink: 0 }}>
+                  {initials(p.full_name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.full_name}</p>
+                  <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.phone ?? "Sin teléfono"}</p>
+                </div>
+                {p.clase_gratis_status === "registrado" ? (
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button onClick={() => markClasePrueba(p.id, "asistio")} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(16,185,129,0.35)", background: "rgba(16,185,129,0.08)", color: "#10B981", font: `700 0.72rem/1 ${fb}`, cursor: "pointer" }}>✓ Asistió</button>
+                    <button onClick={() => markClasePrueba(p.id, "no_show")} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(156,163,175,0.25)", background: "rgba(156,163,175,0.06)", color: "#9CA3AF", font: `700 0.72rem/1 ${fb}`, cursor: "pointer" }}>✗ No vino</button>
+                  </div>
+                ) : p.clase_gratis_status === "asistio" ? (
+                  <span style={{ font: `700 0.72rem/1 ${fb}`, color: "#10B981", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "5px 10px", flexShrink: 0 }}>✓ Asistió</span>
+                ) : (
+                  <span style={{ font: `700 0.72rem/1 ${fb}`, color: "#9CA3AF", background: "rgba(156,163,175,0.06)", border: "1px solid rgba(156,163,175,0.2)", borderRadius: 8, padding: "5px 10px", flexShrink: 0 }}>✗ No vino</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Charts row */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.6fr 1fr", gap: 16 }}>

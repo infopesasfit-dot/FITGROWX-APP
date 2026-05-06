@@ -157,6 +157,36 @@ export async function POST(req: NextRequest) {
     }, { status: 500 });
   }
 
+  // Fire presente WA message — non-blocking
+  const motor = process.env.WA_MOTOR_URL;
+  if (motor && alumnoRow.phone) {
+    void (async () => {
+      const { data: gs } = await supabaseAdmin
+        .from("gym_settings")
+        .select("vencimiento_activo, diadia_presente_msg, gym_name")
+        .eq("gym_id", alumnoRow.gym_id)
+        .maybeSingle();
+      if (!gs?.vencimiento_activo) return;
+      if (gs.diadia_presente_msg === "") return; // desactivado
+      const DEFAULT = `¡Entraste, {nombre}! 🙌 Tu presente queda marcado. ¡A romperla hoy!`;
+      const msg = (gs.diadia_presente_msg?.trim() || DEFAULT)
+        .replace(/{nombre}/g, alumnoRow.full_name)
+        .replace(/{gym}/g, gs.gym_name ?? "el gym");
+      const digits = alumnoRow.phone!.replace(/\D/g, "");
+      const phone = digits.startsWith("549") && digits.length === 13 ? digits
+        : digits.startsWith("54") && digits.length === 12 ? "549" + digits.slice(2)
+        : digits.length === 10 ? "549" + digits : digits;
+      try {
+        await fetch(`${motor}/send/${alumnoRow.gym_id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+          body: JSON.stringify({ phone, message: msg }),
+          signal: AbortSignal.timeout(8000),
+        });
+      } catch { /* non-fatal */ }
+    })();
+  }
+
   return NextResponse.json({
     ok: true,
     already: false,

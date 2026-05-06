@@ -335,6 +335,18 @@ export default function AlumnosPage() {
       }).catch(() => {});
     }
 
+    // Mark any matching prospecto (by phone) as converted
+    if (gymId && form.phone.trim()) {
+      const phone = normalizePhone(form.phone.trim());
+      supabase.from("prospectos")
+        .update({ clase_gratis_status: "convertido", status: "contactado" })
+        .eq("gym_id", gymId)
+        .eq("phone", phone)
+        .not("clase_gratis_date", "is", null)
+        .neq("clase_gratis_status", "convertido")
+        .then(() => {});
+    }
+
     setModalOpen(false);
     setForm(EMPTY_FORM);
     setSaving(false);
@@ -480,6 +492,17 @@ export default function AlumnosPage() {
     const [{ error: pagoErr }, { error: alumnoErr }] = await Promise.all([paymentInsert, alumnoUpdate]);
 
     if (pagoErr || alumnoErr) { setPagoError((pagoErr ?? alumnoErr)!.message); setPagoSaving(false); return; }
+
+    // Mark any matching prospecto as converted on cuota payment
+    if (isCuota && gymId && pagoTarget.phone) {
+      supabase.from("prospectos")
+        .update({ clase_gratis_status: "convertido", status: "contactado" })
+        .eq("gym_id", gymId)
+        .eq("phone", pagoTarget.phone)
+        .not("clase_gratis_date", "is", null)
+        .neq("clase_gratis_status", "convertido")
+        .then(() => {});
+    }
 
     // Notificación: pago registrado
     fetch("/api/notifications", {

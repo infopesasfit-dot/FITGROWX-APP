@@ -11,7 +11,23 @@ function normalizeArgPhone(raw: string): string {
   return p;
 }
 
+function fill(template: string, nombre: string, gym: string, link = "") {
+  return template
+    .replace(/\[Nombre\]/g, nombre).replace(/\{nombre\}/gi, nombre)
+    .replace(/\[Gym\]/g,    gym)   .replace(/\{gym\}/gi,    gym)
+    .replace(/\[Link\]/g,   link)  .replace(/\{link\}/gi,   link);
+}
+
 const supabase = getSupabaseAdminClient();
+
+const DEFAULT_WELCOME =
+  `¡Hola {nombre}! 👋 Te registramos en *{gym}*. 🎉\n\nDesde acá podés ver tu membresía, tu QR y más 👇\n\n{link}\n\n_El acceso dura 30 días._`;
+
+const DEFAULT_APP_MSG =
+  `En la app también encontrás 📱\n\n🏋️ Tu rutina personalizada\n📊 Registros de cargas\n📅 Tus clases y reservas\n✅ Historial de asistencias\n\n¡Cualquier consulta estamos acá!`;
+
+const DEFAULT_RENEWAL =
+  `¡Hola {nombre}! 💪 Tu cuota en *{gym}* está al día.\n\nIngresá a tu panel desde acá 👇\n\n{link}\n\n_El acceso dura 30 días._`;
 
 // type: "welcome" → nuevo alumno, "renewal" → renovó cuota
 export async function POST(req: NextRequest) {
@@ -37,48 +53,55 @@ export async function POST(req: NextRequest) {
   });
 
   const [{ data: settings }, { data: gym }] = await Promise.all([
-    supabase.from("gym_settings").select("gym_name, magiclink_msg, renewal_msg, renewal_activo, bienvenida_activo").eq("gym_id", alumno.gym_id).maybeSingle(),
+    supabase.from("gym_settings")
+      .select("gym_name, magiclink_msg, bienvenida_app_msg, renewal_msg, renewal_activo, bienvenida_activo")
+      .eq("gym_id", alumno.gym_id)
+      .maybeSingle(),
     supabase.from("gyms").select("name").eq("id", alumno.gym_id).maybeSingle(),
   ]);
 
-  if (type === "welcome" && settings?.bienvenida_activo === false) return NextResponse.json({ ok: true });
-  if (type === "renewal" && settings?.renewal_activo === false) return NextResponse.json({ ok: true });
+  if (type === "welcome"  && settings?.bienvenida_activo === false) return NextResponse.json({ ok: true });
+  if (type === "renewal"  && settings?.renewal_activo    === false) return NextResponse.json({ ok: true });
 
   const gymName = settings?.gym_name || gym?.name || "tu gimnasio";
-
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? (() => {
     const host  = req.headers.get("host") ?? "localhost:3000";
     const proto = host.startsWith("localhost") ? "http" : "https";
     return `${proto}://${host}`;
   })()).replace(/\/$/, "");
-
   const link = `${baseUrl}/alumno/auth?token=${token}`;
-
-  const DEFAULT_WELCOME = `¡Hola [Nombre]! 👋 Te registramos en *[Gym]*.\n\nDesde acá podés ver tu membresía, rutinas y más 👇\n\n[Link]\n\n_El acceso dura 30 días._`;
-  const DEFAULT_RENEWAL = `¡Hola [Nombre]! 💪 Tu cuota en *[Gym]* está al día.\n\nIngresá a tu panel desde acá 👇\n\n[Link]\n\n_El acceso dura 30 días._`;
-
-  const template = type === "renewal"
-    ? (settings?.renewal_msg?.trim() || DEFAULT_RENEWAL)
-    : (settings?.magiclink_msg?.trim() || DEFAULT_WELCOME);
-  const message  = template
-    .replace(/\[Nombre\]/g, alumno.full_name).replace(/\{nombre\}/gi, alumno.full_name)
-    .replace(/\[Gym\]/g,    gymName)         .replace(/\{gym\}/gi,    gymName)
-    .replace(/\[Link\]/g,   link)            .replace(/\{link\}/gi,   link);
 
   const motorUrl = process.env.WA_MOTOR_URL;
   if (!motorUrl) return NextResponse.json({ ok: true });
 
-  try {
-    await fetch(`${motorUrl}/send/${alumno.gym_id}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
-      },
-      body: JSON.stringify({ phone: normalizeArgPhone(alumno.phone), message }),
-      signal: AbortSignal.timeout(8000),
-    });
-  } catch { /* no fatal */ }
+  const phone = normalizeArgPhone(alumno.phone);
+
+  async function sendWA(message: string) {
+    try {
+      await fetch(`${motorUrl}/send/${alumno!.gym_id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+        body: JSON.stringify({ phone, message }),
+        signal: AbortSignal.timeout(8000),
+      });
+    } catch { /* no fatal */ }
+  }
+
+  if (type === "renewal") {
+    const msg = fill(settings?.renewal_msg?.trim() || DEFAULT_RENEWAL, alumno.full_name, gymName, link);
+    await sendWA(msg);
+    return NextResponse.json({ ok: true });
+  }
+
+  // welcome: msg 1 (link) → 3s → msg 2 (app explanation)
+  const msg1 = fill(settings?.magiclink_msg?.trim() || DEFAULT_WELCOME, alumno.full_name, gymName, link);
+  await sendWA(msg1);
+
+  if (settings?.bienvenida_app_msg !== "") {
+    await new Promise(r => setTimeout(r, 3000));
+    const msg2 = fill(settings?.bienvenida_app_msg?.trim() || DEFAULT_APP_MSG, alumno.full_name, gymName);
+    await sendWA(msg2);
+  }
 
   return NextResponse.json({ ok: true });
 }

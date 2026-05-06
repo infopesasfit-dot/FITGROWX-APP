@@ -8,19 +8,29 @@ import Link from "next/link";
 const COL_PAL: Record<string, { color: string; label: string; emoji: string; dbKey: string }> = {
   contactos:    { color: "#6366F1", label: "Nuevos Contactos", emoji: "👋", dbKey: "lead_auto_welcome"   },
   bienvenida:   { color: "#8B5CF6", label: "Bienvenida",       emoji: "🎉", dbKey: "bienvenida_activo"   },
-  claseGratis:  { color: "#EC4899", label: "Clase Gratis",     emoji: "🎯", dbKey: "clase_gratis_activo" },
+  claseGratis:  { color: "#EC4899", label: "Clase de Prueba",  emoji: "🎯", dbKey: "clase_gratis_activo" },
   diadia:       { color: "#10B981", label: "Día a Día",         emoji: "🔥", dbKey: "vencimiento_activo"  },
   vuelvencasa:  { color: "#F59E0B", label: "Vuelven a Casa",   emoji: "💌", dbKey: "inactividad_activo"  },
 };
 
 /* dbKey → which gym_settings column stores the message body for this card (null = not yet wired) */
 const MSG_DB_KEY: Record<string, string | null> = {
-  "m-v1":  "inactividad_msg",
-  "m-d4":  "vencimiento_msg",
-  "m-b1":  "magiclink_msg",
-  "m-cg0": "clase_gratis_msg_0",
-  "m-cg2": "clase_gratis_msg_2",
-  "m-cg5": "clase_gratis_msg_5",
+  "m-v1":    "inactividad_msg",
+  "m-v3":    "inactividad_msg_3",
+  "m-d1":    "diadia_presente_msg",
+  "m-d2":    "diadia_post_msg",
+  "m-d3":    "diadia_recordatorio_msg",
+  "m-d4":    "vencimiento_msg",
+  "m-d5":    "diadia_logro_msg",
+  "m-b1":    "magiclink_msg",
+  "m-b2":    "bienvenida_app_msg",
+  "m-cg0":   "clase_gratis_msg_0",
+  "m-cg2":   "clase_gratis_msg_2",
+  "m-cg5":   "clase_gratis_msg_5",
+  "m-cg-ns": "clase_gratis_msg_noshow",
+  "m-c1":    "contactos_msg_0",
+  "m-c3":    "contactos_msg_1",
+  "m-c4":    "contactos_msg_3",
 };
 
 const NODE_W = 230;
@@ -47,10 +57,8 @@ const MESSAGES: Record<string, MsgData[]> = {
     { id: "m-c4", icon: "🎯", title: "Último intento",   trigger: "3 días sin respuesta",              sent: 34,  read: 22,  msg: "Hola {nombre}, último mensajito 🙌 Si en algún momento querés arrancar, la puerta está abierta. ¡Éxitos!" },
   ],
   bienvenida: [
-    { id: "m-b1", icon: "🎊", title: "¡Bienvenido al equipo!", trigger: "Al confirmar primer pago",     sent: 187, read: 183, msg: "¡Hola {nombre}! 👋 Te registramos en *{gym}*. 🎉\n\nDesde acá podés ver tu membresía, tu QR y más 👇\n\n{link}\n\n_El acceso dura 30 días._" },
-    { id: "m-b2", icon: "🔑", title: "Acceso NFC activo",      trigger: "10 minutos después del alta",  sent: 182, read: 178, msg: "Tu chip NFC ya está listo, {nombre} 📱 Apoyá el celular en el lector y listo — sin tarjetas." },
-    { id: "m-b3", icon: "📱", title: "Tutorial de la app",     trigger: "1 día después del alta",       sent: 175, read: 159, msg: "¿Ya descargaste la app de Fitgrowx, {nombre}? Reservá clases y llevá tu historial. [link]" },
-    { id: "m-b4", icon: "✅", title: "Primera clase agendada", trigger: "Al reservar su primera clase",  sent: 168, read: 165, msg: "¡Ya tenés tu primera clase, {nombre}! 💪 Llegá 5 minutos antes. ¡Vas a romperla!" },
+    { id: "m-b1", icon: "🎊", title: "¡Bienvenido!",   trigger: "Al confirmar primer pago — inmediato", sent: 187, read: 183, msg: "¡Hola {nombre}! 👋 Te registramos en *{gym}*. 🎉\n\nDesde acá podés ver tu membresía, tu QR y más 👇\n\n{link}\n\n_El acceso dura 30 días._" },
+    { id: "m-b2", icon: "📱", title: "Tu app explicada", trigger: "3 minutos después",                   sent: 182, read: 171, msg: "En la app también encontrás 📱\n\n🏋️ Tu rutina personalizada\n📊 Registros de cargas\n📅 Tus clases y reservas\n✅ Historial de asistencias\n\n¡Cualquier consulta estamos acá!" },
   ],
   diadia: [
     { id: "m-d1", icon: "📍", title: "Presente automático",    trigger: "Al validar NFC en la entrada", sent: 892, read: 892, msg: "¡Entraste, {nombre}! 🙌 Tu presente queda marcado. ¡A romperla hoy!" },
@@ -60,14 +68,14 @@ const MESSAGES: Record<string, MsgData[]> = {
     { id: "m-d5", icon: "🏅", title: "Logro del mes",          trigger: "Al completar 12 clases",       sent: 67,  read: 64,  msg: "¡Crack total, {nombre}! 🏅 12 clases este mes. ¡Estamos orgullosos de vos!" },
   ],
   claseGratis: [
-    { id: "m-cg0", icon: "🎯", title: "Día de la clase",     trigger: "El mismo día de la clase gratis",  sent: 0, read: 0, msg: "¡Hola [Nombre]! 💪 ¿Cómo te fue en la clase de hoy en *[Gym]*? ¡Esperamos que la hayas disfrutado! Cualquier pregunta, escribinos." },
-    { id: "m-cg2", icon: "💡", title: "Seguimiento (día 2)", trigger: "2 días después de la clase",       sent: 0, read: 0, msg: "¡Hola [Nombre]! 👋 Ya pasaron un par de días desde tu clase de prueba en *[Gym]*. ¿Qué te pareció? Te contamos nuestros planes para que puedas arrancar cuando quieras 💥" },
-    { id: "m-cg5", icon: "🚀", title: "Último empuje (día 5)", trigger: "5 días después de la clase",    sent: 0, read: 0, msg: "[Nombre], ¡tu clase de prueba en *[Gym]* fue hace 5 días! 🎯 Si estás listo para arrancar de verdad, este es el momento. ¿Arrancamos?" },
+    { id: "m-cg0",  icon: "🎯", title: "Día de la clase",      trigger: "Al marcar 'Asistió' en Prospectos",       sent: 0, read: 0, msg: "¡Hola {nombre}! 💪 ¿Cómo te fue en la clase de hoy en *{gym}*? ¡Esperamos que la hayas disfrutado! Cualquier pregunta, escribinos." },
+    { id: "m-cg2",  icon: "💡", title: "Seguimiento (día 2)",  trigger: "2 días después, si todavía no pagó",      sent: 0, read: 0, msg: "¡Hola {nombre}! 👋 Ya pasaron un par de días desde tu clase de prueba en *{gym}*. ¿Qué te pareció? Te contamos nuestros planes para que puedas arrancar cuando quieras 💥" },
+    { id: "m-cg5",  icon: "🚀", title: "Último empuje (día 5)", trigger: "5 días después, si todavía no pagó",     sent: 0, read: 0, msg: "{nombre}, ¡tu clase de prueba en *{gym}* fue hace 5 días! 🎯 Si estás listo para arrancar de verdad, este es el momento. ¿Arrancamos?" },
+    { id: "m-cg-ns",icon: "👻", title: "No asistió",           trigger: "Al día siguiente si marcaste 'No vino'",  sent: 0, read: 0, msg: "Hola {nombre} 👋 Vimos que no pudiste venir a tu clase de prueba en *{gym}*. ¿Querés reagendar para esta semana?" },
   ],
   vuelvencasa: [
-    { id: "m-v1", icon: "😢", title: "Te extrañamos (10d)",   trigger: "Sin visita hace 10 días",  sent: 78, read: 61, msg: "¡{nombre}, te extrañamos en Fitgrowx! 🥊 Hace 10 días que no te vemos. ¿Todo bien?" },
-    { id: "m-v2", icon: "🎁", title: "Oferta especial (15d)", trigger: "Sin visita hace 15 días",  sent: 42, read: 29, msg: "Hola {nombre} 👋 Tenemos un regalo: una clase grupal gratis esta semana 🎁" },
-    { id: "m-v3", icon: "🚪", title: "Último aviso (30d)",    trigger: "30 días de inactividad",   sent: 18, read: 11, msg: "{nombre}, llevás un mes sin visitarnos 😔 ¿Querés que hablemos antes de que tu membresía quede inactiva?" },
+    { id: "m-v1", icon: "😢", title: "Te extrañamos (10d)", trigger: "Sin visita hace 10 días",  sent: 78, read: 61, msg: "¡{nombre}, te extrañamos en *{gym}*! 🥊 Hace 10 días que no te vemos. ¿Todo bien? Cuando quieras, acá te esperamos 💪" },
+    { id: "m-v3", icon: "🚪", title: "Último aviso (30d)",  trigger: "30 días sin visitas",      sent: 18, read: 11, msg: "Hola {nombre} 👋 Hace un mes que no nos vemos en *{gym}*. Si en algún momento querés retomar, la puerta está abierta. ¡Éxitos!" },
   ],
 };
 
@@ -174,21 +182,22 @@ function OriginNode({
 
 /* ─── Flow Node ─── */
 function FlowNode({
-  nodeId, pos, active, selected, dragging, waConnected,
-  onToggle, onMouseDown, deletedMsgIds, onDeleteMsg, onSaveMsg, msgMap,
+  nodeId, pos, active, selected, dragging, todayCount,
+  onToggle, onMouseDown, onSaveMsg, msgMap, msgActiveMap, onToggleMsgActive,
 }: {
-  nodeId: string; pos: { x: number; y: number }; active: boolean; selected: boolean; dragging: boolean; waConnected: boolean;
+  nodeId: string; pos: { x: number; y: number }; active: boolean; selected: boolean; dragging: boolean; todayCount?: number;
   onToggle: () => void;
   onMouseDown: (e: React.MouseEvent, id: string) => void;
-  deletedMsgIds: Set<string>;
-  onDeleteMsg: (msgId: string) => void;
   onSaveMsg: (msgId: string, text: string) => void;
   msgMap: Record<string, string>;
+  msgActiveMap: Record<string, boolean>;
+  onToggleMsgActive: (msgId: string) => void;
 }) {
   const pal = COL_PAL[nodeId];
-  const msgs = MESSAGES[nodeId].filter(m => !deletedMsgIds.has(m.id));
+  const msgs = MESSAGES[nodeId];
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function startEdit(e: React.MouseEvent, msgId: string) {
     e.stopPropagation();
@@ -213,7 +222,10 @@ function FlowNode({
             {pal.emoji}
           </div>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: active ? "#f1f5f9" : "rgba(255,255,255,0.3)", lineHeight: 1.2 }}>{pal.label}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: active ? "#f1f5f9" : "rgba(255,255,255,0.3)", lineHeight: 1.2 }}>{pal.label}</div>
+              {active && !!todayCount && <span style={{ fontSize: 9, fontWeight: 800, color: pal.color, background: `${pal.color}20`, border: `1px solid ${pal.color}55`, borderRadius: 8, padding: "1px 6px" }}>{todayCount} hoy</span>}
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
               <span style={{ display: "inline-block", width: 5, height: 5, borderRadius: "50%", background: active ? pal.color : "rgba(255,255,255,0.15)", animation: active ? "pulse 2s ease-in-out infinite" : undefined }}/>
               <span style={{ fontSize: 9, color: active ? pal.color : "rgba(255,255,255,0.2)", fontWeight: 600, letterSpacing: "0.04em" }}>{active ? "ACTIVO" : "PAUSADO"}</span>
@@ -223,74 +235,66 @@ function FlowNode({
         <Toggle checked={active} onChange={onToggle} color={pal.color}/>
       </div>
 
-      {/* WA not connected warning */}
-      {active && !waConnected && (
-        <div style={{ margin: "6px 10px 0", padding: "5px 9px", borderRadius: 8, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ fontSize: 10 }}>⚠️</span>
-          <span style={{ fontSize: 10, color: "#FCA5A5", fontWeight: 500 }}>WA desconectado — mensajes no se enviarán</span>
-        </div>
-      )}
-
-      <div style={{ padding: "8px 10px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
+      <div style={{ padding: "8px 10px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
         {msgs.map(msg => {
           const isEditing = editingId === msg.id;
+          const isExpanded = expandedId === msg.id;
+          const isMsgActive = msgActiveMap[msg.id] ?? true;
           const currentText = msgMap[msg.id] ?? msg.msg;
           const hasDbColumn = !!MSG_DB_KEY[msg.id];
           return (
             <div key={msg.id}
               onMouseDown={e => e.stopPropagation()}
-              style={{ borderRadius: 10, padding: "8px 10px", background: isEditing ? `${pal.color}14` : "rgba(255,255,255,0.04)", border: `1px solid ${isEditing ? pal.color + "55" : "rgba(255,255,255,0.07)"}`, transition: "all 0.18s", opacity: active ? 1 : 0.4 }}
+              style={{ borderRadius: 10, background: isExpanded ? `${pal.color}10` : "rgba(255,255,255,0.04)", border: `1px solid ${isExpanded ? pal.color + "44" : "rgba(255,255,255,0.07)"}`, transition: "all 0.18s", opacity: active ? 1 : 0.4 }}
             >
-              {/* Header row: icon + title + X */}
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
-                <span style={{ fontSize: 13 }}>{msg.icon}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.8)", flex: 1, lineHeight: 1.3 }}>{msg.title}</span>
-                {hasDbColumn && <span style={{ fontSize: 8, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 4, padding: "1px 4px" }}>ACTIVO</span>}
-                {/* X button */}
-                <button
-                  onClick={e => { e.stopPropagation(); onDeleteMsg(msg.id); }}
-                  title="Eliminar mensaje del flujo"
-                  style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, color: "rgba(255,255,255,0.25)", transition: "all 0.15s" }}
-                  onMouseOver={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(239,68,68,0.20)"; el.style.color = "#FCA5A5"; el.style.borderColor = "rgba(239,68,68,0.35)"; }}
-                  onMouseOut={e => { const el = e.currentTarget as HTMLElement; el.style.background = "rgba(255,255,255,0.04)"; el.style.color = "rgba(255,255,255,0.25)"; el.style.borderColor = "rgba(255,255,255,0.10)"; }}
-                >
-                  <svg width="7" height="7" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
-                </button>
+              {/* Header row — siempre visible, clic para expandir */}
+              <div
+                onClick={e => { e.stopPropagation(); setExpandedId(prev => prev === msg.id ? null : msg.id); }}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 10px", cursor: "pointer" }}
+              >
+                <span style={{ fontSize: 13, opacity: isMsgActive ? 1 : 0.4 }}>{msg.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: isMsgActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.3)", flex: 1, lineHeight: 1.3 }}>{msg.title}</span>
+                {hasDbColumn && isMsgActive && <span style={{ fontSize: 8, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)", borderRadius: 4, padding: "1px 4px" }}>✓</span>}
+                {hasDbColumn && !isMsgActive && <span style={{ fontSize: 8, fontWeight: 700, color: "rgba(255,255,255,0.2)", background: "rgba(255,255,255,0.06)", borderRadius: 4, padding: "1px 4px" }}>OFF</span>}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, transition: "transform 0.2s", transform: isExpanded ? "rotate(180deg)" : "none" }}><polyline points="6 9 12 15 18 9"/></svg>
               </div>
 
-              {/* Editable message text */}
-              {isEditing ? (
-                <textarea
-                  autoFocus
-                  value={editText}
-                  onChange={e => setEditText(e.target.value)}
-                  onBlur={() => commitEdit(msg.id)}
-                  onKeyDown={e => { if (e.key === "Escape") setEditingId(null); }}
-                  style={{ width: "100%", minHeight: 80, borderRadius: 7, border: `1px solid ${pal.color}55`, background: "rgba(0,0,0,0.3)", color: "#f1f5f9", fontSize: 11, lineHeight: 1.55, padding: "7px 8px", resize: "vertical", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
-                />
-              ) : (
-                <div
-                  onClick={e => { e.stopPropagation(); if (active) startEdit(e, msg.id); }}
-                  title="Clic para editar"
-                  style={{ fontSize: 10.5, color: "rgba(255,255,255,0.38)", lineHeight: 1.55, cursor: active ? "text" : "default", padding: "4px 6px", borderRadius: 6, border: "1px solid transparent", transition: "all 0.15s", whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 52, overflow: "hidden" }}
-                  onMouseOver={e => { if (active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; } }}
-                  onMouseOut={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
-                >
-                  {currentText.length > 100 ? currentText.slice(0, 100) + "…" : currentText}
+              {/* Expandido: toggle de envío + texto editable */}
+              {isExpanded && (
+                <div style={{ padding: "0 10px 10px" }}>
+                  {hasDbColumn && (
+                    <div onClick={e => e.stopPropagation()} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", flex: 1 }}>Enviar este paso</span>
+                      <Toggle checked={isMsgActive} onChange={() => onToggleMsgActive(msg.id)} color={pal.color} />
+                    </div>
+                  )}
+                  <div style={{ opacity: isMsgActive ? 1 : 0.35, pointerEvents: isMsgActive ? "auto" : "none" }}>
+                    {isEditing ? (
+                      <textarea
+                        autoFocus
+                        value={editText}
+                        onChange={e => setEditText(e.target.value)}
+                        onBlur={() => commitEdit(msg.id)}
+                        onKeyDown={e => { if (e.key === "Escape") setEditingId(null); }}
+                        style={{ width: "100%", minHeight: 80, borderRadius: 7, border: `1px solid ${pal.color}55`, background: "rgba(0,0,0,0.3)", color: "#f1f5f9", fontSize: 11, lineHeight: 1.55, padding: "7px 8px", resize: "vertical", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+                      />
+                    ) : (
+                      <div
+                        onClick={e => { e.stopPropagation(); if (active) startEdit(e, msg.id); }}
+                        title="Clic para editar"
+                        style={{ fontSize: 10.5, color: "rgba(255,255,255,0.38)", lineHeight: 1.55, cursor: active ? "text" : "default", padding: "4px 6px", borderRadius: 6, border: "1px solid transparent", transition: "all 0.15s", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                        onMouseOver={e => { if (active) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; } }}
+                        onMouseOut={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent"; }}
+                      >
+                        {currentText}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           );
         })}
-        {active && (
-          <div style={{ borderRadius: 10, padding: "7px 10px", border: "1px dashed rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: "rgba(255,255,255,0.3)", fontSize: 11, fontWeight: 600 }}
-            onMouseOver={e => { e.currentTarget.style.background = `${pal.color}10`; e.currentTarget.style.color = pal.color; e.currentTarget.style.borderColor = `${pal.color}44`; }}
-            onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "rgba(255,255,255,0.3)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Agregar mensaje
-          </div>
-        )}
       </div>
       <div style={{ position: "absolute", top: -6, left: "50%", transform: "translateX(-50%)", width: 12, height: 12, borderRadius: "50%", background: active ? pal.color : "#2a2a4a", border: "2px solid #1a1a2e", boxShadow: active ? `0 0 8px ${pal.color}88` : "none", transition: "all 0.3s" }}/>
     </div>
@@ -346,9 +350,14 @@ function SidePanel({
   const [saved, setSaved] = useState(false);
   const [tone, setTone] = useState("amigable");
   const dbCol = msg ? MSG_DB_KEY[msg.id] : null;
+  const SIMPLE_VARS_SET = new Set(["bienvenida_app_msg", "diadia_presente_msg", "diadia_post_msg", "diadia_logro_msg"]);
   const vars = dbCol === "magiclink_msg"
     ? ["{nombre}", "{gym}", "{link}"]
-    : ["{nombre}", "{dias}", "{fecha}", "{clase}"];
+    : dbCol === "diadia_recordatorio_msg"
+    ? ["{nombre}", "{gym}", "{clase}"]
+    : (dbCol && (SIMPLE_VARS_SET.has(dbCol) || dbCol.startsWith("clase_gratis") || dbCol.startsWith("contactos_msg")))
+    ? ["{nombre}", "{gym}"]
+    : ["{nombre}", "{gym}", "{dias}", "{fecha}", "{clase}"];
 
   useEffect(() => {
     if (msg) { setText(msgMap[msg.id] || msg.msg || ""); setSaved(false); }
@@ -533,9 +542,9 @@ function MobileOriginCard({
 
 /* ─── Mobile Flow Card ─── */
 function MobileFlowCard({
-  nodeId, active, waConnected, onToggle, msgMap, onSelectMsg,
+  nodeId, active, onToggle, msgMap, onSelectMsg,
 }: {
-  nodeId: string; active: boolean; waConnected: boolean;
+  nodeId: string; active: boolean;
   onToggle: () => void;
   msgMap: Record<string, string>;
   onSelectMsg: (nodeId: string, msg: MsgData) => void;
@@ -568,12 +577,6 @@ function MobileFlowCard({
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </div>
-      {active && !waConnected && (
-        <div style={{ margin: "0 12px 8px", padding: "8px 12px", borderRadius: 9, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.25)", display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 13 }}>⚠️</span>
-          <span style={{ fontSize: 12, color: "#FCA5A5", fontWeight: 500 }}>WA desconectado — mensajes no se enviarán</span>
-        </div>
-      )}
       {expanded && (
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", padding: "10px 12px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
           {msgs.map(msg => (
@@ -610,13 +613,16 @@ export default function FlujosPage() {
   const [msgMap, setMsgMap]         = useState<Record<string, string>>(
     () => Object.fromEntries(Object.values(MESSAGES).flat().map(m => [m.id, m.msg]))
   );
+  const [msgActiveMap, setMsgActiveMap] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(Object.values(MESSAGES).flat().map(m => [m.id, true]))
+  );
   const [zoom, setZoom]     = useState(0.85);
   const [pan, setPan]       = useState({ x: 40, y: 20 });
   const [panActive, setPanActive]   = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [deletedNodes, setDeletedNodes] = useState<Set<string>>(new Set());
-  const [deletedMsgs, setDeletedMsgs] = useState<Set<string>>(new Set());
   const [loading, setLoading]       = useState(true);
+  const [todayStats, setTodayStats] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile]     = useState(false);
 
   const outerRef       = useRef<HTMLDivElement>(null);
@@ -636,7 +642,7 @@ export default function FlujosPage() {
 
       const { data: s } = await supabase
         .from("gym_settings")
-        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, clase_gratis_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, vencimiento_msg, magiclink_msg, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, wa_status, wa_phone")
+        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, clase_gratis_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, inactividad_msg_3, vencimiento_msg, magiclink_msg, bienvenida_app_msg, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow, contactos_msg_0, contactos_msg_1, contactos_msg_3, diadia_presente_msg, diadia_post_msg, diadia_recordatorio_msg, diadia_logro_msg, wa_status, wa_phone")
         .eq("gym_id", id)
         .maybeSingle();
 
@@ -654,18 +660,47 @@ export default function FlujosPage() {
           web:  !!(s.slug),
           ref:  s.canal_ref_activo ?? false,
         });
-        // Pre-fill message map with DB values where available
+        // Pre-fill message map + active state from DB
+        // "" = desactivado por el dueño, null = no personalizado (usa default), texto = personalizado
         const updates: Record<string, string> = {};
-        if (s.inactividad_msg)     updates["m-v1"]  = s.inactividad_msg;
-        if (s.vencimiento_msg)     updates["m-d4"]  = s.vencimiento_msg;
-        if (s.magiclink_msg)       updates["m-b1"]  = s.magiclink_msg;
-        if (s.clase_gratis_msg_0)  updates["m-cg0"] = s.clase_gratis_msg_0;
-        if (s.clase_gratis_msg_2)  updates["m-cg2"] = s.clase_gratis_msg_2;
-        if (s.clase_gratis_msg_5)  updates["m-cg5"] = s.clase_gratis_msg_5;
+        const actives: Record<string, boolean> = {};
+        function loadCol(val: string | null | undefined, msgId: string) {
+          if (val === "") { actives[msgId] = false; }
+          else if (val)   { updates[msgId] = val; }
+        }
+        loadCol(s.inactividad_msg,          "m-v1");
+        loadCol(s.inactividad_msg_3,        "m-v3");
+        loadCol(s.vencimiento_msg,          "m-d4");
+        loadCol(s.diadia_presente_msg,      "m-d1");
+        loadCol(s.diadia_post_msg,          "m-d2");
+        loadCol(s.diadia_recordatorio_msg,  "m-d3");
+        loadCol(s.diadia_logro_msg,         "m-d5");
+        loadCol(s.magiclink_msg,            "m-b1");
+        loadCol(s.bienvenida_app_msg,       "m-b2");
+        loadCol(s.clase_gratis_msg_0,       "m-cg0");
+        loadCol(s.clase_gratis_msg_2,       "m-cg2");
+        loadCol(s.clase_gratis_msg_5,       "m-cg5");
+        loadCol(s.clase_gratis_msg_noshow,  "m-cg-ns");
+        loadCol(s.contactos_msg_0,          "m-c1");
+        loadCol(s.contactos_msg_1,          "m-c3");
+        loadCol(s.contactos_msg_3,          "m-c4");
         if (Object.keys(updates).length) setMsgMap(prev => ({ ...prev, ...updates }));
+        if (Object.keys(actives).length) setMsgActiveMap(prev => ({ ...prev, ...actives }));
 
         if (s.wa_status) { setWaStatus(s.wa_status); setWaPhone(s.wa_phone ?? undefined); }
       }
+
+      // Counts "hoy"
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const mañanaStr = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      const [{ count: cC }, { count: cB }, { count: cCG }, { count: cD }] = await Promise.all([
+        supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", id).gte("created_at", todayStr).lt("created_at", mañanaStr),
+        supabase.from("alumnos").select("*",    { count: "exact", head: true }).eq("gym_id", id).gte("created_at", todayStr).lt("created_at", mañanaStr),
+        supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", id).eq("clase_gratis_date", todayStr),
+        supabase.from("asistencias").select("*",{ count: "exact", head: true }).eq("gym_id", id).eq("fecha", todayStr),
+      ]);
+      setTodayStats({ contactos: cC ?? 0, bienvenida: cB ?? 0, claseGratis: cCG ?? 0, diadia: cD ?? 0 });
+
       setLoading(false);
     })();
   }, []);
@@ -676,6 +711,17 @@ export default function FlujosPage() {
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  /* ── Per-message active toggle ── */
+  async function handleToggleMsgActive(msgId: string) {
+    const dbCol = MSG_DB_KEY[msgId];
+    const next = !(msgActiveMap[msgId] ?? true);
+    setMsgActiveMap(prev => ({ ...prev, [msgId]: next }));
+    if (dbCol && gymId) {
+      const val = next ? (msgMap[msgId] || null) : "";
+      await supabase.from("gym_settings").update({ [dbCol]: val }).eq("gym_id", gymId);
+    }
+  }
 
   /* ── Persist phase toggle ── */
   async function togglePhase(nodeId: string) {
@@ -786,18 +832,18 @@ export default function FlujosPage() {
         <Link href="/dashboard/ajustes?tab=conexiones" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 12, background: "rgba(245,158,11,0.10)", border: "1px solid rgba(245,158,11,0.30)", flexShrink: 0 }}>
           <span style={{ fontSize: 16 }}>📱</span>
           <div style={{ flex: 1 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#FCD34D", display: "block" }}>WhatsApp no está activado</span>
-            <span style={{ fontSize: 11, color: "rgba(252,211,77,0.65)" }}>Escaneá el QR en Ajustes → Conexiones para empezar a enviar mensajes.</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#FCD34D", display: "block" }}>WhatsApp sin conectar — ningún mensaje se enviará</span>
+            <span style={{ fontSize: 11, color: "rgba(252,211,77,0.65)" }}>Todos los flujos dependen de WhatsApp. Escaneá el QR en Ajustes → Conexiones para activarlos.</span>
           </div>
-          <span style={{ fontSize: 11, color: "#FCD34D", fontWeight: 600, whiteSpace: "nowrap" }}>Activar →</span>
+          <span style={{ fontSize: 11, color: "#FCD34D", fontWeight: 600, whiteSpace: "nowrap" }}>Conectar →</span>
         </Link>
       )}
       {waStatus !== "active" && waStatus !== "qr" && waStatus !== "unknown" && (
         <Link href="/dashboard/ajustes?tab=conexiones" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", borderRadius: 12, background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.30)", flexShrink: 0 }}>
           <span style={{ fontSize: 16 }}>⚠️</span>
           <div style={{ flex: 1 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#FCA5A5", display: "block" }}>El celular se desconectó</span>
-            <span style={{ fontSize: 11, color: "rgba(252,165,165,0.65)" }}>Las automatizaciones están activas pero los mensajes no se envían. Reconectá WhatsApp.</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#FCA5A5", display: "block" }}>WhatsApp desconectado — ningún mensaje se está enviando</span>
+            <span style={{ fontSize: 11, color: "rgba(252,165,165,0.65)" }}>Todos los flujos están pausados. Reconectá el celular en Ajustes → Conexiones para reanudarlos.</span>
           </div>
           <span style={{ fontSize: 11, color: "#FCA5A5", fontWeight: 600, whiteSpace: "nowrap" }}>Reconectar →</span>
         </Link>
@@ -811,7 +857,6 @@ export default function FlujosPage() {
             <MobileFlowCard key={nodeId}
               nodeId={nodeId}
               active={activeMap[nodeId]}
-              waConnected={waConnected}
               onToggle={() => togglePhase(nodeId)}
               msgMap={msgMap}
               onSelectMsg={(nid, msg) => setSelected({ nodeId: nid, msg })}
@@ -843,17 +888,17 @@ export default function FlujosPage() {
                 active={activeMap[nodeId]}
                 selected={selected?.nodeId === nodeId}
                 dragging={draggingId === nodeId}
-                waConnected={waConnected}
+                todayCount={todayStats[nodeId]}
                 onToggle={() => togglePhase(nodeId)}
                 onMouseDown={onNodeMouseDown}
-                deletedMsgIds={deletedMsgs}
-                onDeleteMsg={msgId => setDeletedMsgs(prev => new Set([...prev, msgId]))}
                 onSaveMsg={(msgId, text) => {
                   setMsgMap(prev => ({ ...prev, [msgId]: text }));
                   const dbCol = MSG_DB_KEY[msgId];
                   if (dbCol && gymId) supabase.from("gym_settings").update({ [dbCol]: text }).eq("gym_id", gymId).then(() => {});
                 }}
                 msgMap={msgMap}
+                msgActiveMap={msgActiveMap}
+                onToggleMsgActive={handleToggleMsgActive}
               />
             ))}
           </div>
