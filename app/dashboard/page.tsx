@@ -402,9 +402,9 @@ export default function DashboardPage() {
         <div>
           <p style={{ font: `800 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>{section}</p>
           <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t3 }}>
-            {section === "Embudo" && "Cómo se mueven las consultas hasta convertirse en socios."}
-            {section === "Fidelización" && "Qué tan bien sostenés y renovás la base actual."}
-            {section === "Eficiencia" && "Qué tan rentable y ordenada está la operación."}
+            {section === "Embudo" && "Cómo llegan los nuevos socios y cuántos terminan quedándose."}
+            {section === "Fidelización" && "Cuántos socios renuevan y cuántos se van cada mes."}
+            {section === "Eficiencia" && "Cuánto genera tu gym por cada socio que tenés."}
           </p>
         </div>
         <div
@@ -441,8 +441,8 @@ export default function DashboardPage() {
     <section id="dashboard-alertas" style={{ ...cardBase, padding: isMobile ? "18px 16px" : "20px 20px", background: "#FFFFFF", scrollMarginTop: isMobile ? 84 : 112 }} {...cardHover}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
         <div>
-          <p style={{ font: `800 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>Alertas de acción</p>
-          <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t3 }}>Lo que conviene mirar hoy para no perder alumnos ni seguimiento.</p>
+          <p style={{ font: `800 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>Lo que necesita tu atención hoy</p>
+          <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t3 }}>Socios que conviene contactar para que no se vayan.</p>
         </div>
         <div style={{ width: 36, height: 36, borderRadius: 14, background: "rgba(255,122,24,0.10)", color: accentDeep, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <BadgeAlert size={17} />
@@ -451,24 +451,24 @@ export default function DashboardPage() {
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
         <div style={{ padding: "14px 14px", borderRadius: 18, background: "#FFF8F1", border: "1px solid rgba(255,122,24,0.12)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>Inactivos +7 días</p>
+            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>No vinieron en 7 días</p>
             <span style={{ font: `800 0.86rem/1 ${fd}`, color: accentDeep }}>{alerts.inactiveCount}</span>
           </div>
-          <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t2, marginBottom: 10 }}>Socios vigentes que dejaron de venir esta última semana.</p>
+          <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t2, marginBottom: 10 }}>Tienen membresía activa pero hace más de una semana que no entrenan.</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {alerts.inactiveNames.length > 0 ? alerts.inactiveNames.map((name) => (
               <span key={name} style={{ font: `600 0.66rem/1 ${fb}`, color: "#7A3E13", background: "rgba(255,122,24,0.10)", borderRadius: 9999, padding: "6px 9px" }}>{name}</span>
             )) : (
-              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>Sin alumnos inactivos detectados.</span>
+              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>¡Excelente! Todos los socios vinieron esta semana.</span>
             )}
           </div>
         </div>
         <div style={{ padding: "14px 14px", borderRadius: 18, background: "#FFF7F4", border: "1px solid rgba(230,84,58,0.10)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>Vencimientos 72h</p>
+            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>Membresías que vencen en 72hs</p>
             <span style={{ font: `800 0.86rem/1 ${fd}`, color: statusNegative }}>{alerts.upcomingExpirations.length}</span>
           </div>
-          <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t2, marginBottom: 10 }}>Bajas próximas que conviene contactar antes de que venzan.</p>
+          <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t2, marginBottom: 10 }}>Avisales antes de que venza para que no se pierdan.</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {alerts.upcomingExpirations.length > 0 ? alerts.upcomingExpirations.map((row) => (
               <div key={row.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -476,7 +476,7 @@ export default function DashboardPage() {
                 <span style={{ font: `700 0.66rem/1 ${fm}`, color: statusNegative }}>{row.next_expiration_date ?? "—"}</span>
               </div>
             )) : (
-              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>No hay vencimientos cercanos.</span>
+              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>Sin vencimientos en las próximas 72hs.</span>
             )}
           </div>
         </div>
@@ -528,7 +528,7 @@ export default function DashboardPage() {
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(circle at top left, rgba(255,122,24,0.16), transparent 42%), radial-gradient(circle at bottom right, rgba(255,180,120,0.24), transparent 30%)" }} />
         <div className="dashboard-grain" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
-          <p style={{ font: `500 0.66rem/1.4 ${fm}`, color: "#7A3E13", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`Dashboard de ${gymName} | vista general`}</p>
+          <p style={{ font: `500 0.66rem/1.4 ${fm}`, color: "#7A3E13", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`${gymName}`}</p>
           <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.8rem/1.55 ${fb}`, color: t2, marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
           {renderFilters(true)}
@@ -536,7 +536,7 @@ export default function DashboardPage() {
             <div className="dashboard-grain" style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.18 }} />
             <div style={{ position: "relative", zIndex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                <span style={{ font: `700 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.82)", textTransform: "uppercase", letterSpacing: "0.09em" }}>Ingreso proyectado</span>
+                <span style={{ font: `700 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.82)", textTransform: "uppercase", letterSpacing: "0.09em" }}>Lo que vas a cobrar este mes</span>
                 <div style={{ width: 32, height: 32, borderRadius: 13, background: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <CreditCard size={15} color="white" />
                 </div>
@@ -547,9 +547,9 @@ export default function DashboardPage() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[
-                  { label: "Activos", value: loading ? "—" : String(activosCount) },
-                  { label: "Asistencia", value: loading ? "—" : String(asistHoy) },
-                  { label: "Vencen 72h", value: loading ? "—" : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+                  { label: "Con membresía", value: loading ? "—" : String(activosCount) },
+                  { label: "Fueron hoy", value: loading ? "—" : String(asistHoy) },
+                  { label: "Vencen pronto", value: loading ? "—" : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
                 ].map((item) => (
                   <a
                     key={item.label}
@@ -576,8 +576,8 @@ export default function DashboardPage() {
       <div className="dash-card" style={{ ...cardBase, padding: "20px 18px", background: whitePanel }} {...cardHover}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
           <div>
-            <p style={{ font: `800 1rem/1 ${fd}`, color: t1, marginBottom: 5 }}>Captación de alumnos</p>
-            <p style={{ font: `500 0.72rem/1.5 ${fb}`, color: t3 }}>Tendencia de los últimos cinco meses.</p>
+            <p style={{ font: `800 1rem/1 ${fd}`, color: t1, marginBottom: 5 }}>Nuevos socios por mes</p>
+            <p style={{ font: `500 0.72rem/1.5 ${fb}`, color: t3 }}>Altas de los últimos 5 meses.</p>
           </div>
           <div style={{ padding: "9px 12px", borderRadius: 16, background: chipBg, color: accentDeep, display: "flex", alignItems: "center", gap: 8 }}>
             <Target size={14} />
@@ -619,7 +619,7 @@ export default function DashboardPage() {
             {sinEgresos ? (
               <>
                 <p style={{ font: `800 2rem/0.94 ${fd}`, letterSpacing: "-0.05em", marginBottom: 8 }}>—</p>
-                <p style={{ font: `500 0.72rem/1.5 ${fb}`, color: "rgba(255,255,255,0.78)" }}>Cargá egresos para ver el neto real del gimnasio.</p>
+                <p style={{ font: `500 0.72rem/1.5 ${fb}`, color: "rgba(255,255,255,0.78)" }}>Cuando cargues tus gastos vas a ver cuánto te quedó realmente.</p>
               </>
             ) : (
               <>
@@ -670,8 +670,8 @@ export default function DashboardPage() {
             </div>
 
             <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
-              <p style={{ font: `800 0.94rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Horario pico</p>
-              <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3, marginBottom: 16 }}>Dónde se concentra la asistencia.</p>
+              <p style={{ font: `800 0.94rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Cuándo viene la gente</p>
+              <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3, marginBottom: 16 }}>El horario con más movimiento.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22].map((h) => {
                   const count = asistHoras[h] ?? 0;
@@ -738,7 +738,7 @@ export default function DashboardPage() {
 
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
-          <p style={{ font: `500 0.7rem/1.4 ${fm}`, color: "#8A4516", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`Dashboard de ${gymName} | vista general`}</p>
+          <p style={{ font: `500 0.7rem/1.4 ${fm}`, color: "#8A4516", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`${gymName}`}</p>
           <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.86rem/1.6 ${fb}`, color: t2, maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
@@ -753,14 +753,14 @@ export default function DashboardPage() {
           <div style={{ position: "relative", zIndex: 1 }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
               <div>
-                <p style={{ font: `700 0.72rem/1 ${fb}`, color: "rgba(255,255,255,0.82)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Ingreso proyectado</p>
+                <p style={{ font: `700 0.72rem/1 ${fb}`, color: "rgba(255,255,255,0.82)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Lo que vas a cobrar este mes</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
                   <span style={{ font: `800 3rem/0.92 ${fd}`, color: "white", letterSpacing: "-0.08em" }}>{loading ? "—" : fmt(ingresoProyectado)}</span>
                   <span style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.78)" }}>/ mes</span>
                 </div>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.18)" }}>
                   <ArrowUpRight size={14} color="white" />
-                  <span style={{ font: `700 0.74rem/1 ${fb}`, color: "white" }}>Suma de planes activos</span>
+                  <span style={{ font: `700 0.74rem/1 ${fb}`, color: "white" }}>Suma de membresías vigentes</span>
                 </div>
               </div>
               <div style={{ width: 48, height: 48, borderRadius: 18, background: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -769,9 +769,9 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                 {[
-                  { label: "Activos", value: loading ? "—" : String(activosCount) },
-                  { label: "Asistencia", value: loading ? "—" : String(asistHoy) },
-                  { label: "Vencen 72h", value: loading ? "—" : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+                  { label: "Con membresía", value: loading ? "—" : String(activosCount) },
+                  { label: "Fueron hoy", value: loading ? "—" : String(asistHoy) },
+                  { label: "Vencen pronto", value: loading ? "—" : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
                 ].map((item) => (
                 <a key={item.label} href={item.href} style={{ padding: "12px 12px 11px", borderRadius: 18, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.16)", cursor: item.href ? "pointer" : "default", textAlign: "left", textDecoration: "none", color: "inherit" }}>
                   <p style={{ font: `800 1.1rem/1 ${fd}`, color: "white", marginBottom: 5 }}>{item.value}</p>
@@ -783,10 +783,10 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-          {renderKpiCard("Alumnos", loading ? "—" : String(activosCount), `${totalCount} registrados en total`, <Users size={17} color="#fff" />, "ink")}
-          {renderKpiCard("Asistencia hoy", loading ? "—" : String(asistHoy), "Escaneos registrados en el día", <Activity size={17} color={accentDeep} />, "orange")}
-          {renderKpiCard("Inactivos +7d", loading ? "—" : String(alerts.inactiveCount), "Socios vigentes para recuperar", <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
-          {renderKpiCard("Vencen 72h", loading ? "—" : String(alerts.upcomingExpirations.length), "Bajas próximas para contactar", <BadgeAlert size={17} color="#fff" />, "ink", "#dashboard-alertas")}
+          {renderKpiCard("Tus socios", loading ? "—" : String(activosCount), `${totalCount} en total`, <Users size={17} color="#fff" />, "ink")}
+          {renderKpiCard("Fueron hoy", loading ? "—" : String(asistHoy), "Personas que entrenaron hoy", <Activity size={17} color={accentDeep} />, "orange")}
+          {renderKpiCard("Sin venir en 7 días", loading ? "—" : String(alerts.inactiveCount), "Todavía tienen membresía activa", <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
+          {renderKpiCard("Membresías por vencer", loading ? "—" : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan", <BadgeAlert size={17} color="#fff" />, "ink", "#dashboard-alertas")}
         </div>
       </div>
 
@@ -801,12 +801,12 @@ export default function DashboardPage() {
         <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }} {...cardHover}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14, marginBottom: 22 }}>
             <div>
-              <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Captación de alumnos</p>
-              <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Cómo viene entrando la demanda en los últimos cinco meses.</p>
+              <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Nuevos socios por mes</p>
+              <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Cuántos socios nuevos entraron en los últimos 5 meses.</p>
             </div>
             <div style={{ padding: "10px 13px", borderRadius: 18, background: chipBg, color: accentDeep, display: "flex", alignItems: "center", gap: 8 }}>
               <Target size={14} />
-              <span style={{ font: `700 0.74rem/1 ${fb}` }}>{loading ? "—" : `${prospectos} abiertos`}</span>
+              <span style={{ font: `700 0.74rem/1 ${fb}` }}>{loading ? "—" : `${prospectos} interesados`}</span>
             </div>
           </div>
           <svg width="100%" height="152" viewBox="0 0 400 152" preserveAspectRatio="none">
@@ -841,11 +841,11 @@ export default function DashboardPage() {
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,122,24,0.10), transparent 34%), radial-gradient(circle at bottom left, rgba(255,179,107,0.12), transparent 34%)", pointerEvents: "none" }} />
           <div style={{ position: "relative", zIndex: 1 }}>
             <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Balance neto</p>
-            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3, marginBottom: 18 }}>Ingresos contra egresos del período actual.</p>
+            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3, marginBottom: 18 }}>Ingresos menos gastos del período.</p>
             {sinEgresos ? (
               <div style={{ padding: "18px 18px", borderRadius: 22, background: "#FFF6ED", border: "1px solid rgba(255,122,24,0.12)" }}>
                 <p style={{ font: `800 2rem/0.95 ${fd}`, color: accentDeep, letterSpacing: "-0.05em", marginBottom: 8 }}>—</p>
-                <p style={{ font: `500 0.76rem/1.55 ${fb}`, color: t2 }}>Todavía no hay egresos cargados para calcular el neto real.</p>
+                <p style={{ font: `500 0.76rem/1.55 ${fb}`, color: t2 }}>Cuando cargues tus gastos acá vas a ver cuánto te quedó realmente.</p>
               </div>
             ) : (
               <>
@@ -879,7 +879,7 @@ export default function DashboardPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
                 <div>
                   <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Asistencia diaria</p>
-                  <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Últimos 14 días del gimnasio.</p>
+                  <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Cuánta gente entrenó cada día.</p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ font: `700 0.72rem/1 ${fb}`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "8px 12px" }}>{asistHoy} hoy</span>
@@ -900,8 +900,8 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }} {...cardHover}>
-              <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Horario pico</p>
-              <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3, marginBottom: 18 }}>Dónde se concentra el entrenamiento.</p>
+              <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Cuándo viene la gente</p>
+              <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3, marginBottom: 18 }}>El horario con más movimiento.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                 {[6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22].map((h) => {
                   const count = asistHoras[h] ?? 0;
