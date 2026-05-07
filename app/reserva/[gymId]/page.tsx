@@ -55,16 +55,16 @@ export default function ReservaPage({ params }: { params: { gymId: string } }) {
       if (settings) setGym(settings);
 
       if (rawClasses && rawClasses.length > 0) {
-        const ids = rawClasses.map((c: { id: string }) => c.id);
-        const { data: counts } = await supabase
-          .from("class_reservations")
-          .select("class_id")
-          .in("class_id", ids);
-
+        const countResults = await Promise.all(
+          rawClasses.map((c: { id: string }) =>
+            supabase.rpc("get_class_reservation_count", { p_class_id: c.id }).then(({ data }) => ({
+              class_id: c.id,
+              count: (data as number) ?? 0,
+            }))
+          )
+        );
         const countMap: Record<string, number> = {};
-        (counts ?? []).forEach((r: { class_id: string }) => {
-          countMap[r.class_id] = (countMap[r.class_id] ?? 0) + 1;
-        });
+        countResults.forEach(r => { countMap[r.class_id] = r.count; });
 
         setClasses(rawClasses.map((c: Omit<GymClass, "reserved">) => ({
           ...c,

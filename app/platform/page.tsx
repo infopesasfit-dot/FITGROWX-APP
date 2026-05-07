@@ -1,17 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   Building2,
+  CheckCircle,
   Clock3,
   FileText,
   FolderOpen,
+  Loader2,
+  MessageCircle,
   Plus,
   Search,
+  Send,
   ShieldAlert,
+  Smartphone,
   Users,
+  WifiOff,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -194,7 +201,7 @@ export default function PlatformPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"crm" | "cms" | "feedback">("crm");
+  const [activeTab, setActiveTab] = useState<"crm" | "cms" | "feedback" | "whatsapp">("crm");
   const [stats, setStats] = useState<PlatformStats>({
     vaultResources: 0,
     platformAccounts: 0,
@@ -239,6 +246,108 @@ export default function PlatformPage() {
     format: "Tutorial",
     status: "draft" as ResourceStatus,
   });
+
+  // WhatsApp platform session states
+  const PLAT_SESSION = "fitgrowx-platform";
+  const [platWaStatus, setPlatWaStatus] = useState<"unknown" | "connected" | "disconnected">("unknown");
+  const [platWaPhone, setPlatWaPhone] = useState<string | null>(null);
+  const [platQrOpen, setPlatQrOpen] = useState(false);
+  const [platQrImage, setPlatQrImage] = useState<string | null>(null);
+  const [platQrLoading, setPlatQrLoading] = useState(false);
+  const [platQrError, setPlatQrError] = useState<"max" | null>(null);
+  const platPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const platRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [platMsgTemplate, setPlatMsgTemplate] = useState({
+    bienvenida: "¡Hola {nombre}! 🎉 Bienvenido a FitGrowX. Tu gym ya está listo para escalar. Si tenés alguna duda, respondé este mensaje.",
+    onboarding: "¡Hola {nombre}! 🚀 Antes de arrancar, te recomendamos cargar tus alumnos y configurar los turnos para sacarle el máximo al sistema desde el día uno.\n\nSi necesitás ayuda con algún paso, respondé este mensaje y lo resolvemos juntos. ¡Estamos para acompañarte! 💪",
+    trial_vence: "¡Hola {nombre}! ⏰ Tu período de prueba de FitGrowX vence en {dias} días. ¿Querés seguir creciendo? Hablemos para activar tu plan.",
+    reactivacion: "¡Hola {nombre}! 👋 Hace un tiempo que no te vemos por FitGrowX. ¿Todo bien? Estamos acá para ayudarte a recuperar el control de tu gym.",
+  });
+  const [platSendPhone, setPlatSendPhone] = useState("");
+  const [platSendMsg, setPlatSendMsg] = useState("");
+  const [platSending, setPlatSending] = useState(false);
+  const [platSendResult, setPlatSendResult] = useState<"ok" | "error" | null>(null);
+
+  const platWaProxy = async (action: string, extra?: Record<string, string>) => {
+    return fetch("/api/wa/proxy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, gymId: PLAT_SESSION, ...extra }),
+    });
+  };
+
+  const platStopPolling = () => {
+    if (platPollRef.current) { clearInterval(platPollRef.current); platPollRef.current = null; }
+    if (platRetryRef.current) { clearTimeout(platRetryRef.current); platRetryRef.current = null; }
+  };
+
+  const platStartStatusPoll = () => {
+    platStopPolling();
+    platPollRef.current = setInterval(async () => {
+      try {
+        const res = await platWaProxy("session-status");
+        const data = await res.json();
+        if (data.status === "active") {
+          platStopPolling();
+          setPlatWaStatus("connected");
+          if (data.phone) setPlatWaPhone(data.phone);
+          setPlatQrOpen(false);
+        }
+      } catch { /* noop */ }
+    }, 3000);
+  };
+
+  const platAttemptQr = async (attempt: number) => {
+    setPlatQrLoading(true);
+    setPlatQrImage(null);
+    try {
+      if (attempt === 0) await platWaProxy("session-delete").catch(() => {});
+      const res = await platWaProxy("qr-data");
+      const data = await res.json();
+      if (data.status === "active") {
+        setPlatWaStatus("connected");
+        setPlatQrOpen(false);
+        setPlatQrLoading(false);
+        return;
+      }
+      if (data.qr) {
+        setPlatQrImage(data.qr);
+        setPlatQrLoading(false);
+        platStartStatusPoll();
+        return;
+      }
+      platRetryRef.current = setTimeout(() => platAttemptQr(attempt + 1), 2000);
+    } catch {
+      setPlatQrLoading(false);
+      if (attempt < 4) platRetryRef.current = setTimeout(() => platAttemptQr(attempt + 1), 3000);
+      else setPlatQrError("max");
+    }
+  };
+
+  const platOpenQr = () => {
+    platStopPolling();
+    setPlatQrOpen(true);
+    setPlatQrImage(null);
+    setPlatQrError(null);
+    void platAttemptQr(0);
+  };
+
+  const platSendMessage = async () => {
+    const phone = platSendPhone.trim().replace(/[^0-9]/g, "");
+    const msg = platSendMsg.trim();
+    if (!phone || !msg) return;
+    setPlatSending(true);
+    setPlatSendResult(null);
+    try {
+      const res = await platWaProxy("send-message", { phone, message: msg });
+      const data = await res.json();
+      setPlatSendResult(data.ok ? "ok" : "error");
+    } catch {
+      setPlatSendResult("error");
+    }
+    setPlatSending(false);
+    setTimeout(() => setPlatSendResult(null), 3500);
+  };
 
   const fetchPlatformData = async () => {
     const [
@@ -354,6 +463,21 @@ export default function PlatformPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== "whatsapp") return;
+    (async () => {
+      try {
+        const res = await platWaProxy("session-status");
+        const data = await res.json();
+        setPlatWaStatus(data.status === "active" ? "connected" : "disconnected");
+        if (data.phone) setPlatWaPhone(data.phone);
+      } catch {
+        setPlatWaStatus("disconnected");
+      }
+    })();
+    return () => platStopPolling();
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const crmHealth = useMemo(() => {
     const convertedClients = accounts.filter((account) => account.status === "converted").length;
@@ -611,11 +735,12 @@ export default function PlatformPage() {
             { key: "crm", label: "Clientes FitGrowX" },
             { key: "cms", label: "CMS Bóveda" },
             { key: "feedback", label: "Feedback" },
+            { key: "whatsapp", label: "WhatsApp" },
           ].map((tab) => (
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback")}
+              onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback" | "whatsapp")}
               style={{
                 padding: "10px 14px",
                 borderRadius: 999,
@@ -1802,6 +1927,168 @@ export default function PlatformPage() {
               ))}
             </section>
           )}
+        </>
+      )}
+
+      {/* ── WhatsApp tab ── */}
+      {!loading && !error && authorized && activeTab === "whatsapp" && (
+        <>
+          {/* Connection card */}
+          <section style={{ ...shellCard, padding: "28px 30px 26px", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+              <div>
+                <p style={{ margin: "0 0 4px", font: `700 1.05rem/1 ${fd}`, color: "#111827" }}>
+                  WhatsApp de plataforma
+                </p>
+                <p style={{ margin: 0, font: `400 0.875rem/1.6 ${fb}`, color: "#64748B" }}>
+                  Desde acá enviás mensajes a tus clientes FitGrowX (dueños de gym).
+                </p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {platWaStatus === "connected" ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(22,163,74,0.10)", font: `600 0.8rem/1 ${fd}`, color: "#15803D" }}>
+                    <CheckCircle size={13} />
+                    Conectado{platWaPhone ? ` · ${platWaPhone}` : ""}
+                  </span>
+                ) : platWaStatus === "disconnected" ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(220,38,38,0.08)", font: `600 0.8rem/1 ${fd}`, color: "#B91C1C" }}>
+                    <WifiOff size={13} />
+                    Sin conexión
+                  </span>
+                ) : (
+                  <span style={{ padding: "6px 12px", borderRadius: 999, background: "rgba(100,116,139,0.10)", font: `600 0.8rem/1 ${fd}`, color: "#475569" }}>
+                    Verificando...
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={platOpenQr}
+                  style={{ padding: "8px 16px", borderRadius: 12, border: "1.5px solid #111827", background: "#111827", color: "#fff", font: `600 0.82rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                >
+                  <Smartphone size={14} />
+                  {platWaStatus === "connected" ? "Reconectar QR" : "Conectar QR"}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* QR Modal */}
+          {platQrOpen && (
+            <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ background: "#fff", borderRadius: 24, padding: "36px 40px", maxWidth: 420, width: "90%", textAlign: "center", position: "relative" }}>
+                <button type="button" onClick={() => { platStopPolling(); setPlatQrOpen(false); }} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                  <X size={18} color="#6B7280" />
+                </button>
+                <Smartphone size={28} color="#111827" style={{ marginBottom: 12 }} />
+                <p style={{ margin: "0 0 6px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Conectá tu WhatsApp</p>
+                <p style={{ margin: "0 0 22px", font: `400 0.85rem/1.5 ${fb}`, color: "#6B7280" }}>
+                  Abrí WhatsApp → Dispositivos vinculados → Vincular dispositivo → Escaneá el QR
+                </p>
+                {platQrLoading && !platQrImage && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "30px 0" }}>
+                    <Loader2 size={32} color="#2563EB" style={{ animation: "spin 1s linear infinite" }} />
+                    <p style={{ margin: 0, font: `400 0.85rem/1 ${fb}`, color: "#64748B" }}>Generando QR...</p>
+                  </div>
+                )}
+                {platQrImage && (
+                  <img src={platQrImage} alt="QR WhatsApp" style={{ width: 220, height: 220, borderRadius: 12, border: "1px solid rgba(0,0,0,0.08)" }} />
+                )}
+                {platQrError === "max" && (
+                  <div style={{ padding: "20px 0" }}>
+                    <p style={{ margin: "0 0 14px", font: `500 0.88rem/1.5 ${fb}`, color: "#B91C1C" }}>No se pudo generar el QR. Intentá de nuevo.</p>
+                    <button type="button" onClick={() => { setPlatQrError(null); void platAttemptQr(0); }} style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#111827", color: "#fff", font: `600 0.85rem/1 ${fd}`, cursor: "pointer" }}>
+                      Reintentar
+                    </button>
+                  </div>
+                )}
+                {platQrImage && (
+                  <p style={{ margin: "14px 0 0", font: `400 0.8rem/1.5 ${fb}`, color: "#9CA3AF" }}>
+                    El QR se actualiza automáticamente. Una vez escaneado, se cerrará esta ventana.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Send individual message */}
+          <section style={{ ...shellCard, padding: "28px 30px 26px", marginBottom: 20 }}>
+            <p style={{ margin: "0 0 16px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>
+              Enviar mensaje
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <input
+                type="text"
+                placeholder="Número (ej: 5491165909374)"
+                value={platSendPhone}
+                onChange={e => setPlatSendPhone(e.target.value)}
+                style={{ padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.1)", background: "#F8FAFC", font: `400 0.9rem/1 ${fb}`, color: "#111827", outline: "none" }}
+              />
+              <textarea
+                rows={4}
+                placeholder="Escribí el mensaje..."
+                value={platSendMsg}
+                onChange={e => setPlatSendMsg(e.target.value)}
+                style={{ padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.1)", background: "#F8FAFC", font: `400 0.9rem/1.6 ${fb}`, color: "#111827", outline: "none", resize: "vertical" }}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={platSendMessage}
+                  disabled={platSending || platWaStatus !== "connected"}
+                  style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: platWaStatus === "connected" ? "#111827" : "#D1D5DB", color: platWaStatus === "connected" ? "#fff" : "#6B7280", font: `600 0.88rem/1 ${fd}`, cursor: platWaStatus === "connected" ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 7 }}
+                >
+                  {platSending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
+                  {platSending ? "Enviando..." : "Enviar"}
+                </button>
+                {platSendResult === "ok" && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.85rem/1 ${fb}`, color: "#15803D" }}>
+                    <CheckCircle size={14} /> Enviado
+                  </span>
+                )}
+                {platSendResult === "error" && (
+                  <span style={{ font: `500 0.85rem/1 ${fb}`, color: "#B91C1C" }}>Error al enviar</span>
+                )}
+                {platWaStatus !== "connected" && (
+                  <span style={{ font: `400 0.82rem/1 ${fb}`, color: "#9CA3AF" }}>Conectá WhatsApp primero</span>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Message templates */}
+          <section style={{ ...shellCard, padding: "28px 30px 26px" }}>
+            <p style={{ margin: "0 0 4px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>
+              Plantillas de mensaje
+            </p>
+            <p style={{ margin: "0 0 20px", font: `400 0.85rem/1.5 ${fb}`, color: "#64748B" }}>
+              Hacé clic en "Usar" para cargar la plantilla en el editor. Variables disponibles: <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 5px", borderRadius: 4, fontSize: "0.8em" }}>{"{nombre}"}</code> <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 5px", borderRadius: 4, fontSize: "0.8em" }}>{"{dias}"}</code>
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {(["bienvenida", "onboarding", "trial_vence", "reactivacion"] as const).map(key => {
+                const labels = { bienvenida: "Bienvenida", onboarding: "Onboarding (carga inicial)", trial_vence: "Trial por vencer", reactivacion: "Reactivación" };
+                return (
+                  <div key={key} style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 18px", border: "1px solid rgba(15,23,42,0.07)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                      <p style={{ margin: 0, font: `700 0.85rem/1 ${fd}`, color: "#374151" }}>{labels[key]}</p>
+                      <button
+                        type="button"
+                        onClick={() => setPlatSendMsg(platMsgTemplate[key])}
+                        style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", font: `600 0.78rem/1 ${fd}`, color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                      >
+                        <MessageCircle size={11} /> Usar
+                      </button>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={platMsgTemplate[key]}
+                      onChange={e => setPlatMsgTemplate(prev => ({ ...prev, [key]: e.target.value }))}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.08)", background: "#fff", font: `400 0.82rem/1.55 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
         </>
       )}
     </div>

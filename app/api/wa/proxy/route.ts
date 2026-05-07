@@ -9,7 +9,10 @@ const ALLOWED_PATHS = new Set([
   "qr-data",
   "session-delete",
   "session-reconnect",
+  "send-message",
 ]);
+
+const PLATFORM_SESSION_ID = "fitgrowx-platform";
 
 export async function POST(req: NextRequest) {
   const motor = process.env.WA_MOTOR_URL;
@@ -25,12 +28,23 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { action, gymId } = await req.json();
+  const { action, gymId, phone, message } = await req.json();
   if (!action || !gymId) return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
   if (!ALLOWED_PATHS.has(action)) return NextResponse.json({ error: "Acción no permitida" }, { status: 400 });
 
-  // Verificar que el gymId pertenece al usuario autenticado
-  if (user.id !== gymId) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  // Para la sesión de plataforma, verificar que el usuario es platform_owner
+  if (gymId === PLATFORM_SESSION_ID) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.role !== "platform_owner") {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+  } else if (user.id !== gymId) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
 
   const headers = {
     "Content-Type": "application/json",
@@ -51,6 +65,15 @@ export async function POST(req: NextRequest) {
         break;
       case "session-reconnect":
         res = await fetch(`${motor}/session/${gymId}/reconnect`, { method: "POST", headers, signal: AbortSignal.timeout(8000) });
+        break;
+      case "send-message":
+        if (!phone || !message) return NextResponse.json({ error: "Faltan phone y message" }, { status: 400 });
+        res = await fetch(`${motor}/send/${gymId}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ phone, message }),
+          signal: AbortSignal.timeout(12000),
+        });
         break;
       default:
         return NextResponse.json({ error: "Acción inválida" }, { status: 400 });
