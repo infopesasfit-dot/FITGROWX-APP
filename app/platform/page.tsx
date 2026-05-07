@@ -1476,39 +1476,95 @@ export default function PlatformPage() {
       {/* ── Feedback tab ── */}
       {!loading && !error && authorized && activeTab === "feedback" && (
         <>
-          <section style={{ ...shellCard, padding: "28px 30px 26px", marginBottom: 20 }}>
-            <p style={{ margin: "0 0 6px", font: `700 1.05rem/1 ${fd}`, color: "#111827" }}>
-              Feedback de usuarios
-            </p>
-            <p style={{ margin: 0, font: `400 0.875rem/1.6 ${fb}`, color: "#64748B" }}>
-              Mensajes enviados desde el dashboard por los dueños de gimnasio.
-            </p>
+          {/* Stats bar */}
+          <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
+            {[
+              {
+                label: "Total mensajes",
+                value: feedbackRows.length,
+                color: "#2563EB",
+                bg: "rgba(37,99,235,0.08)",
+              },
+              {
+                label: "Últimos 7 días",
+                value: feedbackRows.filter(r => {
+                  const d = new Date(r.created_at);
+                  return Date.now() - d.getTime() < 7 * 24 * 60 * 60 * 1000;
+                }).length,
+                color: "#F97316",
+                bg: "rgba(249,115,22,0.08)",
+              },
+              {
+                label: "Gyms distintos",
+                value: new Set(feedbackRows.map(r => r.gym_id)).size,
+                color: "#16A34A",
+                bg: "rgba(22,163,74,0.08)",
+              },
+            ].map(stat => (
+              <div key={stat.label} style={{ ...shellCard, padding: "20px 22px" }}>
+                <p style={{ margin: "0 0 6px", font: `400 0.78rem/1 ${fb}`, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>{stat.label}</p>
+                <p style={{ margin: 0, font: `700 1.7rem/1 ${fd}`, color: stat.color }}>{stat.value}</p>
+              </div>
+            ))}
+          </section>
+
+          {/* Header */}
+          <section style={{ ...shellCard, padding: "22px 26px", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <p style={{ margin: "0 0 3px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Feedback de usuarios</p>
+              <p style={{ margin: 0, font: `400 0.85rem/1 ${fb}`, color: "#6B7280" }}>Mensajes enviados desde el dashboard por los dueños de gym.</p>
+            </div>
+            <span style={{ padding: "5px 12px", borderRadius: 999, background: "rgba(37,99,235,0.08)", font: `600 0.78rem/1 ${fd}`, color: "#2563EB" }}>
+              {feedbackRows.length} mensaje{feedbackRows.length !== 1 ? "s" : ""}
+            </span>
           </section>
 
           {feedbackRows.length === 0 ? (
             emptyState("Sin feedback todavía", "Cuando algún usuario envíe un mensaje desde el dashboard, va a aparecer acá.")
           ) : (
             <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {feedbackRows.map(row => (
-                <article key={row.id} style={{ ...shellCard, padding: "18px 22px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
-                    <div>
-                      <p style={{ margin: 0, font: `700 0.88rem/1 ${fd}`, color: "#111827" }}>
-                        {row.gym_name ?? row.email ?? row.gym_id}
+              {feedbackRows.map(row => {
+                const daysAgo = Math.floor((Date.now() - new Date(row.created_at).getTime()) / (1000 * 60 * 60 * 24));
+                const relTime = daysAgo === 0 ? "Hoy" : daysAgo === 1 ? "Ayer" : `Hace ${daysAgo} días`;
+                return (
+                  <article key={row.id} style={{ ...shellCard, padding: "0", overflow: "hidden", display: "flex" }}>
+                    {/* Left accent bar */}
+                    <div style={{ width: 4, flexShrink: 0, background: "linear-gradient(180deg, #2563EB 0%, #7C3AED 100%)" }} />
+                    <div style={{ flex: 1, padding: "18px 22px" }}>
+                      {/* Header row */}
+                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          {/* Gym pill */}
+                          <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(37,99,235,0.09)", font: `600 0.78rem/1 ${fd}`, color: "#2563EB", display: "flex", alignItems: "center", gap: 5 }}>
+                            <Building2 size={11} />
+                            {row.gym_name ?? row.gym_id}
+                          </span>
+                          {row.email && (
+                            <span style={{ font: `400 0.78rem/1 ${fb}`, color: "#9CA3AF" }}>{row.email}</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                          <span style={{ font: `400 0.75rem/1 ${fb}`, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 4 }}>
+                            <Clock3 size={11} /> {relTime}
+                          </span>
+                          {row.email && (
+                            <a
+                              href={`mailto:${row.email}?subject=Re: tu feedback en FitGrowX`}
+                              style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: "#374151", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}
+                            >
+                              <Send size={10} /> Responder
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      {/* Message body */}
+                      <p style={{ margin: 0, font: `400 0.9rem/1.7 ${fb}`, color: "#374151", whiteSpace: "pre-wrap" }}>
+                        {row.message}
                       </p>
-                      {row.gym_name && row.email && (
-                        <p style={{ margin: "3px 0 0", font: `400 0.78rem/1 ${fb}`, color: "#9CA3AF" }}>{row.email}</p>
-                      )}
                     </div>
-                    <p style={{ margin: 0, font: `400 0.76rem/1 ${fb}`, color: "#9CA3AF", flexShrink: 0 }}>
-                      {formatDate(row.created_at)}
-                    </p>
-                  </div>
-                  <p style={{ margin: 0, font: `400 0.875rem/1.65 ${fb}`, color: "#374151" }}>
-                    {row.message}
-                  </p>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </section>
           )}
         </>
@@ -1517,43 +1573,69 @@ export default function PlatformPage() {
       {/* ── WhatsApp tab ── */}
       {!loading && !error && authorized && activeTab === "whatsapp" && (
         <>
-          {/* Connection card */}
-          <section style={{ ...shellCard, padding: "28px 30px 26px", marginBottom: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
-              <div>
-                <p style={{ margin: "0 0 4px", font: `700 1.05rem/1 ${fd}`, color: "#111827" }}>
-                  WhatsApp de plataforma
-                </p>
-                <p style={{ margin: 0, font: `400 0.875rem/1.6 ${fb}`, color: "#64748B" }}>
-                  Desde acá enviás mensajes a tus clientes FitGrowX (dueños de gym).
-                </p>
+          {/* Connection status banner */}
+          <section style={{
+            ...shellCard,
+            padding: "22px 26px",
+            marginBottom: 20,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            borderLeft: `4px solid ${platWaStatus === "connected" ? "#16A34A" : platWaStatus === "disconnected" ? "#DC2626" : "#94A3B8"}`,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              {/* Status dot */}
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                background: platWaStatus === "connected" ? "rgba(22,163,74,0.12)" : platWaStatus === "disconnected" ? "rgba(220,38,38,0.10)" : "rgba(148,163,184,0.14)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                {platWaStatus === "connected"
+                  ? <CheckCircle size={20} color="#16A34A" />
+                  : platWaStatus === "disconnected"
+                  ? <WifiOff size={20} color="#DC2626" />
+                  : <Loader2 size={20} color="#94A3B8" style={{ animation: "spin 1s linear infinite" }} />}
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {platWaStatus === "connected" ? (
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(22,163,74,0.10)", font: `600 0.8rem/1 ${fd}`, color: "#15803D" }}>
-                    <CheckCircle size={13} />
-                    Conectado{platWaPhone ? ` · ${platWaPhone}` : ""}
-                  </span>
-                ) : platWaStatus === "disconnected" ? (
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(220,38,38,0.08)", font: `600 0.8rem/1 ${fd}`, color: "#B91C1C" }}>
-                    <WifiOff size={13} />
-                    Sin conexión
-                  </span>
-                ) : (
-                  <span style={{ padding: "6px 12px", borderRadius: 999, background: "rgba(100,116,139,0.10)", font: `600 0.8rem/1 ${fd}`, color: "#475569" }}>
-                    Verificando...
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={platOpenQr}
-                  style={{ padding: "8px 16px", borderRadius: 12, border: "1.5px solid #111827", background: "#111827", color: "#fff", font: `600 0.82rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                >
-                  <Smartphone size={14} />
-                  {platWaStatus === "connected" ? "Reconectar QR" : "Conectar QR"}
-                </button>
+              <div>
+                <p style={{ margin: "0 0 3px", font: `700 0.95rem/1 ${fd}`, color: "#111827" }}>
+                  {platWaStatus === "connected" ? "WhatsApp conectado" : platWaStatus === "disconnected" ? "Sin conexión" : "Verificando..."}
+                </p>
+                <p style={{ margin: 0, font: `400 0.82rem/1 ${fb}`, color: "#6B7280" }}>
+                  {platWaStatus === "connected"
+                    ? `Sesión activa${platWaPhone ? ` · ${platWaPhone}` : ""} — podés enviar mensajes a tus clientes`
+                    : platWaStatus === "disconnected"
+                    ? "Escaneá el QR para vincular tu número de WhatsApp"
+                    : "Comprobando estado de la sesión..."}
+                </p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={platOpenQr}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 12,
+                border: "none",
+                background: platWaStatus === "connected" ? "rgba(15,23,42,0.08)" : "#111827",
+                color: platWaStatus === "connected" ? "#374151" : "#fff",
+                font: `600 0.85rem/1 ${fd}`,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+                flexShrink: 0,
+              }}
+            >
+              <Smartphone size={15} />
+              {platWaStatus === "connected" ? "Reconectar QR" : "Conectar QR"}
+            </button>
           </section>
 
           {/* QR Modal */}
@@ -1594,85 +1676,132 @@ export default function PlatformPage() {
             </div>
           )}
 
-          {/* Send individual message */}
-          <section style={{ ...shellCard, padding: "28px 30px 26px", marginBottom: 20 }}>
-            <p style={{ margin: "0 0 16px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>
-              Enviar mensaje
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <input
-                type="text"
-                placeholder="Número (ej: 5491165909374)"
-                value={platSendPhone}
-                onChange={e => setPlatSendPhone(e.target.value)}
-                style={{ padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.1)", background: "#F8FAFC", font: `400 0.9rem/1 ${fb}`, color: "#111827", outline: "none" }}
-              />
-              <textarea
-                rows={4}
-                placeholder="Escribí el mensaje..."
-                value={platSendMsg}
-                onChange={e => setPlatSendMsg(e.target.value)}
-                style={{ padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.1)", background: "#F8FAFC", font: `400 0.9rem/1.6 ${fb}`, color: "#111827", outline: "none", resize: "vertical" }}
-              />
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <button
-                  type="button"
-                  onClick={platSendMessage}
-                  disabled={platSending || platWaStatus !== "connected"}
-                  style={{ padding: "10px 20px", borderRadius: 12, border: "none", background: platWaStatus === "connected" ? "#111827" : "#D1D5DB", color: platWaStatus === "connected" ? "#fff" : "#6B7280", font: `600 0.88rem/1 ${fd}`, cursor: platWaStatus === "connected" ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 7 }}
-                >
-                  {platSending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
-                  {platSending ? "Enviando..." : "Enviar"}
-                </button>
-                {platSendResult === "ok" && (
-                  <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.85rem/1 ${fb}`, color: "#15803D" }}>
-                    <CheckCircle size={14} /> Enviado
-                  </span>
-                )}
-                {platSendResult === "error" && (
-                  <span style={{ font: `500 0.85rem/1 ${fb}`, color: "#B91C1C" }}>Error al enviar</span>
-                )}
-                {platWaStatus !== "connected" && (
-                  <span style={{ font: `400 0.82rem/1 ${fb}`, color: "#9CA3AF" }}>Conectá WhatsApp primero</span>
-                )}
-              </div>
-            </div>
-          </section>
+          {/* 2-col layout: compose + templates */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
+            {/* Left: composer */}
+            <section style={{ ...shellCard, padding: "26px 28px" }}>
+              <p style={{ margin: "0 0 4px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Enviar mensaje</p>
+              <p style={{ margin: "0 0 20px", font: `400 0.83rem/1 ${fb}`, color: "#6B7280" }}>
+                {platWaStatus !== "connected" && <span style={{ color: "#B91C1C" }}>Conectá WhatsApp primero para habilitar el envío. </span>}
+                Usá las plantillas de la derecha como base.
+              </p>
 
-          {/* Message templates */}
-          <section style={{ ...shellCard, padding: "28px 30px 26px" }}>
-            <p style={{ margin: "0 0 4px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>
-              Plantillas de mensaje
-            </p>
-            <p style={{ margin: "0 0 20px", font: `400 0.85rem/1.5 ${fb}`, color: "#64748B" }}>
-              Hacé clic en "Usar" para cargar la plantilla en el editor. Variables disponibles: <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 5px", borderRadius: 4, fontSize: "0.8em" }}>{"{nombre}"}</code> <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 5px", borderRadius: 4, fontSize: "0.8em" }}>{"{dias}"}</code>
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {(["bienvenida", "onboarding", "trial_vence", "reactivacion"] as const).map(key => {
-                const labels = { bienvenida: "Bienvenida", onboarding: "Onboarding (carga inicial)", trial_vence: "Trial por vencer", reactivacion: "Reactivación" };
-                return (
-                  <div key={key} style={{ background: "#F8FAFC", borderRadius: 14, padding: "16px 18px", border: "1px solid rgba(15,23,42,0.07)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                      <p style={{ margin: 0, font: `700 0.85rem/1 ${fd}`, color: "#374151" }}>{labels[key]}</p>
-                      <button
-                        type="button"
-                        onClick={() => setPlatSendMsg(platMsgTemplate[key])}
-                        style={{ padding: "5px 12px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", font: `600 0.78rem/1 ${fd}`, color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
-                      >
-                        <MessageCircle size={11} /> Usar
-                      </button>
+              {/* Quick-select from CRM */}
+              {accounts.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <p style={{ margin: "0 0 8px", font: `600 0.78rem/1 ${fd}`, color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>Seleccionar cliente</p>
+                  <select
+                    onChange={e => {
+                      const acc = accounts.find(a => a.id === e.target.value);
+                      if (acc?.phone) setPlatSendPhone(acc.phone.replace(/\D/g, ""));
+                    }}
+                    defaultValue=""
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "#F8FAFC", font: `400 0.88rem/1 ${fb}`, color: "#111827", outline: "none", cursor: "pointer" }}
+                  >
+                    <option value="" disabled>Elegir gym del CRM...</option>
+                    {accounts.filter(a => a.phone).map(a => (
+                      <option key={a.id} value={a.id}>{a.company_name}{a.owner_name ? ` · ${a.owner_name}` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div>
+                  <p style={{ margin: "0 0 6px", font: `600 0.78rem/1 ${fd}`, color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>Número WhatsApp</p>
+                  <input
+                    type="text"
+                    placeholder="Ej: 5491165909374 (sin + ni espacios)"
+                    value={platSendPhone}
+                    onChange={e => setPlatSendPhone(e.target.value)}
+                    style={{ width: "100%", padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "#F8FAFC", font: `400 0.9rem/1 ${fb}`, color: "#111827", outline: "none", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <p style={{ margin: "0 0 6px", font: `600 0.78rem/1 ${fd}`, color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>Mensaje</p>
+                  <textarea
+                    rows={6}
+                    placeholder="Escribí el mensaje o cargá una plantilla..."
+                    value={platSendMsg}
+                    onChange={e => setPlatSendMsg(e.target.value)}
+                    style={{ width: "100%", padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "#F8FAFC", font: `400 0.9rem/1.6 ${fb}`, color: "#111827", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <button
+                    type="button"
+                    onClick={platSendMessage}
+                    disabled={platSending || platWaStatus !== "connected" || !platSendPhone.trim() || !platSendMsg.trim()}
+                    style={{
+                      padding: "11px 22px",
+                      borderRadius: 12,
+                      border: "none",
+                      background: (platWaStatus === "connected" && platSendPhone.trim() && platSendMsg.trim()) ? "#111827" : "#D1D5DB",
+                      color: (platWaStatus === "connected" && platSendPhone.trim() && platSendMsg.trim()) ? "#fff" : "#6B7280",
+                      font: `600 0.9rem/1 ${fd}`,
+                      cursor: (platWaStatus === "connected" && platSendPhone.trim() && platSendMsg.trim()) ? "pointer" : "not-allowed",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 7,
+                    }}
+                  >
+                    {platSending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
+                    {platSending ? "Enviando..." : "Enviar mensaje"}
+                  </button>
+                  {platSendResult === "ok" && (
+                    <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.85rem/1 ${fb}`, color: "#15803D" }}>
+                      <CheckCircle size={14} /> Enviado
+                    </span>
+                  )}
+                  {platSendResult === "error" && (
+                    <span style={{ font: `500 0.85rem/1 ${fb}`, color: "#B91C1C" }}>Error al enviar</span>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* Right: templates */}
+            <section style={{ ...shellCard, padding: "22px 24px" }}>
+              <p style={{ margin: "0 0 3px", font: `700 0.95rem/1 ${fd}`, color: "#111827" }}>Plantillas</p>
+              <p style={{ margin: "0 0 16px", font: `400 0.8rem/1.5 ${fb}`, color: "#6B7280" }}>
+                Hacé clic en "Usar" para cargarlo en el compositor.
+                Variables: <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 4px", borderRadius: 4, fontSize: "0.85em" }}>{"{nombre}"}</code> <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 4px", borderRadius: 4, fontSize: "0.85em" }}>{"{dias}"}</code>
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {(["bienvenida", "onboarding", "trial_vence", "reactivacion"] as const).map(key => {
+                  const meta: Record<typeof key, { label: string; color: string; bg: string }> = {
+                    bienvenida: { label: "Bienvenida", color: "#16A34A", bg: "rgba(22,163,74,0.08)" },
+                    onboarding: { label: "Onboarding", color: "#2563EB", bg: "rgba(37,99,235,0.08)" },
+                    trial_vence: { label: "Trial por vencer", color: "#D97706", bg: "rgba(217,119,6,0.08)" },
+                    reactivacion: { label: "Reactivación", color: "#7C3AED", bg: "rgba(124,58,237,0.08)" },
+                  };
+                  const m = meta[key];
+                  return (
+                    <div key={key} style={{ borderRadius: 14, border: "1px solid rgba(15,23,42,0.07)", overflow: "hidden" }}>
+                      {/* Template header */}
+                      <div style={{ padding: "10px 14px", background: m.bg, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ font: `600 0.8rem/1 ${fd}`, color: m.color }}>{m.label}</span>
+                        <button
+                          type="button"
+                          onClick={() => setPlatSendMsg(platMsgTemplate[key])}
+                          style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: m.color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
+                        >
+                          <MessageCircle size={10} /> Usar
+                        </button>
+                      </div>
+                      {/* Editable text */}
+                      <textarea
+                        rows={3}
+                        value={platMsgTemplate[key]}
+                        onChange={e => setPlatMsgTemplate(prev => ({ ...prev, [key]: e.target.value }))}
+                        style={{ width: "100%", padding: "10px 14px", border: "none", borderTop: "1px solid rgba(15,23,42,0.06)", background: "#fff", font: `400 0.8rem/1.6 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                      />
                     </div>
-                    <textarea
-                      rows={3}
-                      value={platMsgTemplate[key]}
-                      onChange={e => setPlatMsgTemplate(prev => ({ ...prev, [key]: e.target.value }))}
-                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.08)", background: "#fff", font: `400 0.82rem/1.55 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
         </>
       )}
     </div>

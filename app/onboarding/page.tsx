@@ -32,9 +32,9 @@ const STEPS = [
     color: "#16A34A",
     bg: "rgba(22,163,74,0.14)",
     title: "¿A qué número te contactamos?",
-    hint: "Lo usamos para avisos importantes por WhatsApp. Podés saltear este paso.",
-    placeholder: "Ej: 5491165908374",
-    optional: true,
+    hint: "Lo usamos para enviarte avisos importantes por WhatsApp.",
+    placeholder: "Ej: 1165908374",
+    optional: false,
   },
 ];
 
@@ -44,6 +44,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [values, setValues] = useState({ name: "", gymName: "", phone: "" });
+  const [countryCode, setCountryCode] = useState("+54");
   const [gymId, setGymId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -91,10 +92,6 @@ export default function OnboardingPage() {
     transition(-1, () => setStep(s => s - 1));
   };
 
-  const handleSkip = async () => {
-    await saveAll();
-  };
-
   const saveAll = async () => {
     setSaving(true);
     setError(null);
@@ -110,12 +107,14 @@ export default function OnboardingPage() {
       }
 
       if (gymId) {
+        const rawPhone = values.phone.trim().replace(/\D/g, "");
+        const fullPhone = rawPhone ? `${countryCode.replace("+", "")}${rawPhone}` : null;
         const { error: e } = await supabase.from("gym_settings").upsert(
           {
             gym_id: gymId,
             owner_name: values.name.trim() || null,
             gym_name: values.gymName.trim() || null,
-            whatsapp: values.phone.trim() || null,
+            whatsapp: fullPhone,
             onboarding_completed: true,
           },
           { onConflict: "gym_id" }
@@ -217,23 +216,69 @@ export default function OnboardingPage() {
                 <p className="text-[13px] text-white/40 mb-6 leading-relaxed">{current.hint}</p>
 
                 {/* Input */}
-                <input
-                  ref={inputRef}
-                  type={current.key === "phone" ? "tel" : "text"}
-                  value={values[current.key]}
-                  onChange={e => setValues(v => ({ ...v, [current.key]: e.target.value }))}
-                  onKeyDown={handleKey}
-                  placeholder={current.placeholder}
-                  className="w-full h-14 rounded-2xl border text-white placeholder:text-white/25 bg-white/[0.05] px-5 text-[15px] font-medium outline-none transition-all"
-                  style={{
-                    borderColor: values[current.key].trim().length >= 2
-                      ? `${current.color}55`
-                      : "rgba(255,255,255,0.08)",
-                    boxShadow: values[current.key].trim().length >= 2
-                      ? `0 0 0 3px ${current.color}18`
-                      : "none",
-                  }}
-                />
+                {current.key === "phone" ? (
+                  <div
+                    className="w-full flex rounded-2xl border overflow-hidden transition-all"
+                    style={{
+                      borderColor: values.phone.trim().length >= 2 ? `${current.color}55` : "rgba(255,255,255,0.08)",
+                      boxShadow: values.phone.trim().length >= 2 ? `0 0 0 3px ${current.color}18` : "none",
+                      background: "rgba(255,255,255,0.05)",
+                    }}
+                  >
+                    <select
+                      value={countryCode}
+                      onChange={e => setCountryCode(e.target.value)}
+                      className="outline-none text-white text-[14px] font-medium bg-transparent border-r pl-4 pr-2 py-0 cursor-pointer flex-shrink-0"
+                      style={{ borderColor: "rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", minWidth: 96 }}
+                    >
+                      {[
+                        { code: "+54", label: "🇦🇷 +54" },
+                        { code: "+52", label: "🇲🇽 +52" },
+                        { code: "+57", label: "🇨🇴 +57" },
+                        { code: "+56", label: "🇨🇱 +56" },
+                        { code: "+51", label: "🇵🇪 +51" },
+                        { code: "+598", label: "🇺🇾 +598" },
+                        { code: "+595", label: "🇵🇾 +595" },
+                        { code: "+591", label: "🇧🇴 +591" },
+                        { code: "+593", label: "🇪🇨 +593" },
+                        { code: "+58", label: "🇻🇪 +58" },
+                        { code: "+55", label: "🇧🇷 +55" },
+                        { code: "+34", label: "🇪🇸 +34" },
+                        { code: "+1", label: "🇺🇸 +1" },
+                        { code: "+1809", label: "🇩🇴 +1809" },
+                      ].map(c => (
+                        <option key={c.code} value={c.code} style={{ background: "#1a1a22", color: "#fff" }}>{c.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      ref={inputRef}
+                      type="tel"
+                      value={values.phone}
+                      onChange={e => setValues(v => ({ ...v, phone: e.target.value }))}
+                      onKeyDown={handleKey}
+                      placeholder={current.placeholder}
+                      className="flex-1 h-14 bg-transparent text-white placeholder:text-white/25 px-4 text-[15px] font-medium outline-none"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={values[current.key]}
+                    onChange={e => setValues(v => ({ ...v, [current.key]: e.target.value }))}
+                    onKeyDown={handleKey}
+                    placeholder={current.placeholder}
+                    className="w-full h-14 rounded-2xl border text-white placeholder:text-white/25 bg-white/[0.05] px-5 text-[15px] font-medium outline-none transition-all"
+                    style={{
+                      borderColor: values[current.key].trim().length >= 2
+                        ? `${current.color}55`
+                        : "rgba(255,255,255,0.08)",
+                      boxShadow: values[current.key].trim().length >= 2
+                        ? `0 0 0 3px ${current.color}18`
+                        : "none",
+                    }}
+                  />
+                )}
 
                 {error && (
                   <p className="mt-3 text-[12px] text-red-400 text-center">{error}</p>
@@ -256,8 +301,8 @@ export default function OnboardingPage() {
                 </button>
 
                 {/* Bottom nav */}
-                <div className="mt-4 flex items-center justify-between">
-                  {step > 0 ? (
+                {step > 0 && (
+                  <div className="mt-4 flex items-center">
                     <button
                       type="button"
                       onClick={handleBack}
@@ -265,20 +310,8 @@ export default function OnboardingPage() {
                     >
                       <ArrowLeft size={13} /> Volver
                     </button>
-                  ) : (
-                    <span />
-                  )}
-                  {current.optional && (
-                    <button
-                      type="button"
-                      onClick={() => void handleSkip()}
-                      disabled={saving}
-                      className="text-[12px] text-white/25 hover:text-white/50 transition-colors"
-                    >
-                      Saltar por ahora
-                    </button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </>
           )}
