@@ -213,6 +213,10 @@ textarea {
   animation: nav-entrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
 }
 
+.landing-header > *:not(.landing-header-shell) {
+  pointer-events: auto;
+}
+
 /* ── Estado inicial: transparente, pegado al top ── */
 .landing-header-shell {
   pointer-events: auto;

@@ -16,7 +16,16 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // Procesar el hash de la URL primero, luego escuchar el evento
+    // PKCE flow: el link del email trae ?code= en la URL
+    const code = new URLSearchParams(window.location.search).get("code");
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+        if (!error) setReady(true);
+      });
+      return;
+    }
+
+    // Fallback: hash-based flow (legacy)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setReady(true);
     });
