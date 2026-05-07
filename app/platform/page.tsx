@@ -213,28 +213,12 @@ export default function PlatformPage() {
   const [vaultCategories, setVaultCategories] = useState<VaultCategoryRow[]>([]);
   const [feedbackRows, setFeedbackRows] = useState<FeedbackRow[]>([]);
   const [crmSearch, setCrmSearch] = useState("");
-  const [savingLead, setSavingLead] = useState(false);
-  const [savingAccount, setSavingAccount] = useState(false);
+  const [crmFilter, setCrmFilter] = useState<"todos" | "leads" | "trial" | "riesgo" | "convertido" | "churn">("todos");
   const [updatingAccountId, setUpdatingAccountId] = useState<string | null>(null);
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [savingCategory, setSavingCategory] = useState(false);
   const [savingResource, setSavingResource] = useState(false);
-  const [leadForm, setLeadForm] = useState({
-    full_name: "",
-    business_name: "",
-    email: "",
-    phone: "",
-    source: "landing",
-  });
-  const [accountForm, setAccountForm] = useState({
-    company_name: "",
-    owner_name: "",
-    email: "",
-    phone: "",
-    subscription_plan: "starter",
-    status: "trial_setup" as AccountStatus,
-  });
   const [categoryForm, setCategoryForm] = useState({
     title: "",
     description: "",
@@ -517,68 +501,6 @@ export default function PlatformPage() {
     window.setTimeout(() => setFeedback(null), 2600);
   };
 
-  const handleLeadSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!leadForm.full_name.trim() && !leadForm.business_name.trim()) return;
-
-    try {
-      setSavingLead(true);
-      setFeedback(null);
-      const { error: insertError } = await supabase.from("platform_leads").insert({
-        full_name: leadForm.full_name.trim() || null,
-        business_name: leadForm.business_name.trim() || null,
-        email: leadForm.email.trim() || null,
-        phone: leadForm.phone.trim() || null,
-        source: leadForm.source.trim() || "manual",
-        status: "new",
-      });
-      if (insertError) throw insertError;
-      setLeadForm({ full_name: "", business_name: "", email: "", phone: "", source: "landing" });
-      await fetchPlatformData();
-      setFeedback("Lead creado correctamente.");
-      resetFeedbackSoon();
-    } catch (caughtError) {
-      setFeedback(getErrorMessage(caughtError));
-    } finally {
-      setSavingLead(false);
-    }
-  };
-
-  const handleAccountSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!accountForm.company_name.trim()) return;
-
-    try {
-      setSavingAccount(true);
-      setFeedback(null);
-      const { error: insertError } = await supabase.from("platform_accounts").insert({
-        company_name: accountForm.company_name.trim(),
-        owner_name: accountForm.owner_name.trim() || null,
-        email: accountForm.email.trim() || null,
-        phone: accountForm.phone.trim() || null,
-        subscription_plan: accountForm.subscription_plan.trim() || null,
-        status: accountForm.status,
-        trial_starts_at: new Date().toISOString(),
-        trial_ends_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-      });
-      if (insertError) throw insertError;
-      setAccountForm({
-        company_name: "",
-        owner_name: "",
-        email: "",
-        phone: "",
-        subscription_plan: "starter",
-        status: "trial_setup",
-      });
-      await fetchPlatformData();
-      setFeedback("Cuenta creada con trial de 15 días.");
-      resetFeedbackSoon();
-    } catch (caughtError) {
-      setFeedback(getErrorMessage(caughtError));
-    } finally {
-      setSavingAccount(false);
-    }
-  };
 
   const updateAccountStatus = async (id: string, status: AccountStatus) => {
     try {
@@ -844,68 +766,24 @@ export default function PlatformPage() {
           </section>
 
           {activeTab === "crm" ? (
-            <section
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.18fr 0.82fr",
-                gap: 18,
-                marginBottom: 24,
-              }}
-            >
+            <section style={{ marginBottom: 24 }}>
               <article style={{ ...shellCard, padding: 24 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-end",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 18,
-                  }}
-                >
+                {/* Header */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 18 }}>
                   <div>
-                    <p
-                      style={{
-                        marginBottom: 8,
-                        font: `700 0.74rem/1 ${fd}`,
-                        color: "#94A3B8",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.14em",
-                      }}
-                    >
-                      Clientes FitGrowX
-                    </p>
-                    <h2
-                      style={{
-                        font: `780 1.45rem/1.1 ${fd}`,
-                        color: "#111827",
-                        letterSpacing: "-0.03em",
-                      }}
-                    >
-                      Leads, trials y clientes pagos
-                    </h2>
+                    <p style={{ marginBottom: 6, font: `700 0.74rem/1 ${fd}`, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.14em" }}>Clientes FitGrowX</p>
+                    <h2 style={{ font: `780 1.35rem/1.1 ${fd}`, color: "#111827", letterSpacing: "-0.03em" }}>Leads, trials y clientes pagos</h2>
                   </div>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     {[
-                      { label: "Trials activos", value: crmHealth.trialClients },
+                      { label: "Trials", value: crmHealth.trialClients },
                       { label: "Por vencer", value: crmHealth.expiringTrials },
                       { label: "Convertidos", value: crmHealth.convertedClients },
-                      { label: "Leads nuevos", value: crmHealth.newLeads },
+                      { label: "Leads", value: crmHealth.newLeads },
                     ].map((item) => (
-                      <div
-                        key={item.label}
-                        style={{
-                          borderRadius: 16,
-                          background: "rgba(255,255,255,0.72)",
-                          border: "1px solid rgba(255,255,255,0.95)",
-                          padding: "10px 12px",
-                          minWidth: 96,
-                        }}
-                      >
-                        <p style={{ marginBottom: 4, font: `600 0.72rem/1 ${fb}`, color: "#94A3B8" }}>
-                          {item.label}
-                        </p>
-                        <p style={{ font: `800 1.15rem/1 ${fd}`, color: "#111827" }}>{item.value}</p>
+                      <div key={item.label} style={{ borderRadius: 14, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.95)", padding: "8px 12px", minWidth: 80 }}>
+                        <p style={{ marginBottom: 3, font: `600 0.7rem/1 ${fb}`, color: "#94A3B8" }}>{item.label}</p>
+                        <p style={{ font: `800 1.1rem/1 ${fd}`, color: "#111827" }}>{item.value}</p>
                       </div>
                     ))}
                   </div>
@@ -955,488 +833,169 @@ export default function PlatformPage() {
                   </div>
                 )}
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: 18,
-                  }}
-                >
-                  <div>
-                    <p style={{ marginBottom: 12, font: `700 0.78rem/1 ${fd}`, color: "#475569" }}>
-                      Trials y clientes recientes
-                    </p>
-                    {filteredAccounts.length === 0
-                      ? emptyState(
-                          "Sin clientes para mostrar",
-                          crmSearch
-                            ? "No hay coincidencias con tu búsqueda actual."
-                            : "Acá vas a seguir el lifecycle real del producto: trial, riesgo de no activar, conversión y churn.",
-                        )
-                      : (
-                        <div style={{ display: "grid", gap: 12 }}>
-                          {filteredAccounts.map((account) => {
-                            const tone = statusTone(account.status);
-                            const activation = activationTone(account.activation_score ?? 0);
-                            return (
-                              <article
-                                key={account.id}
-                                style={{
-                                  borderRadius: 18,
-                                  background: "rgba(255,255,255,0.72)",
-                                  border: "1px solid rgba(255,255,255,0.95)",
-                                  padding: 16,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    gap: 12,
-                                    alignItems: "flex-start",
-                                    marginBottom: 10,
-                                  }}
-                                >
-                                  <div>
-                                    <p
-                                      style={{
-                                        marginBottom: 6,
-                                        font: `700 0.96rem/1.2 ${fd}`,
-                                        color: "#111827",
-                                      }}
-                                    >
-                                      {account.company_name}
-                                    </p>
-                                    <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: "#64748B" }}>
-                                      {account.owner_name ?? "Sin owner"} · {account.subscription_plan ?? "Sin plan"}
-                                    </p>
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                        flexWrap: "wrap",
-                                        marginTop: 8,
-                                      }}
-                                    >
-                                      <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: "#94A3B8" }}>
-                                        Trial vence: {formatDate(account.trial_ends_at)}
-                                      </p>
-                                      <span
-                                        style={{
-                                          padding: "6px 9px",
-                                          borderRadius: 999,
-                                          background: activation.bg,
-                                          color: activation.color,
-                                          font: `700 0.68rem/1 ${fd}`,
-                                          letterSpacing: "0.04em",
-                                          textTransform: "uppercase",
-                                        }}
-                                      >
-                                        Score {account.activation_score ?? 0} · {activation.label}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <span
-                                    style={{
-                                      padding: "7px 10px",
-                                      borderRadius: 999,
-                                      background: tone.bg,
-                                      color: tone.color,
-                                      font: `700 0.7rem/1 ${fd}`,
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.08em",
-                                    }}
-                                  >
-                                    {account.status}
-                                  </span>
-                                </div>
-                                <div
-                                  style={{
-                                    display: "grid",
-                                    gap: 10,
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "space-between",
-                                      gap: 12,
-                                      flexWrap: "wrap",
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                        font: `500 0.78rem/1 ${fb}`,
-                                        color: "#64748B",
-                                      }}
-                                    >
-                                      <Clock3 size={14} />
-                                      Próximo seguimiento: {formatDate(account.next_follow_up_at)}
-                                    </div>
-                                    <select
-                                      value={account.status}
-                                      disabled={updatingAccountId === account.id}
-                                      onChange={(event) => updateAccountStatus(account.id, event.target.value as AccountStatus)}
-                                      style={{
-                                        borderRadius: 12,
-                                        border: "1px solid rgba(148,163,184,0.22)",
-                                        background: "rgba(255,255,255,0.8)",
-                                        padding: "8px 10px",
-                                        color: "#334155",
-                                        font: `600 0.76rem/1 ${fb}`,
-                                      }}
-                                    >
-                                      {["trial_setup", "trial_active", "trial_risk", "converted", "churned"].map((status) => (
-                                        <option key={status} value={status}>
-                                          {status}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </div>
+                {/* Filter pills */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+                  {([
+                    { key: "todos", label: "Todos" },
+                    { key: "leads", label: "Leads" },
+                    { key: "trial", label: "Trial" },
+                    { key: "riesgo", label: "En riesgo" },
+                    { key: "convertido", label: "Convertido" },
+                    { key: "churn", label: "Churn" },
+                  ] as const).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setCrmFilter(key)}
+                      style={{
+                        padding: "7px 14px",
+                        borderRadius: 999,
+                        border: crmFilter === key ? "1.5px solid #111827" : "1px solid rgba(148,163,184,0.28)",
+                        background: crmFilter === key ? "#111827" : "rgba(255,255,255,0.72)",
+                        color: crmFilter === key ? "#fff" : "#475569",
+                        font: `600 0.78rem/1 ${fd}`,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
-                                  <div
-                                    style={{
-                                      borderRadius: 14,
-                                      border: "1px solid rgba(148,163,184,0.14)",
-                                      background: "rgba(15,23,42,0.03)",
-                                      padding: "11px 12px",
-                                    }}
-                                  >
-                                    <p style={{ font: `600 0.76rem/1.5 ${fb}`, color: "#475569" }}>
-                                      {activationHint(account)}
-                                    </p>
-                                  </div>
-                                </div>
-                              </article>
-                            );
-                          })}
-                        </div>
-                      )}
-                  </div>
+                {/* Unified list */}
+                {(() => {
+                  const accountItems = filteredAccounts
+                    .filter(a => {
+                      if (crmFilter === "todos") return true;
+                      if (crmFilter === "leads") return false;
+                      if (crmFilter === "trial") return ["trial_setup", "trial_active"].includes(a.status);
+                      if (crmFilter === "riesgo") return a.status === "trial_risk";
+                      if (crmFilter === "convertido") return a.status === "converted";
+                      if (crmFilter === "churn") return a.status === "churned";
+                      return false;
+                    })
+                    .map(a => ({ kind: "account" as const, id: a.id, created_at: a.created_at, data: a }));
 
-                  <div>
-                    <p style={{ marginBottom: 12, font: `700 0.78rem/1 ${fd}`, color: "#475569" }}>
-                      Leads recientes
-                    </p>
-                    {filteredLeads.length === 0
-                      ? emptyState(
-                          "Sin leads para mostrar",
-                          crmSearch
-                            ? "No hay coincidencias con tu búsqueda actual."
-                            : "Aquí manejas el tramo previo al registro. Cuando el lead crea cuenta en la landing, pasa a tu embudo de trial."
-                        )
-                      : (
-                        <div style={{ display: "grid", gap: 12 }}>
-                          {filteredLeads.map((lead) => {
-                            const tone = statusTone(lead.status);
-                            return (
-                              <article
-                                key={lead.id}
-                                style={{
-                                  borderRadius: 18,
-                                  background: "rgba(255,255,255,0.72)",
-                                  border: "1px solid rgba(255,255,255,0.95)",
-                                  padding: 16,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    gap: 12,
-                                    alignItems: "flex-start",
-                                    marginBottom: 10,
-                                  }}
-                                >
-                                  <div>
-                                    <p
-                                      style={{
-                                        marginBottom: 6,
-                                        font: `700 0.96rem/1.2 ${fd}`,
-                                        color: "#111827",
-                                      }}
-                                    >
-                                      {lead.business_name ?? lead.full_name ?? "Lead sin nombre"}
+                  const leadItems = filteredLeads
+                    .filter(() => crmFilter === "todos" || crmFilter === "leads")
+                    .map(l => ({ kind: "lead" as const, id: l.id, created_at: l.created_at, data: l }));
+
+                  const items = [...accountItems, ...leadItems].sort(
+                    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                  );
+
+                  if (items.length === 0) {
+                    return emptyState(
+                      crmSearch ? "Sin coincidencias" : `Sin registros en "${crmFilter}"`,
+                      crmSearch
+                        ? "Probá con otro término de búsqueda."
+                        : "Cuando se registren desde la landing van a aparecer acá.",
+                    );
+                  }
+
+                  return (
+                    <div style={{ display: "grid", gap: 12 }}>
+                      {items.map(item => {
+                        if (item.kind === "account") {
+                          const account = item.data;
+                          const tone = statusTone(account.status);
+                          const activation = activationTone(account.activation_score ?? 0);
+                          return (
+                            <article
+                              key={account.id}
+                              style={{ borderRadius: 18, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.95)", padding: 16 }}
+                            >
+                              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
+                                <div>
+                                  <p style={{ marginBottom: 6, font: `700 0.96rem/1.2 ${fd}`, color: "#111827" }}>
+                                    {account.company_name}
+                                  </p>
+                                  <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: "#64748B" }}>
+                                    {account.owner_name ?? "Sin owner"} · {account.subscription_plan ?? "Sin plan"}
+                                  </p>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                                    <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: "#94A3B8" }}>
+                                      Trial vence: {formatDate(account.trial_ends_at)}
                                     </p>
-                                    <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: "#64748B" }}>
-                                      {lead.full_name ?? "Sin contacto"} · {lead.source ?? "Sin fuente"}
-                                    </p>
+                                    <span style={{ padding: "6px 9px", borderRadius: 999, background: activation.bg, color: activation.color, font: `700 0.68rem/1 ${fd}`, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                                      Score {account.activation_score ?? 0} · {activation.label}
+                                    </span>
                                   </div>
-                                  <span
-                                    style={{
-                                      padding: "7px 10px",
-                                      borderRadius: 999,
-                                      background: tone.bg,
-                                      color: tone.color,
-                                      font: `700 0.7rem/1 ${fd}`,
-                                      textTransform: "uppercase",
-                                      letterSpacing: "0.08em",
-                                    }}
-                                  >
-                                    {lead.status}
-                                  </span>
                                 </div>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: 8,
-                                      font: `500 0.78rem/1 ${fb}`,
-                                      color: "#64748B",
-                                    }}
-                                  >
+                                <span style={{ padding: "7px 10px", borderRadius: 999, background: tone.bg, color: tone.color, font: `700 0.7rem/1 ${fd}`, textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>
+                                  {account.status}
+                                </span>
+                              </div>
+                              <div style={{ display: "grid", gap: 10 }}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 0.78rem/1 ${fb}`, color: "#64748B" }}>
                                     <Clock3 size={14} />
-                                    Próximo seguimiento: {formatDate(lead.next_follow_up_at)}
+                                    Próximo seguimiento: {formatDate(account.next_follow_up_at)}
                                   </div>
                                   <select
-                                    value={lead.status}
-                                    disabled={updatingLeadId === lead.id}
-                                    onChange={(event) => updateLeadStatus(lead.id, event.target.value as LeadStatus)}
-                                    style={{
-                                      borderRadius: 12,
-                                      border: "1px solid rgba(148,163,184,0.22)",
-                                      background: "rgba(255,255,255,0.8)",
-                                      padding: "8px 10px",
-                                      color: "#334155",
-                                      font: `600 0.76rem/1 ${fb}`,
-                                    }}
+                                    value={account.status}
+                                    disabled={updatingAccountId === account.id}
+                                    onChange={e => updateAccountStatus(account.id, e.target.value as AccountStatus)}
+                                    style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,0.22)", background: "rgba(255,255,255,0.8)", padding: "8px 10px", color: "#334155", font: `600 0.76rem/1 ${fb}` }}
                                   >
-                                    {["new", "contacted", "qualified", "registered", "lost"].map((status) => (
-                                      <option key={status} value={status}>
-                                        {status}
-                                      </option>
+                                    {["trial_setup", "trial_active", "trial_risk", "converted", "churned"].map(s => (
+                                      <option key={s} value={s}>{s}</option>
                                     ))}
                                   </select>
                                 </div>
-                              </article>
-                            );
-                          })}
-                        </div>
-                      )}
-                  </div>
-                </div>
-              </article>
+                                <div style={{ borderRadius: 14, border: "1px solid rgba(148,163,184,0.14)", background: "rgba(15,23,42,0.03)", padding: "11px 12px" }}>
+                                  <p style={{ font: `600 0.76rem/1.5 ${fb}`, color: "#475569" }}>{activationHint(account)}</p>
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        }
 
-              <article style={{ ...shellCard, padding: 24 }}>
-                <div style={{ marginBottom: 18 }}>
-                  <p
-                    style={{
-                      marginBottom: 8,
-                      font: `700 0.74rem/1 ${fd}`,
-                      color: "#94A3B8",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.14em",
-                    }}
-                    >
-                      Alta rápida
-                    </p>
-                  <h2
-                    style={{
-                      font: `780 1.45rem/1.1 ${fd}`,
-                      color: "#111827",
-                      letterSpacing: "-0.03em",
-                      marginBottom: 10,
-                    }}
-                  >
-                    Carga manual de leads y trials
-                  </h2>
-                  <p style={{ font: `400 0.92rem/1.65 ${fb}`, color: "#475569" }}>
-                    Esta versión ya sigue mejor tu embudo real: lead antes del registro, trial con
-                    15 días y luego conversión a cliente pago.
-                  </p>
-                </div>
-
-                <div style={{ display: "grid", gap: 18 }}>
-                  <form
-                    onSubmit={handleLeadSubmit}
-                    style={{
-                      borderRadius: 20,
-                      background: "rgba(255,255,255,0.72)",
-                      border: "1px solid rgba(255,255,255,0.95)",
-                      padding: 18,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                      <Plus size={16} color="#0F766E" />
-                      <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#111827" }}>Nuevo lead</p>
+                        const lead = item.data;
+                        const tone = statusTone(lead.status);
+                        return (
+                          <article
+                            key={lead.id}
+                            style={{ borderRadius: 18, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.95)", padding: 16 }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                                  <span style={{ padding: "3px 8px", borderRadius: 999, background: "rgba(15,118,110,0.10)", color: "#0F766E", font: `700 0.65rem/1 ${fd}`, textTransform: "uppercase", letterSpacing: "0.06em" }}>Lead</span>
+                                  <p style={{ font: `700 0.96rem/1.2 ${fd}`, color: "#111827" }}>
+                                    {lead.business_name ?? lead.full_name ?? "Lead sin nombre"}
+                                  </p>
+                                </div>
+                                <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: "#64748B" }}>
+                                  {lead.full_name ?? "Sin contacto"} · {lead.source ?? "Sin fuente"}
+                                </p>
+                              </div>
+                              <span style={{ padding: "7px 10px", borderRadius: 999, background: tone.bg, color: tone.color, font: `700 0.7rem/1 ${fd}`, textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>
+                                {lead.status}
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 0.78rem/1 ${fb}`, color: "#64748B" }}>
+                                <Clock3 size={14} />
+                                Próximo seguimiento: {formatDate(lead.next_follow_up_at)}
+                              </div>
+                              <select
+                                value={lead.status}
+                                disabled={updatingLeadId === lead.id}
+                                onChange={e => updateLeadStatus(lead.id, e.target.value as LeadStatus)}
+                                style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,0.22)", background: "rgba(255,255,255,0.8)", padding: "8px 10px", color: "#334155", font: `600 0.76rem/1 ${fb}` }}
+                              >
+                                {["new", "contacted", "qualified", "registered", "lost"].map(s => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </article>
+                        );
+                      })}
                     </div>
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {[
-                        { key: "full_name", placeholder: "Nombre del contacto" },
-                        { key: "business_name", placeholder: "Nombre del negocio" },
-                        { key: "email", placeholder: "Email" },
-                        { key: "phone", placeholder: "Teléfono" },
-                        { key: "source", placeholder: "Fuente" },
-                      ].map((field) => (
-                        <input
-                          key={field.key}
-                          value={leadForm[field.key as keyof typeof leadForm]}
-                          onChange={(event) =>
-                            setLeadForm((current) => ({
-                              ...current,
-                              [field.key]: event.target.value,
-                            }))
-                          }
-                          placeholder={field.placeholder}
-                          style={{
-                            width: "100%",
-                            borderRadius: 12,
-                            border: "1px solid rgba(148,163,184,0.18)",
-                            background: "rgba(255,255,255,0.88)",
-                            padding: "11px 12px",
-                            color: "#111827",
-                            outline: "none",
-                            font: `500 0.84rem/1 ${fb}`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={savingLead}
-                      style={{
-                        marginTop: 14,
-                        width: "100%",
-                        border: "none",
-                        borderRadius: 12,
-                        background: "#0F172A",
-                        color: "#FFFFFF",
-                        padding: "11px 14px",
-                        font: `700 0.84rem/1 ${fd}`,
-                        cursor: "pointer",
-                        opacity: savingLead ? 0.7 : 1,
-                      }}
-                    >
-                      {savingLead ? "Guardando..." : "Guardar lead"}
-                    </button>
-                  </form>
-
-                  <form
-                    onSubmit={handleAccountSubmit}
-                    style={{
-                      borderRadius: 20,
-                      background: "rgba(255,255,255,0.72)",
-                      border: "1px solid rgba(255,255,255,0.95)",
-                      padding: 18,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                      <Plus size={16} color="#2563EB" />
-                      <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#111827" }}>Nueva cuenta trial</p>
-                    </div>
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {[
-                        { key: "company_name", placeholder: "Nombre del espacio" },
-                        { key: "owner_name", placeholder: "Owner / contacto principal" },
-                        { key: "email", placeholder: "Email" },
-                        { key: "phone", placeholder: "Teléfono" },
-                      ].map((field) => (
-                        <input
-                          key={field.key}
-                          value={accountForm[field.key as keyof typeof accountForm] as string}
-                          onChange={(event) =>
-                            setAccountForm((current) => ({
-                              ...current,
-                              [field.key]: event.target.value,
-                            }))
-                          }
-                          placeholder={field.placeholder}
-                          style={{
-                            width: "100%",
-                            borderRadius: 12,
-                            border: "1px solid rgba(148,163,184,0.18)",
-                            background: "rgba(255,255,255,0.88)",
-                            padding: "11px 12px",
-                            color: "#111827",
-                            outline: "none",
-                            font: `500 0.84rem/1 ${fb}`,
-                          }}
-                        />
-                      ))}
-
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <select
-                          value={accountForm.subscription_plan}
-                          onChange={(event) =>
-                            setAccountForm((current) => ({
-                              ...current,
-                              subscription_plan: event.target.value,
-                            }))
-                          }
-                          style={{
-                            borderRadius: 12,
-                            border: "1px solid rgba(148,163,184,0.18)",
-                            background: "rgba(255,255,255,0.88)",
-                            padding: "11px 12px",
-                            color: "#111827",
-                            font: `600 0.82rem/1 ${fb}`,
-                          }}
-                        >
-                          {["starter", "growth", "pro", "enterprise"].map((plan) => (
-                            <option key={plan} value={plan}>
-                              {plan}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          value={accountForm.status}
-                          onChange={(event) =>
-                            setAccountForm((current) => ({
-                              ...current,
-                              status: event.target.value as AccountStatus,
-                            }))
-                          }
-                          style={{
-                            borderRadius: 12,
-                            border: "1px solid rgba(148,163,184,0.18)",
-                            background: "rgba(255,255,255,0.88)",
-                            padding: "11px 12px",
-                            color: "#111827",
-                            font: `600 0.82rem/1 ${fb}`,
-                          }}
-                        >
-                          {["trial_setup", "trial_active", "trial_risk", "converted", "churned"].map((status) => (
-                            <option key={status} value={status}>
-                              {status}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={savingAccount}
-                      style={{
-                        marginTop: 14,
-                        width: "100%",
-                        border: "none",
-                        borderRadius: 12,
-                        background: "#111827",
-                        color: "#FFFFFF",
-                        padding: "11px 14px",
-                        font: `700 0.84rem/1 ${fd}`,
-                        cursor: "pointer",
-                        opacity: savingAccount ? 0.7 : 1,
-                      }}
-                    >
-                      {savingAccount ? "Guardando..." : "Guardar cuenta trial"}
-                    </button>
-                  </form>
-                </div>
+                  );
+                })()}
               </article>
             </section>
           ) : (
