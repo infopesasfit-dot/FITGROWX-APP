@@ -37,6 +37,13 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
+  const searchParams = request.nextUrl.searchParams
+
+  // Error de Supabase auth (ej: otp_expired) → redirigir a /start con el error
+  if (pathname === '/' && searchParams.get('error_code')) {
+    const errorCode = searchParams.get('error_code')!
+    return NextResponse.redirect(new URL(`/start?error_code=${errorCode}`, request.url))
+  }
 
   // Sin sesión → login
   if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/platform'))) {

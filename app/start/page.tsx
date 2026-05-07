@@ -62,6 +62,12 @@ function StartPageInner() {
 
   useEffect(() => {
     if (searchParams.get("login") === "1") setIsLogin(true);
+    const errorCode = searchParams.get("error_code");
+    if (errorCode === "otp_expired") {
+      setIsLogin(true);
+      setForgotMode(true);
+      setAuthError("El link expiró. Ingresá tu email para recibir uno nuevo.");
+    }
   }, [searchParams]);
 
   useEffect(() => {
