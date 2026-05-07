@@ -35,6 +35,7 @@ type PlatformAccount = {
   id: string;
   company_name: string;
   owner_name: string | null;
+  phone: string | null;
   status: string;
   subscription_plan: string | null;
   trial_starts_at: string | null;
@@ -49,6 +50,7 @@ type PlatformLead = {
   id: string;
   full_name: string | null;
   business_name: string | null;
+  phone: string | null;
   status: string;
   source: string | null;
   next_follow_up_at: string | null;
@@ -818,181 +820,204 @@ export default function PlatformPage() {
                 </div>
 
                 {feedback && (
-                  <div
-                    style={{
-                      borderRadius: 16,
-                      background: "rgba(15,23,42,0.06)",
-                      color: "#334155",
-                      border: "1px solid rgba(148,163,184,0.18)",
-                      padding: "12px 14px",
-                      font: `600 0.82rem/1.5 ${fb}`,
-                      marginBottom: 18,
-                    }}
-                  >
+                  <div style={{ borderRadius: 16, background: "rgba(15,23,42,0.06)", color: "#334155", border: "1px solid rgba(148,163,184,0.18)", padding: "12px 14px", font: `600 0.82rem/1.5 ${fb}`, marginBottom: 18 }}>
                     {feedback}
                   </div>
                 )}
 
                 {/* Filter pills */}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
                   {([
-                    { key: "todos", label: "Todos" },
+                    { key: "todos", label: "Todos los clientes" },
                     { key: "leads", label: "Leads" },
-                    { key: "trial", label: "Trial" },
+                    { key: "trial", label: "En trial" },
                     { key: "riesgo", label: "En riesgo" },
-                    { key: "convertido", label: "Convertido" },
+                    { key: "convertido", label: "Convertidos" },
                     { key: "churn", label: "Churn" },
                   ] as const).map(({ key, label }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setCrmFilter(key)}
-                      style={{
-                        padding: "7px 14px",
-                        borderRadius: 999,
-                        border: crmFilter === key ? "1.5px solid #111827" : "1px solid rgba(148,163,184,0.28)",
-                        background: crmFilter === key ? "#111827" : "rgba(255,255,255,0.72)",
-                        color: crmFilter === key ? "#fff" : "#475569",
-                        font: `600 0.78rem/1 ${fd}`,
-                        cursor: "pointer",
-                      }}
-                    >
+                    <button key={key} type="button" onClick={() => setCrmFilter(key)} style={{ padding: "7px 14px", borderRadius: 999, border: crmFilter === key ? "1.5px solid #111827" : "1px solid rgba(148,163,184,0.28)", background: crmFilter === key ? "#111827" : "rgba(255,255,255,0.72)", color: crmFilter === key ? "#fff" : "#475569", font: `600 0.78rem/1 ${fd}`, cursor: "pointer" }}>
                       {label}
                     </button>
                   ))}
                 </div>
 
-                {/* Unified list */}
+                {/* CRM table */}
                 {(() => {
-                  const accountItems = filteredAccounts
-                    .filter(a => {
-                      if (crmFilter === "todos") return true;
-                      if (crmFilter === "leads") return false;
-                      if (crmFilter === "trial") return ["trial_setup", "trial_active"].includes(a.status);
-                      if (crmFilter === "riesgo") return a.status === "trial_risk";
-                      if (crmFilter === "convertido") return a.status === "converted";
-                      if (crmFilter === "churn") return a.status === "churned";
-                      return false;
-                    })
-                    .map(a => ({ kind: "account" as const, id: a.id, created_at: a.created_at, data: a }));
+                  const isLeadView = crmFilter === "leads";
 
-                  const leadItems = filteredLeads
-                    .filter(() => crmFilter === "todos" || crmFilter === "leads")
-                    .map(l => ({ kind: "lead" as const, id: l.id, created_at: l.created_at, data: l }));
+                  const items: Array<{ kind: "account"; data: PlatformAccount } | { kind: "lead"; data: PlatformLead }> = isLeadView
+                    ? filteredLeads.map(l => ({ kind: "lead", data: l }))
+                    : filteredAccounts
+                        .filter(a => {
+                          if (crmFilter === "todos") return true;
+                          if (crmFilter === "trial") return ["trial_setup", "trial_active"].includes(a.status);
+                          if (crmFilter === "riesgo") return a.status === "trial_risk";
+                          if (crmFilter === "convertido") return a.status === "converted";
+                          if (crmFilter === "churn") return a.status === "churned";
+                          return false;
+                        })
+                        .map(a => ({ kind: "account", data: a }));
 
-                  const items = [...accountItems, ...leadItems].sort(
-                    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                  );
+                  const statusLabel: Record<string, string> = {
+                    trial_setup: "Setup inicial", trial_active: "Trial activo", trial_risk: "En riesgo",
+                    converted: "Convertido", churned: "Churn",
+                    new: "Nuevo", contacted: "Contactado", qualified: "Calificado", registered: "Registrado", lost: "Perdido",
+                  };
+
+                  const colAccount = "minmax(0,2fr) 150px 110px 100px 120px 36px";
+                  const colLead    = "minmax(0,2fr) 130px minmax(0,1fr) 120px 36px";
+                  const cols = isLeadView ? colLead : colAccount;
+
+                  const headerStyle: React.CSSProperties = { font: `600 0.72rem/1 ${fb}`, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em" };
+                  const cellStyle: React.CSSProperties = { display: "flex", alignItems: "center" };
 
                   if (items.length === 0) {
                     return emptyState(
-                      crmSearch ? "Sin coincidencias" : `Sin registros en "${crmFilter}"`,
-                      crmSearch
-                        ? "Probá con otro término de búsqueda."
-                        : "Cuando se registren desde la landing van a aparecer acá.",
+                      crmSearch ? "Sin coincidencias" : "Sin registros en esta etapa",
+                      crmSearch ? "Probá con otro término." : "Cuando se registren desde la landing van a aparecer acá.",
                     );
                   }
 
                   return (
-                    <div style={{ display: "grid", gap: 12 }}>
-                      {items.map(item => {
-                        if (item.kind === "account") {
-                          const account = item.data;
-                          const tone = statusTone(account.status);
-                          const activation = activationTone(account.activation_score ?? 0);
-                          return (
-                            <article
-                              key={account.id}
-                              style={{ borderRadius: 18, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.95)", padding: 16 }}
-                            >
-                              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
-                                <div>
-                                  <p style={{ marginBottom: 6, font: `700 0.96rem/1.2 ${fd}`, color: "#111827" }}>
-                                    {account.company_name}
-                                  </p>
-                                  <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: "#64748B" }}>
-                                    {account.owner_name ?? "Sin owner"} · {account.subscription_plan ?? "Sin plan"}
-                                  </p>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                                    <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: "#94A3B8" }}>
-                                      Trial vence: {formatDate(account.trial_ends_at)}
-                                    </p>
-                                    <span style={{ padding: "6px 9px", borderRadius: 999, background: activation.bg, color: activation.color, font: `700 0.68rem/1 ${fd}`, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                                      Score {account.activation_score ?? 0} · {activation.label}
-                                    </span>
-                                  </div>
+                    <div>
+                      {/* Header row */}
+                      <div style={{ display: "grid", gridTemplateColumns: cols, gap: "0 16px", padding: "0 14px 10px", alignItems: "center" }}>
+                        <p style={headerStyle}>Gym / Contacto</p>
+                        <p style={headerStyle}>Estado</p>
+                        {isLeadView ? (
+                          <p style={headerStyle}>Fuente</p>
+                        ) : (
+                          <>
+                            <p style={headerStyle}>Vencimiento</p>
+                            <p style={headerStyle}>Score</p>
+                          </>
+                        )}
+                        <p style={headerStyle}>Seguimiento</p>
+                        <p style={headerStyle}></p>
+                      </div>
+
+                      {/* Rows */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {items.map(item => {
+                          if (item.kind === "account") {
+                            const a = item.data;
+                            const tone = statusTone(a.status);
+                            const activation = activationTone(a.activation_score ?? 0);
+                            const daysLeft = daysUntil(a.trial_ends_at);
+                            const urgent = daysLeft !== null && daysLeft <= 3 && !["converted", "churned"].includes(a.status);
+                            const hint = activationHint(a);
+                            return (
+                              <div key={a.id} style={{ display: "grid", gridTemplateColumns: cols, gap: "0 16px", padding: "14px 14px", borderRadius: 16, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.95)", alignItems: "center" }}>
+                                {/* Gym / owner */}
+                                <div style={{ minWidth: 0 }}>
+                                  <p style={{ font: `700 0.95rem/1.2 ${fd}`, color: "#111827", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.company_name}</p>
+                                  <p style={{ font: `400 0.78rem/1 ${fb}`, color: "#64748B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.owner_name ?? "—"}{a.phone ? ` · ${a.phone}` : ""}</p>
+                                  <p style={{ marginTop: 6, font: `500 0.73rem/1.4 ${fb}`, color: "#94A3B8", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{hint}</p>
                                 </div>
-                                <span style={{ padding: "7px 10px", borderRadius: 999, background: tone.bg, color: tone.color, font: `700 0.7rem/1 ${fd}`, textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>
-                                  {account.status}
-                                </span>
-                              </div>
-                              <div style={{ display: "grid", gap: 10 }}>
-                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                                  <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 0.78rem/1 ${fb}`, color: "#64748B" }}>
-                                    <Clock3 size={14} />
-                                    Próximo seguimiento: {formatDate(account.next_follow_up_at)}
-                                  </div>
+                                {/* Estado */}
+                                <div style={cellStyle}>
                                   <select
-                                    value={account.status}
-                                    disabled={updatingAccountId === account.id}
-                                    onChange={e => updateAccountStatus(account.id, e.target.value as AccountStatus)}
-                                    style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,0.22)", background: "rgba(255,255,255,0.8)", padding: "8px 10px", color: "#334155", font: `600 0.76rem/1 ${fb}` }}
+                                    value={a.status}
+                                    disabled={updatingAccountId === a.id}
+                                    onChange={e => updateAccountStatus(a.id, e.target.value as AccountStatus)}
+                                    style={{ width: "100%", borderRadius: 10, border: `1.5px solid ${tone.color}22`, background: tone.bg, color: tone.color, padding: "7px 8px", font: `700 0.76rem/1 ${fd}`, cursor: "pointer", appearance: "none", textAlign: "center" }}
                                   >
                                     {["trial_setup", "trial_active", "trial_risk", "converted", "churned"].map(s => (
-                                      <option key={s} value={s}>{s}</option>
+                                      <option key={s} value={s}>{statusLabel[s] ?? s}</option>
                                     ))}
                                   </select>
                                 </div>
-                                <div style={{ borderRadius: 14, border: "1px solid rgba(148,163,184,0.14)", background: "rgba(15,23,42,0.03)", padding: "11px 12px" }}>
-                                  <p style={{ font: `600 0.76rem/1.5 ${fb}`, color: "#475569" }}>{activationHint(account)}</p>
+                                {/* Vencimiento */}
+                                <div style={{ ...cellStyle, flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+                                  {["converted", "churned"].includes(a.status) ? (
+                                    <span style={{ font: `500 0.78rem/1 ${fb}`, color: "#94A3B8" }}>—</span>
+                                  ) : daysLeft === null ? (
+                                    <span style={{ font: `500 0.78rem/1 ${fb}`, color: "#94A3B8" }}>Sin fecha</span>
+                                  ) : daysLeft < 0 ? (
+                                    <span style={{ font: `700 0.78rem/1 ${fd}`, color: "#B91C1C" }}>Expirado</span>
+                                  ) : (
+                                    <>
+                                      <span style={{ font: `700 0.82rem/1 ${fd}`, color: urgent ? "#B91C1C" : "#334155" }}>{daysLeft}d restantes</span>
+                                      <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#94A3B8" }}>{formatDate(a.trial_ends_at)}</span>
+                                    </>
+                                  )}
+                                </div>
+                                {/* Score */}
+                                <div style={{ ...cellStyle, flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+                                  <span style={{ font: `700 0.82rem/1 ${fd}`, color: activation.color }}>{a.activation_score ?? 0}</span>
+                                  <div style={{ width: "100%", height: 4, borderRadius: 999, background: "rgba(148,163,184,0.18)" }}>
+                                    <div style={{ width: `${Math.min(a.activation_score ?? 0, 100)}%`, height: "100%", borderRadius: 999, background: activation.color }} />
+                                  </div>
+                                  <span style={{ font: `500 0.68rem/1 ${fb}`, color: "#94A3B8" }}>{activation.label}</span>
+                                </div>
+                                {/* Seguimiento */}
+                                <div style={{ ...cellStyle, flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+                                  <Clock3 size={12} color="#94A3B8" />
+                                  <span style={{ font: `500 0.76rem/1.3 ${fb}`, color: "#475569" }}>{formatDate(a.next_follow_up_at)}</span>
+                                </div>
+                                {/* WA */}
+                                <div style={cellStyle}>
+                                  {a.phone ? (
+                                    <a href={`https://wa.me/${a.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title="Abrir WhatsApp" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 10, background: "rgba(37,211,102,0.12)", color: "#16A34A", textDecoration: "none" }}>
+                                      <MessageCircle size={15} />
+                                    </a>
+                                  ) : (
+                                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(148,163,184,0.10)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                      <MessageCircle size={15} color="#CBD5E1" />
+                                    </div>
+                                  )}
                                 </div>
                               </div>
-                            </article>
-                          );
-                        }
+                            );
+                          }
 
-                        const lead = item.data;
-                        const tone = statusTone(lead.status);
-                        return (
-                          <article
-                            key={lead.id}
-                            style={{ borderRadius: 18, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.95)", padding: 16 }}
-                          >
-                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", marginBottom: 10 }}>
-                              <div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                                  <span style={{ padding: "3px 8px", borderRadius: 999, background: "rgba(15,118,110,0.10)", color: "#0F766E", font: `700 0.65rem/1 ${fd}`, textTransform: "uppercase", letterSpacing: "0.06em" }}>Lead</span>
-                                  <p style={{ font: `700 0.96rem/1.2 ${fd}`, color: "#111827" }}>
-                                    {lead.business_name ?? lead.full_name ?? "Lead sin nombre"}
-                                  </p>
-                                </div>
-                                <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: "#64748B" }}>
-                                  {lead.full_name ?? "Sin contacto"} · {lead.source ?? "Sin fuente"}
-                                </p>
+                          const l = item.data;
+                          const tone = statusTone(l.status);
+                          return (
+                            <div key={l.id} style={{ display: "grid", gridTemplateColumns: cols, gap: "0 16px", padding: "14px 14px", borderRadius: 16, background: "rgba(255,255,255,0.72)", border: "1px solid rgba(255,255,255,0.95)", alignItems: "center" }}>
+                              {/* Contacto */}
+                              <div style={{ minWidth: 0 }}>
+                                <p style={{ font: `700 0.95rem/1.2 ${fd}`, color: "#111827", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.business_name ?? l.full_name ?? "Sin nombre"}</p>
+                                <p style={{ font: `400 0.78rem/1 ${fb}`, color: "#64748B" }}>{l.full_name ?? "—"}{l.phone ? ` · ${l.phone}` : ""}</p>
                               </div>
-                              <span style={{ padding: "7px 10px", borderRadius: 999, background: tone.bg, color: tone.color, font: `700 0.7rem/1 ${fd}`, textTransform: "uppercase", letterSpacing: "0.08em", flexShrink: 0 }}>
-                                {lead.status}
-                              </span>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, font: `500 0.78rem/1 ${fb}`, color: "#64748B" }}>
-                                <Clock3 size={14} />
-                                Próximo seguimiento: {formatDate(lead.next_follow_up_at)}
+                              {/* Estado */}
+                              <div style={cellStyle}>
+                                <select
+                                  value={l.status}
+                                  disabled={updatingLeadId === l.id}
+                                  onChange={e => updateLeadStatus(l.id, e.target.value as LeadStatus)}
+                                  style={{ width: "100%", borderRadius: 10, border: `1.5px solid ${tone.color}22`, background: tone.bg, color: tone.color, padding: "7px 8px", font: `700 0.76rem/1 ${fd}`, cursor: "pointer", appearance: "none", textAlign: "center" }}
+                                >
+                                  {["new", "contacted", "qualified", "registered", "lost"].map(s => (
+                                    <option key={s} value={s}>{statusLabel[s] ?? s}</option>
+                                  ))}
+                                </select>
                               </div>
-                              <select
-                                value={lead.status}
-                                disabled={updatingLeadId === lead.id}
-                                onChange={e => updateLeadStatus(lead.id, e.target.value as LeadStatus)}
-                                style={{ borderRadius: 12, border: "1px solid rgba(148,163,184,0.22)", background: "rgba(255,255,255,0.8)", padding: "8px 10px", color: "#334155", font: `600 0.76rem/1 ${fb}` }}
-                              >
-                                {["new", "contacted", "qualified", "registered", "lost"].map(s => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                              </select>
+                              {/* Fuente */}
+                              <div style={{ ...cellStyle, minWidth: 0 }}>
+                                <span style={{ font: `500 0.8rem/1 ${fb}`, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.source ?? "—"}</span>
+                              </div>
+                              {/* Seguimiento */}
+                              <div style={{ ...cellStyle, flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+                                <Clock3 size={12} color="#94A3B8" />
+                                <span style={{ font: `500 0.76rem/1.3 ${fb}`, color: "#475569" }}>{formatDate(l.next_follow_up_at)}</span>
+                              </div>
+                              {/* WA */}
+                              <div style={cellStyle}>
+                                {l.phone ? (
+                                  <a href={`https://wa.me/${l.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title="Abrir WhatsApp" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 10, background: "rgba(37,211,102,0.12)", color: "#16A34A", textDecoration: "none" }}>
+                                    <MessageCircle size={15} />
+                                  </a>
+                                ) : (
+                                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(148,163,184,0.10)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    <MessageCircle size={15} color="#CBD5E1" />
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </article>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   );
                 })()}
