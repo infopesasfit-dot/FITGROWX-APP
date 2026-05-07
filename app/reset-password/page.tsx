@@ -16,22 +16,14 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // PKCE flow: el link del email trae ?code= en la URL
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (!error) setReady(true);
-      });
-      return;
-    }
-
-    // Fallback: hash-based flow (legacy)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
+    // Implicit flow: Supabase procesa el hash automáticamente y dispara PASSWORD_RECOVERY
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setReady(true);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
+    // Por si el evento ya disparó antes de registrar el listener
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true);
     });
 
     return () => subscription.unsubscribe();
