@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, Eye, EyeOff, Lock, Mail, MessageCircleMore, User } from "lucide-react";
+import { ArrowRight, CheckCircle2, Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { LandingHeader } from "@/components/landing-header";
 
@@ -44,11 +44,8 @@ function DotField({ className }: { className: string }) {
 function StartPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nameRef = useRef<HTMLInputElement>(null);
   const [screen, setScreen] = useState<Screen>("form");
   const [isLogin, setIsLogin] = useState(searchParams.get("login") === "1");
-  const [fullName, setFullName] = useState("");
-  const [whatsApp, setWhatsApp] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -71,7 +68,6 @@ function StartPageInner() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (screen === "form") nameRef.current?.focus();
   }, [screen]);
 
   useEffect(() => {
@@ -88,15 +84,11 @@ function StartPageInner() {
   }, [screen]);
 
   const validity = useMemo(() => ({
-    fullName: fullName.trim().length >= 3,
-    whatsApp: whatsApp.trim().length === 0 || whatsApp.trim().length >= 8,
     email: /\S+@\S+\.\S+/.test(email),
     password: password.length >= 6,
-  }), [fullName, whatsApp, email, password]);
+  }), [email, password]);
 
-  const canSubmit = isLogin
-    ? validity.email && validity.password && !isSubmitting
-    : validity.fullName && validity.email && validity.password && !isSubmitting;
+  const canSubmit = validity.email && validity.password && !isSubmitting;
 
   const resolveDestinationForUser = async (userId: string) => {
     const { data: profile } = await supabase
@@ -178,23 +170,16 @@ function StartPageInner() {
           .from("gym_settings")
           .upsert({
             gym_id: signUpData.user.id,
-            owner_name: fullName,
-            whatsapp: whatsApp,
             email,
             onboarding_completed: false,
           }, { onConflict: "gym_id" });
         if (gymSettingsError) throw gymSettingsError;
 
         if (signUpData.session?.access_token) {
-          await syncPlatformSignup(signUpData.session.access_token, {
-            fullName,
-            whatsApp,
-            email,
-          });
+          await syncPlatformSignup(signUpData.session.access_token, { email });
         }
 
-        const destination = await resolveDestinationForUser(signUpData.user.id);
-        router.push(destination);
+        router.push("/onboarding");
       }
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : "";
@@ -427,33 +412,6 @@ function StartPageInner() {
 
                       {/* Form email/password */}
                       {!forgotMode && <form onSubmit={handleSubmit} className="grid gap-3">
-                        {!isLogin && (
-                          <>
-                            <div className="relative">
-                              <User className="absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-                              <input
-                                ref={nameRef}
-                                type="text"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                placeholder="Nombre completo"
-                                className="h-13 w-full rounded-xl border border-white/10 bg-white/[0.04] pl-12 pr-5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#FF6A00] focus:bg-white/[0.06] transition"
-                                required
-                              />
-                            </div>
-                            <div className="relative">
-                              <MessageCircleMore className="absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-                              <input
-                                type="tel"
-                                value={whatsApp}
-                                onChange={(e) => setWhatsApp(e.target.value)}
-                                placeholder="WhatsApp (opcional)"
-                                className="h-13 w-full rounded-xl border border-white/10 bg-white/[0.04] pl-12 pr-5 text-sm text-white placeholder:text-white/30 outline-none focus:border-[#FF6A00] focus:bg-white/[0.06] transition"
-                              />
-                            </div>
-                          </>
-                        )}
-
                         <div className="relative">
                           <Mail className="absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
                           <input
@@ -546,7 +504,7 @@ function StartPageInner() {
           <section className="relative z-10 mx-auto max-w-7xl px-6 py-12">
             <div className="rounded-[2.8rem] border border-white/10 bg-[#111111] p-12 text-center shadow-2xl">
               <CheckCircle2 className="mx-auto h-16 w-16 text-[#FF6A00]" />
-              <h1 className="mt-8 text-5xl font-bold tracking-tighter italic uppercase">¡HOLA, {fullName.split(' ')[0]}!</h1>
+              <h1 className="mt-8 text-5xl font-bold tracking-tighter italic uppercase">¡BIENVENIDO!</h1>
               <p className="mt-4 text-xl text-white/50">
                 Tu perfil de dueño ha sido creado con éxito. Ya podés acceder a tu panel.
               </p>

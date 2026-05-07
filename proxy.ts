@@ -46,11 +46,11 @@ export async function proxy(request: NextRequest) {
   }
 
   // Sin sesión → login
-  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/platform'))) {
+  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/platform') || pathname.startsWith('/onboarding'))) {
     return NextResponse.redirect(new URL('/start?login=1', request.url))
   }
 
-  // Con sesión en auth pages → dashboard
+  // Con sesión en auth pages → dashboard (but not onboarding — let it handle itself)
   if (user && (pathname === '/login' || pathname === '/register' || pathname === '/start')) {
     const { data: authProfile } = await supabase
       .from('profiles')
@@ -116,5 +116,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login', '/register', '/start', '/checkout-pro'],
+  matcher: ['/dashboard/:path*', '/onboarding/:path*', '/onboarding', '/login', '/register', '/start', '/checkout-pro'],
 }
