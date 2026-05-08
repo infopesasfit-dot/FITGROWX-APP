@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Template   = "energia" | "pro" | "impact";
+type Template   = "energia" | "pro" | "impact" | "link";
 type BenefitKey = "Dumbbell"|"Zap"|"Users"|"Calendar"|"Heart"|"Star"|"Target"|"Shield"|"Clock"|"Trophy";
 type Benefit    = { icon: BenefitKey; title: string; desc: string };
 
@@ -59,6 +59,14 @@ const TEMPLATES = [
     tagline: "Minimalista · Audaz · Gym premium",
     bg:      "#060609",
     accent:  "#E2E8F0",
+    dark:    true,
+  },
+  {
+    id:      "link"     as Template,
+    name:    "Link",
+    tagline: "Moderno · Centrado · Máxima conversión",
+    bg:      "#0A0A0F",
+    accent:  "#F97316",
     dark:    true,
   },
 ] as const;
@@ -109,6 +117,52 @@ function LivePreview({
   const txtMuted  = isDark ? "rgba(255,255,255,.5)" : "#6B7280";
   const cardBg    = isDark ? "rgba(255,255,255,.05)" : "#FFFFFF";
   const cardBorder= isDark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.07)";
+
+  // ── Link template preview ──────────────────────────────────────────────────
+  if (template === "link") {
+    return (
+      <div style={{ width: 375, minHeight: 700, background: "#0A0A0F", fontFamily: fd, position: "relative", overflow: "hidden" }}>
+        {/* Glow blobs */}
+        <div style={{ position: "absolute", top: -60, left: "50%", transform: "translateX(-50%)", width: 300, height: 300, borderRadius: "50%", background: `radial-gradient(circle, ${accent}30 0%, transparent 70%)`, pointerEvents: "none" }} />
+        <div style={{ position: "relative", zIndex: 1, padding: "52px 24px 0", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+          {/* Avatar / Logo */}
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: `linear-gradient(135deg, ${accent}40, ${accent}10)`, border: `2px solid ${accent}60`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+            {logoUrl
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={logoUrl} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
+              : <span style={{ font: `800 1.4rem/1 ${fd}`, color: accent }}>{gymName?.[0] ?? "G"}</span>
+            }
+          </div>
+          <p style={{ font: `700 0.88rem/1 ${fd}`, color: "rgba(255,255,255,.9)", margin: "0 0 4px" }}>{gymName || "Tu Gym"}</p>
+          <h1 style={{ font: `800 1.55rem/1.1 ${fd}`, color: "#fff", letterSpacing: "-0.03em", margin: "16px 0 10px" }}>
+            {title || "Tu titular aquí"}
+          </h1>
+          {subtitle && <p style={{ font: `500 0.88rem/1.4 ${fd}`, color: accent, margin: "0 0 8px" }}>{subtitle}</p>}
+          <p style={{ font: `400 0.82rem/1.6 ${fd}`, color: "rgba(255,255,255,.4)", margin: "0 0 24px", maxWidth: 280 }}>{desc || "Tu descripción aquí."}</p>
+          {/* Pill badges */}
+          {benefits.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 28 }}>
+              {benefits.map((b, i) => (
+                <span key={i} style={{ padding: "6px 14px", borderRadius: 999, background: `${accent}18`, border: `1px solid ${accent}35`, font: `600 0.72rem/1 ${fd}`, color: accent }}>
+                  {b.title || "Beneficio"}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Form mock */}
+          <div style={{ width: "100%", maxWidth: 320, background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 22, padding: "22px 20px", backdropFilter: "blur(12px)" }}>
+            {[" ", " ", " "].map((_, i) => (
+              <div key={i} style={{ height: 42, borderRadius: 12, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.08)", marginBottom: 10 }} />
+            ))}
+            <div style={{ height: 46, borderRadius: 14, background: `linear-gradient(135deg, ${accent}, ${accent}cc)`, boxShadow: `0 8px 24px ${accent}44`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ font: `700 0.82rem/1 ${fd}`, color: "#fff", margin: 0 }}>{ctaText || "Quiero mi clase gratis →"}</p>
+            </div>
+          </div>
+          <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,.15)", margin: "16px 0 0" }}>FitGrowX</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{

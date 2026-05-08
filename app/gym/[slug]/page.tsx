@@ -12,7 +12,7 @@ const supabase = createClient(
 );
 
 type Benefit  = { icon: string; title: string; desc: string };
-type Template = "energia" | "pro" | "impact";
+type Template = "energia" | "pro" | "impact" | "link";
 
 type GymData = {
   gym_id:           string;
@@ -284,6 +284,111 @@ function ImpactTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Template: Link (modern, centered, Linktree-style)
+// ─────────────────────────────────────────────────────────────────────────────
+function LinkTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
+  const { name, setName, phone, setPhone, email, setEmail, sending, done, error, turnstileToken, setTurnstileToken, turnstileResetKey } = fields;
+  const isLight = ACCENT === "#FFFFFF" || ACCENT === "#E2E8F0" || ACCENT === "#F1F5F9";
+  return (
+    <div style={{ minHeight: "100dvh", background: "#0A0A0F", fontFamily: fd, display: "flex", flexDirection: "column", alignItems: "center", position: "relative", overflow: "hidden" }}>
+      {/* Ambient glow top */}
+      <div style={{ position: "fixed", top: -120, left: "50%", transform: "translateX(-50%)", width: 500, height: 500, borderRadius: "50%", background: `radial-gradient(circle, ${ACCENT}28 0%, transparent 68%)`, pointerEvents: "none", zIndex: 0 }} />
+      <div style={{ position: "fixed", bottom: -80, right: -80, width: 320, height: 320, borderRadius: "50%", background: `radial-gradient(circle, ${ACCENT}14 0%, transparent 70%)`, pointerEvents: "none", zIndex: 0 }} />
+
+      <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 440, padding: "56px 24px 64px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+
+        {/* Avatar / Logo */}
+        <div style={{ width: 88, height: 88, borderRadius: "50%", background: `linear-gradient(135deg, ${ACCENT}50, ${ACCENT}15)`, border: `2px solid ${ACCENT}55`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, boxShadow: `0 0 0 6px ${ACCENT}12, 0 20px 50px ${ACCENT}25` }}>
+          {gym.logo_url ? (
+            <Image src={gym.logo_url} alt={gym.gym_name ?? ""} width={72} height={72} unoptimized style={{ width: 66, height: 66, borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ font: `900 2rem/1 ${fd}`, color: ACCENT }}>{(gym.gym_name ?? "G")[0].toUpperCase()}</span>
+          )}
+        </div>
+
+        {/* Gym name */}
+        <p style={{ font: `700 0.95rem/1 ${fd}`, color: "rgba(255,255,255,.85)", margin: "0 0 20px", letterSpacing: "0.01em" }}>
+          {gym.gym_name}
+        </p>
+
+        {/* Headline */}
+        <h1 style={{ font: `800 clamp(1.8rem,5vw,2.4rem)/1.08 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.035em", margin: "0 0 12px" }}>
+          {gym.landing_title ?? "Probá una clase gratis."}
+        </h1>
+
+        {gym.landing_subtitle && (
+          <p style={{ font: `600 1rem/1.4 ${fd}`, color: ACCENT, margin: "0 0 10px" }}>
+            {gym.landing_subtitle}
+          </p>
+        )}
+
+        <p style={{ font: `400 0.9rem/1.7 ${fd}`, color: "rgba(255,255,255,.38)", margin: "0 0 30px", maxWidth: 340 }}>
+          {gym.landing_desc ?? "Vení a conocernos. Te esperamos con una clase de bienvenida totalmente gratis."}
+        </p>
+
+        {/* Pill badges for benefits */}
+        {(gym.landing_benefits ?? []).length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginBottom: 36 }}>
+            {(gym.landing_benefits ?? []).map((b, i) => (
+              <span key={i} style={{ padding: "8px 16px", borderRadius: 999, background: `${ACCENT}15`, border: `1px solid ${ACCENT}35`, font: `600 0.78rem/1 ${fd}`, color: ACCENT, display: "flex", alignItems: "center", gap: 6 }}>
+                <BenefitIcon name={b.icon} accent={ACCENT} />
+                {b.title}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Form */}
+        <div style={{ width: "100%", background: "rgba(255,255,255,.035)", border: "1px solid rgba(255,255,255,.07)", borderRadius: 26, padding: "28px 24px", backdropFilter: "blur(20px)", boxShadow: "0 32px 80px rgba(0,0,0,.5)" }}>
+          {done ? (
+            <div style={{ textAlign: "center", padding: "12px 0" }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(22,163,74,.15)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                <span style={{ fontSize: "1.6rem" }}>🎉</span>
+              </div>
+              <h2 style={{ font: `700 1.1rem/1.2 ${fd}`, color: "#FFFFFF", margin: "0 0 10px" }}>¡Listo, {name.split(" ")[0]}!</h2>
+              <p style={{ font: `400 0.875rem/1.6 ${fd}`, color: "rgba(255,255,255,.4)", margin: 0 }}>Te contactamos por WhatsApp para coordinar tu clase. ¡Nos vemos pronto! 💪</p>
+            </div>
+          ) : (
+            <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <p style={{ font: `700 1rem/1 ${fd}`, color: "#FFFFFF", margin: "0 0 8px", textAlign: "center" }}>
+                {gym.landing_cta_text ? "Reservá tu lugar" : "Agendá tu clase gratis"}
+              </p>
+              <LabelInput dark label="Nombre completo" value={name} onChange={setName} placeholder="Carlos Mendez" />
+              <LabelInput dark label="WhatsApp" value={phone} onChange={setPhone} placeholder="5491112345678" type="tel" />
+              <LabelInput dark label="Email" value={email} onChange={setEmail} placeholder="carlos@email.com" type="email" />
+              <TurnstileWidget onTokenChange={setTurnstileToken} theme="dark" resetKey={turnstileResetKey} />
+              {error && <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#F87171", margin: 0 }}>{error}</p>}
+              <button
+                type="submit"
+                disabled={sending || !turnstileToken}
+                style={{
+                  marginTop: 6, padding: "16px", borderRadius: 16, border: "none",
+                  background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT}bb)`,
+                  color: isLight ? "#111827" : "#FFFFFF",
+                  font: `700 0.95rem/1 ${fd}`,
+                  cursor: sending || !turnstileToken ? "default" : "pointer",
+                  opacity: sending || !turnstileToken ? .6 : 1,
+                  boxShadow: `0 8px 28px ${ACCENT}45`,
+                  transition: "opacity .15s, transform .15s",
+                }}
+              >
+                {sending ? "Enviando…" : (gym.landing_cta_text ?? "Quiero mi clase gratis →")}
+              </button>
+              <p style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,.18)", textAlign: "center", margin: 0 }}>Sin compromisos. Te contactamos por WhatsApp.</p>
+            </form>
+          )}
+        </div>
+
+        {/* Footer */}
+        <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,.12)", margin: "24px 0 0", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          Powered by FitGrowX
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── Shared label+input ────────────────────────────────────────────────────────
 function LabelInput({ dark, label, value, onChange, placeholder, type = "text" }: {
   dark: boolean; label: string; value: string;
@@ -390,7 +495,8 @@ export default function GymLandingPage() {
 
   const tmpl = gym.landing_template ?? "energia";
 
-  if (tmpl === "pro")    return <ProTemplate    gym={gym} ACCENT={ACCENT} onSubmit={submit} fields={fields} />;
-  if (tmpl === "impact") return <ImpactTemplate gym={gym} ACCENT={ACCENT} onSubmit={submit} fields={fields} />;
+  if (tmpl === "pro")    return <ProTemplate     gym={gym} ACCENT={ACCENT} onSubmit={submit} fields={fields} />;
+  if (tmpl === "impact") return <ImpactTemplate  gym={gym} ACCENT={ACCENT} onSubmit={submit} fields={fields} />;
+  if (tmpl === "link")   return <LinkTemplate    gym={gym} ACCENT={ACCENT} onSubmit={submit} fields={fields} />;
   return                        <EnergiaTemplate gym={gym} ACCENT={ACCENT} onSubmit={submit} fields={fields} />;
 }
