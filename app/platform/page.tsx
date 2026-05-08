@@ -650,9 +650,7 @@ export default function PlatformPage() {
           Panel interno para administrar FitGrowX.
         </h1>
         <p style={{ maxWidth: 860, font: `400 1rem/1.7 ${fb}`, color: "#475569" }}>
-          Desde acá vas a gestionar tus clientes FitGrowX y también la bóveda como CMS. La idea es
-          que tengas una sola base de operación para escalar el producto sin mezclarlo con el
-          dashboard de un gym.
+          Panel interno para gestionar clientes, comunicaciones y contenido de FitGrowX.
         </p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
           {[
@@ -720,13 +718,13 @@ export default function PlatformPage() {
             }}
           >
             {[
-              {
+              ...(activeTab === "cms" ? [{
                 label: "Recursos CMS",
                 value: stats.vaultResources,
                 icon: FolderOpen,
                 tone: "rgba(249,115,22,0.1)",
                 color: "#F97316",
-              },
+              }] : []),
               {
                 label: "Clientes FitGrowX",
                 value: stats.platformAccounts,
