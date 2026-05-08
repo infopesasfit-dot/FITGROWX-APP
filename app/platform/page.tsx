@@ -1508,16 +1508,12 @@ export default function PlatformPage() {
             ))}
           </section>
 
-          {/* Header */}
-          <section style={{ ...shellCard, padding: "22px 26px", marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div>
-              <p style={{ margin: "0 0 3px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Feedback de usuarios</p>
-              <p style={{ margin: 0, font: `400 0.85rem/1 ${fb}`, color: "#6B7280" }}>Mensajes enviados desde el dashboard por los dueños de gym.</p>
-            </div>
+          {/* Count badge */}
+          <div style={{ marginBottom: 18, display: "flex", justifyContent: "flex-end" }}>
             <span style={{ padding: "5px 12px", borderRadius: 999, background: "rgba(37,99,235,0.08)", font: `600 0.78rem/1 ${fd}`, color: "#2563EB" }}>
               {feedbackRows.length} mensaje{feedbackRows.length !== 1 ? "s" : ""}
             </span>
-          </section>
+          </div>
 
           {feedbackRows.length === 0 ? (
             emptyState("Sin feedback todavía", "Cuando algún usuario envíe un mensaje desde el dashboard, va a aparecer acá.")
@@ -1604,15 +1600,10 @@ export default function PlatformPage() {
                   : <Loader2 size={20} color="#94A3B8" style={{ animation: "spin 1s linear infinite" }} />}
               </div>
               <div>
-                <p style={{ margin: "0 0 3px", font: `700 0.95rem/1 ${fd}`, color: "#111827" }}>
-                  {platWaStatus === "connected" ? "WhatsApp conectado" : platWaStatus === "disconnected" ? "Sin conexión" : "Verificando..."}
-                </p>
-                <p style={{ margin: 0, font: `400 0.82rem/1 ${fb}`, color: "#6B7280" }}>
+                <p style={{ margin: 0, font: `700 0.95rem/1 ${fd}`, color: "#111827" }}>
                   {platWaStatus === "connected"
-                    ? `Sesión activa${platWaPhone ? ` · ${platWaPhone}` : ""} — podés enviar mensajes a tus clientes`
-                    : platWaStatus === "disconnected"
-                    ? "Escaneá el QR para vincular tu número de WhatsApp"
-                    : "Comprobando estado de la sesión..."}
+                    ? `Conectado${platWaPhone ? ` · ${platWaPhone}` : ""}`
+                    : platWaStatus === "disconnected" ? "Sin conexión" : "Verificando..."}
                 </p>
               </div>
             </div>
@@ -1802,6 +1793,74 @@ export default function PlatformPage() {
               </div>
             </section>
           </div>
+
+          {/* Automatizaciones */}
+          <section style={{ ...shellCard, padding: "26px 28px", marginTop: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+              <p style={{ margin: 0, font: `700 1rem/1 ${fd}`, color: "#111827" }}>Automatizaciones</p>
+              <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(124,58,237,0.08)", font: `600 0.72rem/1 ${fd}`, color: "#7C3AED" }}>
+                {platWaStatus === "connected" ? "Activas" : "WA desconectado"}
+              </span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+              {[
+                {
+                  label: "Bienvenida al registrarse",
+                  desc: "Se envía automáticamente cuando un nuevo gym completa el onboarding.",
+                  color: "#16A34A", bg: "rgba(22,163,74,0.08)",
+                  trigger: "onboarding_completed",
+                  active: true,
+                },
+                {
+                  label: "Trial por vencer (3 días)",
+                  desc: "Aviso automático cuando el trial vence en 3 días o menos.",
+                  color: "#D97706", bg: "rgba(217,119,6,0.08)",
+                  trigger: "trial_expires_soon",
+                  active: true,
+                },
+                {
+                  label: "Trial vencido — reactivar",
+                  desc: "Se dispara el día que vence el trial sin conversión.",
+                  color: "#DC2626", bg: "rgba(220,38,38,0.08)",
+                  trigger: "trial_expired",
+                  active: false,
+                },
+                {
+                  label: "Sin actividad 7 días",
+                  desc: "Alerta si el gym no registró actividad en 7 días durante el trial.",
+                  color: "#7C3AED", bg: "rgba(124,58,237,0.08)",
+                  trigger: "inactive_7d",
+                  active: false,
+                },
+              ].map(auto => (
+                <div key={auto.trigger} style={{ borderRadius: 16, border: "1px solid rgba(15,23,42,0.07)", overflow: "hidden" }}>
+                  <div style={{ padding: "12px 16px", background: auto.bg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ font: `600 0.82rem/1.2 ${fd}`, color: auto.color }}>{auto.label}</span>
+                    <span style={{ padding: "3px 8px", borderRadius: 999, background: auto.active ? auto.color : "rgba(148,163,184,0.2)", font: `600 0.68rem/1 ${fd}`, color: auto.active ? "#fff" : "#94A3B8", flexShrink: 0 }}>
+                      {auto.active ? "ON" : "OFF"}
+                    </span>
+                  </div>
+                  <div style={{ padding: "12px 16px", background: "#fff" }}>
+                    <p style={{ margin: "0 0 10px", font: `400 0.78rem/1.5 ${fb}`, color: "#6B7280" }}>{auto.desc}</p>
+                    <button
+                      type="button"
+                      onClick={() => setPlatSendMsg(platMsgTemplate[
+                        auto.trigger === "onboarding_completed" ? "bienvenida"
+                        : auto.trigger === "trial_expires_soon" ? "trial_vence"
+                        : "reactivacion"
+                      ])}
+                      style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${auto.color}30`, background: "transparent", font: `600 0.72rem/1 ${fd}`, color: auto.color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                    >
+                      <MessageCircle size={10} /> Ver plantilla
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p style={{ margin: "16px 0 0", font: `400 0.75rem/1.5 ${fb}`, color: "#9CA3AF" }}>
+              Las automatizaciones ON se envían desde el motor WA cuando se cumple el trigger. Editá el mensaje en las plantillas de arriba.
+            </p>
+          </section>
         </>
       )}
     </div>
