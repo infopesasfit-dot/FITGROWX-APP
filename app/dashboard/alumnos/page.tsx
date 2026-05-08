@@ -960,7 +960,7 @@ export default function AlumnosPage() {
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                 {["Alumno", "DNI", "Plan", "Estado", "Vence", "Últ. asistencia", "Acciones"].map(h => (
-                  <th key={h} style={{ padding: "10px 20px", textAlign: "left", font: `600 0.7rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</th>
+                  <th key={h} style={{ padding: "8px 16px", textAlign: "left", font: `600 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -981,17 +981,17 @@ export default function AlumnosPage() {
                     onMouseEnter={e => (e.currentTarget.style.background = isPausado ? "#EFEFEF" : "#FAFBFD")}
                     onMouseLeave={e => (e.currentTarget.style.background = isPausado ? "#F5F5F7" : "transparent")}
                   >
-                    <td style={{ padding: "13px 20px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
-                        <span style={{ font: `600 0.875rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
+                    <td style={{ padding: "9px 16px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
+                        <span style={{ font: `600 0.84rem/1 ${fd}`, color: t1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{a.full_name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: "13px 20px", font: `500 0.83rem/1 ${fb}`, color: t2 }}>{a.dni ?? <span style={{ color: t3 }}>—</span>}</td>
-                    <td style={{ padding: "13px 20px" }}><span style={{ font: `600 0.75rem/1 ${fb}`, color: planColor, background: planBg, padding: "4px 10px", borderRadius: 9999 }}>{planNombre}</span></td>
-                    <td style={{ padding: "13px 20px" }}><span style={{ font: `600 0.72rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "4px 10px", borderRadius: 9999 }}>{STATUS_STYLE[a.status].label}</span></td>
-                    <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2 }}>{a.next_expiration_date ?? "—"}</td>
-                    <td style={{ padding: "13px 20px" }}>
+                    <td style={{ padding: "9px 16px", font: `500 0.8rem/1 ${fb}`, color: t2 }}>{a.dni ?? <span style={{ color: t3 }}>—</span>}</td>
+                    <td style={{ padding: "9px 16px" }}><span style={{ font: `600 0.72rem/1 ${fb}`, color: planColor, background: planBg, padding: "3px 9px", borderRadius: 9999, whiteSpace: "nowrap" }}>{planNombre}</span></td>
+                    <td style={{ padding: "9px 16px" }}><span style={{ font: `600 0.69rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "3px 9px", borderRadius: 9999 }}>{STATUS_STYLE[a.status].label}</span></td>
+                    <td style={{ padding: "9px 16px", font: `400 0.8rem/1 ${fb}`, color: t2 }}>{a.next_expiration_date ?? "—"}</td>
+                    <td style={{ padding: "9px 16px" }}>
                       {(() => {
                         const ua = ultimaMap[a.id];
                         const isToday = ua === today;
@@ -1069,7 +1069,7 @@ export default function AlumnosPage() {
 
       {/* Card list — mobile */}
       {isMobile && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           {loading ? (
             <p style={{ textAlign: "center", font: `400 0.85rem/1 ${fb}`, color: t3, padding: "32px 0" }}>Cargando...</p>
           ) : lista.length === 0 ? (
@@ -1078,30 +1078,31 @@ export default function AlumnosPage() {
             const planNombre = a.planes?.nombre ?? "—";
             const planColor  = a.planes?.accent_color ?? t2;
             const planBg     = a.planes?.accent_color ? `${a.planes.accent_color}18` : "#F0F2F8";
+            const ua = ultimaMap[a.id];
+            const isToday = ua === today;
             return (
-              <div key={a.id} style={{ background: "white", borderRadius: 18, padding: "14px 16px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.05)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.7rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
+              <div key={a.id} style={{ background: "white", borderRadius: 14, padding: "10px 12px", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.05)" }}>
+                {/* Row 1: avatar + name/plan + status */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.62rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.full_name}</p>
-                    <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 3 }}>DNI: {a.dni ?? "—"}</p>
+                    <p style={{ margin: 0, font: `700 0.84rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.full_name}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                      <span style={{ font: `600 0.62rem/1 ${fb}`, color: planColor, background: planBg, padding: "2px 7px", borderRadius: 9999, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 120 }}>{planNombre}</span>
+                      {ua && <span style={{ font: `400 0.62rem/1 ${fb}`, color: isToday ? "#22C55E" : t3, flexShrink: 0 }}>{isToday ? "Hoy ✓" : ua}</span>}
+                    </div>
                   </div>
-                  <span style={{ font: `600 0.68rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "4px 10px", borderRadius: 9999, flexShrink: 0 }}>{STATUS_STYLE[a.status].label}</span>
+                  <span style={{ margin: 0, font: `600 0.62rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "3px 8px", borderRadius: 9999, flexShrink: 0 }}>{STATUS_STYLE[a.status].label}</span>
                 </div>
-                <div style={{ display: "grid", gap: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
-                    <span style={{ font: `600 0.68rem/1 ${fb}`, color: planColor, background: planBg, padding: "3px 9px", borderRadius: 9999, flexShrink: 0, maxWidth: "55%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{planNombre}</span>
-                    {(() => { const ua = ultimaMap[a.id]; const isToday = ua === today; return ua ? <span style={{ font: `500 0.65rem/1 ${fb}`, color: isToday ? "#22C55E" : t3, flexShrink: 0 }}>{isToday ? "Hoy ✓" : `Últ: ${ua}`}</span> : null; })()}
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 8 }}>
-                    <button title="Check-in" onClick={() => openCheckinModal(a)} style={{ minHeight: 42, borderRadius: 10, background: "rgba(34,197,94,0.1)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#22C55E" }}><ClipboardCheck size={16} /></button>
-                    <button disabled={!a.phone} onClick={() => a.phone && openWhatsApp(a.phone, a.full_name)} style={{ minHeight: 42, borderRadius: 10, background: "rgba(37,211,102,0.10)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: a.phone ? "pointer" : "default", color: "#25D366", opacity: a.phone ? 1 : 0.3 }}>
-                      <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
-                    </button>
-                    <button onClick={() => openPagoModal(a)} style={{ minHeight: 42, borderRadius: 10, background: "rgba(75,107,251,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4B6BFB" }}><DollarSign size={16} /></button>
-                    <button title="Asignar Rutina" onClick={() => openRutinaModal(a)} style={{ minHeight: 42, borderRadius: 10, background: "rgba(124,58,237,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#7C3AED" }}><Sparkles size={16} /></button>
-                    <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4 > window.innerHeight - 180 ? rect.top - 4 : rect.bottom + 4, right: window.innerWidth - rect.right, openUp: rect.bottom + 4 > window.innerHeight - 180 }); setMenuOpenId(a.id); }} style={{ minHeight: 42, borderRadius: 10, background: "#F4F5F9", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t3 }}><MoreVertical size={16} /></button>
-                  </div>
+                {/* Row 2: action buttons */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
+                  <button title="Check-in" onClick={() => openCheckinModal(a)} style={{ height: 34, borderRadius: 8, background: "rgba(34,197,94,0.1)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#22C55E" }}><ClipboardCheck size={14} /></button>
+                  <button disabled={!a.phone} onClick={() => a.phone && openWhatsApp(a.phone, a.full_name)} style={{ height: 34, borderRadius: 8, background: "rgba(37,211,102,0.10)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: a.phone ? "pointer" : "default", color: "#25D366", opacity: a.phone ? 1 : 0.3 }}>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
+                  </button>
+                  <button onClick={() => openPagoModal(a)} style={{ height: 34, borderRadius: 8, background: "rgba(75,107,251,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#4B6BFB" }}><DollarSign size={14} /></button>
+                  <button title="Asignar Rutina" onClick={() => openRutinaModal(a)} style={{ height: 34, borderRadius: 8, background: "rgba(124,58,237,0.08)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#7C3AED" }}><Sparkles size={14} /></button>
+                  <button onClick={e => { e.stopPropagation(); if (menuOpenId === a.id) { setMenuOpenId(null); setMenuPos(null); return; } const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect(); setMenuPos({ top: rect.bottom + 4 > window.innerHeight - 180 ? rect.top - 4 : rect.bottom + 4, right: window.innerWidth - rect.right, openUp: rect.bottom + 4 > window.innerHeight - 180 }); setMenuOpenId(a.id); }} style={{ height: 34, borderRadius: 8, background: "#F4F5F9", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: t3 }}><MoreVertical size={14} /></button>
                 </div>
               </div>
             );
