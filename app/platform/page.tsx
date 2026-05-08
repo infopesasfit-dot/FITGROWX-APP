@@ -1021,7 +1021,7 @@ export default function PlatformPage() {
                 })()}
               </article>
             </section>
-          ) : (
+          ) : activeTab === "cms" ? (
             <section
               style={{
                 display: "grid",
@@ -1429,8 +1429,9 @@ export default function PlatformPage() {
                 </div>
               </article>
             </section>
-          )}
+          ) : null}
 
+          {activeTab === "cms" && (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link
               href="/dashboard/boveda"
@@ -1468,8 +1469,7 @@ export default function PlatformPage() {
               Siguiente paso sugerido: conectar la bóveda al CMS nuevo
             </div>
           </div>
-        </>
-      )}
+          )}
 
       {/* ── Feedback tab ── */}
       {!loading && !error && authorized && activeTab === "feedback" && (
@@ -1859,6 +1859,8 @@ export default function PlatformPage() {
               Las automatizaciones ON se envían desde el motor WA cuando se cumple el trigger. Editá el mensaje en las plantillas de arriba.
             </p>
           </section>
+        </>
+      )}
         </>
       )}
     </div>
