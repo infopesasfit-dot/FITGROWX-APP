@@ -141,8 +141,12 @@ export default function AlumnosPage() {
   const [membresiaFecha,   setMembresiaFecha]   = useState(defaultExpiry());
   const [membresiaSaving,  setMembresiaSaving]  = useState(false);
   const [membresiaError,   setMembresiaError]   = useState<string | null>(null);
+  const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
+  const [bulkMembresiaOpen, setBulkMembresiaOpen] = useState(false);
   const [rutinasCache,     setRutinasCache]     = useState<Record<string, RutinaDraft | null>>({});
   const deferredSearch = useDeferredValue(search);
+
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const replaceAlumno = useCallback((id: string, updater: (current: Alumno) => Alumno) => {
     setAlumnos(prev => {
@@ -761,34 +765,30 @@ export default function AlumnosPage() {
 
   const handleMembresiaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!membresiaTarget) return;
+    if (!membresiaTarget && !bulkMembresiaOpen) return;
     setMembresiaSaving(true);
     setMembresiaError(null);
     const newStatus = membresiaFecha ? statusFromDate(membresiaFecha) : "activo";
+    const ids = bulkMembresiaOpen ? [...selectedIds] : [membresiaTarget!.id];
     const { error } = await supabase
       .from("alumnos")
       .update({ plan_id: membresiaPlanId || null, next_expiration_date: membresiaFecha || null, status: newStatus })
-      .eq("id", membresiaTarget.id);
+      .in("id", ids);
     setMembresiaSaving(false);
     if (error) { setMembresiaError(error.message); return; }
     setMembresiaTarget(null);
-    setToast("Membresía asignada");
+    setBulkMembresiaOpen(false);
+    setSelectedIds(new Set());
+    setToast(`Membresía asignada a ${ids.length} alumno${ids.length !== 1 ? "s" : ""}`);
     setTimeout(() => setToast(null), 3000);
     const selectedPlan = planes.find(plan => plan.id === membresiaPlanId) ?? null;
-    replaceAlumno(membresiaTarget.id, (current) => ({
+    ids.forEach(id => replaceAlumno(id, (current) => ({
       ...current,
       plan_id: membresiaPlanId || null,
       next_expiration_date: membresiaFecha || null,
       status: newStatus,
-      planes: selectedPlan
-        ? {
-            nombre: selectedPlan.nombre,
-            accent_color: selectedPlan.accent_color,
-            precio: selectedPlan.precio,
-            duracion_dias: selectedPlan.duracion_dias,
-          }
-        : null,
-    }));
+      planes: selectedPlan ? { nombre: selectedPlan.nombre, accent_color: selectedPlan.accent_color, precio: selectedPlan.precio, duracion_dias: selectedPlan.duracion_dias } : null,
+    })));
   };
 
   // ── Editar Alumno ─────────────────────────────────────────────────
@@ -959,6 +959,9 @@ export default function AlumnosPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                <th style={{ padding: "8px 8px 8px 16px", width: 32 }}>
+                  <input type="checkbox" checked={lista.length > 0 && lista.every(a => selectedIds.has(a.id))} onChange={() => { const all = lista.every(a => selectedIds.has(a.id)); setSelectedIds(all ? new Set() : new Set(lista.map(a => a.id))); }} style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#FF6A00" }} />
+                </th>
                 {["Alumno", "DNI", "Plan", "Estado", "Vence", "Últ. asistencia", "Acciones"].map(h => (
                   <th key={h} style={{ padding: "8px 16px", textAlign: "left", font: `600 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</th>
                 ))}
@@ -966,9 +969,9 @@ export default function AlumnosPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ padding: "40px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando alumnos...</td></tr>
+                <tr><td colSpan={8} style={{ padding: "40px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando alumnos...</td></tr>
               ) : lista.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: "48px", textAlign: "center", font: `400 0.875rem/1.5 ${fb}`, color: t3 }}>
+                <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", font: `400 0.875rem/1.5 ${fb}`, color: t3 }}>
                   {alumnos.length === 0 ? "No hay alumnos registrados aún." : "No se encontraron alumnos con ese filtro."}
                 </td></tr>
               ) : lista.map((a, i) => {
@@ -977,10 +980,13 @@ export default function AlumnosPage() {
                 const planBg     = a.planes?.accent_color ? `${a.planes.accent_color}18` : "#F0F2F8";
                 const isPausado  = a.status === "pausado";
                 return (
-                  <tr key={a.id} style={{ borderBottom: i < lista.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", ...(isPausado ? { opacity: 0.65, background: "#F5F5F7" } : {}) }}
-                    onMouseEnter={e => (e.currentTarget.style.background = isPausado ? "#EFEFEF" : "#FAFBFD")}
-                    onMouseLeave={e => (e.currentTarget.style.background = isPausado ? "#F5F5F7" : "transparent")}
+                  <tr key={a.id} style={{ borderBottom: i < lista.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", ...(selectedIds.has(a.id) ? { background: "rgba(255,106,0,0.04)" } : isPausado ? { opacity: 0.65, background: "#F5F5F7" } : {}) }}
+                    onMouseEnter={e => { if (!selectedIds.has(a.id)) e.currentTarget.style.background = isPausado ? "#EFEFEF" : "#FAFBFD"; }}
+                    onMouseLeave={e => { if (!selectedIds.has(a.id)) e.currentTarget.style.background = isPausado ? "#F5F5F7" : "transparent"; }}
                   >
+                    <td style={{ padding: "9px 8px 9px 16px" }}>
+                      <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} onClick={e => e.stopPropagation()} style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#FF6A00" }} />
+                    </td>
                     <td style={{ padding: "9px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
@@ -1081,9 +1087,10 @@ export default function AlumnosPage() {
             const ua = ultimaMap[a.id];
             const isToday = ua === today;
             return (
-              <div key={a.id} style={{ background: "white", borderRadius: 14, padding: "10px 12px", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.05)" }}>
+              <div key={a.id} onClick={() => toggleSelect(a.id)} style={{ background: selectedIds.has(a.id) ? "rgba(255,106,0,0.04)" : "white", borderRadius: 14, padding: "10px 12px", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", border: selectedIds.has(a.id) ? "1px solid rgba(255,106,0,0.25)" : "1px solid rgba(0,0,0,0.05)", cursor: "pointer" }}>
                 {/* Row 1: avatar + name/plan + status */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <input type="checkbox" checked={selectedIds.has(a.id)} onChange={() => toggleSelect(a.id)} onClick={e => e.stopPropagation()} style={{ width: 15, height: 15, cursor: "pointer", accentColor: "#FF6A00", flexShrink: 0 }} />
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.62rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, font: `700 0.84rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.full_name}</p>
@@ -1466,8 +1473,8 @@ export default function AlumnosPage() {
       </div>
     )}
     {/* ── Modal: Asignar Membresía ── */}
-    {membresiaTarget && (
-      <div onClick={() => setMembresiaTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+    {(membresiaTarget || bulkMembresiaOpen) && (
+      <div onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); }} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
         <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 420, overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1476,10 +1483,12 @@ export default function AlumnosPage() {
               </div>
               <div>
                 <h2 style={{ font: `800 1.05rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Asignar Membresía</h2>
-                <p style={{ font: `400 0.75rem/1 ${fb}`, color: t3, marginTop: 3 }}>{membresiaTarget.full_name}</p>
+                <p style={{ font: `400 0.75rem/1 ${fb}`, color: t3, marginTop: 3 }}>
+                  {bulkMembresiaOpen ? `${selectedIds.size} alumno${selectedIds.size !== 1 ? "s" : ""} seleccionado${selectedIds.size !== 1 ? "s" : ""}` : membresiaTarget?.full_name}
+                </p>
               </div>
             </div>
-            <button onClick={() => setMembresiaTarget(null)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}
+            <button onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); }} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#E4E6EF"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0F2F8"; }}
             ><X size={16} /></button>
@@ -2020,6 +2029,19 @@ export default function AlumnosPage() {
         </div>
       </>,
       document.body
+    )}
+
+    {/* ── Bulk action bar ── */}
+    {selectedIds.size > 0 && (
+      <div style={{ position: "fixed", bottom: isMobile ? "calc(72px + env(safe-area-inset-bottom, 0px))" : 28, left: "50%", transform: "translateX(-50%)", zIndex: 9000, background: "#1A1D23", borderRadius: 14, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.28)", whiteSpace: "nowrap" }}>
+        <span style={{ font: `600 0.8rem/1 ${fd}`, color: "#E2E8F0" }}>{selectedIds.size} seleccionado{selectedIds.size !== 1 ? "s" : ""}</span>
+        <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.12)" }} />
+        <button
+          onClick={() => { setMembresiaPlanId(""); setMembresiaFecha(defaultExpiry()); setMembresiaError(null); setBulkMembresiaOpen(true); if (planes.length === 0 && gymId) loadPlanes(gymId); }}
+          style={{ padding: "7px 13px", borderRadius: 9, background: "#FF6A00", border: "none", color: "white", font: `600 0.78rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+        ><Star size={12} /> Asignar membresía</button>
+        <button onClick={() => setSelectedIds(new Set())} style={{ width: 28, height: 28, borderRadius: 7, background: "rgba(255,255,255,0.08)", border: "none", color: "#94A3B8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
+      </div>
     )}
 
     {/* ── Toast ── */}
