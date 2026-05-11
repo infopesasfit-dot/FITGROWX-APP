@@ -242,7 +242,7 @@ export default function DashboardPage() {
       const profile = await getCachedProfile();
       if (!profile) return;
       const [settingsRes, alumnosRes, planesRes] = await Promise.all([
-        supabase.from("gym_settings").select("whatsapp, slug, mp_access_token, payment_info").eq("gym_id", profile.gymId).maybeSingle(),
+        supabase.from("gym_settings").select("whatsapp, slug, mp_access_token, payment_info, onboarding_completed").eq("gym_id", profile.gymId).maybeSingle(),
         supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
         supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
       ]);
@@ -254,10 +254,9 @@ export default function DashboardPage() {
         whatsapp: !!s?.whatsapp,
         pagos:    !!(s?.mp_access_token || s?.payment_info),
       });
+      if (!s?.onboarding_completed) setOnboardingOpen(true);
     }
     void loadSetup();
-    const seen = localStorage.getItem("fitgrowx_onboarding_v1");
-    if (!seen) setOnboardingOpen(true);
   }, []);
 
   const sinEgresos  = gastosTotal === 0;
@@ -1003,8 +1002,10 @@ export default function DashboardPage() {
     <OnboardingModal
       open={onboardingOpen}
       onClose={() => {
-        localStorage.setItem("fitgrowx_onboarding_v1", "1");
         setOnboardingOpen(false);
+        if (gymIdRef.current) {
+          void supabase.from("gym_settings").update({ onboarding_completed: true }).eq("gym_id", gymIdRef.current);
+        }
       }}
     />
     </>
