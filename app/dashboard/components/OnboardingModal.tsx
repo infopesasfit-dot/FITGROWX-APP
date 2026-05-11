@@ -192,7 +192,7 @@ export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
         {/* Dino + speech bubble */}
         <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
           <div style={{ flexShrink: 0, transition: "opacity 0.2s ease" }}>
-            <DinoSVG state={current.dinoState} pixelSize={6} />
+            <DinoSVG state={current.dinoState} pixelSize={9} />
           </div>
           <div
             style={{
