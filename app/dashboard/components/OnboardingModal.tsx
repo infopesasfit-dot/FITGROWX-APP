@@ -6,78 +6,37 @@ import { useRouter } from "next/navigation";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 
-// B=contorno oscuro, O=naranja, L=naranja claro, E=ojo oscuro, W=dientes blancos
-const C: Record<string, string> = {
-  B: "#7C2D12",
-  O: "#F97316",
-  L: "#FED7AA",
-  E: "#1C1917",
-  W: "#FFFFFF",
+const DINO_SRCS: Record<"flaco" | "normal" | "jacked", string> = {
+  flaco:  "/images/rex-state-one.png",
+  normal: "/images/rex-state-two.png",
+  jacked: "/images/rex-state-final.png",
 };
 
-// Vista frontal — 12 chars × 16 rows
-// FLACO: cabeza 6px, cuerpo 6px (flaquito y triste)
-const DINO_FLACO = [
-  "....BBBB....",  // cabeza
-  "...BOLOOB...",
-  "...BEBEBBB..",  // ojos tristes juntos
-  "...BOOLOOB..",
-  "...BBWWBB...",  // boca pequeña
-  "....BBBB....",
-  "....BBBB....",  // cuello fino
-  "....BBBB....",
-  "...BBBBBB...",  // cuerpo angosto
-  "..BOOLOBB...",
-  "..BOOLOOB...",
-  "...BBBBBB...",
-  "....BBBB....",  // caderas
-  "..BB....BB..",  // piernas finas
-  "..BB....BB..",
-  ".BBB....BBB.",  // patas
-];
+const DINO_ANIMS: Record<"flaco" | "normal" | "jacked", string> = {
+  flaco:  "rex-sad",
+  normal: "rex-fight",
+  jacked: "rex-celebrate",
+};
 
-// NORMAL: cabeza 8px, cuerpo 8px
-const DINO_NORMAL = [
-  "...BBBBBB...",
-  "..BOLLOOB...",
-  "..BEBEBBOB..",  // ojos más separados
-  "..BOOLLOOB..",
-  "..BBWWWWBB..",  // sonrisa media
-  "...BBBBBB...",
-  "...BBBBBB...",  // cuello
-  "...BBBBBB...",
-  "..BBBBBBBB..",  // cuerpo normal
-  ".BOOLLLOOB..",
-  ".BOOLOOOOB..",
-  "..BBBBBBBB..",
-  "...BBBBBB...",
-  ".BB......BB.",  // piernas
-  ".BB......BB.",
-  "BBB......BBB",  // patas
-];
-
-// JACKED: cabeza 10px, cuerpo 10px (musculoso y feliz)
-const DINO_JACKED = [
-  "..BBBBBBBB..",
-  ".BOLLLLOOB..",
-  ".BBBEBEBBBB.",  // cejas + ojos intensos
-  ".BOOLLLOOB..",
-  ".BBWWWWWWBB.",  // sonrisa enorme
-  "..BBBBBBBB..",
-  "..BBBBBBBB..",  // cuello grueso
-  "..BBBBBBBB..",
-  "BBBBBBBBBBBB",  // hombros enormes
-  "BOOLLLLLOOB.",  // pecho ancho
-  "BOOOLLLOOBB.",
-  "BBBBBBBBBBBB",
-  "BB........BB",  // piernas gruesas
-  "BB........BB",
-  "BB........BB",
-  "BBB......BBB",  // patas grandes
-];
-
-const PIXEL_W = 12;
-const PIXEL_H = 16;
+const DINO_CSS = `
+  @keyframes rex-sad {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50%       { transform: translateY(-3px) rotate(1deg); }
+  }
+  @keyframes rex-fight {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25%      { transform: translateY(-5px) rotate(2deg); }
+    75%      { transform: translateY(-3px) rotate(-2deg); }
+  }
+  @keyframes rex-celebrate {
+    0%, 100% { transform: translateY(0) scale(1); }
+    30%      { transform: translateY(-10px) scale(1.06) rotate(-3deg); }
+    60%      { transform: translateY(-5px) scale(1.03) rotate(3deg); }
+  }
+  .rex-sad      { animation: rex-sad      2.4s ease-in-out infinite; }
+  .rex-fight    { animation: rex-fight    1.1s ease-in-out infinite; }
+  .rex-celebrate{ animation: rex-celebrate 0.75s ease-in-out infinite; }
+`;
 
 export function DinoSVG({
   state,
@@ -86,39 +45,18 @@ export function DinoSVG({
   state: "flaco" | "normal" | "jacked";
   pixelSize?: number;
 }) {
-  const pixels =
-    state === "flaco" ? DINO_FLACO : state === "normal" ? DINO_NORMAL : DINO_JACKED;
-  const rects: React.ReactNode[] = [];
-
-  pixels.forEach((row, y) => {
-    [...row].forEach((ch, x) => {
-      const fill = C[ch];
-      if (!fill) return;
-      rects.push(
-        <rect
-          key={`${x}-${y}`}
-          x={x * pixelSize}
-          y={y * pixelSize}
-          width={pixelSize}
-          height={pixelSize}
-          fill={fill}
-        />
-      );
-    });
-  });
-
-  const w = PIXEL_W * pixelSize;
-  const h = PIXEL_H * pixelSize;
-
+  const size = pixelSize * 16;
   return (
-    <svg
-      width={w}
-      height={h}
-      viewBox={`0 0 ${w} ${h}`}
-      style={{ imageRendering: "pixelated", display: "block" }}
-    >
-      {rects}
-    </svg>
+    <>
+      <style>{DINO_CSS}</style>
+      <div className={DINO_ANIMS[state]} style={{ width: size, height: size, flexShrink: 0 }}>
+        <img
+          src={DINO_SRCS[state]}
+          alt="Rex"
+          style={{ width: "100%", height: "100%", objectFit: "contain", imageRendering: "pixelated", display: "block" }}
+        />
+      </div>
+    </>
   );
 }
 
