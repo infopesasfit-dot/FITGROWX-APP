@@ -768,8 +768,14 @@ export default function DashboardPage() {
           <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.86rem/1.6 ${fb}`, color: t2, maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
-        <div style={{ minWidth: 240, maxWidth: 300, width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", minWidth: 240, maxWidth: 300, width: "100%" }}>
           {renderFilters(false)}
+          <button
+            onClick={() => setOnboardingOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 10, background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.18)", font: `600 0.75rem/1 ${fd}`, color: "#F97316", cursor: "pointer" }}
+          >
+            🦕 Ver guía de inicio
+          </button>
         </div>
       </div>
 
