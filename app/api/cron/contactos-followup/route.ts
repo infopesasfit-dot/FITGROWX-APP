@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
+import { normalizePhone } from "@/lib/phone";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-function normalizeArgPhone(raw: string): string {
-  const p = raw.replace(/\D/g, "");
-  if (p.startsWith("549") && p.length === 13) return p;
-  if (p.startsWith("54")  && p.length === 12) return "549" + p.slice(2);
-  if (p.startsWith("9")   && p.length === 11) return "54" + p;
-  if (p.startsWith("0")   && p.length === 11) return "549" + p.slice(1);
-  if (p.length === 10) return "549" + p;
-  return p;
-}
 
 const DEFAULT_MSG_1 = `¡Hola {nombre}! 👋 ¿Pudiste ver la info que te mandamos? Si tenés alguna duda sobre la clase de prueba en *{gym}*, estamos acá para ayudarte 😊`;
 const DEFAULT_MSG_3 = `Hola {nombre}, último mensajito 🙌 Si en algún momento querés conocer *{gym}*, la puerta está abierta. ¡Éxitos!`;
@@ -81,7 +72,7 @@ export async function GET(req: NextRequest) {
         .replace(/\{nombre\}/g, p.full_name)
         .replace(/\{gym\}/g, gymName);
 
-      const phone = normalizeArgPhone(p.phone);
+      const phone = normalizePhone(p.phone);
 
       try {
         const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {

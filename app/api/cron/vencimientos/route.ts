@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
+import { normalizePhone } from "@/lib/phone";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-function normalizeArgPhone(raw: string): string {
-  const p = raw.replace(/\D/g, "");
-  if (p.startsWith("549") && p.length === 13) return p;
-  if (p.startsWith("54")  && p.length === 12) return "549" + p.slice(2);
-  if (p.startsWith("9")   && p.length === 11) return "54" + p;
-  if (p.startsWith("0")   && p.length === 11) return "549" + p.slice(1);
-  if (p.length === 10) return "549" + p;
-  return p;
-}
 
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
@@ -68,7 +59,7 @@ export async function GET(req: NextRequest) {
       const chunk = pending.slice(i, i + CHUNK);
       const results = await Promise.allSettled(
         chunk.map(async alumno => {
-          const phone = normalizeArgPhone(alumno.phone!);
+          const phone = normalizePhone(alumno.phone!);
           const fechaVto = new Date(alumno.next_expiration_date!).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
           const message = template
             .replace(/\[Nombre\]/g, alumno.full_name)

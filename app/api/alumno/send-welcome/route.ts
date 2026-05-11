@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-
-function normalizeArgPhone(raw: string): string {
-  const p = raw.replace(/\D/g, "");
-  if (p.startsWith("549") && p.length === 13) return p;
-  if (p.startsWith("54") && p.length === 12) return "549" + p.slice(2);
-  if (p.startsWith("9") && p.length === 11) return "54" + p;
-  if (p.startsWith("0") && p.length === 11) return "549" + p.slice(1);
-  if (p.length === 10) return "549" + p;
-  return p;
-}
+import { normalizePhone } from "@/lib/phone";
 
 function fill(template: string, nombre: string, gym: string, link = "") {
   return template
@@ -74,7 +65,7 @@ export async function POST(req: NextRequest) {
   const motorUrl = process.env.WA_MOTOR_URL;
   if (!motorUrl) return NextResponse.json({ ok: true });
 
-  const phone = normalizeArgPhone(alumno.phone);
+  const phone = normalizePhone(alumno.phone);
 
   async function sendWA(message: string) {
     try {

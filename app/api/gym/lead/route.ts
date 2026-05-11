@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   // Enviar mensaje día-0 si WA configurado y automatización activa
   const motor = process.env.WA_MOTOR_URL;
-  if (motor && phone && settings?.lead_auto_welcome !== false) {
+  if (motor && phone && settings?.lead_auto_welcome === true) {
     const gymName = settings?.gym_name ?? "el gym";
     const firstName = name.split(" ")[0];
 

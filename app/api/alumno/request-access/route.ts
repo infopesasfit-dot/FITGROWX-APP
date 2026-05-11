@@ -1,29 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
-
-// Normaliza teléfonos argentinos al formato E.164 para WhatsApp (549XXXXXXXXXX)
-function normalizeArgPhone(raw: string): string {
-  const p = raw.replace(/\D/g, "");
-
-  // Ya correcto: 549 + 10 dígitos = 13 dígitos
-  if (p.startsWith("549") && p.length === 13) return p;
-
-  // Tiene código de país pero le falta el 9 de celular (54 + 10 dígitos)
-  if (p.startsWith("54") && p.length === 12) return "549" + p.slice(2);
-
-  // Empieza con 9 + área (11 dígitos, ej: 91165891444)
-  if (p.startsWith("9") && p.length === 11) return "54" + p;
-
-  // Con 0 adelante (ej: 01165891444 → 11 dígitos)
-  if (p.startsWith("0") && p.length === 11) return "549" + p.slice(1);
-
-  // Número local sin prefijos (ej: 1165891444 → 10 dígitos)
-  if (p.length === 10) return "549" + p;
-
-  // Fallback: devolver limpio
-  return p;
-}
+import { normalizePhone } from "@/lib/phone";
 
 const REQUEST_ACCESS_RESPONSE = {
   ok: true,
@@ -116,7 +94,7 @@ export async function POST(req: NextRequest) {
     .replace(/\[Gym\]/g,    gymName)
     .replace(/\[Link\]/g,   link);
 
-  const phone = normalizeArgPhone(alumno.phone);
+  const phone = normalizePhone(alumno.phone);
   const motorUrl = process.env.WA_MOTOR_URL;
 
   if (motorUrl) {
