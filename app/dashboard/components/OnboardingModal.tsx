@@ -6,69 +6,74 @@ import { useRouter } from "next/navigation";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 
+// B=contorno oscuro, O=naranja, L=naranja claro, E=ojo oscuro, W=dientes blancos
 const C: Record<string, string> = {
+  B: "#7C2D12",
   O: "#F97316",
-  D: "#EA580C",
+  L: "#FED7AA",
   E: "#1C1917",
   W: "#FFFFFF",
 };
 
-// 12 chars wide × 16 rows — pixel size 6 → 72×96px
+// Vista frontal — 12 chars × 16 rows
+// FLACO: cabeza 6px, cuerpo 6px (flaquito y triste)
 const DINO_FLACO = [
-  "....OOOO....",
-  "...OOOOOO...",
-  "...OEOOO....",
-  "..OOOOOOO...",
-  "..OWWWOO....",
-  "....OO......",
-  "....OO......",
-  "..OOOOOO....",
-  ".OOOOOOOO...",
-  ".OOOOOOOO...",
-  ".OOOOOOOO...",
-  "..OOOOOO....",
-  "OO....OO....",
-  "OO....OO....",
-  "OO....OO....",
-  "OOO..OOO....",
+  "....BBBB....",  // cabeza
+  "...BOLOOB...",
+  "...BEBEBBB..",  // ojos tristes juntos
+  "...BOOLOOB..",
+  "...BBWWBB...",  // boca pequeña
+  "....BBBB....",
+  "....BBBB....",  // cuello fino
+  "....BBBB....",
+  "...BBBBBB...",  // cuerpo angosto
+  "..BOOLOBB...",
+  "..BOOLOOB...",
+  "...BBBBBB...",
+  "....BBBB....",  // caderas
+  "..BB....BB..",  // piernas finas
+  "..BB....BB..",
+  ".BBB....BBB.",  // patas
 ];
 
+// NORMAL: cabeza 8px, cuerpo 8px
 const DINO_NORMAL = [
-  "...OOOOO....",
-  "..OOOOOOOO..",
-  "..OEOOOOO...",
-  ".OOOOOOOOOO.",
-  ".OWWWOOOOO..",
-  "...OOOOO....",
-  "...OOO......",
-  "..OOOOOOOO..",
-  ".OOOOOOOOOO.",
-  ".OOOOOOOOOO.",
-  ".OOOOOOOOOO.",
-  "..OOOOOOOO..",
-  ".OO...OOO...",
-  ".OO...OOO...",
-  "OOO...OOOO..",
-  "OOOO.OOOO...",
+  "...BBBBBB...",
+  "..BOLLOOB...",
+  "..BEBEBBOB..",  // ojos más separados
+  "..BOOLLOOB..",
+  "..BBWWWWBB..",  // sonrisa media
+  "...BBBBBB...",
+  "...BBBBBB...",  // cuello
+  "...BBBBBB...",
+  "..BBBBBBBB..",  // cuerpo normal
+  ".BOOLLLOOB..",
+  ".BOOLOOOOB..",
+  "..BBBBBBBB..",
+  "...BBBBBB...",
+  ".BB......BB.",  // piernas
+  ".BB......BB.",
+  "BBB......BBB",  // patas
 ];
 
+// JACKED: cabeza 10px, cuerpo 10px (musculoso y feliz)
 const DINO_JACKED = [
-  "..OOOOOOOO..",
-  ".OOOOOOOOOO.",
-  ".OEOOOOOOOO.",
-  "OOOOOOOOOOOO",
-  "OWWWOOOOOOOO",
-  "...OOOOOOO..",
-  "...OOOOOO...",
-  ".OOOOOOOOOO.",
-  "OOOOOOOOOOOO",
-  "OOOOOOOOOOOO",
-  "OOOOOOOOOOOO",
-  ".OOOOOOOOOO.",
-  "OOO...OOOOO.",
-  "OOO...OOOOO.",
-  "OOOO.OOOOOOO",
-  "OOOOOOOOOOO.",
+  "..BBBBBBBB..",
+  ".BOLLLLOOB..",
+  ".BBBEBEBBBB.",  // cejas + ojos intensos
+  ".BOOLLLOOB..",
+  ".BBWWWWWWBB.",  // sonrisa enorme
+  "..BBBBBBBB..",
+  "..BBBBBBBB..",  // cuello grueso
+  "..BBBBBBBB..",
+  "BBBBBBBBBBBB",  // hombros enormes
+  "BOOLLLLLOOB.",  // pecho ancho
+  "BOOOLLLOOBB.",
+  "BBBBBBBBBBBB",
+  "BB........BB",  // piernas gruesas
+  "BB........BB",
+  "BB........BB",
+  "BBB......BBB",  // patas grandes
 ];
 
 const PIXEL_W = 12;
