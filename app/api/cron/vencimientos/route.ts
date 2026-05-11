@@ -8,6 +8,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
+
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
@@ -54,6 +56,32 @@ export async function GET(req: NextRequest) {
 
     const pending = alumnos.filter(a => a.notif_vencimiento_para !== a.next_expiration_date);
 
+    // Batch-fetch existing valid tokens for all pending alumnos
+    const pendingIds = pending.map(a => a.id);
+    const { data: existingTokens } = await supabase
+      .from("alumno_tokens")
+      .select("alumno_id, token")
+      .in("alumno_id", pendingIds)
+      .gt("expires_at", new Date().toISOString());
+
+    const tokenMap: Record<string, string> = {};
+    for (const t of existingTokens ?? []) {
+      if (!tokenMap[t.alumno_id]) tokenMap[t.alumno_id] = t.token;
+    }
+
+    // Create tokens for alumnos that don't have one
+    const needToken = pending.filter(a => !tokenMap[a.id]);
+    if (needToken.length) {
+      const newTokens = needToken.map(a => ({
+        alumno_id: a.id,
+        gym_id: gym.gym_id,
+        token: crypto.randomUUID(),
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      }));
+      const { data: inserted } = await supabase.from("alumno_tokens").insert(newTokens).select("alumno_id, token");
+      for (const t of inserted ?? []) tokenMap[t.alumno_id] = t.token;
+    }
+
     const CHUNK = 5;
     for (let i = 0; i < pending.length; i += CHUNK) {
       const chunk = pending.slice(i, i + CHUNK);
@@ -61,10 +89,12 @@ export async function GET(req: NextRequest) {
         chunk.map(async alumno => {
           const phone = normalizePhone(alumno.phone!);
           const fechaVto = new Date(alumno.next_expiration_date!).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-          const message = template
+          const link = tokenMap[alumno.id] ? `${APP_URL}/alumno/auth?token=${tokenMap[alumno.id]}` : null;
+          const message = (template + (link ? `\n\n👉 Renová desde acá: ${link}` : ""))
             .replace(/\[Nombre\]/g, alumno.full_name)
             .replace(/\[Gym\]/g,    gym.gym_name ?? "el gym")
-            .replace(/\[Fecha\]/g,  fechaVto);
+            .replace(/\[Fecha\]/g,  fechaVto)
+            .replace(/\[Link\]/g,   link ?? "");
           const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
             method: "POST",
             headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },

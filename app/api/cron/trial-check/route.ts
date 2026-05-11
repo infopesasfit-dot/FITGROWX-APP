@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getGymSettingsSummary } from "@/lib/supabase-relations";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
+import { normalizePhone } from "@/lib/phone";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,13 +48,15 @@ export async function GET(req: NextRequest) {
     notifCol: "trial_notif_d13_sent_at" | "trial_notif_d15_sent_at",
   ) {
     const settings = getGymSettingsSummary(gym.gym_settings);
-    const phone = settings?.whatsapp;
+    const rawPhone = settings?.whatsapp;
     const gymName = settings?.gym_name ?? "tu gimnasio";
 
-    if (!phone) {
+    if (!rawPhone) {
       log.push(`Sin WhatsApp (día ${daysLeft === 1 ? 15 : 13}): gym ${gym.id}`);
       return;
     }
+
+    const phone = normalizePhone(rawPhone);
 
     const message = daysLeft === 1
       ? `⚠️ *${gymName}* — Tu prueba de FitGrowX vence *mañana*. Pasado mañana perderás el acceso al sistema. Elegí un plan ahora en: ${appUrl}/dashboard/suscripcion`

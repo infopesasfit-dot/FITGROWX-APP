@@ -1,0 +1,321 @@
+"use client";
+
+import { useState } from "react";
+import { X, ArrowRight, ArrowLeft, ExternalLink } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+const fd = "var(--font-inter, 'Inter', sans-serif)";
+
+const C: Record<string, string> = {
+  O: "#F97316",
+  D: "#EA580C",
+  E: "#1C1917",
+  W: "#FFFFFF",
+};
+
+// 12 chars wide × 16 rows — pixel size 6 → 72×96px
+const DINO_FLACO = [
+  "....OOOO....",
+  "...OOOOOO...",
+  "...OEOOO....",
+  "..OOOOOOO...",
+  "..OWWWOO....",
+  "....OO......",
+  "....OO......",
+  "..OOOOOO....",
+  ".OOOOOOOO...",
+  ".OOOOOOOO...",
+  ".OOOOOOOO...",
+  "..OOOOOO....",
+  "OO....OO....",
+  "OO....OO....",
+  "OO....OO....",
+  "OOO..OOO....",
+];
+
+const DINO_NORMAL = [
+  "...OOOOO....",
+  "..OOOOOOOO..",
+  "..OEOOOOO...",
+  ".OOOOOOOOOO.",
+  ".OWWWOOOOO..",
+  "...OOOOO....",
+  "...OOO......",
+  "..OOOOOOOO..",
+  ".OOOOOOOOOO.",
+  ".OOOOOOOOOO.",
+  ".OOOOOOOOOO.",
+  "..OOOOOOOO..",
+  ".OO...OOO...",
+  ".OO...OOO...",
+  "OOO...OOOO..",
+  "OOOO.OOOO...",
+];
+
+const DINO_JACKED = [
+  "..OOOOOOOO..",
+  ".OOOOOOOOOO.",
+  ".OEOOOOOOOO.",
+  "OOOOOOOOOOOO",
+  "OWWWOOOOOOOO",
+  "...OOOOOOO..",
+  "...OOOOOO...",
+  ".OOOOOOOOOO.",
+  "OOOOOOOOOOOO",
+  "OOOOOOOOOOOO",
+  "OOOOOOOOOOOO",
+  ".OOOOOOOOOO.",
+  "OOO...OOOOO.",
+  "OOO...OOOOO.",
+  "OOOO.OOOOOOO",
+  "OOOOOOOOOOO.",
+];
+
+const PIXEL_W = 12;
+const PIXEL_H = 16;
+
+export function DinoSVG({
+  state,
+  pixelSize = 6,
+}: {
+  state: "flaco" | "normal" | "jacked";
+  pixelSize?: number;
+}) {
+  const pixels =
+    state === "flaco" ? DINO_FLACO : state === "normal" ? DINO_NORMAL : DINO_JACKED;
+  const rects: React.ReactNode[] = [];
+
+  pixels.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      const fill = C[ch];
+      if (!fill) return;
+      rects.push(
+        <rect
+          key={`${x}-${y}`}
+          x={x * pixelSize}
+          y={y * pixelSize}
+          width={pixelSize}
+          height={pixelSize}
+          fill={fill}
+        />
+      );
+    });
+  });
+
+  const w = PIXEL_W * pixelSize;
+  const h = PIXEL_H * pixelSize;
+
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      style={{ imageRendering: "pixelated", display: "block" }}
+    >
+      {rects}
+    </svg>
+  );
+}
+
+export function getDinoState(completedCount: number): "flaco" | "normal" | "jacked" {
+  if (completedCount <= 1) return "flaco";
+  if (completedCount <= 3) return "normal";
+  return "jacked";
+}
+
+interface DialogStep {
+  label?: string;
+  text: string;
+  href?: string;
+  cta?: string;
+  dinoState: "flaco" | "normal" | "jacked";
+}
+
+const STEPS: DialogStep[] = [
+  {
+    text: "¡Hola! Soy Rex 👋\n\nEstoy flaco porque tu gym todavía no está configurado...\n\n¡Ayudame a crecer y juntos vamos a hacer crecer tu negocio!",
+    dinoState: "flaco",
+  },
+  {
+    label: "Paso 1 · Cargá tus alumnos",
+    text: "Sin alumnos no hay gym 🏋️\n\nImportá tu base existente con un Excel o agregalos uno por uno. El sistema cobra vida cuando hay gente adentro.",
+    href: "/dashboard/alumnos",
+    cta: "Ir a Alumnos",
+    dinoState: "flaco",
+  },
+  {
+    label: "Paso 2 · Armá tus planes",
+    text: "Los planes definen qué incluye cada membresía y cuánto cuesta 📋\n\nCon esto el sistema rastrea vencimientos y cobros automáticamente.",
+    href: "/dashboard/planes",
+    cta: "Crear Planes",
+    dinoState: "flaco",
+  },
+  {
+    label: "Paso 3 · Publicá tu landing",
+    text: "Tu landing es tu vidriera digital 🌐\n\nCualquiera puede encontrar tu gym, dejar sus datos y agendar una clase de prueba. Sin que vos hagas nada.",
+    href: "/dashboard/landing",
+    cta: "Configurar Landing",
+    dinoState: "normal",
+  },
+  {
+    label: "Paso 4 · Conectá WhatsApp",
+    text: "Con WhatsApp conectado, los mensajes van solos 💬\n\nRecordatorios de vencimiento, seguimiento de prospectos y bienvenida automática.",
+    href: "/dashboard/ajustes",
+    cta: "Conectar WhatsApp",
+    dinoState: "normal",
+  },
+  {
+    label: "Paso 5 · Configurá los pagos",
+    text: "Cerrá el ciclo de cobranza 💰\n\nConectá MercadoPago para cobro online, o dejá los datos de tu cuenta para que los alumnos sepan a dónde transferir.",
+    href: "/dashboard/ajustes",
+    cta: "Configurar Pagos",
+    dinoState: "jacked",
+  },
+  {
+    text: "¡LISTO! ¡Estoy JACKED! 💪\n\nTu gym está configurado y listo para crecer. El checklist en el dashboard te muestra cómo evoluciono a medida que completás los pasos.",
+    dinoState: "jacked",
+  },
+];
+
+interface OnboardingModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
+  const [step, setStep] = useState(0);
+  const router = useRouter();
+
+  if (!open) return null;
+
+  const current = STEPS[step];
+  const isLast = step === STEPS.length - 1;
+  const isFirst = step === 0;
+
+  function handleCta() {
+    onClose();
+    router.push(current.href!);
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "#FFFFFF", borderRadius: 28,
+          width: "100%", maxWidth: 500,
+          padding: "24px 24px 20px", position: "relative",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.22)",
+          display: "flex", flexDirection: "column", gap: 18,
+        }}
+      >
+        {/* Close */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: 14, right: 14,
+            width: 30, height: 30, borderRadius: 999,
+            background: "#F3F4F6", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF",
+          }}
+        >
+          <X size={14} />
+        </button>
+
+        {/* Progress dots */}
+        <div style={{ display: "flex", gap: 5, justifyContent: "center", paddingRight: 30 }}>
+          {STEPS.map((_, i) => (
+            <div
+              key={i}
+              style={{
+                height: 4,
+                width: i === step ? 24 : 6,
+                borderRadius: 999,
+                background: i <= step ? "#F97316" : "#E5E7EB",
+                opacity: i < step ? 0.35 : 1,
+                transition: "all 0.3s ease",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Dino + speech bubble */}
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
+          <div style={{ flexShrink: 0, transition: "opacity 0.2s ease" }}>
+            <DinoSVG state={current.dinoState} pixelSize={6} />
+          </div>
+          <div
+            style={{
+              background: "#FFF7ED",
+              border: "1.5px solid rgba(249,115,22,0.2)",
+              borderRadius: "16px 16px 16px 4px",
+              padding: "14px 16px", flex: 1, minHeight: 96,
+            }}
+          >
+            {current.label && (
+              <p
+                style={{
+                  font: `700 0.68rem/1 ${fd}`, color: "#F97316",
+                  textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8,
+                }}
+              >
+                {current.label}
+              </p>
+            )}
+            <p style={{ font: `500 0.87rem/1.55 ${fd}`, color: "#1A1D23", whiteSpace: "pre-line" }}>
+              {current.text}
+            </p>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {!isFirst && (
+            <button
+              onClick={() => setStep(s => s - 1)}
+              style={{
+                width: 36, height: 36, borderRadius: 10, background: "#F3F4F6",
+                border: "none", cursor: "pointer", display: "flex",
+                alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0,
+              }}
+            >
+              <ArrowLeft size={14} />
+            </button>
+          )}
+          <div style={{ flex: 1 }} />
+          {current.href && (
+            <button
+              onClick={handleCta}
+              style={{
+                padding: "9px 16px", borderRadius: 12,
+                background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.2)",
+                font: `600 0.8rem/1 ${fd}`, color: "#F97316", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              {current.cta} <ExternalLink size={12} />
+            </button>
+          )}
+          <button
+            onClick={() => (isLast ? onClose() : setStep(s => s + 1))}
+            style={{
+              padding: "9px 20px", borderRadius: 12, background: "#F97316", border: "none",
+              font: `700 0.86rem/1 ${fd}`, color: "white", cursor: "pointer",
+              display: "flex", alignItems: "center", gap: 7,
+            }}
+          >
+            {isLast ? "¡Empecemos!" : isFirst ? "¡Vamos!" : "Siguiente"}
+            <ArrowRight size={14} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

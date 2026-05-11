@@ -7,6 +7,7 @@ import { Tooltip } from "@/components/tooltip";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { CsvAlumnosImportContent } from "@/app/dashboard/components/CsvAlumnosImportContent";
+import { EJERCICIOS } from "@/lib/ejercicios";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -120,6 +121,7 @@ export default function AlumnosPage() {
   const [rutinaNombre,     setRutinaNombre]     = useState("Mi Rutina");
   const [rutinaEjercicios, setRutinaEjercicios] = useState<{ nombre: string; series: number; repeticiones: number; peso_sugerido: string; descanso: string }[]>([]);
   const [rutinaSaving,     setRutinaSaving]     = useState(false);
+  const [ejAutoIdx,        setEjAutoIdx]        = useState<number | null>(null);
   const [rutinaError,      setRutinaError]      = useState<string | null>(null);
   const [objetivo,         setObjetivo]         = useState("Hipertrofia");
   const [notas,            setNotas]            = useState("");
@@ -1925,14 +1927,37 @@ export default function AlumnosPage() {
                       </div>
                       {/* Contenido */}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <input
-                          placeholder="Nombre del ejercicio"
-                          value={ej.nombre}
-                          onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
-                          style={{ width: "100%", padding: "0 0 6px", background: "transparent", border: "none", borderBottom: "1.5px solid rgba(0,0,0,0.08)", font: `600 0.92rem/1.2 ${fd}`, color: t1, outline: "none", boxSizing: "border-box", marginBottom: 10 }}
-                          onFocus={e => (e.currentTarget.style.borderBottomColor = "#F97316")}
-                          onBlur={e => (e.currentTarget.style.borderBottomColor = "rgba(0,0,0,0.08)")}
-                        />
+                        <div style={{ position: "relative", marginBottom: 10 }}>
+                          <input
+                            placeholder="Nombre del ejercicio"
+                            value={ej.nombre}
+                            onChange={e => setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, nombre: e.target.value } : x))}
+                            style={{ width: "100%", padding: "0 0 6px", background: "transparent", border: "none", borderBottom: "1.5px solid rgba(0,0,0,0.08)", font: `600 0.92rem/1.2 ${fd}`, color: t1, outline: "none", boxSizing: "border-box" }}
+                            onFocus={e => { e.currentTarget.style.borderBottomColor = "#F97316"; setEjAutoIdx(i); }}
+                            onBlur={e => { e.currentTarget.style.borderBottomColor = "rgba(0,0,0,0.08)"; setTimeout(() => setEjAutoIdx(prev => prev === i ? null : prev), 150); }}
+                          />
+                          {ejAutoIdx === i && ej.nombre.trim().length >= 1 && (() => {
+                            const q = ej.nombre.toLowerCase();
+                            const suggestions = EJERCICIOS.filter(e => e.toLowerCase().includes(q)).slice(0, 6);
+                            if (!suggestions.length) return null;
+                            return (
+                              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "white", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.10)", zIndex: 50, overflow: "hidden" }}>
+                                {suggestions.map(s => (
+                                  <button
+                                    key={s}
+                                    type="button"
+                                    onMouseDown={() => { setRutinaEjercicios(prev => prev.map((x, j) => j === i ? { ...x, nombre: s } : x)); setEjAutoIdx(null); }}
+                                    style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "none", border: "none", font: `500 0.85rem/1.3 ${fd}`, color: t1, cursor: "pointer" }}
+                                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(249,115,22,0.06)"; }}
+                                    onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
+                                  >
+                                    {s}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
                           {([
                             { key: "series",       label: "Series",   placeholder: "4",    type: "number" },

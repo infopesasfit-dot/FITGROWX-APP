@@ -79,8 +79,9 @@ export default function AlumnoPanelPage() {
   const [loading,      setLoading]      = useState(true);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [reservando,   setReservando]   = useState<string | null>(null);
-  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null } | null>(null);
+  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null } | null>(null);
   const [loadingPago,  setLoadingPago]  = useState(false);
+  const [copiedPayment, setCopiedPayment] = useState(false);
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
   const [inlineSaving, setInlineSaving] = useState<Record<string, boolean>>({});
   const [showQR,        setShowQR]        = useState(false);
@@ -140,6 +141,7 @@ export default function AlumnoPanelPage() {
         accent_color: d.gym_info.accent_color,
         has_mp: Boolean(d.gym_info.has_mp),
         plan_type: d.gym_info.plan_type ?? null,
+        payment_info: d.gym_info.payment_info ?? null,
       });
     }
     if (d.asistencias) {
@@ -313,7 +315,7 @@ export default function AlumnoPanelPage() {
               para regularizar tu estado.
             </p>
           </div>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 9999, padding: "7px 14px", marginBottom: gymInfo?.has_mp ? 16 : 36 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 9999, padding: "7px 14px", marginBottom: (gymInfo?.has_mp || gymInfo?.payment_info) ? 16 : 36 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#EF4444" }} />
             <span style={{ font: `500 0.65rem/1 ${fd}`, color: "#EF4444", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               {session.status === "vencido" ? "Membresia vencida" : "Membresia inactiva"}
@@ -328,6 +330,24 @@ export default function AlumnoPanelPage() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="rgba(255,255,255,0.2)"/><path d="M8 12h8M12 8v8" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
               {loadingPago ? "Generando link..." : "Pagar membresía con MercadoPago"}
             </button>
+          )}
+          {gymInfo?.payment_info && (
+            <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "14px 16px", marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <p style={{ font: `600 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>Datos de pago</p>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(gymInfo.payment_info!); setCopiedPayment(true); setTimeout(() => setCopiedPayment(false), 2000); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", display: "flex", alignItems: "center", gap: 4, color: copiedPayment ? "#4ADE80" : "rgba(255,255,255,0.35)" }}
+                >
+                  {copiedPayment
+                    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  }
+                  <span style={{ font: `500 0.65rem/1 ${fd}` }}>{copiedPayment ? "Copiado" : "Copiar"}</span>
+                </button>
+              </div>
+              <p style={{ font: `400 0.82rem/1.6 ${fd}`, color: "rgba(255,255,255,0.7)", whiteSpace: "pre-wrap", margin: 0 }}>{gymInfo.payment_info}</p>
+            </div>
           )}
           <button onClick={logout} style={{ display: "block", width: "100%", padding: "13px 0", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 14, font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", cursor: "pointer", letterSpacing: "0.08em" }}>
             CERRAR SESION
@@ -838,6 +858,24 @@ export default function AlumnoPanelPage() {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="rgba(255,255,255,0.25)"/><path d="M8 12h8M12 8v8" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
                     {loadingPago ? "Generando link..." : "Pagar membresía con MercadoPago"}
                   </button>
+                )}
+                {gymInfo?.payment_info && (
+                  <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                      <p style={{ font: `600 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>Datos de pago</p>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(gymInfo.payment_info!); setCopiedPayment(true); setTimeout(() => setCopiedPayment(false), 2000); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 4px", display: "flex", alignItems: "center", gap: 4, color: copiedPayment ? "#4ADE80" : "rgba(255,255,255,0.35)" }}
+                      >
+                        {copiedPayment
+                          ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        }
+                        <span style={{ font: `500 0.65rem/1 ${fd}` }}>{copiedPayment ? "Copiado" : "Copiar"}</span>
+                      </button>
+                    </div>
+                    <p style={{ font: `400 0.82rem/1.6 ${fd}`, color: "rgba(255,255,255,0.7)", whiteSpace: "pre-wrap", margin: 0 }}>{gymInfo.payment_info}</p>
+                  </div>
                 )}
 
                 {/* Monthly attendance calendar */}

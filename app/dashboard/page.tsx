@@ -6,6 +6,8 @@ import {
   ArrowUpRight, ArrowDownRight, Send, Target, CircleHelp, BadgeAlert, Activity, UserMinus,
 } from "lucide-react";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
+import { supabase } from "@/lib/supabase";
+import { OnboardingModal, DinoSVG, getDinoState } from "@/app/dashboard/components/OnboardingModal";
 
 const accent = "#FF7A18";
 const accentDeep = "#E65A00";
@@ -162,6 +164,8 @@ export default function DashboardPage() {
   const [metrics,           setMetrics]           = useState<DashboardMetric[]>([]);
   const [alerts,            setAlerts]            = useState<DashboardAlerts>({ inactiveCount: 0, inactiveNames: [], upcomingExpirations: [] });
   const [activeInfo,        setActiveInfo]        = useState<{ title: string; body: string } | null>(null);
+  const [setup, setSetup] = useState<{ alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   const applySnapshot = useCallback((snapshot: DashboardSnapshot) => {
     setActivosCount(snapshot.activosCount);
@@ -232,6 +236,29 @@ export default function DashboardPage() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [dateFilter, fetchData]);
+
+  useEffect(() => {
+    async function loadSetup() {
+      const profile = await getCachedProfile();
+      if (!profile) return;
+      const [settingsRes, alumnosRes, planesRes] = await Promise.all([
+        supabase.from("gym_settings").select("whatsapp, slug, mp_access_token, payment_info").eq("gym_id", profile.gymId).maybeSingle(),
+        supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
+        supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
+      ]);
+      const s = settingsRes.data;
+      setSetup({
+        alumnos:  (alumnosRes.count ?? 0) > 0,
+        planes:   (planesRes.count ?? 0) > 0,
+        landing:  !!s?.slug,
+        whatsapp: !!s?.whatsapp,
+        pagos:    !!(s?.mp_access_token || s?.payment_info),
+      });
+    }
+    void loadSetup();
+    const seen = localStorage.getItem("fitgrowx_onboarding_v1");
+    if (!seen) setOnboardingOpen(true);
+  }, []);
 
   const sinEgresos  = gastosTotal === 0;
   const balanceNeto = sinEgresos ? ingresoProyectado : ingresoProyectado - gastosTotal;
@@ -747,6 +774,54 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {setup && !Object.values(setup).every(Boolean) && (() => {
+        const tasks: { key: keyof typeof setup; label: string; desc: string; href: string }[] = [
+          { key: "alumnos",  label: "Cargá alumnos",      desc: "Importá o agregá tus miembros",          href: "/dashboard/alumnos" },
+          { key: "planes",   label: "Armá tus planes",    desc: "Definí membresías y precios",            href: "/dashboard/planes"  },
+          { key: "landing",  label: "Publicá tu landing", desc: "Página pública para captar prospectos",  href: "/dashboard/landing" },
+          { key: "whatsapp", label: "Conectá WhatsApp",   desc: "Automatizá mensajes a alumnos",          href: "/dashboard/ajustes" },
+          { key: "pagos",    label: "Configurá pagos",    desc: "MercadoPago o transferencia",            href: "/dashboard/ajustes" },
+        ];
+        const done = tasks.filter(t => setup[t.key]).length;
+        const dinoState = getDinoState(done);
+        return (
+          <div style={{ background: "#FFFBF6", border: "1px solid rgba(249,115,22,0.18)", borderRadius: 20, padding: "18px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
+              <DinoSVG state={dinoState} pixelSize={3} />
+              <div style={{ flex: 1 }}>
+                <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, marginBottom: 5 }}>Configurá tu sistema</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1, height: 5, borderRadius: 999, background: "rgba(0,0,0,0.07)", overflow: "hidden" }}>
+                    <div style={{ width: `${(done / 5) * 100}%`, height: "100%", borderRadius: 999, background: accent, transition: "width 0.4s ease" }} />
+                  </div>
+                  <p style={{ font: `500 0.75rem/1 ${fb}`, color: t2, whiteSpace: "nowrap" }}>{done} de 5</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setOnboardingOpen(true)}
+                style={{ padding: "7px 13px", borderRadius: 10, background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.18)", font: `600 0.75rem/1 ${fd}`, color: "#F97316", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+              >
+                Ver guía
+              </button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+              {tasks.map(t => (
+                <a key={t.key} href={setup[t.key] ? undefined : t.href} style={{ textDecoration: "none", display: "block", padding: "11px 12px", borderRadius: 12, background: setup[t.key] ? "rgba(34,197,94,0.06)" : "white", border: `1px solid ${setup[t.key] ? "rgba(34,197,94,0.18)" : "rgba(0,0,0,0.07)"}`, cursor: setup[t.key] ? "default" : "pointer" }}>
+                  <div style={{ width: 20, height: 20, borderRadius: 999, background: setup[t.key] ? "#22C55E" : "rgba(0,0,0,0.07)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 7, flexShrink: 0 }}>
+                    {setup[t.key]
+                      ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2.5" stroke="rgba(0,0,0,0.22)" strokeWidth="1.2"/></svg>
+                    }
+                  </div>
+                  <p style={{ font: `600 0.76rem/1.3 ${fd}`, color: setup[t.key] ? "#15803D" : t1, marginBottom: 2 }}>{t.label}</p>
+                  <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t2 }}>{t.desc}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20 }}>
         <div className="dashboard-grain" style={{ borderRadius: 30, background: orangeGlow, padding: "22px 22px 20px", position: "relative", overflow: "hidden", boxShadow: "0 22px 54px rgba(255,122,24,0.24)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.26), transparent 28%), radial-gradient(circle at bottom left, rgba(255,210,170,0.25), transparent 24%)", pointerEvents: "none" }} />
@@ -924,6 +999,14 @@ export default function DashboardPage() {
       })()}
 
     </div>
+
+    <OnboardingModal
+      open={onboardingOpen}
+      onClose={() => {
+        localStorage.setItem("fitgrowx_onboarding_v1", "1");
+        setOnboardingOpen(false);
+      }}
+    />
     </>
   );
 }

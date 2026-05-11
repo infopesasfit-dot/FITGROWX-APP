@@ -1,10 +1,10 @@
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-type ProspectoRow = { created_at: string };
+type ProspectoRow = { created_at: string; phone: string | null; clase_gratis_date: string | null };
 type PagoMetricRow = { amount: number; date: string; status: string | null; concepto: string | null; alumno_id: string | null };
 type EgresoMetricRow = { monto: number | null; fecha: string; categoria: string | null };
 type AlumnoMetricRow = { id: string; full_name: string; phone: string | null; status: string | null; created_at: string; next_expiration_date: string | null };
-type ReservaMetricRow = { lead_phone: string | null; fecha: string; estado: string | null };
+type ReservaMetricRow = { clase_id: string; fecha: string; estado: string | null };
 type AsistenciaMetricRow = { alumno_id: string; fecha: string };
 type GymClassMetricRow = { day_of_week: number; max_capacity: number; event_type: "regular" | "especial" | null; event_date: string | null };
 
@@ -110,11 +110,11 @@ export async function buildMonthlyDashboardReport(gymId: string, targetMonth = n
     { count: activeCount },
   ] = await Promise.all([
     supabase.from("gym_settings").select("gym_name").eq("gym_id", gymId).maybeSingle(),
-    supabase.from("prospectos").select("created_at").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", monthTo),
+    supabase.from("prospectos").select("created_at, phone, clase_gratis_date").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", monthTo),
     supabase.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", prevMonthFrom).lte("date", monthTo),
     supabase.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", monthTo),
     supabase.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gymId),
-    supabase.from("reservas").select("lead_phone, fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", monthTo),
+    supabase.from("reservas").select("clase_id, fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", monthTo),
     supabase.from("asistencias").select("alumno_id, fecha").eq("gym_id", gymId).gte("fecha", isoDate(attendanceFrom)).lte("fecha", isoDate(today)),
     supabase.from("gym_classes").select("day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
     supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "activo"),
@@ -128,12 +128,12 @@ export async function buildMonthlyDashboardReport(gymId: string, targetMonth = n
   const asistenciaRows = (asistenciaRowsRaw ?? []) as AsistenciaMetricRow[];
   const classRows = (classRowsRaw ?? []) as GymClassMetricRow[];
 
-  const leadPhonesMonth = new Set(
-    reservaRows
-      .filter((row) => isWithin(row.fecha, monthFrom, monthTo))
-      .map((row) => normalizePhone(row.lead_phone))
-      .filter(Boolean),
-  );
+  const leadPhonesMonth = new Set<string>();
+  for (const row of prospectRows) {
+    if (!row.clase_gratis_date || !row.phone) continue;
+    const p = normalizePhone(row.phone);
+    if (p && isWithin(row.clase_gratis_date, monthFrom, monthTo)) leadPhonesMonth.add(p);
+  }
   const leads = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), monthFrom, monthTo)).length;
   const previousLeads = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo)).length;
   const trialCount = leadPhonesMonth.size;

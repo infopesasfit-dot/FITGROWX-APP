@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       .eq("gym_id", gym_id)
       .eq("estado", "confirmada")
       .in("fecha", dates),
-    supabase.from("gym_settings").select("gym_name, logo_url, accent_color, mp_access_token").eq("gym_id", gym_id).single(),
+    supabase.from("gym_settings").select("gym_name, logo_url, accent_color, mp_access_token, payment_info").eq("gym_id", gym_id).single(),
     supabase.from("gyms").select("plan_type").eq("id", gym_id).single(),
     supabase
       .from("asistencias")
@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
         accent_color: settingsRes.data?.accent_color ?? null,
         has_mp: Boolean(settingsRes.data?.mp_access_token),
         plan_type: gymRes.data?.plan_type ?? null,
+        payment_info: settingsRes.data?.payment_info ?? null,
       },
       asistencias: {
         fechas,
@@ -103,6 +104,7 @@ export async function GET(req: NextRequest) {
       logo_url: settingsRes.data?.logo_url ?? null,
       accent_color: settingsRes.data?.accent_color ?? null,
       plan_type: gymRes.data?.plan_type ?? null,
+      payment_info: settingsRes.data?.payment_info ?? null,
     },
     asistencias: {
       fechas,

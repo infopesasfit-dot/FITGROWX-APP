@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getTodayDate } from "@/lib/date-utils";
 
 const supabase = getSupabaseAdminClient();
 
@@ -21,6 +22,7 @@ function getWeekRange(dateStr: string) {
 export async function POST(req: NextRequest) {
   const { alumno_id, gym_id, clase_id, fecha } = await req.json();
   if (!alumno_id || !gym_id || !clase_id || !fecha) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  if (fecha < getTodayDate()) return NextResponse.json({ error: "No podés reservar clases pasadas." }, { status: 400 });
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {

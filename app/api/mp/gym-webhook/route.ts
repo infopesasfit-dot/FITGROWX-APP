@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
+import { normalizePhone } from "@/lib/phone";
 
 const supabase = getSupabaseAdminClient();
 const MOTOR_URL = process.env.WA_MOTOR_URL ?? "";
@@ -40,7 +41,7 @@ async function sendWA(gym_id: string, phone: string, message: string) {
     await fetch(`${MOTOR_URL}/send/${gym_id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": MOTOR_KEY },
-      body: JSON.stringify({ phone, message }),
+      body: JSON.stringify({ phone: normalizePhone(phone), message }),
       signal: AbortSignal.timeout(6000),
     });
   } catch { /* non-blocking */ }
@@ -85,8 +86,17 @@ export async function POST(req: NextRequest) {
 
   if (payment.status !== "approved") return NextResponse.json({ ok: true });
 
+  // Idempotency: skip if already processed
+  const { count: already } = await supabase
+    .from("pagos")
+    .select("id", { count: "exact", head: true })
+    .eq("gym_id", gym_id)
+    .like("notes", `payment_id:${paymentId}%`);
+  if ((already ?? 0) > 0) return NextResponse.json({ ok: true });
+
   // Parse external_reference: "gym_id|alumno_id"
   const parts = (payment.external_reference ?? "").split("|");
+  if (parts[0] !== gym_id) return NextResponse.json({ ok: true });
   const alumno_id = parts[1];
   if (!alumno_id) return NextResponse.json({ ok: true });
 

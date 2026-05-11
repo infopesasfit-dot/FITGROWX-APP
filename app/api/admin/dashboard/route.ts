@@ -16,7 +16,7 @@ type CreatedAtRow = { created_at: string };
 type EgresoMontoRow = { monto: number | null };
 type PlanPrecioRow = { planes: unknown };
 type PlanNombreRow = { planes: unknown };
-type ProspectoRow = { created_at: string };
+type ProspectoRow = { created_at: string; phone: string | null; clase_gratis_date: string | null };
 type PagoMetricRow = { amount: number; date: string; status: string | null; concepto: string | null; alumno_id: string | null };
 type EgresoMetricRow = { monto: number | null; fecha: string; categoria: string | null };
 type AlumnoMetricRow = { id: string; full_name: string; phone: string | null; status: string | null; created_at: string; next_expiration_date: string | null };
@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
   expiration72h.setHours(0, 0, 0, 0);
   expiration72h.setDate(expiration72h.getDate() + 3);
   const expiration72hStr = isoDate(expiration72h);
-  const oldestMonthKey = `${today.getFullYear()}-${String(today.getMonth() - 3).padStart(2, "0")}-01`;
+  const oldestMonthKey = isoDate(new Date(today.getFullYear(), today.getMonth() - 4, 1));
 
   const [
     { count: total },
@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
     admin.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "pendiente"),
     admin.from("gym_settings").select("gym_name, owner_name").eq("gym_id", gymId).maybeSingle<GymSettingsRow>(),
     admin.from("gyms").select("name, owner_name").eq("id", gymId).maybeSingle<GymRow>(),
-    admin.from("prospectos").select("created_at").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", thisMonthTo),
+    admin.from("prospectos").select("created_at, phone, clase_gratis_date").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", thisMonthTo),
     admin.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", prevMonthFrom).lte("date", thisMonthTo),
     admin.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
     admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gymId),
@@ -241,6 +241,14 @@ export async function GET(req: NextRequest) {
 
   const leadPhonesThisMonth = new Set<string>();
   const leadPhonesPrevMonth = new Set<string>();
+
+  for (const row of prospectRows) {
+    if (!row.clase_gratis_date || !row.phone) continue;
+    const p = normalizePhone(row.phone);
+    if (!p) continue;
+    if (isWithin(row.clase_gratis_date, thisMonthFrom, thisMonthTo)) leadPhonesThisMonth.add(p);
+    if (isWithin(row.clase_gratis_date, prevMonthFrom, prevMonthTo)) leadPhonesPrevMonth.add(p);
+  }
 
   const leadCountCurrent = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), thisMonthFrom, thisMonthTo)).length;
   const leadCountPrevious = prospectRows.filter((row) => isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo)).length;

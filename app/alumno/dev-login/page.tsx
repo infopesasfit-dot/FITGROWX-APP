@@ -14,6 +14,7 @@ export default function DevLogin() {
       status:     "activo",
       plan:       null,
       expiration: null,
+      token:      "dev",
     }));
     router.replace("/alumno/panel");
   }, [router]);

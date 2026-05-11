@@ -162,6 +162,7 @@ function AjustesContent() {
   const [slugError, setSlugError] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [mpToken, setMpToken] = useState("");
+  const [paymentInfo, setPaymentInfo] = useState("");
   const [email, setEmail] = useState("");
   const [saved, setSaved] = useState(false);
   const [reportSending, setReportSending] = useState(false);
@@ -294,7 +295,7 @@ function AjustesContent() {
           .maybeSingle(),
         supabase
           .from("gym_settings")
-          .select("gym_name, logo_url, instagram_url, accent_color, landing_title, landing_desc, slug, mp_access_token")
+          .select("gym_name, logo_url, instagram_url, accent_color, landing_title, landing_desc, slug, mp_access_token, payment_info")
           .eq("gym_id", gymIdVal)
           .maybeSingle(),
         supabase
@@ -312,6 +313,7 @@ function AjustesContent() {
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
       if (settings?.instagram_url) setInstagramUrl(settings.instagram_url);
       if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
+      if (settings?.payment_info) setPaymentInfo(settings.payment_info);
       setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
 
       const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
@@ -351,7 +353,7 @@ function AjustesContent() {
     }
     setSlugError("");
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
-    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null }, { onConflict: "gym_id" });
+    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null, payment_info: paymentInfo.trim() || null }, { onConflict: "gym_id" });
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
   };
@@ -1167,6 +1169,27 @@ function AjustesContent() {
                 >
                   {saved ? "Guardado ✓" : "Guardar token"}
                 </button>
+
+                <div style={{ borderTop: "1px solid rgba(15,23,42,0.07)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div>
+                    <span style={{ font: `500 0.78rem/1 ${fb}`, color: t2 }}>Datos de pago alternativos</span>
+                    <p style={{ font: `400 0.72rem/1.45 ${fb}`, color: t3, margin: "4px 0 0" }}>CBU, alias, efectivo u otro método. El alumno lo ve en su panel al renovar.</p>
+                  </div>
+                  <textarea
+                    value={paymentInfo}
+                    onChange={e => setPaymentInfo(e.target.value)}
+                    placeholder={"CBU: 0000003100012345678901\nAlias: gimnasio.nombre\nEfectivo: pagá en recepción de lunes a viernes."}
+                    rows={4}
+                    style={{ ...inputStyle, resize: "vertical", fontFamily: fb, lineHeight: 1.5 }}
+                  />
+                  <button
+                    onClick={handleSaveGym}
+                    disabled={saved}
+                    style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 12, border: "none", background: saved ? "#E5E7EB" : ACCENT, color: saved ? t2 : "white", font: `700 0.82rem/1 ${fd}`, cursor: saved ? "default" : "pointer", transition: "all 0.2s" }}
+                  >
+                    {saved ? "Guardado ✓" : "Guardar"}
+                  </button>
+                </div>
               </div>
             </SectionCard>
           </div>

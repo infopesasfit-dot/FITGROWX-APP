@@ -3,6 +3,7 @@ import { getPlanNombre } from "@/lib/supabase-relations";
 import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { normalizePhone } from "@/lib/phone";
 
 type StaffProfile = {
   gym_id: string | null;
@@ -172,10 +173,7 @@ export async function POST(req: NextRequest) {
       const msg = (gs.diadia_presente_msg?.trim() || DEFAULT)
         .replace(/{nombre}/g, alumnoRow.full_name)
         .replace(/{gym}/g, gs.gym_name ?? "el gym");
-      const digits = alumnoRow.phone!.replace(/\D/g, "");
-      const phone = digits.startsWith("549") && digits.length === 13 ? digits
-        : digits.startsWith("54") && digits.length === 12 ? "549" + digits.slice(2)
-        : digits.length === 10 ? "549" + digits : digits;
+      const phone = normalizePhone(alumnoRow.phone!);
       try {
         await fetch(`${motor}/send/${alumnoRow.gym_id}`, {
           method: "POST",

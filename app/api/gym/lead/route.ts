@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   const { data: settings } = await supabase
     .from("gym_settings")
-    .select("gym_name, lead_auto_welcome, contactos_msg_0")
+    .select("gym_name, lead_auto_welcome, contactos_msg_0, slug")
     .eq("gym_id", gymId)
     .maybeSingle();
 
@@ -82,10 +82,15 @@ export async function POST(req: NextRequest) {
     const firstName = name.split(" ")[0];
 
     if (settings?.contactos_msg_0 !== "") {
-      const DEFAULT_MSG_0 = `¡Hola ${firstName}! 👋 Recibimos tu solicitud de clase de prueba en *${gymName}*. Te contactamos pronto para coordinar el horario. ¡Nos vemos! 💪`;
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+      const reservarLink = settings?.slug && appUrl ? `${appUrl}/gym/${settings.slug}/reservar` : null;
+      const DEFAULT_MSG_0 = reservarLink
+        ? `¡Hola ${firstName}! 👋 Recibimos tu solicitud en *${gymName}*. Agendá tu clase de prueba acá 👇\n\n${reservarLink}`
+        : `¡Hola ${firstName}! 👋 Recibimos tu solicitud de clase de prueba en *${gymName}*. Te contactamos pronto para coordinar el horario. ¡Nos vemos! 💪`;
       const msg = (settings?.contactos_msg_0?.trim() || DEFAULT_MSG_0)
         .replace(/\{nombre\}/gi, firstName)
-        .replace(/\{gym\}/gi, gymName);
+        .replace(/\{gym\}/gi, gymName)
+        .replace(/\{link\}/gi, reservarLink ?? "");
 
       try {
         await fetch(`${motor}/send/${gymId}`, {
