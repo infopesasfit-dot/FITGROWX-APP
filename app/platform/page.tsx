@@ -203,7 +203,8 @@ export default function PlatformPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"crm" | "cms" | "feedback" | "whatsapp">("crm");
+  const [activeTab, setActiveTab] = useState<"crm" | "cms" | "feedback" | "whatsapp" | "onboarding">("crm");
+  const [onboardingRows, setOnboardingRows] = useState<{ gym_id: string; gym_name: string | null; onboarding_completed: boolean | null }[]>([]);
   const [stats, setStats] = useState<PlatformStats>({
     vaultResources: 0,
     platformAccounts: 0,
@@ -345,6 +346,7 @@ export default function PlatformPage() {
       { data: resourceRows, error: resourceRowsError },
       { data: categoryRows, error: categoryRowsError },
       { data: feedbackData },
+      { data: onboardingData },
     ] = await Promise.all([
       supabase.from("vault_resources").select("*", { count: "exact", head: true }),
       supabase.from("platform_accounts").select("*", { count: "exact", head: true }),
@@ -373,6 +375,10 @@ export default function PlatformPage() {
         .select("id, gym_id, gym_name, email, message, created_at")
         .order("created_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("gym_settings")
+        .select("gym_id, gym_name, onboarding_completed")
+        .order("gym_name", { ascending: true }),
     ]);
 
     if (vaultCountError) throw vaultCountError;
@@ -393,6 +399,7 @@ export default function PlatformPage() {
     setVaultResources((resourceRows ?? []) as VaultResourceRow[]);
     setFeedbackRows((feedbackData ?? []) as FeedbackRow[]);
     setVaultCategories((categoryRows ?? []) as VaultCategoryRow[]);
+    setOnboardingRows((onboardingData ?? []) as { gym_id: string; gym_name: string | null; onboarding_completed: boolean | null }[]);
   };
 
   useEffect(() => {
@@ -658,11 +665,12 @@ export default function PlatformPage() {
             { key: "cms", label: "CMS Bóveda" },
             { key: "feedback", label: "Feedback" },
             { key: "whatsapp", label: "WhatsApp" },
+            { key: "onboarding", label: "Onboarding" },
           ].map((tab) => (
             <button
               key={tab.key}
               type="button"
-              onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback" | "whatsapp")}
+              onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback" | "whatsapp" | "onboarding")}
               style={{
                 padding: "10px 14px",
                 borderRadius: 999,
@@ -1861,6 +1869,45 @@ export default function PlatformPage() {
           </section>
         </>
       )}
+
+      {/* ── Onboarding tab ── */}
+      {!loading && !error && authorized && activeTab === "onboarding" && (() => {
+        const done  = onboardingRows.filter(r => r.onboarding_completed).length;
+        const total = onboardingRows.length;
+        return (
+          <>
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+              {[
+                { label: "Total gyms", value: total, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
+                { label: "Completaron onboarding", value: done, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
+                { label: "Pendientes", value: total - done, color: "#F97316", bg: "rgba(249,115,22,0.08)" },
+              ].map(s => (
+                <div key={s.label} style={{ ...shellCard, padding: "18px 20px", background: s.bg, border: `1px solid ${s.color}20` }}>
+                  <p style={{ font: `700 1.6rem/1 ${fd}`, color: s.color, marginBottom: 4 }}>{s.value}</p>
+                  <p style={{ font: `500 0.78rem/1 ${fb}`, color: "#64748B" }}>{s.label}</p>
+                </div>
+              ))}
+            </section>
+            <section style={{ ...shellCard, padding: "20px 24px" }}>
+              <p style={{ font: `700 0.8rem/1 ${fd}`, color: "#111827", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 14 }}>Estado por gym</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {onboardingRows.map(r => (
+                  <div key={r.gym_id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 12, background: r.onboarding_completed ? "rgba(34,197,94,0.05)" : "rgba(249,115,22,0.05)", border: `1px solid ${r.onboarding_completed ? "rgba(34,197,94,0.15)" : "rgba(249,115,22,0.15)"}` }}>
+                    <div>
+                      <p style={{ font: `600 0.88rem/1 ${fd}`, color: "#111827", marginBottom: 3 }}>{r.gym_name ?? "Sin nombre"}</p>
+                      <p style={{ font: `400 0.72rem/1 ${fb}`, color: "#94A3B8" }}>{r.gym_id}</p>
+                    </div>
+                    <span style={{ padding: "4px 10px", borderRadius: 999, font: `600 0.72rem/1 ${fd}`, background: r.onboarding_completed ? "rgba(34,197,94,0.12)" : "rgba(249,115,22,0.12)", color: r.onboarding_completed ? "#15803D" : "#C2410C" }}>
+                      {r.onboarding_completed ? "✓ Completado" : "Pendiente"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        );
+      })()}
+
         </>
       )}
     </div>
