@@ -256,8 +256,7 @@ export default function DashboardPage() {
       });
     }
     void loadSetup();
-    const seen = localStorage.getItem("fitgrowx_onboarding_v1");
-    if (!seen) setOnboardingOpen(true);
+    setOnboardingOpen(true);
   }, []);
 
   const sinEgresos  = gastosTotal === 0;
