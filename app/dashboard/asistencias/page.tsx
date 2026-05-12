@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight, Dumbbell } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight, Dumbbell, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
@@ -70,6 +71,8 @@ export default function AsistenciasPage() {
   const [clasesPrueba, setClasesPrueba] = useState<ClasePrueba[]>([]);
   const [gymId, setGymId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [converting, setConverting] = useState<string | null>(null);
+  const router = useRouter();
   const [ausentesLoading, setAusentesLoading] = useState(false);
   const [ausentesLoaded, setAusentesLoaded] = useState(false);
 
@@ -213,6 +216,25 @@ export default function AsistenciasPage() {
     setClasesPrueba(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_status: status } : p));
     await supabase.from("prospectos").update({ clase_gratis_status: status }).eq("id", id);
   }, []);
+
+  const convertirProspecto = useCallback(async (p: ClasePrueba) => {
+    if (!gymId || converting) return;
+    setConverting(p.id);
+    const nameParts = p.full_name.trim().split(" ");
+    const { data: alumno, error } = await supabase.from("alumnos").insert({
+      gym_id:    gymId,
+      full_name: p.full_name,
+      phone:     p.phone ?? null,
+      status:    "activo",
+    }).select("id").single();
+    if (!error && alumno) {
+      await supabase.from("prospectos")
+        .update({ clase_gratis_status: "convertido", status: "contactado" })
+        .eq("id", p.id);
+      router.push(`/dashboard/alumnos?highlight=${alumno.id}`);
+    }
+    setConverting(null);
+  }, [gymId, converting, router]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -409,7 +431,17 @@ export default function AsistenciasPage() {
                     <button onClick={() => markClasePrueba(p.id, "no_show")} style={{ padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(156,163,175,0.25)", background: "rgba(156,163,175,0.06)", color: "#9CA3AF", font: `700 0.72rem/1 ${fb}`, cursor: "pointer" }}>✗ No vino</button>
                   </div>
                 ) : p.clase_gratis_status === "asistio" ? (
-                  <span style={{ font: `700 0.72rem/1 ${fb}`, color: "#10B981", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "5px 10px", flexShrink: 0 }}>✓ Asistió</span>
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+                    <span style={{ font: `700 0.72rem/1 ${fb}`, color: "#10B981", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "5px 10px" }}>✓ Asistió</span>
+                    <button
+                      onClick={() => convertirProspecto(p)}
+                      disabled={converting === p.id}
+                      style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, border: "none", background: "#1A1D23", color: "#fff", font: `700 0.72rem/1 ${fb}`, cursor: "pointer", opacity: converting === p.id ? 0.6 : 1 }}
+                    >
+                      <UserPlus size={11} />
+                      {converting === p.id ? "..." : "Convertir"}
+                    </button>
+                  </div>
                 ) : (
                   <span style={{ font: `700 0.72rem/1 ${fb}`, color: "#9CA3AF", background: "rgba(156,163,175,0.06)", border: "1px solid rgba(156,163,175,0.2)", borderRadius: 8, padding: "5px 10px", flexShrink: 0 }}>✗ No vino</span>
                 )}

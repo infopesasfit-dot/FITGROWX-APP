@@ -282,7 +282,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Fetch notifications lazily on demand
+  // Fetch notifications lazily on demand (first open)
   useEffect(() => {
     if (!gymId || !notifOpen || notifLoadedGymId === gymId) return;
     fetch(`/api/notifications?gym_id=${gymId}`)
@@ -293,6 +293,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })
       .catch(() => {});
   }, [gymId, notifOpen, notifLoadedGymId]);
+
+  // Poll every 30 s for new notifications (background)
+  const latestNotifAt = useRef<string | null>(null);
+  useEffect(() => {
+    if (!gymId) return;
+    const poll = async () => {
+      try {
+        const r = await fetch(`/api/notifications?gym_id=${gymId}`);
+        const d = await r.json();
+        if (!d.notifications?.length) return;
+        const incoming: Notif[] = d.notifications;
+        const newLatest = incoming[0].created_at;
+        const prev = latestNotifAt.current;
+        latestNotifAt.current = newLatest;
+        if (prev === null) return; // first poll — just seed, no sound
+        const hasNew = incoming.some(n => !n.read && n.created_at > prev);
+        if (hasNew) {
+          setNotifs(incoming);
+          // Web Audio beep
+          try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.18, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.35);
+            osc.onended = () => ctx.close();
+          } catch {}
+        }
+      } catch {}
+    };
+    poll(); // seed latestNotifAt immediately
+    const id = window.setInterval(poll, 30_000);
+    return () => window.clearInterval(id);
+  }, [gymId]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
   const notificationsNowMs = notifs.length > 0 ? new Date(notifs[0].created_at).getTime() : 0;
