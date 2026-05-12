@@ -70,7 +70,7 @@ function fmt(n: number) {
   return `$${n}`;
 }
 
-type DateFilter = "hoy" | "semana" | "mes";
+const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 const MONTH_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 function last5Months() {
@@ -135,7 +135,7 @@ function buildDonutSegments(slices: { value: number; color: string }[]) {
 export default function DashboardPage() {
   const months5 = useMemo(() => last5Months(), []);
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("mes");
+  const [selectedMonth, setSelectedMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const gymIdRef = useRef<string | null>(null);
   const userIdRef = useRef<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -183,7 +183,7 @@ export default function DashboardPage() {
     setAlerts(snapshot.alerts);
   }, []);
 
-  const fetchData = useCallback(async (filter: DateFilter) => {
+  const fetchData = useCallback(async (month: Date) => {
     setLoading(true);
     let gym_id = gymIdRef.current;
     if (!gym_id) {
@@ -193,14 +193,18 @@ export default function DashboardPage() {
       gymIdRef.current = gym_id;
       userIdRef.current = profile.userId;
     }
-    const cacheKey = `dashboard_${gym_id}_${filter}`;
+    const y = month.getFullYear(), m = month.getMonth();
+    const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const to = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    const cacheKey = `dashboard_${gym_id}_${from}`;
     const cached = getPageCache<DashboardSnapshot>(cacheKey);
     if (cached) {
       applySnapshot(cached);
       setLoading(false);
     }
 
-    const res = await fetch(`/api/admin/dashboard?filter=${filter}`, { cache: "no-store" });
+    const res = await fetch(`/api/admin/dashboard?from=${from}&to=${to}`, { cache: "no-store" });
     const payload = await res.json().catch(() => null) as {
       ok?: boolean;
       error?: string;
@@ -232,10 +236,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void fetchData(dateFilter);
+      void fetchData(selectedMonth);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [dateFilter, fetchData]);
+  }, [selectedMonth, fetchData]);
 
   useEffect(() => {
     async function loadSetup() {
@@ -247,14 +251,19 @@ export default function DashboardPage() {
         supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
       ]);
       const s = settingsRes.data;
-      setSetup({
+      const computed = {
         alumnos:  (alumnosRes.count ?? 0) > 0,
         planes:   (planesRes.count ?? 0) > 0,
         landing:  !!s?.slug,
         whatsapp: !!s?.whatsapp,
         pagos:    !!(s?.mp_access_token || s?.payment_info),
-      });
-      if (!s?.onboarding_completed) setOnboardingOpen(true);
+      };
+      setSetup(computed);
+      const allDone = Object.values(computed).every(Boolean);
+      if (!allDone) setOnboardingOpen(true);
+      if (allDone && !s?.onboarding_completed && profile.gymId) {
+        void supabase.from("gym_settings").update({ onboarding_completed: true }).eq("gym_id", profile.gymId);
+      }
     }
     void loadSetup();
   }, []);
@@ -277,11 +286,6 @@ export default function DashboardPage() {
     e.currentTarget.style.transform = "none";
   };
 
-  const filterLabels: { key: DateFilter; label: string }[] = [
-    { key: "hoy",    label: "Hoy" },
-    { key: "semana", label: "Semana" },
-    { key: "mes",    label: "Mes" },
-  ];
 
   const pageShell: React.CSSProperties = {
     display: "flex",
@@ -307,30 +311,21 @@ export default function DashboardPage() {
   const statusNegative = "#E6543A";
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  const isCurrentMonth = selectedMonth.getFullYear() === new Date().getFullYear() && selectedMonth.getMonth() === new Date().getMonth();
   const renderFilters = (compact = false) => (
-    <div style={{ display: "inline-flex", gap: 4, background: "#F5F7FA", borderRadius: compact ? 14 : 16, padding: 4, border: "1px solid rgba(17,24,39,0.06)" }}>
-      {filterLabels.map((f) => {
-        const active = dateFilter === f.key;
-        return (
-          <button
-            key={f.key}
-            onClick={() => setDateFilter(f.key)}
-            style={{
-              minWidth: compact ? 58 : 70,
-              padding: compact ? "7px 10px" : "8px 13px",
-              borderRadius: compact ? 10 : 12,
-              border: active ? "1px solid rgba(17,24,39,0.08)" : "1px solid transparent",
-              cursor: "pointer",
-              font: `700 ${compact ? "0.7rem" : "0.74rem"}/1 ${fb}`,
-              color: active ? t1 : t2,
-              background: active ? "#FFFFFF" : "transparent",
-              boxShadow: active ? "0 6px 18px rgba(15,23,42,0.06)" : "none",
-            }}
-          >
-            {f.label}
-          </button>
-        );
-      })}
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F5F7FA", borderRadius: compact ? 14 : 16, padding: 4, border: "1px solid rgba(17,24,39,0.06)" }}>
+      <button
+        onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+        style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, fontSize: 14 }}
+      >‹</button>
+      <span style={{ font: `700 ${compact ? "0.72rem" : "0.76rem"}/1 ${fb}`, color: t1, minWidth: compact ? 110 : 130, textAlign: "center", padding: "0 4px" }}>
+        {MONTH_NAMES[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
+      </span>
+      <button
+        onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+        disabled={isCurrentMonth}
+        style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: isCurrentMonth ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: isCurrentMonth ? t3 : t2, fontSize: 14 }}
+      >›</button>
     </div>
   );
 
@@ -770,12 +765,14 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", minWidth: 240, maxWidth: 300, width: "100%" }}>
           {renderFilters(false)}
-          <button
-            onClick={() => setOnboardingOpen(true)}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 10, background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.18)", font: `600 0.75rem/1 ${fd}`, color: "#F97316", cursor: "pointer" }}
-          >
-            🦕 Ver guía de inicio
-          </button>
+          {setup && !Object.values(setup).every(Boolean) && (
+            <button
+              onClick={() => setOnboardingOpen(true)}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 10, background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.18)", font: `600 0.75rem/1 ${fd}`, color: "#F97316", cursor: "pointer" }}
+            >
+              🦕 Ver guía de inicio
+            </button>
+          )}
         </div>
       </div>
 
@@ -1007,12 +1004,7 @@ export default function DashboardPage() {
 
     <OnboardingModal
       open={onboardingOpen}
-      onClose={() => {
-        setOnboardingOpen(false);
-        if (gymIdRef.current) {
-          void supabase.from("gym_settings").update({ onboarding_completed: true }).eq("gym_id", gymIdRef.current);
-        }
-      }}
+      onClose={() => setOnboardingOpen(false)}
     />
     </>
   );

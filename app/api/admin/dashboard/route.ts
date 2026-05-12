@@ -86,8 +86,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
   }
 
+  const fromParam = req.nextUrl.searchParams.get("from");
+  const toParam   = req.nextUrl.searchParams.get("to");
   const filterParam = req.nextUrl.searchParams.get("filter");
-  const filter: DateFilter = filterParam === "hoy" || filterParam === "semana" || filterParam === "mes" ? filterParam : "mes";
+  let from: string, to: string;
+  if (fromParam && toParam) {
+    from = fromParam; to = toParam;
+  } else {
+    const filter: DateFilter = filterParam === "hoy" || filterParam === "semana" || filterParam === "mes" ? filterParam : "mes";
+    ({ from, to } = getDateRange(filter));
+  }
 
   const { data: profile } = await admin
     .from("profiles")
@@ -100,7 +108,6 @@ export async function GET(req: NextRequest) {
   }
 
   const gymId = profile.gym_id;
-  const { from, to } = getDateRange(filter);
   const today = new Date();
   const todayStr = getTodayDate();
   const thirtyDaysAgo = new Date(today);
