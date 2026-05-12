@@ -505,42 +505,38 @@ export default function LandingBuilderPage() {
 
                 {/* Logo */}
                 <div>
-                  <p style={{ font: `600 0.75rem/1 ${fd}`, color: t3, letterSpacing: ".08em", textTransform: "uppercase", margin: "0 0 10px" }}>Logo del gym</p>
-                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 64, height: 64, borderRadius: 14, border: "1.5px dashed rgba(15,23,42,0.15)", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                  <p style={{ font: `600 0.75rem/1 ${fd}`, color: t3, letterSpacing: ".08em", textTransform: "uppercase", margin: "0 0 12px" }}>Logo del gym</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    {/* Preview box — taller, rectangular */}
+                    <div style={{ width: 100, height: 72, borderRadius: 14, border: "1.5px dashed rgba(15,23,42,0.15)", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
                       {(logoPreview ?? logoUrl)
-                        ? <img src={logoPreview ?? logoUrl!} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                        : <span style={{ font: `700 1.5rem/1 ${fd}`, color: t3 }}>{gymName?.[0]?.toUpperCase() ?? "G"}</span>
+                        ? <img src={logoPreview ?? logoUrl!} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 6 }} />
+                        : <span style={{ font: `800 2rem/1 ${fd}`, color: "#E5E7EB" }}>{gymName?.[0]?.toUpperCase() ?? "G"}</span>
                       }
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(15,23,42,0.10)", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: t1, cursor: "pointer" }}>
-                          <Upload size={12} />
-                          {logoFile ? "Cambiar" : "Subir logo"}
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "1px solid rgba(15,23,42,0.10)", background: "#fff", font: `600 0.76rem/1 ${fd}`, color: t1, cursor: "pointer" }}>
+                          <Upload size={13} />
+                          {logoUploading ? "Subiendo…" : logoFile ? "Cambiar" : "Subir logo"}
                           <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp" style={{ display: "none" }}
                             onChange={e => {
                               const f = e.target.files?.[0];
                               if (!f) return;
-                              setLogoFile(f);
                               setLogoPreview(URL.createObjectURL(f));
+                              setLogoFile(f);
+                              handleLogoUpload(f);
                             }}
                           />
                         </label>
-                        {logoFile && (
-                          <button onClick={() => handleLogoUpload(logoFile)} disabled={logoUploading}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "none", background: logoUploading ? "#D1D5DB" : "#1A1D23", color: "#fff", font: `700 0.75rem/1 ${fd}`, cursor: "pointer" }}>
-                            <Save size={12} />{logoUploading ? "Subiendo..." : "Guardar"}
-                          </button>
-                        )}
                         {logoUrl && !logoFile && (
                           <button onClick={handleLogoRemove}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.05)", font: `600 0.75rem/1 ${fd}`, color: "#EF4444", cursor: "pointer" }}>
-                            <Trash2 size={12} /> Quitar
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.05)", font: `600 0.76rem/1 ${fd}`, color: "#EF4444", cursor: "pointer" }}>
+                            <Trash2 size={13} /> Quitar
                           </button>
                         )}
                       </div>
-                      <p style={{ font: `400 0.72rem/1.4 ${fd}`, color: t3, margin: 0 }}>PNG, JPG o SVG. Se muestra en el header de tu landing.</p>
+                      <p style={{ font: `400 0.72rem/1.4 ${fd}`, color: t3, margin: 0 }}>PNG, JPG o SVG · Se sube automáticamente al elegir.</p>
                     </div>
                   </div>
                 </div>
@@ -550,25 +546,12 @@ export default function LandingBuilderPage() {
                 <p style={{ font: `600 0.75rem/1 ${fd}`, color: t3, letterSpacing: ".08em", textTransform: "uppercase", margin: 0 }}>
                   Elegí el estilo de tu landing
                 </p>
-                {/* Promo web pro */}
-                <button
-                  onClick={() => { setUpsellDone(false); setShowLandingUpsell(true); }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg,#1A1D23 0%,#2D3140 100%)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", textAlign: "left", width: "100%" }}
-                >
-                  <div>
-                    <p style={{ font: `700 0.82rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>¿Querés una web más moderna?</p>
-                    <p style={{ font: `400 0.74rem/1.4 ${fd}`, color: "rgba(255,255,255,0.45)", margin: 0 }}>Nuestros diseñadores te arman una a medida.</p>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, background: "#F97316", flexShrink: 0 }}>
-                    <Sparkles size={12} color="#fff" />
-                    <span style={{ font: `700 0.72rem/1 ${fd}`, color: "#fff", whiteSpace: "nowrap" }}>Ver más</span>
-                  </div>
-                </button>
 
                 {TEMPLATES.map(tmpl => (
                   <button
                     key={tmpl.id}
                     onClick={() => { setTemplate(tmpl.id); setAccent(tmpl.accent); }}
+
                     style={{
                       display: "flex", gap: 0, borderRadius: 14, overflow: "hidden",
                       border: template === tmpl.id ? `2px solid ${t1}` : "2px solid rgba(15,23,42,0.07)",
@@ -600,6 +583,24 @@ export default function LandingBuilderPage() {
                     </div>
                   </button>
                 ))}
+
+                {/* Promo web pro */}
+                <style>{`@keyframes float-card { 0%,100%{transform:translateY(0);box-shadow:0 8px 32px rgba(0,0,0,0.22),0 2px 8px rgba(0,0,0,0.12);} 50%{transform:translateY(-5px);box-shadow:0 18px 48px rgba(0,0,0,0.28),0 6px 16px rgba(0,0,0,0.16);} } .float-card{animation:float-card 3.2s ease-in-out infinite;}`}</style>
+                <button
+                  className="float-card"
+                  onClick={() => { setUpsellDone(false); setShowLandingUpsell(true); }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "16px 18px", borderRadius: 16, background: "linear-gradient(135deg,#1A1D23 0%,#2D3140 100%)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", textAlign: "left", width: "100%", marginTop: 4 }}
+                >
+                  <div>
+                    <p style={{ font: `700 0.84rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 5 }}>¿Querés una web más moderna?</p>
+                    <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "rgba(255,255,255,0.42)", margin: 0 }}>Nuestros diseñadores te arman una a medida.</p>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 13px", borderRadius: 10, background: "#F97316", flexShrink: 0 }}>
+                    <Sparkles size={12} color="#fff" />
+                    <span style={{ font: `700 0.73rem/1 ${fd}`, color: "#fff", whiteSpace: "nowrap" }}>Ver más</span>
+                  </div>
+                </button>
+
               </div>
             )}
 
