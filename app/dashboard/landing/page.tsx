@@ -550,13 +550,25 @@ export default function LandingBuilderPage() {
                 <p style={{ font: `600 0.75rem/1 ${fd}`, color: t3, letterSpacing: ".08em", textTransform: "uppercase", margin: 0 }}>
                   Elegí el estilo de tu landing
                 </p>
+                {/* Promo web pro */}
+                <button
+                  onClick={() => { setUpsellDone(false); setShowLandingUpsell(true); }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderRadius: 14, background: "linear-gradient(135deg,#1A1D23 0%,#2D3140 100%)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", textAlign: "left", width: "100%" }}
+                >
+                  <div>
+                    <p style={{ font: `700 0.82rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>¿Querés una web más moderna?</p>
+                    <p style={{ font: `400 0.74rem/1.4 ${fd}`, color: "rgba(255,255,255,0.45)", margin: 0 }}>Nuestros diseñadores te arman una a medida.</p>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, background: "#F97316", flexShrink: 0 }}>
+                    <Sparkles size={12} color="#fff" />
+                    <span style={{ font: `700 0.72rem/1 ${fd}`, color: "#fff", whiteSpace: "nowrap" }}>Ver más</span>
+                  </div>
+                </button>
+
                 {TEMPLATES.map(tmpl => (
                   <button
                     key={tmpl.id}
-                    onClick={() => {
-                      setTemplate(tmpl.id);
-                      setAccent(tmpl.accent);
-                    }}
+                    onClick={() => { setTemplate(tmpl.id); setAccent(tmpl.accent); }}
                     style={{
                       display: "flex", gap: 0, borderRadius: 14, overflow: "hidden",
                       border: template === tmpl.id ? `2px solid ${t1}` : "2px solid rgba(15,23,42,0.07)",
@@ -1026,26 +1038,6 @@ export default function LandingBuilderPage() {
         )}
       </div>
     </div>
-
-    {/* ── Botón flotante: web pro ── */}
-    <button
-      onClick={() => { setUpsellDone(false); setShowLandingUpsell(true); }}
-      style={{
-        position: "fixed", bottom: 28, right: 28, zIndex: 500,
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "11px 18px", borderRadius: 999,
-        background: "linear-gradient(135deg,#1A1D23 0%,#2D3140 100%)",
-        border: "1px solid rgba(255,255,255,0.10)",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.18)",
-        color: "#FFFFFF", font: `700 0.78rem/1 ${fd}`, cursor: "pointer",
-        transition: "transform .15s, box-shadow .15s",
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 12px 40px rgba(0,0,0,0.35)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = ""; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.18)"; }}
-    >
-      <Sparkles size={13} color="#F97316" />
-      ¿Querés una web más moderna?
-    </button>
 
     {/* ── Modal: Landing profesional ── */}
 
