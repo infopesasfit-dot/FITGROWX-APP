@@ -744,7 +744,7 @@ function AjustesContent() {
                       <input value={email} readOnly style={mutedInputStyle} />
                     </Field>
 
-                    <Field label="Link de tu landing" hint="Solo letras, números y guiones. Se usa para compartir tu página pública.">
+                    <Field label="Link de tu landing" hint="Solo letras, números y guiones. Este link se incluye automáticamente en los mensajes de WhatsApp de seguimiento.">
                       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 0, border: `1.5px solid ${slugError ? "#EF4444" : "rgba(15,23,42,0.12)"}`, borderRadius: 10, overflow: "hidden", background: "white" }}>
                           <span style={{ padding: "10px 10px 10px 13px", fontSize: "0.82rem", color: t3, whiteSpace: "nowrap", borderRight: "1px solid rgba(15,23,42,0.08)", background: "#F8FAFC" }}>fitgrowx.com/gym/</span>
