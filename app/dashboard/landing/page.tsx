@@ -293,7 +293,7 @@ export default function LandingBuilderPage() {
 
       if (data) {
         setGymName(data.gym_name ?? "");
-        setLogoUrl(data.logo_url ?? null);
+        setLogoUrl(data.logo_url ? `${data.logo_url.split("?")[0]}?t=${Date.now()}` : null);
         setSlug(data.slug ?? "");
         setSlugInput(data.slug ?? "");
         if (data.landing_template) setTemplate(data.landing_template as Template);
@@ -381,14 +381,22 @@ export default function LandingBuilderPage() {
     try {
       const ext = file.name.split(".").pop() ?? "png";
       const path = `${gymId}/logo.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("gym-logos").upload(path, file, { upsert: true, contentType: file.type });
+      const { error: uploadError } = await supabase.storage
+        .from("gym-logos")
+        .upload(path, file, { upsert: true, contentType: file.type });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("gym-logos").getPublicUrl(path);
-      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-      await supabase.from("gym_settings").upsert({ gym_id: gymId, logo_url: publicUrl }, { onConflict: "gym_id" });
-      setLogoUrl(publicUrl);
+      const publicUrl = urlData.publicUrl;
+      const { error: dbError } = await supabase
+        .from("gym_settings")
+        .update({ logo_url: publicUrl })
+        .eq("gym_id", gymId);
+      if (dbError) throw dbError;
+      setLogoUrl(`${publicUrl}?t=${Date.now()}`);
       setLogoPreview(null);
       setLogoFile(null);
+    } catch (err) {
+      console.error("Logo upload error:", err);
     } finally {
       setLogoUploading(false);
     }
