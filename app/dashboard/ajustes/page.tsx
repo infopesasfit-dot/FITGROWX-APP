@@ -183,7 +183,8 @@ function AjustesContent() {
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [waStatus, setWaStatus] = useState<"unknown" | "connected" | "disconnected">("unknown");
+  const [waStatus, setWaStatus] = useState<"unknown" | "connected" | "disconnected" | "needs_reauth">("unknown");
+  const [panicLoading, setPanicLoading] = useState(false);
   const [waPhone, setWaPhone] = useState<string | null>(null);
   const [waBattery, setWaBattery] = useState<number | null>(null);
   const [waSignal, setWaSignal] = useState<number | null>(null);
@@ -195,6 +196,8 @@ function AjustesContent() {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<"max" | null>(null);
   const [qrAttempt, setQrAttempt] = useState(0);
+  const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null);
+  const qrCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const waProxy = async (action: string) => {
@@ -204,6 +207,12 @@ function AjustesContent() {
       body: JSON.stringify({ action, gymId }),
     });
     return res;
+  };
+
+  const parseWaStatus = (raw: string) => {
+    if (raw === "active")       return "connected"  as const;
+    if (raw === "needs_reauth") return "needs_reauth" as const;
+    return "disconnected" as const;
   };
 
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -541,7 +550,7 @@ function AjustesContent() {
       try {
         const response = await waProxy("session-status");
         const data = await response.json();
-        setWaStatus(data.status === "active" ? "connected" : "disconnected");
+        setWaStatus(parseWaStatus(data.status));
         if (data.retries != null) setWaRetries(data.retries);
         if (data.phone) setWaPhone(data.phone);
         if (data.battery != null) setWaBattery(data.battery);
@@ -553,6 +562,25 @@ function AjustesContent() {
     })();
   }, [gymId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const stopQrCountdown = () => {
+    if (qrCountdownRef.current) {
+      clearInterval(qrCountdownRef.current);
+      qrCountdownRef.current = null;
+    }
+    setQrSecondsLeft(null);
+  };
+
+  const startQrCountdown = () => {
+    stopQrCountdown();
+    setQrSecondsLeft(60);
+    qrCountdownRef.current = setInterval(() => {
+      setQrSecondsLeft(s => {
+        if (s === null || s <= 1) { stopQrCountdown(); return null; }
+        return s - 1;
+      });
+    }, 1000);
+  };
+
   const stopPolling = () => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
@@ -562,6 +590,7 @@ function AjustesContent() {
       clearTimeout(retryRef.current);
       retryRef.current = null;
     }
+    stopQrCountdown();
   };
 
   const startStatusPoll = () => {
@@ -571,6 +600,17 @@ function AjustesContent() {
         const response = await waProxy("session-status");
         const data = await response.json();
         if (data.retries != null) setWaRetries(data.retries);
+        if (data.status === "needs_reauth") {
+          stopPolling();
+          setWaStatus("needs_reauth");
+        }
+        // QR expiró y Baileys generó uno nuevo — reemplazar imagen sin cerrar modal
+        if (data.status === "qr" && data.qr) {
+          setQrImage((prev: string | null) => {
+            if (prev !== data.qr) { startQrCountdown(); return data.qr; }
+            return prev;
+          });
+        }
         if (data.status === "active") {
           stopPolling();
           setWaStatus("connected");
@@ -612,6 +652,7 @@ function AjustesContent() {
         setQrImage(data.qr);
         setQrLoading(false);
         startStatusPoll();
+        startQrCountdown();
         return;
       }
 
@@ -638,6 +679,12 @@ function AjustesContent() {
   const closeQrModal = () => {
     stopPolling();
     setQrModalOpen(false);
+    // QR nunca fue escaneado: detener la sesión en el servidor para no dejar
+    // el WebSocket de Baileys abierto generando QRs nuevos indefinidamente
+    if (qrImage) {
+      waProxy("session-delete").catch(() => {});
+      setQrImage(null);
+    }
   };
 
   const disconnectWA = async () => {
@@ -652,6 +699,28 @@ function AjustesContent() {
     openQrModal();
   };
 
+  const handlePanicReconnect = async () => {
+    if (!gymId || panicLoading) return;
+    setPanicLoading(true);
+    try {
+      await waProxy("session-reconnect");
+      await new Promise(r => setTimeout(r, 6000));
+      const res  = await waProxy("session-status");
+      const data = await res.json();
+      const resolved = parseWaStatus(data.status);
+      setWaStatus(resolved);
+      if (data.retries != null) setWaRetries(data.retries);
+      if (resolved !== "connected") {
+        // soft reconnect no sirvió → QR nuevo
+        openQrModal();
+      }
+    } catch {
+      openQrModal();
+    } finally {
+      setPanicLoading(false);
+    }
+  };
+
   const handleRefreshSession = async () => {
     if (!gymId || refreshing) return;
     setRefreshing(true);
@@ -661,7 +730,7 @@ function AjustesContent() {
         try {
           const response = await waProxy("session-status");
           const data = await response.json();
-          setWaStatus(data.status === "active" ? "connected" : "disconnected");
+          setWaStatus(parseWaStatus(data.status));
           if (data.retries != null) setWaRetries(data.retries);
         } catch {}
         setRefreshing(false);
@@ -671,7 +740,7 @@ function AjustesContent() {
     }
   };
 
-  useEffect(() => () => stopPolling(), []);
+  useEffect(() => () => { stopPolling(); stopQrCountdown(); }, []);
 
   return (
     <>
@@ -987,16 +1056,20 @@ function AjustesContent() {
                 {[
                   {
                     key: "wa",
-                    icon: <Smartphone size={18} color={waStatus === "connected" ? ACCENT : waRetries > 0 ? "#B45309" : t3} />,
+                    icon: <Smartphone size={18} color={waStatus === "connected" ? ACCENT : waStatus === "needs_reauth" ? "#DC2626" : waRetries > 0 ? "#B45309" : t3} />,
                     title: "WhatsApp",
                     description:
                       waStatus === "connected"
                         ? `${waPhone ? waPhone : "Conectado"}${waBattery !== null ? ` · ${waBattery}% batería` : ""}${waSignal !== null ? ` · señal ${waSignal}/4` : ""}${waPlugged ? " · cargando" : ""}`
+                        : waStatus === "needs_reauth"
+                        ? "La sesión venció o fue cerrada desde el teléfono. Necesitás vincular de nuevo."
                         : waRetries > 0
                         ? "Reintentando reconectar... Si tu teléfono perdió internet, revisalo."
                         : "Usá el motor para recordatorios, reactivaciones y mensajes automáticos.",
                     badge: waStatus === "connected"
                       ? { label: "Conexión estable", bg: "rgba(34,197,94,0.10)", color: "#15803D" }
+                      : waStatus === "needs_reauth"
+                      ? { label: "Acción requerida", bg: "rgba(239,68,68,0.10)", color: "#DC2626" }
                       : waRetries > 0
                       ? { label: "Reintentando...", bg: "rgba(234,179,8,0.10)", color: "#92400E" }
                       : { label: "Desconectado", bg: "#F1F5F9", color: t2 },
@@ -1098,7 +1171,35 @@ function AjustesContent() {
                   </div>
                 ))}
               </div>
-              {waStatus !== "connected" && waRetries >= 3 && (
+              {waStatus === "needs_reauth" && (
+                <div style={{ marginTop: 12, padding: "20px 20px", borderRadius: 18, background: "rgba(239,68,68,0.05)", border: "2px solid rgba(239,68,68,0.22)", display: "flex", flexDirection: "column", gap: 14, alignItems: "center", textAlign: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <WifiOff size={20} color="#DC2626" />
+                    <p style={{ font: `800 0.88rem/1 ${fd}`, color: "#DC2626" }}>Tu WhatsApp se desconectó</p>
+                  </div>
+                  <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: "#7F1D1D", maxWidth: 340 }}>
+                    El sistema intentó reconectar pero no pudo. Tocá el botón para restaurar la conexión en segundos.
+                  </p>
+                  <button
+                    onClick={handlePanicReconnect}
+                    disabled={panicLoading}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 10,
+                      padding: "14px 28px", borderRadius: 14, border: "none",
+                      background: panicLoading ? "#9CA3AF" : "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+                      color: "white", font: `800 0.95rem/1 ${fd}`,
+                      cursor: panicLoading ? "not-allowed" : "pointer",
+                      boxShadow: panicLoading ? "none" : "0 4px 14px rgba(239,68,68,0.35)",
+                      transition: "all 0.15s",
+                      width: "100%", justifyContent: "center",
+                    }}
+                  >
+                    <RefreshCw size={17} style={panicLoading ? { animation: "spin 1s linear infinite" } : undefined} />
+                    {panicLoading ? "Reconectando... esperá unos segundos" : "Re-vincular WhatsApp ahora"}
+                  </button>
+                </div>
+              )}
+              {waStatus !== "connected" && waStatus !== "needs_reauth" && waRetries >= 3 && (
                 <div style={{ marginTop: 10, padding: "14px 16px", borderRadius: 16, background: "rgba(234,179,8,0.07)", border: "1px solid rgba(234,179,8,0.22)", display: "flex", gap: 10, alignItems: "flex-start" }}>
                   <AlertTriangle size={16} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
                   <p style={{ font: `400 0.79rem/1.5 ${fb}`, color: "#92400E" }}>
@@ -1115,7 +1216,10 @@ function AjustesContent() {
             >
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{ font: `500 0.78rem/1 ${fb}`, color: t2 }}>Access Token</span>
+                  <div>
+                    <span style={{ font: `500 0.78rem/1 ${fb}`, color: t2 }}>Clave de conexión</span>
+                    <p style={{ font: `400 0.68rem/1.3 ${fb}`, color: t3, marginTop: 3 }}>La genera MercadoPago y la pegás acá una sola vez.</p>
+                  </div>
                   {mpToken ? (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 0.68rem/1 ${fb}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", padding: "3px 9px", borderRadius: 9999 }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", display: "inline-block" }} />
@@ -1127,13 +1231,13 @@ function AjustesContent() {
                 </div>
 
                 <div style={{ background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <p style={{ font: `600 0.72rem/1 ${fb}`, color: t2, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Cómo obtener el token</p>
+                  <p style={{ font: `600 0.72rem/1 ${fb}`, color: t2, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Cómo conectar tu cuenta</p>
                   {[
-                    { n: "1", text: "Entrá a mercadopago.com.ar con tu cuenta del negocio" },
-                    { n: "2", text: 'Ir a "Herramientas para desarrolladores" → "Panel de desarrolladores"' },
-                    { n: "3", text: "Creá una aplicación (o seleccioná una existente)" },
-                    { n: "4", text: 'Ir a "Credenciales de producción" y copiá el Access Token (empieza con APP_USR-)' },
-                    { n: "5", text: "Pegalo abajo y guardá" },
+                    { n: "1", text: "Entrá a mercadopago.com.ar con la cuenta de tu negocio" },
+                    { n: "2", text: 'En el menú, buscá "Tu negocio" → "Herramientas para desarrolladores" → "Panel de desarrolladores"' },
+                    { n: "3", text: 'Hacé click en "Crear aplicación" (o elegí una que ya tengas)' },
+                    { n: "4", text: 'Andá a "Credenciales de producción" y copiá el texto largo que empieza con APP_USR-' },
+                    { n: "5", text: "Pegalo en el campo de abajo y guardá — listo, ya podés cobrar online" },
                   ].map(step => (
                     <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                       <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#009EE3", color: "white", font: `700 0.65rem/1 ${fb}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{step.n}</span>
@@ -1153,7 +1257,7 @@ function AjustesContent() {
                   <input
                     value={mpToken}
                     onChange={(event) => setMpToken(event.target.value)}
-                    placeholder="APP_USR-0000000000000000-..."
+                    placeholder="Pegá acá tu clave (empieza con APP_USR-...)"
                     type="password"
                     autoComplete="off"
                     style={{ ...inputStyle, paddingLeft: 40 }}
@@ -1565,7 +1669,52 @@ function AjustesContent() {
               ) : null}
             </div>
 
-            {qrImage && <p style={{ font: `500 0.74rem/1 ${fb}`, color: t3, marginTop: 16 }}>Esperando escaneo...</p>}
+            {qrImage && (
+              <p style={{ font: `500 0.74rem/1 ${fb}`, color: t3, marginTop: 16 }}>
+                {qrSecondsLeft !== null && qrSecondsLeft <= 15
+                  ? `⏱ El código expira en ${qrSecondsLeft}s — se renovará solo`
+                  : "Esperando escaneo..."}
+              </p>
+            )}
+
+            {/* Step-by-step guide */}
+            <div style={{ marginTop: 22, borderTop: "1px solid rgba(15,23,42,0.07)", paddingTop: 18 }}>
+              <p style={{ font: `600 0.7rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 14 }}>Cómo escanear</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+                {[
+                  { n: 1, icon: (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round">
+                      <rect x="5" y="2" width="14" height="20" rx="3"/>
+                      <path d="M9 21h6"/>
+                    </svg>
+                  ), label: "Abrí WhatsApp en tu celu" },
+                  { n: 2, icon: (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="5" r="1" fill={ACCENT}/><circle cx="12" cy="12" r="1" fill={ACCENT}/><circle cx="12" cy="19" r="1" fill={ACCENT}/>
+                    </svg>
+                  ), label: "Tocá ⋮ y luego Dispositivos vinculados" },
+                  { n: 3, icon: (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round">
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                  ), label: "Tocá Vincular un dispositivo" },
+                  { n: 4, icon: (
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round">
+                      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+                      <rect x="7" y="7" width="10" height="10" rx="1"/>
+                    </svg>
+                  ), label: "Apuntá la cámara al QR de arriba" },
+                ].map(s => (
+                  <div key={s.n} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 7, padding: "10px 4px", borderRadius: 12, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: ACCENT_SOFT, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {s.icon}
+                    </div>
+                    <p style={{ font: `400 0.65rem/1.4 ${fb}`, color: t2, textAlign: "center", margin: 0 }}>{s.label}</p>
+                    <span style={{ font: `800 0.6rem/1 ${fd}`, color: ACCENT, background: ACCENT_SOFT, borderRadius: 999, padding: "2px 7px" }}>paso {s.n}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

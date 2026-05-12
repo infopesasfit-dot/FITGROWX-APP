@@ -51,17 +51,16 @@ export async function POST(req: NextRequest) {
   const gym_id = new URL(req.url).searchParams.get("gym_id");
   if (!gym_id) return NextResponse.json({ error: "gym_id requerido." }, { status: 400 });
 
-  // MP sends { id, topic } or { type, data: { id } }
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: true }); }
 
   const topic = (body.topic ?? body.type) as string | undefined;
   if (!topic?.includes("payment")) return NextResponse.json({ ok: true });
 
-  const paymentId = (body.data as Record<string, unknown>)?.id ?? body.id;
+  const paymentId = String((body.data as Record<string, unknown>)?.id ?? body.id ?? "");
   if (!paymentId) return NextResponse.json({ ok: true });
 
-  // Get gym's MP access token
+  // Verify payment with gym's own MP token
   const { data: gymSettings } = await supabase
     .from("gym_settings")
     .select("mp_access_token, gym_name")
@@ -71,7 +70,6 @@ export async function POST(req: NextRequest) {
   const gym = gymSettings as GymSettingsRow | null;
   if (!gym?.mp_access_token) return NextResponse.json({ ok: true });
 
-  // Verify payment with gym's own MP token
   const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${gym.mp_access_token}` },
   });
@@ -85,14 +83,6 @@ export async function POST(req: NextRequest) {
   };
 
   if (payment.status !== "approved") return NextResponse.json({ ok: true });
-
-  // Idempotency: skip if already processed
-  const { count: already } = await supabase
-    .from("pagos")
-    .select("id", { count: "exact", head: true })
-    .eq("gym_id", gym_id)
-    .like("notes", `payment_id:${paymentId}%`);
-  if ((already ?? 0) > 0) return NextResponse.json({ ok: true });
 
   // Parse external_reference: "gym_id|alumno_id"
   const parts = (payment.external_reference ?? "").split("|");
@@ -119,26 +109,12 @@ export async function POST(req: NextRequest) {
   );
   const today = getTodayDate();
 
-  // Renew membership
-  await supabase.from("alumnos").update({
-    status: "activo",
-    last_payment_date: today,
-    next_expiration_date: newExpiry,
-  }).eq("id", alumno_id);
-
-  // Mark any open free-class prospecto as converted (match by phone in same gym)
-  if (alumno.phone) {
-    await supabase
-      .from("prospectos")
-      .update({ clase_gratis_status: "convertido", status: "contactado" })
-      .eq("gym_id", gym_id)
-      .eq("phone", alumno.phone)
-      .not("clase_gratis_date", "is", null)
-      .neq("clase_gratis_status", "convertido");
-  }
-
-  // Log payment in pagos table
-  await supabase.from("pagos").insert({
+  // ── ATOMIC IDEMPOTENCY GATE ─────────────────────────────────────────────
+  // Insert pagos FIRST. The UNIQUE index on mp_payment_id ensures that
+  // simultaneous or retried webhooks can never double-extend membership.
+  // If the server crashed after this insert but before updating alumnos,
+  // the duplicate path below fixes the inconsistency.
+  const { error: pagoErr } = await supabase.from("pagos").insert({
     gym_id,
     alumno_id,
     amount: payment.transaction_amount,
@@ -148,7 +124,44 @@ export async function POST(req: NextRequest) {
     concepto: "membresia",
     descripcion: `Pago MP automático — ${plan?.nombre ?? "Membresía"}`,
     notes: `payment_id:${paymentId}`,
+    mp_payment_id: paymentId,
   });
+
+  if (pagoErr) {
+    if (pagoErr.code === "23505") {
+      // Payment already recorded — idempotent success.
+      // Recovery: if a prior run crashed before updating alumnos, fix it now.
+      // This update is safe to repeat — same values, same result.
+      await supabase.from("alumnos")
+        .update({ status: "activo", last_payment_date: today, next_expiration_date: newExpiry })
+        .eq("id", alumno_id);
+      // 200 → MP marks webhook as delivered and stops retrying.
+      return NextResponse.json({ ok: true });
+    }
+    // Any other error (transient DB issue, connection timeout, etc.).
+    // 500 → MP will retry later. Once the error clears, the payment processes normally.
+    // Do NOT return 200 here — that would silently drop the payment with no retry.
+    return NextResponse.json({ error: "db_error" }, { status: 500 });
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
+  // Renew membership
+  await supabase.from("alumnos").update({
+    status: "activo",
+    last_payment_date: today,
+    next_expiration_date: newExpiry,
+  }).eq("id", alumno_id);
+
+  // Mark any open free-class prospecto as converted
+  if (alumno.phone) {
+    await supabase
+      .from("prospectos")
+      .update({ clase_gratis_status: "convertido", status: "contactado" })
+      .eq("gym_id", gym_id)
+      .eq("phone", alumno.phone)
+      .not("clase_gratis_date", "is", null)
+      .neq("clase_gratis_status", "convertido");
+  }
 
   // In-app notification for gym owner
   try {
@@ -168,7 +181,7 @@ export async function POST(req: NextRequest) {
     await sendWA(gym_id, alumno.phone, msgAlumno);
   }
 
-  // WA to gym owner if phone available
+  // WA to gym owner
   const { data: ownerProfile } = await supabase
     .from("profiles")
     .select("phone")

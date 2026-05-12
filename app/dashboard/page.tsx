@@ -132,6 +132,64 @@ function buildDonutSegments(slices: { value: number; color: string }[]) {
   });
 }
 
+// ─── datos de demo ────────────────────────────────────────────────────────────
+function buildDemoSnapshot(): DashboardSnapshot {
+  const today = new Date();
+  const asistDiarias = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(today); d.setDate(d.getDate() - (29 - i));
+    const dow = d.getDay(); // 0=dom
+    const base = dow === 0 ? 5 : dow === 6 ? 8 : [14, 18, 17, 19, 16][i % 5];
+    const jitter = Math.round((Math.sin(i * 1.7) * 3));
+    return { fecha: d.toISOString().slice(0, 10), count: Math.max(3, base + jitter) };
+  });
+  const asistHoras = Array(24).fill(0).map((_, h) => {
+    if (h >= 7  && h <= 9)  return Math.round(8  + Math.sin(h) * 2);
+    if (h >= 17 && h <= 20) return Math.round(12 + Math.sin(h) * 3);
+    if (h >= 10 && h <= 12) return Math.round(5  + Math.sin(h) * 1);
+    return 0;
+  });
+  return {
+    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, gastosTotal: 210_000,
+    recientes: [
+      { id: "d1", full_name: "Valentina Ríos",    created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
+      { id: "d2", full_name: "Matías Fernández",  created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+      { id: "d3", full_name: "Luciana Herrera",   created_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+      { id: "d4", full_name: "Gonzalo Pereyra",   created_at: new Date(Date.now() - 5 * 86400000).toISOString() },
+      { id: "d5", full_name: "Camila Rodríguez",  created_at: new Date(Date.now() - 7 * 86400000).toISOString() },
+    ],
+    captacion5: [3, 5, 4, 7, 6],
+    planDist: [{ nombre: "Mensual", count: 29 }, { nombre: "3 meses", count: 12 }, { nombre: "Anual", count: 6 }],
+    prospectos: 14,
+    asistDiarias,
+    asistHoras,
+    asistHoy: 17,
+    metrics: [
+      { key: "leads",        label: "Consultas recibidas",   section: "Embudo",        tooltip: "Personas nuevas que preguntaron o se contactaron este mes.",               value: 23,   previous: 18,  format: "number",   accent: "orange" },
+      { key: "lead_trial",   label: "De consulta a prueba",  section: "Embudo",        tooltip: "De cada 100 personas que consultaron, cuántas llegaron a probar el gym.",  value: 60.9, previous: 55.6,format: "percent",  accent: "soft"   },
+      { key: "trial_member", label: "De prueba a socio",     section: "Embudo",        tooltip: "De cada 100 que probaron, cuántas terminaron siendo socios.",               value: 71.4, previous: 66.7,format: "percent",  accent: "soft"   },
+      { key: "cac",          label: "Costo por socio nuevo", section: "Embudo",        tooltip: "Cuánto te costó conseguir cada socio nuevo este mes.",                      value: 4200, previous: 5100,format: "currency", accent: "ink"    },
+      { key: "churn",        label: "Socios que se van",     section: "Fidelización",  tooltip: "De cada 100 socios, cuántos dejaron de renovar este mes.",                  value: 4.3,  previous: 6.1, format: "percent",  accent: "orange" },
+      { key: "retention",    label: "Socios que renuevan",   section: "Fidelización",  tooltip: "De los socios por vencer, cuántos siguieron con la membresía.",             value: 87.2, previous: 83.0,format: "percent",  accent: "soft"   },
+      { key: "ltv",          label: "Valor de un socio",     section: "Fidelización",  tooltip: "Cuánto genera en promedio un socio durante todo el tiempo en tu gym.",      value: 54000,previous: 49000,format: "currency", accent: "ink"   },
+      { key: "arpu",         label: "Ingreso por socio",     section: "Eficiencia",    tooltip: "Cuánto generás por cada socio activo este mes.",                            value: 18000,previous: 17200,format: "currency", accent: "soft"   },
+      { key: "ocupacion",    label: "Ocupación de clases",   section: "Eficiencia",    tooltip: "De todos los lugares disponibles en clases, cuántos se ocuparon.",          value: 73.5, previous: 68.0,format: "percent",  accent: "orange" },
+      { key: "m2",           label: "Ingreso por metro²",    section: "Eficiencia",    tooltip: "Lo activamos cuando cargues la superficie del local.",                       value: null, previous: null,format: "currency", accent: "ink"    },
+    ],
+    alerts: {
+      inactiveCount: 9,
+      inactiveNames: ["Tomás García", "Sofía López", "Nicolás Castro", "Agustina Paz", "Ramiro Sosa"],
+      upcomingExpirations: [
+        { id: "e1", full_name: "Valentina Ríos",   next_expiration_date: new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10) },
+        { id: "e2", full_name: "Matías Fernández", next_expiration_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10) },
+        { id: "e3", full_name: "Luciana Herrera",  next_expiration_date: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) },
+        { id: "e4", full_name: "Gonzalo Pereyra",  next_expiration_date: new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10) },
+        { id: "e5", full_name: "Camila Rodríguez", next_expiration_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) },
+      ],
+    },
+  };
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function DashboardPage() {
   const months5 = useMemo(() => last5Months(), []);
   const [loading, setLoading] = useState(true);
@@ -166,6 +224,8 @@ export default function DashboardPage() {
   const [activeInfo,        setActiveInfo]        = useState<{ title: string; body: string } | null>(null);
   const [setup, setSetup] = useState<{ alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
+  const realSnapshotRef = useRef<DashboardSnapshot | null>(null);
 
   const applySnapshot = useCallback((snapshot: DashboardSnapshot) => {
     setActivosCount(snapshot.activosCount);
@@ -182,6 +242,17 @@ export default function DashboardPage() {
     setMetrics(snapshot.metrics);
     setAlerts(snapshot.alerts);
   }, []);
+
+  const enterDemo = useCallback(() => {
+    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
+    applySnapshot(buildDemoSnapshot());
+    setDemoMode(true);
+  }, [activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts, applySnapshot]);
+
+  const exitDemo = useCallback(() => {
+    if (realSnapshotRef.current) applySnapshot(realSnapshotRef.current);
+    setDemoMode(false);
+  }, [applySnapshot]);
 
   const fetchData = useCallback(async (month: Date) => {
     setLoading(true);
@@ -246,7 +317,7 @@ export default function DashboardPage() {
       const profile = await getCachedProfile();
       if (!profile) return;
       const [settingsRes, alumnosRes, planesRes] = await Promise.all([
-        supabase.from("gym_settings").select("whatsapp, slug, mp_access_token, payment_info, onboarding_completed").eq("gym_id", profile.gymId).maybeSingle(),
+        supabase.from("gym_settings").select("whatsapp_connected, slug, mp_access_token, payment_info, onboarding_completed").eq("gym_id", profile.gymId).maybeSingle(),
         supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
         supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
       ]);
@@ -255,7 +326,7 @@ export default function DashboardPage() {
         alumnos:  (alumnosRes.count ?? 0) > 0,
         planes:   (planesRes.count ?? 0) > 0,
         landing:  !!s?.slug,
-        whatsapp: !!s?.whatsapp,
+        whatsapp: !!s?.whatsapp_connected,
         pagos:    !!(s?.mp_access_token || s?.payment_info),
       };
       setSetup(computed);
@@ -406,10 +477,14 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 9px", borderRadius: 9999, background: toneBg, color: toneColor, font: `700 0.66rem/1 ${fb}` }}>
-            {metric.section}
+            {metric.section === "Embudo" ? "Captación" : metric.section === "Fidelización" ? "Retención" : "Eficiencia"}
           </span>
-          <span style={{ font: `700 0.68rem/1 ${fb}`, color: delta == null ? t3 : isPositive ? statusPositive : statusNegative }}>
-            {delta == null ? "Sin MoM" : `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}% MoM`}
+          <span style={{ font: `500 0.68rem/1 ${fb}`, color: delta == null ? t3 : isPositive ? statusPositive : statusNegative }}>
+            {delta == null
+              ? "Sin datos del mes anterior"
+              : delta === 0
+                ? "Igual que el mes pasado"
+                : `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}% vs mes pasado`}
           </span>
         </div>
       </div>
@@ -421,9 +496,11 @@ export default function DashboardPage() {
     const content = (
       <>
         <div>
-          <p style={{ font: `800 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>{section}</p>
+          <p style={{ font: `800 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>
+            {section === "Embudo" ? "Captación de socios" : section === "Fidelización" ? "Retención" : "Eficiencia"}
+          </p>
           <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t3 }}>
-            {section === "Embudo" && "Cómo llegan los nuevos socios y cuántos terminan quedándose."}
+            {section === "Embudo" && "Cuántas personas nuevas llegaron y cuántas terminaron siendo socios."}
             {section === "Fidelización" && "Cuántos socios renuevan y cuántos se van cada mes."}
             {section === "Eficiencia" && "Cuánto genera tu gym por cada socio que tenés."}
           </p>
@@ -486,7 +563,7 @@ export default function DashboardPage() {
         </div>
         <div style={{ padding: "14px 14px", borderRadius: 18, background: "#FFF7F4", border: "1px solid rgba(230,84,58,0.10)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>Membresías que vencen en 72hs</p>
+            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>Membresías que vencen en 3 días</p>
             <span style={{ font: `800 0.86rem/1 ${fd}`, color: statusNegative }}>{alerts.upcomingExpirations.length}</span>
           </div>
           <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t2, marginBottom: 10 }}>Avisales antes de que venza para que no se pierdan.</p>
@@ -497,7 +574,7 @@ export default function DashboardPage() {
                 <span style={{ font: `700 0.66rem/1 ${fm}`, color: statusNegative }}>{row.next_expiration_date ?? "—"}</span>
               </div>
             )) : (
-              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>Sin vencimientos en las próximas 72hs.</span>
+              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>Sin vencimientos en los próximos 3 días.</span>
             )}
           </div>
         </div>
@@ -757,6 +834,23 @@ export default function DashboardPage() {
         }
       `}</style>
 
+      {demoMode && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 16px", borderRadius: 14, background: "rgba(249,115,22,0.10)", border: "1.5px solid rgba(249,115,22,0.28)", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16 }}>👁</span>
+            <p style={{ font: `600 0.8rem/1.3 ${fd}`, color: "#C2410C" }}>
+              <strong>Modo demo</strong> — estos números son de ejemplo, no son tus datos reales.
+            </p>
+          </div>
+          <button
+            onClick={exitDemo}
+            style={{ padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(249,115,22,0.35)", background: "white", color: "#C2410C", font: `700 0.75rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+          >
+            Volver a mis datos
+          </button>
+        </div>
+      )}
+
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <p style={{ font: `500 0.7rem/1.4 ${fm}`, color: "#8A4516", letterSpacing: "0.06em", marginBottom: 8, textTransform: "uppercase" }}>{`${gymName}`}</p>
@@ -765,31 +859,45 @@ export default function DashboardPage() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", minWidth: 240, maxWidth: 300, width: "100%" }}>
           {renderFilters(false)}
-          {setup && !Object.values(setup).every(Boolean) && (
-            <button
-              onClick={() => setOnboardingOpen(true)}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 10, background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.18)", font: `600 0.75rem/1 ${fd}`, color: "#F97316", cursor: "pointer" }}
-            >
-              🦕 Ver guía de inicio
-            </button>
-          )}
         </div>
       </div>
 
       {setup && !Object.values(setup).every(Boolean) && (() => {
         const tasks: { key: keyof typeof setup; label: string; desc: string; href: string }[] = [
-          { key: "alumnos",  label: "Cargá alumnos",      desc: "Importá o agregá tus miembros",          href: "/dashboard/alumnos" },
-          { key: "planes",   label: "Armá tus planes",    desc: "Definí membresías y precios",            href: "/dashboard/planes"  },
-          { key: "landing",  label: "Publicá tu landing", desc: "Página pública para captar prospectos",  href: "/dashboard/landing" },
-          { key: "whatsapp", label: "Conectá WhatsApp",   desc: "Automatizá mensajes a alumnos",          href: "/dashboard/ajustes" },
-          { key: "pagos",    label: "Configurá pagos",    desc: "MercadoPago o transferencia",            href: "/dashboard/ajustes" },
+          { key: "whatsapp", label: "Conectá WhatsApp",   desc: "Necesario para los mensajes automáticos", href: "/dashboard/ajustes" },
+          { key: "alumnos",  label: "Cargá alumnos",      desc: "Importá o agregá tus miembros",           href: "/dashboard/alumnos" },
+          { key: "planes",   label: "Armá tus planes",    desc: "Definí membresías y precios",             href: "/dashboard/planes"  },
+          { key: "landing",  label: "Publicá tu landing", desc: "Página pública para captar prospectos",   href: "/dashboard/landing" },
+          { key: "pagos",    label: "Configurá pagos",    desc: "MercadoPago o transferencia",             href: "/dashboard/ajustes" },
         ];
         const done = tasks.filter(t => setup[t.key]).length;
         const dinoState = getDinoState(done);
         return (
           <div style={{ background: "#FFFBF6", border: "1px solid rgba(249,115,22,0.18)", borderRadius: 20, padding: "18px 20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-              <DinoSVG state={dinoState} pixelSize={3} />
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <DinoSVG state={dinoState} pixelSize={3} />
+                {done === 0 && (
+                  <div style={{
+                    position: "absolute", bottom: "100%", left: "50%", transform: "translateX(-20%)",
+                    marginBottom: 6, background: "white", border: "1.5px solid rgba(249,115,22,0.30)",
+                    borderRadius: 10, padding: "6px 10px", whiteSpace: "nowrap",
+                    font: `700 0.72rem/1.3 ${fd}`, color: "#C2410C",
+                    boxShadow: "0 4px 12px rgba(249,115,22,0.15)",
+                    pointerEvents: "none",
+                  }}>
+                    ¡Hola! Empecemos por acá 👇
+                    <div style={{
+                      position: "absolute", top: "100%", left: "22%",
+                      width: 0, height: 0,
+                      borderLeft: "6px solid transparent",
+                      borderRight: "6px solid transparent",
+                      borderTop: "6px solid white",
+                      filter: "drop-shadow(0 1px 0 rgba(249,115,22,0.25))",
+                    }} />
+                  </div>
+                )}
+              </div>
               <div style={{ flex: 1 }}>
                 <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, marginBottom: 5 }}>Configurá tu sistema</p>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -817,9 +925,25 @@ export default function DashboardPage() {
                   </div>
                   <p style={{ font: `600 0.76rem/1.3 ${fd}`, color: setup[t.key] ? "#15803D" : t1, marginBottom: 2 }}>{t.label}</p>
                   <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t2 }}>{t.desc}</p>
+                  {t.key === "whatsapp" && !setup[t.key] && (
+                    <p style={{ font: `500 0.65rem/1.3 ${fb}`, color: "#F97316", marginTop: 4 }}>Podés hacerlo después</p>
+                  )}
                 </a>
               ))}
             </div>
+            {!demoMode && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: t2 }}>
+                  ¿Querés ver cómo se vería tu dashboard con 50 alumnos?
+                </p>
+                <button
+                  onClick={enterDemo}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, border: "1.5px solid rgba(249,115,22,0.30)", background: "white", color: "#C2410C", font: `700 0.78rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                >
+                  <span>👁</span> Ver demo
+                </button>
+              </div>
+            )}
           </div>
         );
       })()}

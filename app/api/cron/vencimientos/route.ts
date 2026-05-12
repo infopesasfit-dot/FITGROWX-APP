@@ -19,6 +19,66 @@ export async function GET(req: NextRequest) {
   const log: string[] = [];
   const todayStr = new Date().toISOString().slice(0, 10);
 
+  // ── Transferencias pendientes sin validar ──────────────────────────────────
+  // Si hay pagos de transferencia con más de 6hs sin validar, avisar al dueño por WA.
+  // notif_pendiente_sent_at evita mandar la misma alerta más de una vez por pago.
+  {
+    const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+    const { data: pendingTransfers } = await supabase
+      .from("pagos")
+      .select("id, gym_id, amount, concepto, alumno_id, alumnos(full_name)")
+      .eq("method", "transferencia")
+      .eq("status", "pendiente")
+      .is("notif_pendiente_sent_at", null)
+      .lt("created_at", sixHoursAgo);
+
+    if (pendingTransfers?.length) {
+      // Group by gym
+      const byGym = new Map<string, typeof pendingTransfers>();
+      for (const p of pendingTransfers) {
+        const arr = byGym.get(p.gym_id) ?? [];
+        arr.push(p);
+        byGym.set(p.gym_id, arr);
+      }
+
+      const motorUrl = process.env.WA_MOTOR_URL;
+      for (const [gymId, pagos] of byGym) {
+        const { data: ownerRow } = await supabase
+          .from("profiles")
+          .select("phone")
+          .eq("gym_id", gymId)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (ownerRow?.phone && motorUrl) {
+          const lista = pagos
+            .map(p => {
+              const nombre = (p.alumnos as unknown as { full_name: string } | null)?.full_name ?? "Alumno";
+              return `• ${nombre} — $${Math.round(p.amount).toLocaleString("es-AR")}`;
+            })
+            .join("\n");
+          const msg = `⏳ *Tenés ${pagos.length} pago${pagos.length > 1 ? "s" : ""} por validar*\n\n${lista}\n\nEntrá al dashboard para confirmarlos y renovar las membresías.`;
+          try {
+            const res = await fetch(`${motorUrl}/send/${gymId}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+              body: JSON.stringify({ phone: normalizePhone(ownerRow.phone), message: msg }),
+              signal: AbortSignal.timeout(8000),
+            });
+            if (res.ok) {
+              const ids = pagos.map(p => p.id);
+              await supabase.from("pagos")
+                .update({ notif_pendiente_sent_at: new Date().toISOString() })
+                .in("id", ids);
+              log.push(`⏳ ${pagos.length} transferencia(s) pendiente(s) notificadas al dueño (gym ${gymId})`);
+            }
+          } catch { /* non-blocking */ }
+        }
+      }
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────────────
+
   // ── Sincronización de status ────────────────────────────────────────────────
   // activo → vencido: membresía venció y nadie la renovó
   const { data: expiredRows } = await supabase

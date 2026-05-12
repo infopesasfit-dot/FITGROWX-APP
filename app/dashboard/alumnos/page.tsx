@@ -973,10 +973,44 @@ export default function AlumnosPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={8} style={{ padding: "40px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando alumnos...</td></tr>
-              ) : lista.length === 0 ? (
+              ) : lista.length === 0 && alumnos.length > 0 ? (
                 <tr><td colSpan={8} style={{ padding: "48px", textAlign: "center", font: `400 0.875rem/1.5 ${fb}`, color: t3 }}>
-                  {alumnos.length === 0 ? "No hay alumnos registrados aún." : "No se encontraron alumnos con ese filtro."}
+                  No se encontraron alumnos con ese filtro.
                 </td></tr>
+              ) : lista.length === 0 ? (
+                <>
+                  {/* Ghost rows */}
+                  {[
+                    { name: "Valentina Gómez", plan: "Full", color: "#6366F1", status: "Activo", statusColor: "#16A34A", statusBg: "rgba(22,163,74,0.08)", date: "2025-08-15" },
+                    { name: "Martín Rodríguez", plan: "Básico", color: "#F59E0B", status: "Activo", statusColor: "#16A34A", statusBg: "rgba(22,163,74,0.08)", date: "2025-07-30" },
+                    { name: "Sofía Peralta", plan: "VIP", color: "#EC4899", status: "Vencido", statusColor: "#DC2626", statusBg: "rgba(220,38,38,0.08)", date: "2025-06-01" },
+                  ].map((g, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid rgba(0,0,0,0.04)", opacity: i === 0 ? 0.55 : i === 1 ? 0.35 : 0.2, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                      <td style={{ padding: "9px 8px 9px 16px" }}><input type="checkbox" disabled style={{ width: 15, height: 15, accentColor: "#FF6A00" }} /></td>
+                      <td style={{ padding: "9px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{g.name.split(" ").map(w => w[0]).join("")}</div>
+                          <span style={{ font: `600 0.84rem/1 ${fd}`, color: t1 }}>{g.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "9px 16px", font: `500 0.8rem/1 ${fb}`, color: t2 }}>—</td>
+                      <td style={{ padding: "9px 16px" }}><span style={{ font: `600 0.72rem/1 ${fb}`, color: g.color, background: `${g.color}18`, padding: "3px 9px", borderRadius: 9999 }}>{g.plan}</span></td>
+                      <td style={{ padding: "9px 16px" }}><span style={{ font: `600 0.69rem/1 ${fb}`, color: g.statusColor, background: g.statusBg, padding: "3px 9px", borderRadius: 9999 }}>{g.status}</span></td>
+                      <td style={{ padding: "9px 16px", font: `400 0.8rem/1 ${fb}`, color: t2 }}>{g.date}</td>
+                      <td style={{ padding: "9px 16px" }}><span style={{ color: t3 }}>—</span></td>
+                      <td style={{ padding: "9px 16px" }}></td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td colSpan={8} style={{ padding: "28px 24px", textAlign: "center", borderTop: "2px dashed rgba(255,106,0,0.2)", background: "rgba(255,106,0,0.02)" }}>
+                      <p style={{ margin: "0 0 14px", font: `600 0.9rem/1.5 ${fb}`, color: t1 }}>Todavía no tenés alumnos</p>
+                      <p style={{ margin: "0 0 16px", font: `400 0.8rem/1.5 ${fb}`, color: t3 }}>Agregá tu primer alumno a mano o importá una lista desde Excel.</p>
+                      <button onClick={openModal} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg,#FF6A00,#e85d00)", border: "none", borderRadius: 10, padding: "9px 20px", font: `600 0.85rem/1 ${fb}`, color: "#fff", cursor: "pointer", boxShadow: "0 3px 12px rgba(255,106,0,0.35)" }}>
+                        <Plus size={14}/> Agregar primer alumno
+                      </button>
+                    </td>
+                  </tr>
+                </>
               ) : lista.map((a, i) => {
                 const planNombre = a.planes?.nombre ?? "—";
                 const planColor  = a.planes?.accent_color ?? t2;
@@ -1081,8 +1115,35 @@ export default function AlumnosPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
           {loading ? (
             <p style={{ textAlign: "center", font: `400 0.85rem/1 ${fb}`, color: t3, padding: "32px 0" }}>Cargando...</p>
+          ) : lista.length === 0 && alumnos.length > 0 ? (
+            <p style={{ textAlign: "center", font: `400 0.85rem/1.5 ${fb}`, color: t3, padding: "40px 0" }}>Sin resultados.</p>
           ) : lista.length === 0 ? (
-            <p style={{ textAlign: "center", font: `400 0.85rem/1.5 ${fb}`, color: t3, padding: "40px 0" }}>{alumnos.length === 0 ? "No hay alumnos aún." : "Sin resultados."}</p>
+            <>
+              {[
+                { name: "Valentina Gómez", plan: "Full", color: "#6366F1", status: "Activo", statusColor: "#16A34A", statusBg: "rgba(22,163,74,0.08)" },
+                { name: "Martín Rodríguez", plan: "Básico", color: "#F59E0B", status: "Activo", statusColor: "#16A34A", statusBg: "rgba(22,163,74,0.08)" },
+              ].map((g, i) => (
+                <div key={i} style={{ background: "white", borderRadius: 14, padding: "10px 12px", boxShadow: "0 1px 6px rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.05)", opacity: i === 0 ? 0.5 : 0.25, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.62rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{g.name.split(" ").map(w => w[0]).join("")}</div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ margin: 0, font: `700 0.84rem/1 ${fd}`, color: t1 }}>{g.name}</p>
+                      <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
+                        <span style={{ font: `600 0.7rem/1 ${fb}`, color: g.color, background: `${g.color}18`, padding: "2px 8px", borderRadius: 9999 }}>{g.plan}</span>
+                        <span style={{ font: `600 0.7rem/1 ${fb}`, color: g.statusColor, background: g.statusBg, padding: "2px 8px", borderRadius: 9999 }}>{g.status}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ marginTop: 8, padding: "24px 20px", textAlign: "center", borderRadius: 14, border: "2px dashed rgba(255,106,0,0.25)", background: "rgba(255,106,0,0.02)" }}>
+                <p style={{ margin: "0 0 6px", font: `600 0.9rem/1.4 ${fb}`, color: t1 }}>Todavía no tenés alumnos</p>
+                <p style={{ margin: "0 0 14px", font: `400 0.78rem/1.5 ${fb}`, color: t3 }}>Agregá tu primer alumno a mano o importá desde Excel.</p>
+                <button onClick={openModal} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg,#FF6A00,#e85d00)", border: "none", borderRadius: 10, padding: "9px 18px", font: `600 0.85rem/1 ${fb}`, color: "#fff", cursor: "pointer", boxShadow: "0 3px 12px rgba(255,106,0,0.3)" }}>
+                  <Plus size={14}/> Agregar primer alumno
+                </button>
+              </div>
+            </>
           ) : lista.map(a => {
             const planNombre = a.planes?.nombre ?? "—";
             const planColor  = a.planes?.accent_color ?? t2;
