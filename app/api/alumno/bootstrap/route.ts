@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
       gym_name: settingsRes.data?.gym_name ?? null,
       logo_url: settingsRes.data?.logo_url ?? null,
       accent_color: settingsRes.data?.accent_color ?? null,
+      has_mp: Boolean(settingsRes.data?.mp_access_token),
       plan_type: gymRes.data?.plan_type ?? null,
       payment_info: settingsRes.data?.payment_info ?? null,
     },

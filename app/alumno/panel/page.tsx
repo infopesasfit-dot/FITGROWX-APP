@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Dumbbell, User, Target } from "lucide-react";
 
 const fd = "'Inter', sans-serif";
@@ -65,8 +65,9 @@ const gc: React.CSSProperties = {
   borderRadius: 16,
 };
 
-export default function AlumnoPanelPage() {
+function AlumnoPanelInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [session,      setSession]      = useState<Session | null>(null);
   const [tab,          setTab]          = useState<"calendario" | "entrenamiento" | "metas" | "perfil">("calendario");
@@ -114,6 +115,7 @@ export default function AlumnoPanelPage() {
     try { parsed = JSON.parse(raw); } catch { router.replace("/alumno/login"); return; }
     if (!parsed.token) { router.replace("/alumno/login"); return; }
     setSession(parsed);
+    const pagoParam = searchParams.get("pago");
     fetch(`/api/alumno/me?alumno_id=${parsed.alumno_id}`, {
       headers: { Authorization: `Bearer ${parsed.token}` },
     })
@@ -123,9 +125,13 @@ export default function AlumnoPanelPage() {
         const fresh: Session = { alumno_id: d.alumno_id, gym_id: d.gym_id, full_name: d.full_name, status: d.status, plan: d.plan, expiration: d.expiration, dni: d.dni ?? null, token: parsed.token };
         localStorage.setItem("fitgrowx_alumno", JSON.stringify(fresh));
         setSession(fresh);
+        if (pagoParam === "ok") showToast("✅ ¡Pago recibido! Tu membresía fue renovada.", true);
+        if (pagoParam === "error") showToast("El pago no se completó. Intentá de nuevo.", false);
+        if (pagoParam === "pendiente") showToast("Pago pendiente de acreditación.", true);
+        if (pagoParam) router.replace("/alumno/panel");
       })
       .catch(() => {});
-  }, [router]);
+  }, [router, searchParams]);
 
   useEffect(() => {
     const check = () => setIsCompactScreen(window.innerWidth <= 430);
@@ -1133,5 +1139,13 @@ export default function AlumnoPanelPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AlumnoPanelPage() {
+  return (
+    <Suspense fallback={null}>
+      <AlumnoPanelInner />
+    </Suspense>
   );
 }
