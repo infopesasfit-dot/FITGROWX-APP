@@ -1,7 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { normalizePhone } from "@/lib/phone";
+
+const WEBHOOK_MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? process.env.CRON_SECRET ?? "";
+
+function gymWebhookToken(gym_id: string): string {
+  return createHmac("sha256", WEBHOOK_MASTER_SECRET).update(gym_id).digest("hex").slice(0, 32);
+}
+
+function verifyGymWebhookToken(gym_id: string, received: string): boolean {
+  if (!WEBHOOK_MASTER_SECRET) return false;
+  const expected = gymWebhookToken(gym_id);
+  try {
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+  } catch {
+    return false;
+  }
+}
 
 const supabase = getSupabaseAdminClient();
 const MOTOR_URL = process.env.WA_MOTOR_URL ?? "";
@@ -48,8 +65,14 @@ async function sendWA(gym_id: string, phone: string, message: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const gym_id = new URL(req.url).searchParams.get("gym_id");
+  const url = new URL(req.url);
+  const gym_id = url.searchParams.get("gym_id");
   if (!gym_id) return NextResponse.json({ error: "gym_id requerido." }, { status: 400 });
+
+  const wt = url.searchParams.get("wt") ?? "";
+  if (!verifyGymWebhookToken(gym_id, wt)) {
+    return NextResponse.json({ error: "Token inválido." }, { status: 401 });
+  }
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: true }); }

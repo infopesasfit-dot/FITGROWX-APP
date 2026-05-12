@@ -229,6 +229,7 @@ function AjustesContent() {
   const [staffAccessInfo, setStaffAccessInfo] = useState<{ email: string; password: string; loginUrl: string } | null>(null);
   const [staffAccessCopied, setStaffAccessCopied] = useState(false);
   const [hasMercadoPagoLink, setHasMercadoPagoLink] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [showWLModal, setShowWLModal] = useState(false);
   const [wlName,      setWlName]      = useState("");
   const [wlEmail,     setWlEmail]     = useState("");
@@ -328,6 +329,7 @@ function AjustesContent() {
       if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
       if (settings?.payment_info) setPaymentInfo(settings.payment_info);
       setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
+      fetch("/api/gym/webhook-url").then(r => r.json()).then(d => { if (d.url) setWebhookUrl(d.url); }).catch(() => {});
 
       const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
       if (gym) {
@@ -1282,6 +1284,28 @@ function AjustesContent() {
                 <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: t3 }}>
                   Tu token se guarda de forma segura y solo se usa para generar links de pago.
                 </p>
+
+                {webhookUrl && (
+                  <div style={{ background: "#F0FDF4", border: "1px solid rgba(22,163,74,0.20)", borderRadius: 12, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
+                    <p style={{ font: `600 0.72rem/1 ${fb}`, color: "#15803D", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>
+                      URL de webhook para MercadoPago
+                    </p>
+                    <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: "#166534" }}>
+                      Pegá esta URL en tu aplicación de MP → Webhooks → Notificaciones de pagos.
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, background: "white", border: "1px solid rgba(22,163,74,0.15)", borderRadius: 8, padding: "8px 12px" }}>
+                      <code style={{ font: `500 0.68rem/1.4 ${fb}`, color: "#15803D", flex: 1, wordBreak: "break-all" as const }}>
+                        {webhookUrl}
+                      </code>
+                      <button
+                        onClick={() => { void navigator.clipboard.writeText(webhookUrl); }}
+                        style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(22,163,74,0.25)", background: "white", color: "#15803D", font: `600 0.7rem/1 ${fb}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button
                   onClick={handleSaveGym}
                   disabled={saved}

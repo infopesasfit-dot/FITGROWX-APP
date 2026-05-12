@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   if (!motorUrl) return NextResponse.json({ error: "Motor WA no configurado." }, { status: 500 });
 
   const log: string[] = [];
+  let totalEnviados = 0;
   const todayStr = new Date().toISOString().slice(0, 10);
 
   // ── Transferencias pendientes sin validar ──────────────────────────────────
@@ -299,8 +300,6 @@ export async function GET(req: NextRequest) {
   // ─────────────────────────────────────────────────────────────────────────
 
   if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con recordatorio de vencimiento activo."] });
-
-  let totalEnviados = 0;
 
   for (const gym of gyms) {
     const dias = gym.vencimiento_dias ?? 3;
