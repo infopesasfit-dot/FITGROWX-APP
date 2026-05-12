@@ -79,6 +79,111 @@ export async function GET(req: NextRequest) {
   }
   // ───────────────────────────────────────────────────────────────────────────
 
+  // ── Socios en riesgo de abandono (sin venir 14+ días) ────────────────────
+  // Por gym: WA al dueño con lista + WA "te extrañamos" a cada alumno.
+  // notif_inasistencia_sent_at evita repetir más de una vez por semana.
+  {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 14);
+    const cutoffStr = cutoffDate.toISOString().slice(0, 10);
+
+    const reminderCutoff = new Date();
+    reminderCutoff.setDate(reminderCutoff.getDate() - 7);
+    const reminderCutoffStr = reminderCutoff.toISOString().slice(0, 10);
+
+    // Active alumnos not yet notified (or notified more than 7 days ago)
+    const { data: candidates } = await supabase
+      .from("alumnos")
+      .select("id, gym_id, full_name, phone, notif_inasistencia_sent_at")
+      .eq("status", "activo")
+      .not("phone", "is", null)
+      .or(`notif_inasistencia_sent_at.is.null,notif_inasistencia_sent_at.lte.${reminderCutoffStr}`);
+
+    if (candidates?.length) {
+      const candidateIds = candidates.map((a) => a.id);
+
+      // Recent asistencias for these alumnos only
+      const { data: recentAsist } = await supabase
+        .from("asistencias")
+        .select("alumno_id, fecha")
+        .in("alumno_id", candidateIds)
+        .gte("fecha", cutoffStr);
+
+      const lastAttMap: Record<string, string> = {};
+      for (const r of recentAsist ?? []) {
+        if (!lastAttMap[r.alumno_id] || r.fecha > lastAttMap[r.alumno_id]) {
+          lastAttMap[r.alumno_id] = r.fecha;
+        }
+      }
+
+      // Those with no attendance in the last 14 days
+      const atRisk = candidates.filter((a) => !lastAttMap[a.id]);
+
+      if (atRisk.length) {
+        // Group by gym
+        const byGym = new Map<string, typeof atRisk>();
+        for (const a of atRisk) {
+          const arr = byGym.get(a.gym_id) ?? [];
+          arr.push(a);
+          byGym.set(a.gym_id, arr);
+        }
+
+        for (const [gymId, riskAlumnos] of byGym) {
+          const [ownerRes, settingsRes] = await Promise.all([
+            supabase.from("profiles").select("phone").eq("gym_id", gymId).eq("role", "admin").maybeSingle(),
+            supabase.from("gym_settings").select("gym_name").eq("gym_id", gymId).maybeSingle(),
+          ]);
+          const ownerPhone = (ownerRes.data as { phone: string | null } | null)?.phone;
+          const gymName = (settingsRes.data as { gym_name: string | null } | null)?.gym_name ?? "el gym";
+
+          // WA al dueño — resumen de la lista
+          if (ownerPhone) {
+            const lista = riskAlumnos
+              .slice(0, 10)
+              .map((a) => `• ${a.full_name}`)
+              .join("\n");
+            const extra = riskAlumnos.length > 10 ? `\n...y ${riskAlumnos.length - 10} más.` : "";
+            const ownerMsg = `🔔 *Socios sin venir hace 14+ días*\n\n${lista}${extra}\n\nLes mandé un mensaje automático. Podés hacer seguimiento desde el dashboard.`;
+            try {
+              await fetch(`${motorUrl}/send/${gymId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+                body: JSON.stringify({ phone: normalizePhone(ownerPhone), message: ownerMsg }),
+                signal: AbortSignal.timeout(8000),
+              });
+            } catch { /* non-blocking */ }
+          }
+
+          // WA a cada alumno + marcar notif
+          const CHUNK = 5;
+          for (let i = 0; i < riskAlumnos.length; i += CHUNK) {
+            const chunk = riskAlumnos.slice(i, i + CHUNK);
+            await Promise.allSettled(
+              chunk.map(async (alumno) => {
+                const msg = `¡Hola ${alumno.full_name}! 👋 Te extrañamos en *${gymName}*.\n\n¿Todo bien? Si necesitás algo, estamos acá. ¡Te esperamos! 💪`;
+                try {
+                  const res = await fetch(`${motorUrl}/send/${gymId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+                    body: JSON.stringify({ phone: normalizePhone(alumno.phone!), message: msg }),
+                    signal: AbortSignal.timeout(8000),
+                  });
+                  if (res.ok) {
+                    await supabase.from("alumnos")
+                      .update({ notif_inasistencia_sent_at: todayStr })
+                      .eq("id", alumno.id);
+                    log.push(`💪 ${alumno.full_name} (${gymName}) — inasistencia 14d`);
+                  }
+                } catch { /* non-blocking */ }
+              })
+            );
+          }
+        }
+      }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── Sincronización de status ────────────────────────────────────────────────
   // activo → vencido: membresía venció y nadie la renovó
   const { data: expiredRows } = await supabase
