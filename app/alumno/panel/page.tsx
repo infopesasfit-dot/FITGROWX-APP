@@ -80,7 +80,7 @@ function AlumnoPanelInner() {
   const [loading,      setLoading]      = useState(true);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [reservando,   setReservando]   = useState<string | null>(null);
-  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null } | null>(null);
+  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null; gym_whatsapp: string | null } | null>(null);
   const [loadingPago,  setLoadingPago]  = useState(false);
   const [copiedPayment, setCopiedPayment] = useState(false);
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
@@ -157,6 +157,7 @@ function AlumnoPanelInner() {
         has_mp: Boolean(d.gym_info.has_mp),
         plan_type: d.gym_info.plan_type ?? null,
         payment_info: d.gym_info.payment_info ?? null,
+        gym_whatsapp: d.gym_info.gym_whatsapp ?? null,
       });
     }
     if (d.asistencias) {
@@ -324,11 +325,22 @@ function AlumnoPanelInner() {
           )}
           <h1 style={{ font: `700 1.9rem/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", marginBottom: 6 }}>Acceso suspendido</h1>
           <div style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", borderRadius: 16, padding: "20px 22px", marginBottom: 20, marginTop: 20 }}>
-            <p style={{ font: `400 0.85rem/1.65 ${fd}`, color: "rgba(255,255,255,0.5)" }}>
+            <p style={{ font: `400 0.85rem/1.65 ${fd}`, color: "rgba(255,255,255,0.5)", marginBottom: gymInfo?.gym_whatsapp ? 14 : 0 }}>
               Tu membresia ha expirado. Comunicate con la recepcion de{" "}
               <span style={{ color: "#FFFFFF", fontWeight: 600 }}>{gymName}</span>{" "}
               para regularizar tu estado.
             </p>
+            {gymInfo?.gym_whatsapp && (
+              <a
+                href={`https://wa.me/${gymInfo.gym_whatsapp.replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.25)", borderRadius: 10, padding: "9px 14px", textDecoration: "none" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.116.549 4.104 1.508 5.836L0 24l6.335-1.652A11.954 11.954 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.36-.214-3.728.977.994-3.63-.234-.374A9.818 9.818 0 1 1 12 21.818z"/></svg>
+                <span style={{ font: `600 0.78rem/1 ${fd}`, color: "#25D366" }}>Escribir al gym por WhatsApp</span>
+              </a>
+            )}
           </div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 9999, padding: "7px 14px", marginBottom: (gymInfo?.has_mp || gymInfo?.payment_info) ? 16 : 36 }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#EF4444" }} />
