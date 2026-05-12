@@ -49,6 +49,78 @@ export async function GET(req: NextRequest) {
     .select("gym_id, gym_name, vencimiento_dias, vencimiento_msg")
     .eq("vencimiento_activo", true);
 
+  // ── Post-expiry follow-ups (día 3 y día 7) ────────────────────────────────
+  if (gyms?.length) {
+    const DEFAULT_D3 = `¡Hola [Nombre]! 👋 Tu membresía en *[Gym]* venció hace 3 días. Renovála para retomar tu entrenamiento 💪\n\n👉 [Link]`;
+    const DEFAULT_D7 = `[Nombre], tu membresía en *[Gym]* lleva una semana vencida 😔 Si necesitás retomar, estamos acá. Renovála acá 👇\n\n👉 [Link]`;
+
+    for (const gym of gyms) {
+      const d3cutoff = new Date(); d3cutoff.setDate(d3cutoff.getDate() - 3);
+      const d7cutoff = new Date(); d7cutoff.setDate(d7cutoff.getDate() - 7);
+
+      const { data: vencidos } = await supabase
+        .from("alumnos")
+        .select("id, full_name, phone, next_expiration_date, notif_vencido_d3_para, notif_vencido_d7_para")
+        .eq("gym_id", gym.gym_id)
+        .eq("status", "vencido")
+        .not("phone", "is", null)
+        .not("next_expiration_date", "is", null)
+        .lte("next_expiration_date", todayStr);
+
+      if (!vencidos?.length) continue;
+
+      // Fetch tokens
+      const ids = vencidos.map(a => a.id);
+      const { data: tokens } = await supabase
+        .from("alumno_tokens")
+        .select("alumno_id, token")
+        .in("alumno_id", ids)
+        .gt("expires_at", new Date().toISOString());
+      const tmap: Record<string, string> = {};
+      for (const t of tokens ?? []) { if (!tmap[t.alumno_id]) tmap[t.alumno_id] = t.token; }
+
+      for (const alumno of vencidos) {
+        if (!alumno.phone) continue;
+        const expDate = alumno.next_expiration_date!;
+        const expiryMs = new Date(expDate).getTime();
+        const diffDays = Math.floor((Date.now() - expiryMs) / 86_400_000);
+        const phone = normalizePhone(alumno.phone);
+        const link = tmap[alumno.id] ? `${APP_URL}/alumno/auth?token=${tmap[alumno.id]}` : "";
+        const gymName = gym.gym_name ?? "el gym";
+
+        const sendFollowup = async (step: "d3" | "d7", defaultMsg: string, colName: string) => {
+          const alreadySent = step === "d3" ? alumno.notif_vencido_d3_para : alumno.notif_vencido_d7_para;
+          if (alreadySent === expDate) return; // ya enviado para este vencimiento
+          const message = defaultMsg
+            .replace(/\[Nombre\]/g, alumno.full_name)
+            .replace(/\[Gym\]/g, gymName)
+            .replace(/\[Link\]/g, link);
+          try {
+            const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+              body: JSON.stringify({ phone, message }),
+              signal: AbortSignal.timeout(8000),
+            });
+            if (res.ok) {
+              await supabase.from("alumnos").update({ [colName]: expDate }).eq("id", alumno.id);
+              totalEnviados++;
+              log.push(`✓ ${alumno.full_name} (${gymName}) — post-vencimiento ${step} (día ${diffDays})`);
+            } else {
+              log.push(`✗ ${alumno.full_name} — post-vencimiento ${step} HTTP ${res.status}`);
+            }
+          } catch (e) {
+            log.push(`✗ ${alumno.full_name} — post-vencimiento ${step} ${e instanceof Error ? e.message : "error"}`);
+          }
+        };
+
+        if (diffDays >= 3) await sendFollowup("d3", DEFAULT_D3, "notif_vencido_d3_para");
+        if (diffDays >= 7) await sendFollowup("d7", DEFAULT_D7, "notif_vencido_d7_para");
+      }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con recordatorio de vencimiento activo."] });
 
   let totalEnviados = 0;
