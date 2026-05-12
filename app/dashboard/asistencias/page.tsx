@@ -220,7 +220,6 @@ export default function AsistenciasPage() {
   const convertirProspecto = useCallback(async (p: ClasePrueba) => {
     if (!gymId || converting) return;
     setConverting(p.id);
-    const nameParts = p.full_name.trim().split(" ");
     const { data: alumno, error } = await supabase.from("alumnos").insert({
       gym_id:    gymId,
       full_name: p.full_name,
@@ -228,10 +227,17 @@ export default function AsistenciasPage() {
       status:    "activo",
     }).select("id").single();
     if (!error && alumno) {
-      await supabase.from("prospectos")
-        .update({ clase_gratis_status: "convertido", status: "contactado" })
-        .eq("id", p.id);
-      router.push(`/dashboard/alumnos?highlight=${alumno.id}`);
+      await Promise.all([
+        supabase.from("prospectos")
+          .update({ clase_gratis_status: "convertido", status: "contactado" })
+          .eq("id", p.id),
+        fetch("/api/alumno/send-welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ alumno_id: alumno.id, type: "welcome" }),
+        }),
+      ]);
+      router.push("/dashboard/alumnos");
     }
     setConverting(null);
   }, [gymId, converting, router]);
