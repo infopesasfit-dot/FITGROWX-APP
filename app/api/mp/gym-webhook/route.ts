@@ -181,18 +181,25 @@ export async function POST(req: NextRequest) {
     await sendWA(gym_id, alumno.phone, msgAlumno);
   }
 
-  // WA to gym owner
-  const { data: ownerProfile } = await supabase
-    .from("profiles")
-    .select("phone")
-    .eq("gym_id", gym_id)
-    .eq("role", "admin")
-    .maybeSingle();
+  // WA to gym owner — include warning if another payment was already registered today
+  const [ownerRes, dupRes] = await Promise.all([
+    supabase.from("profiles").select("phone").eq("gym_id", gym_id).eq("role", "admin").maybeSingle(),
+    supabase.from("pagos")
+      .select("id", { count: "exact", head: true })
+      .eq("gym_id", gym_id)
+      .eq("alumno_id", alumno_id)
+      .eq("status", "validado")
+      .neq("method", "mercadopago")
+      .eq("date", today),
+  ]);
 
-  const owner = ownerProfile as ProfileRow | null;
+  const owner = ownerRes.data as ProfileRow | null;
   if (owner?.phone) {
     const monto = `$${Math.round(payment.transaction_amount).toLocaleString("es-AR")}`;
-    const msgOwner = `💳 *Pago MP recibido*\n\n👤 ${alumno.full_name}\n💰 ${monto} — ${plan?.nombre ?? "Membresía"}\n📅 Vence: ${newExpiry}`;
+    const dupWarning = (dupRes.count ?? 0) > 0
+      ? `\n\n⚠️ *Atención:* Este alumno ya tiene un pago registrado hoy por otro medio. Verificá si fue un pago duplicado.`
+      : "";
+    const msgOwner = `💳 *Pago MP recibido*\n\n👤 ${alumno.full_name}\n💰 ${monto} — ${plan?.nombre ?? "Membresía"}\n📅 Vence: ${newExpiry}${dupWarning}`;
     await sendWA(gym_id, owner.phone, msgOwner);
   }
 

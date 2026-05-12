@@ -32,46 +32,75 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ ok: true });
 
   const { type, data } = body;
+  if (type !== "preapproval" || !data?.id) return NextResponse.json({ ok: true });
 
-  // Solo nos interesan eventos de preapproval
-  if (type !== "preapproval" || !data?.id) {
-    return NextResponse.json({ ok: true });
-  }
-
-  // Consultar estado actual a la API de MP
+  // Fetch current preapproval state from MP
   const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${data.id}`, {
     headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
   });
-
   if (!mpRes.ok) {
+    // Transient MP API error — return 500 so MP retries
     console.error("MP webhook: no se pudo consultar preapproval", data.id);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
   }
 
   const preapproval = await mpRes.json();
   const { id, status, external_reference } = preapproval;
 
-  // external_reference = "gym_id|plan_key"
   const gymId = external_reference?.split("|")[0];
   if (!gymId) return NextResponse.json({ ok: true });
 
-  const isActive = status === "authorized";
+  const isActive    = status === "authorized";
   const isCancelled = status === "cancelled" || status === "paused";
+
+  // ── Idempotency check ──────────────────────────────────────────────────────
+  // If the preapproval ID matches and status hasn't changed, skip the update.
+  // MP resends the same event on retries; processing it twice is harmless but
+  // calculating addOneMonth(new Date()) on a retry would push the expiry further.
+  const { data: currentGym } = await supabaseAdmin
+    .from("gyms")
+    .select("mp_preapproval_id, is_subscription_active, subscription_expires_at")
+    .eq("id", gymId)
+    .maybeSingle();
+
+  const alreadyActive    = currentGym?.is_subscription_active === true;
+  const alreadyCancelled = currentGym?.is_subscription_active === false && currentGym?.mp_preapproval_id === id;
+
+  if (isActive && alreadyActive && currentGym?.mp_preapproval_id === id) {
+    // Same preapproval, already active — idempotent, nothing to do
+    return NextResponse.json({ ok: true });
+  }
+  if (isCancelled && alreadyCancelled) {
+    return NextResponse.json({ ok: true });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // Extend expiry from current value if still in the future, otherwise from today.
+  // This ensures a late retry doesn't push the expiry beyond what was actually paid.
+  const currentExpiry = currentGym?.subscription_expires_at
+    ? new Date(currentGym.subscription_expires_at)
+    : null;
+  const base = currentExpiry && currentExpiry > new Date() ? currentExpiry : new Date();
+  const newExpiry = addOneMonth(base).toISOString();
 
   const { error: dbErr } = await supabaseAdmin
     .from("gyms")
     .update({
       mp_preapproval_id: id,
       is_subscription_active: isActive,
-      ...(isActive    ? { subscription_expires_at: addOneMonth(new Date()).toISOString() } : {}),
+      ...(isActive    ? { subscription_expires_at: newExpiry } : {}),
       ...(isCancelled ? { is_subscription_active: false, subscription_expires_at: null } : {}),
     })
     .eq("id", gymId);
 
-  if (dbErr) console.error(`MP webhook: DB update failed para gym ${gymId}:`, dbErr.message);
+  if (dbErr) {
+    console.error(`MP webhook: DB update failed para gym ${gymId}:`, dbErr.message);
+    // 500 → MP will retry. Do NOT return 200 and silently drop the subscription update.
+    return NextResponse.json({ error: "db_error" }, { status: 500 });
+  }
+
   console.log(`MP webhook: gym ${gymId} → preapproval ${id} → ${status}`);
 
-  // Notify gym owner via WA when subscription is cancelled or payment fails
   if (isCancelled) {
     const motorUrl = process.env.WA_MOTOR_URL;
     if (motorUrl) {
@@ -81,9 +110,9 @@ export async function POST(req: NextRequest) {
         .eq("gym_id", gymId)
         .maybeSingle();
 
-      const phone = settings?.whatsapp;
-      const gymName = settings?.gym_name ?? "tu gimnasio";
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
+      const phone    = settings?.whatsapp;
+      const gymName  = settings?.gym_name ?? "tu gimnasio";
+      const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
 
       if (phone) {
         const message = `⚠️ *${gymName}* — Hubo un problema con el pago de tu suscripción FitGrowX y tu acceso fue suspendido.\n\nPodés renovarla en: ${appUrl}/dashboard/suscripcion\n\nSi tenés dudas, escribinos a soporte@fitgrowx.com.`;
@@ -104,7 +133,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
-// MP también hace GET para verificar el endpoint
 export async function GET() {
   return NextResponse.json({ ok: true });
 }
