@@ -85,10 +85,10 @@ export function BenefitsSection() {
           viewport={{ once: true, amount: 0.4 }}
           transition={{ duration: 0.8, ease: EASE, delay: 0.1 }}
         >
-          <Stat value={98}  suffix="%" label="Retención" />
-          <Stat value={24}  suffix="/7"  label="Tu negocio activo" />
-          <Stat value={200} prefix="+" label="Alumnos migrados en 1 clic" />
-          <Stat value={0}   suffix="%" label="Fricción en cobros" />
+          <Stat value={98}  suffix="%" label="de socios que renuevan" />
+          <Stat value={3}   suffix="min" label="para dar de alta un alumno" />
+          <Stat value={200} prefix="+" label="socios migrados en 1 clic" />
+          <Stat value={0}   suffix="%" label="de cuotas que se pierden sin aviso" />
         </motion.div>
 
 

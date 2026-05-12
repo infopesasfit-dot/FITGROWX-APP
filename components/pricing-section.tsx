@@ -127,6 +127,19 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
             <p className="text-lg font-semibold text-white tracking-tight">FitGrowX</p>
             <p className="mt-2 text-sm font-light leading-relaxed text-white/50">{plan.description}</p>
 
+            {/* ROI anchor */}
+            <div
+              className="mt-5 flex items-start gap-2.5 rounded-xl px-4 py-3"
+              style={{ background: "rgba(255,106,0,0.07)", border: "1px solid rgba(255,106,0,0.18)" }}
+            >
+              <span className="mt-0.5 text-base leading-none">💡</span>
+              <p className="text-[12px] font-light leading-relaxed text-white/55">
+                Si retener{" "}
+                <span className="font-semibold text-[#FF8C3A]">8 socios</span>
+                {" "}que de otro modo se van, ya se paga solo.
+              </p>
+            </div>
+
             {/* Price */}
             <div className="mt-6 flex items-center gap-3">
               <span className="text-5xl font-extralight tracking-[-0.06em] text-white">${fmt(price)}</span>
@@ -157,7 +170,7 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
             <div className="mt-6 h-px bg-white/[0.07]" />
 
             {/* Features */}
-            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/32">Qué incluye</p>
+            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/32">Lo que resuelve</p>
             <ul className="mt-4 flex flex-col gap-3">
               {plan.features.map((feature) => (
                 <li key={feature} className="flex items-start gap-3">
