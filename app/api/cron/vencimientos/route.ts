@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   // Gyms con recordatorio de vencimiento activo
   const { data: gyms } = await supabase
     .from("gym_settings")
-    .select("gym_id, gym_name, vencimiento_dias, vencimiento_msg")
+    .select("gym_id, gym_name, vencimiento_dias, vencimiento_msg, mp_access_token, payment_info")
     .eq("vencimiento_activo", true);
 
   // ── Post-expiry follow-ups (día 3 y día 7) ────────────────────────────────
@@ -85,13 +85,21 @@ export async function GET(req: NextRequest) {
         const expiryMs = new Date(expDate).getTime();
         const diffDays = Math.floor((Date.now() - expiryMs) / 86_400_000);
         const phone = normalizePhone(alumno.phone);
-        const link = tmap[alumno.id] ? `${APP_URL}/alumno/auth?token=${tmap[alumno.id]}` : "";
+        const tkn = tmap[alumno.id];
+        const link = tkn
+          ? gym.mp_access_token
+            ? `${APP_URL}/api/alumno/pagar-link?token=${tkn}`
+            : `${APP_URL}/alumno/auth?token=${tkn}`
+          : "";
+        const paymentSuffix = !gym.mp_access_token && gym.payment_info
+          ? `\n\n💳 Datos de pago:\n${gym.payment_info}`
+          : "";
         const gymName = gym.gym_name ?? "el gym";
 
         const sendFollowup = async (step: "d3" | "d7", defaultMsg: string, colName: string) => {
           const alreadySent = step === "d3" ? alumno.notif_vencido_d3_para : alumno.notif_vencido_d7_para;
           if (alreadySent === expDate) return; // ya enviado para este vencimiento
-          const message = defaultMsg
+          const message = (defaultMsg + paymentSuffix)
             .replace(/\[Nombre\]/g, alumno.full_name)
             .replace(/\[Gym\]/g, gymName)
             .replace(/\[Link\]/g, link);
@@ -186,8 +194,18 @@ export async function GET(req: NextRequest) {
         chunk.map(async alumno => {
           const phone = normalizePhone(alumno.phone!);
           const fechaVto = new Date(alumno.next_expiration_date!).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-          const link = tokenMap[alumno.id] ? `${APP_URL}/alumno/auth?token=${tokenMap[alumno.id]}` : null;
-          const message = (template + (link ? `\n\n👉 Renová desde acá: ${link}` : ""))
+          const token = tokenMap[alumno.id];
+          // Direct MP checkout if gym has MP, otherwise portal
+          const link = token
+            ? gym.mp_access_token
+              ? `${APP_URL}/api/alumno/pagar-link?token=${token}`
+              : `${APP_URL}/alumno/auth?token=${token}`
+            : null;
+          // Append payment_info to message if no MP configured
+          const paymentSuffix = !gym.mp_access_token && gym.payment_info
+            ? `\n\n💳 Datos de pago:\n${gym.payment_info}`
+            : "";
+          const message = (template + (link ? `\n\n👉 Renová desde acá: ${link}` : "") + paymentSuffix)
             .replace(/\[Nombre\]/g, alumno.full_name)
             .replace(/\[Gym\]/g,    gym.gym_name ?? "el gym")
             .replace(/\[Fecha\]/g,  fechaVto)
