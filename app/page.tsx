@@ -13,17 +13,7 @@ const PricingSection = dynamic(() => import("@/components/pricing-section").then
 const LandingWhatsApp = dynamic(() => import("@/components/landing-whatsapp").then((m) => m.LandingWhatsApp));
 const CookieBanner = dynamic(() => import("@/components/cookie-banner").then((m) => m.CookieBanner));
 
-const plans = FITGROWX_PLANS.map((plan) => ({
-  name: plan.name,
-  priceMonthly: plan.priceMonthly,
-  priceAnnual: plan.priceAnnual,
-  annualTotal: plan.priceAnnual * 12,
-  savings: (plan.priceMonthly - plan.priceAnnual) * 12,
-  badge: plan.badge,
-  featured: plan.highlight,
-  description: plan.description,
-  features: plan.features,
-}));
+const plans = FITGROWX_PLANS;
 
 export default function Home() {
   return (

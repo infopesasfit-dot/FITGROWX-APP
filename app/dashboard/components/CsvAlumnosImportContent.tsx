@@ -56,6 +56,8 @@ type SendPhase = "idle" | "sending" | "done" | "cancelled";
 
 interface CsvAlumnosImportContentProps {
   gymId: string;
+  gymPlanType?: string;
+  currentAlumnoCount?: number;
   onImported: (count: number) => Promise<void> | void;
   onSecondaryAction?: () => Promise<void> | void;
   secondaryLabel?: string;
@@ -64,6 +66,8 @@ interface CsvAlumnosImportContentProps {
 
 export function CsvAlumnosImportContent({
   gymId,
+  gymPlanType = "crecimiento",
+  currentAlumnoCount = 0,
   onImported,
   onSecondaryAction,
   secondaryLabel = "Cancelar",
@@ -125,6 +129,10 @@ export function CsvAlumnosImportContent({
 
   const handleImport = async () => {
     if (csvData.length === 0) { setError("Subí un CSV válido antes de continuar."); return; }
+    if (gymPlanType === "starter" && currentAlumnoCount + csvData.length > 60) {
+      setError(`Tu plan Starter tiene un límite de 60 alumnos. Tenés ${currentAlumnoCount} y estás intentando importar ${csvData.length}. Pasá al plan Pro para importar más.`);
+      return;
+    }
     setLoading(true);
     setError(null);
     const allInserted: ImportedAlumno[] = [];

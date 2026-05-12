@@ -306,7 +306,7 @@ function StartPageInner() {
                     </p>
                     {!isLogin && (
                       <div className="mt-6 flex flex-wrap gap-2">
-                        {["15 días gratis", "Sin tarjeta", "Setup guiado"].map((item) => (
+                        {["30 días gratis", "Sin tarjeta", "Setup guiado"].map((item) => (
                           <span
                             key={item}
                             className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium tracking-[0.05em] text-white/45"
@@ -477,7 +477,7 @@ function StartPageInner() {
 
                       {!isLogin && (
                         <p className="mt-4 text-center text-[11px] text-white/22">
-                          · 15 días gratis · Sin tarjeta de crédito
+                          · 30 días gratis · Sin tarjeta de crédito
                         </p>
                       )}
                     </div>

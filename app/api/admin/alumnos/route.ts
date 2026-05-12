@@ -30,7 +30,7 @@ export async function GET() {
   const sixtyDaysAgo = new Date();
   sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
-  const [{ data: alumnosData, error: alumnosError }, { data: planesData, error: planesError }, { data: promosData }, { data: asistenciasData, error: asistenciasError }] =
+  const [{ data: alumnosData, error: alumnosError }, { data: planesData, error: planesError }, { data: promosData }, { data: asistenciasData, error: asistenciasError }, { data: gymData }] =
     await Promise.all([
       admin
         .from("alumnos")
@@ -55,6 +55,11 @@ export async function GET() {
         .eq("gym_id", gymId)
         .gte("fecha", sixtyDaysAgo.toISOString().slice(0, 10))
         .order("fecha", { ascending: false }),
+      admin
+        .from("gyms")
+        .select("plan_type")
+        .eq("id", gymId)
+        .maybeSingle(),
     ]);
 
   if (alumnosError || planesError || asistenciasError) {
@@ -73,6 +78,7 @@ export async function GET() {
     ok: true,
     gym_id: gymId,
     role: profile.role ?? "admin",
+    plan_type: (gymData as { plan_type?: string } | null)?.plan_type ?? "crecimiento",
     alumnos: alumnosData ?? [],
     planes: planesData ?? [],
     promos: promosData ?? [],

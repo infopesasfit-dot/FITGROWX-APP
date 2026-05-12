@@ -114,7 +114,7 @@ export function HeroSection() {
         <motion.div variants={fadeUp(0)} initial={false} animate="visible">
           <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-            Automatiza captación, retención y operación
+            Para dueños de gym que quieren cobrar sin perseguir
           </span>
         </motion.div>
 
@@ -130,7 +130,7 @@ export function HeroSection() {
               backgroundImage: "linear-gradient(180deg, #f3f4f8 8%, #8a8a98 100%)",
             }}
           >
-            Todo lo que hoy te da vueltas en la cabeza
+            ¿Cuántos socios se fueron este mes
           </span>
           <span
             className="ml-2 bg-clip-text text-transparent"
@@ -138,7 +138,7 @@ export function HeroSection() {
               backgroundImage: "linear-gradient(95deg, #ff9a4a 0%, #fb5c0a 60%, #d94000 100%)",
             }}
           >
-            entra en un solo lugar.
+            sin que lo supieras?
           </span>
         </motion.h1>
 
@@ -148,10 +148,9 @@ export function HeroSection() {
           initial={false}
           animate="visible"
         >
-          FitGrowX centraliza al dueño, al staff y al alumno en un mismo sistema.
-          <br className="hidden md:block" />
+          FitGrowX te avisa antes de que se vaya cada uno.{" "}
           <span className="font-medium text-white/70">
-            Automatiza WhatsApp para captar y retener, ordena cobros, clases, rutinas y le da a cada rol su propio panel.
+            Automático, por WhatsApp, sin que tengas que acordarte.
           </span>
         </motion.p>
 
@@ -171,7 +170,7 @@ export function HeroSection() {
           initial={false}
           animate="visible"
         >
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">15 días gratis</span>
+          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">30 días gratis</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Sin tarjeta</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Setup simple</span>
         </motion.div>

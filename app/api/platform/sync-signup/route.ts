@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
-    const defaultTrialEnd = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString();
+    const defaultTrialEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const { error: gymUpsertError } = await supabase.from("gyms").upsert(
       {

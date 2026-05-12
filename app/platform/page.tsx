@@ -527,7 +527,7 @@ export default function PlatformPage() {
 
       if (status === "trial_setup" || status === "trial_active") {
         payload.trial_starts_at = new Date().toISOString();
-        payload.trial_ends_at = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
+        payload.trial_ends_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       }
 
       const { error: updateError } = await supabase

@@ -132,6 +132,7 @@ export default function AlumnosPage() {
   const [wodTimeCap,       setWodTimeCap]       = useState("15");
   const [wodMovimientos,   setWodMovimientos]   = useState<{ nombre: string; reps: string }[]>([]);
   const [gymId,            setGymId]            = useState<string | null>(null);
+  const [gymPlanType,      setGymPlanType]      = useState<string>("crecimiento");
   const [ultimaMap,        setUltimaMap]        = useState<Record<string, string>>({});
   const [checkinTarget,    setCheckinTarget]    = useState<Alumno | null>(null);
   const [checkinDate,      setCheckinDate]      = useState("");
@@ -201,6 +202,7 @@ export default function AlumnosPage() {
       ok?: boolean;
       gym_id?: string;
       role?: string;
+      plan_type?: string;
       alumnos?: Alumno[];
       planes?: PlanOption[];
       promos?: PromoOption[];
@@ -223,6 +225,7 @@ export default function AlumnosPage() {
     setPageCache(`alumnos_${nextGymId}`, rows);
     setGymId(nextGymId);
     setRole((payload.role === "staff" ? "staff" : "admin"));
+    if (payload.plan_type) setGymPlanType(payload.plan_type);
     setPlanes(nextPlanes);
     setPromos(nextPromos);
     setUltimaMap(nextUltimaMap);
@@ -300,6 +303,13 @@ export default function AlumnosPage() {
         return (setFormError("Ya hay un alumno registrado con ese número de teléfono."), setSaving(false));
       if (dup.email?.toLowerCase() === form.email.trim().toLowerCase())
         return (setFormError("Ya hay un alumno registrado con ese email."), setSaving(false));
+    }
+
+    // ── Starter plan limit ────────────────────────────────────────────
+    if (gymPlanType === "starter" && alumnos.length >= 60) {
+      setFormError("Tu plan Starter tiene un límite de 60 alumnos. Pasá al plan Pro para agregar más.");
+      setSaving(false);
+      return;
     }
 
     const { data: newAlumno, error } = await supabase.from("alumnos").insert([{
@@ -1416,6 +1426,8 @@ export default function AlumnosPage() {
           <div style={{ padding: "20px 24px 24px" }}>
             <CsvAlumnosImportContent
               gymId={gymId}
+              gymPlanType={gymPlanType}
+              currentAlumnoCount={alumnos.length}
               onImported={async (count) => {
                 setCsvImportOpen(false);
                 await fetchAlumnos(true);

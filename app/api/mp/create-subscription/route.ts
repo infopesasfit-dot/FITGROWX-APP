@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -13,7 +14,8 @@ const supabaseAdmin = createClient(
 export async function POST(req: NextRequest) {
   const { gym_id, plan_key, plan_label, price_ars } = await req.json();
 
-  if (!gym_id || !plan_key || !price_ars) {
+  const validKeys = FITGROWX_PLANS.map((p) => p.key);
+  if (!gym_id || !plan_key || !price_ars || !validKeys.includes(plan_key)) {
     return NextResponse.json({ error: "Faltan parámetros." }, { status: 400 });
   }
 

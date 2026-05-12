@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 type AuthorizedProfile = {
   gym_id: string | null;
@@ -12,7 +13,8 @@ const supabase = getSupabaseAdminClient();
 export async function POST(req: NextRequest) {
   const { gym_id, plan_type } = await req.json();
 
-  if (!gym_id || plan_type !== "crecimiento") {
+  const validKeys = FITGROWX_PLANS.map((p) => p.key);
+  if (!gym_id || !validKeys.includes(plan_type)) {
     return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
   }
 
