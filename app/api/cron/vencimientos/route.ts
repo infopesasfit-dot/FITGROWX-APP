@@ -43,14 +43,16 @@ export async function GET(req: NextRequest) {
 
       const motorUrl = process.env.WA_MOTOR_URL;
       for (const [gymId, pagos] of byGym) {
-        const { data: ownerRow } = await supabase
-          .from("profiles")
-          .select("phone")
-          .eq("gym_id", gymId)
-          .eq("role", "admin")
-          .maybeSingle();
+        const [ownerRow, waRow] = await Promise.all([
+          supabase.from("profiles").select("phone").eq("gym_id", gymId).eq("role", "admin").maybeSingle(),
+          supabase.from("gym_settings").select("whatsapp").eq("gym_id", gymId).maybeSingle(),
+        ]);
 
-        if (ownerRow?.phone && motorUrl) {
+        const ownerPhone = (ownerRow.data as { phone: string | null } | null)?.phone;
+        const gymWaPhone = (waRow.data as { whatsapp: string | null } | null)?.whatsapp;
+        const sameNumber = ownerPhone && gymWaPhone && normalizePhone(ownerPhone) === normalizePhone(gymWaPhone);
+
+        if (ownerPhone && !sameNumber && motorUrl) {
           const lista = pagos
             .map(p => {
               const nombre = (p.alumnos as unknown as { full_name: string } | null)?.full_name ?? "Alumno";
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
             const res = await fetch(`${motorUrl}/send/${gymId}`, {
               method: "POST",
               headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-              body: JSON.stringify({ phone: normalizePhone(ownerRow.phone), message: msg }),
+              body: JSON.stringify({ phone: normalizePhone(ownerPhone), message: msg }),
               signal: AbortSignal.timeout(8000),
             });
             if (res.ok) {
@@ -131,13 +133,15 @@ export async function GET(req: NextRequest) {
         for (const [gymId, riskAlumnos] of byGym) {
           const [ownerRes, settingsRes] = await Promise.all([
             supabase.from("profiles").select("phone").eq("gym_id", gymId).eq("role", "admin").maybeSingle(),
-            supabase.from("gym_settings").select("gym_name").eq("gym_id", gymId).maybeSingle(),
+            supabase.from("gym_settings").select("gym_name, whatsapp").eq("gym_id", gymId).maybeSingle(),
           ]);
           const ownerPhone = (ownerRes.data as { phone: string | null } | null)?.phone;
-          const gymName = (settingsRes.data as { gym_name: string | null } | null)?.gym_name ?? "el gym";
+          const gymName = (settingsRes.data as { gym_name: string | null; whatsapp: string | null } | null)?.gym_name ?? "el gym";
+          const gymWaPhone = (settingsRes.data as { gym_name: string | null; whatsapp: string | null } | null)?.whatsapp;
+          const sameNumber = ownerPhone && gymWaPhone && normalizePhone(ownerPhone) === normalizePhone(gymWaPhone);
 
-          // WA al dueño — resumen de la lista
-          if (ownerPhone) {
+          // WA al dueño — resumen de la lista (solo si no usa el mismo número para el gym)
+          if (ownerPhone && !sameNumber) {
             const lista = riskAlumnos
               .slice(0, 10)
               .map((a) => `• ${a.full_name}`)

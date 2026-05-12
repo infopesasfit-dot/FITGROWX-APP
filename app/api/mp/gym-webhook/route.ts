@@ -7,7 +7,7 @@ const supabase = getSupabaseAdminClient();
 const MOTOR_URL = process.env.WA_MOTOR_URL ?? "";
 const MOTOR_KEY = process.env.WA_MOTOR_API_KEY ?? "";
 
-type GymSettingsRow = { mp_access_token: string | null; gym_name: string | null };
+type GymSettingsRow = { mp_access_token: string | null; gym_name: string | null; whatsapp: string | null };
 type AlumnoRow = {
   id: string;
   full_name: string;
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   // Verify payment with gym's own MP token
   const { data: gymSettings } = await supabase
     .from("gym_settings")
-    .select("mp_access_token, gym_name")
+    .select("mp_access_token, gym_name, whatsapp")
     .eq("gym_id", gym_id)
     .single();
 
@@ -194,13 +194,17 @@ export async function POST(req: NextRequest) {
   ]);
 
   const owner = ownerRes.data as ProfileRow | null;
-  if (owner?.phone) {
+  const ownerPhone = owner?.phone;
+  const gymWaPhone = gym.whatsapp ? normalizePhone(gym.whatsapp) : null;
+  const ownerIsSameAsGym = ownerPhone && gymWaPhone && normalizePhone(ownerPhone) === gymWaPhone;
+
+  if (ownerPhone && !ownerIsSameAsGym) {
     const monto = `$${Math.round(payment.transaction_amount).toLocaleString("es-AR")}`;
     const dupWarning = (dupRes.count ?? 0) > 0
       ? `\n\n⚠️ *Atención:* Este alumno ya tiene un pago registrado hoy por otro medio. Verificá si fue un pago duplicado.`
       : "";
     const msgOwner = `💳 *Pago MP recibido*\n\n👤 ${alumno.full_name}\n💰 ${monto} — ${plan?.nombre ?? "Membresía"}\n📅 Vence: ${newExpiry}${dupWarning}`;
-    await sendWA(gym_id, owner.phone, msgOwner);
+    await sendWA(gym_id, ownerPhone, msgOwner);
   }
 
   return NextResponse.json({ ok: true });

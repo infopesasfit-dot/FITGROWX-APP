@@ -820,7 +820,7 @@ function AjustesContent() {
                       <input value={email} readOnly style={mutedInputStyle} />
                     </Field>
 
-                    <Field label="Tu número de WhatsApp" hint="Con código de país, sin espacios. Ej: 5491165909374. Necesario para recibir alertas de pagos, socios en riesgo y transferencias pendientes.">
+                    <Field label="Tu número de WhatsApp para alertas" hint="Con código de país, sin espacios. Ej: 5491165909374. Si usás este número también para el WhatsApp del gym, las alertas llegan solo por notificación en el dashboard.">
                       <input
                         value={ownerPhone}
                         onChange={(e) => setOwnerPhone(e.target.value.replace(/[^\d+]/g, ""))}
