@@ -220,11 +220,16 @@ export default function AsistenciasPage() {
   const convertirProspecto = useCallback(async (p: ClasePrueba) => {
     if (!gymId || converting) return;
     setConverting(p.id);
+    const defaultExpiry = new Date();
+    defaultExpiry.setDate(defaultExpiry.getDate() + 30);
+    const expiryStr = defaultExpiry.toISOString().slice(0, 10);
+
     const { data: alumno, error } = await supabase.from("alumnos").insert({
-      gym_id:    gymId,
-      full_name: p.full_name,
-      phone:     p.phone ?? null,
-      status:    "activo",
+      gym_id:               gymId,
+      full_name:            p.full_name,
+      phone:                p.phone ?? null,
+      status:               "activo",
+      next_expiration_date: expiryStr,
     }).select("id").single();
     if (!error && alumno) {
       await Promise.all([
