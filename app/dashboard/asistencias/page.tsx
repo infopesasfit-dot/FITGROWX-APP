@@ -72,6 +72,8 @@ export default function AsistenciasPage() {
   const [gymId, setGymId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [converting, setConverting] = useState<string | null>(null);
+  const [convertModal, setConvertModal] = useState<ClasePrueba | null>(null);
+  const [convertDni, setConvertDni] = useState("");
   const router = useRouter();
   const [ausentesLoading, setAusentesLoading] = useState(false);
   const [ausentesLoaded, setAusentesLoaded] = useState(false);
@@ -217,9 +219,10 @@ export default function AsistenciasPage() {
     await supabase.from("prospectos").update({ clase_gratis_status: status }).eq("id", id);
   }, []);
 
-  const convertirProspecto = useCallback(async (p: ClasePrueba) => {
+  const convertirProspecto = useCallback(async (p: ClasePrueba, dni: string) => {
     if (!gymId || converting) return;
     setConverting(p.id);
+    setConvertModal(null);
     const defaultExpiry = new Date();
     defaultExpiry.setDate(defaultExpiry.getDate() + 30);
     const expiryStr = defaultExpiry.toISOString().slice(0, 10);
@@ -228,6 +231,7 @@ export default function AsistenciasPage() {
       gym_id:               gymId,
       full_name:            p.full_name,
       phone:                p.phone ?? null,
+      dni:                  dni.replace(/\D/g, "") || null,
       status:               "activo",
       next_expiration_date: expiryStr,
     }).select("id").single();
@@ -445,7 +449,7 @@ export default function AsistenciasPage() {
                   <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
                     <span style={{ font: `700 0.72rem/1 ${fb}`, color: "#10B981", background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "5px 10px" }}>✓ Asistió</span>
                     <button
-                      onClick={() => convertirProspecto(p)}
+                      onClick={() => { setConvertModal(p); setConvertDni(""); }}
                       disabled={converting === p.id}
                       style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, border: "none", background: "#1A1D23", color: "#fff", font: `700 0.72rem/1 ${fb}`, cursor: "pointer", opacity: converting === p.id ? 0.6 : 1 }}
                     >
@@ -622,6 +626,50 @@ export default function AsistenciasPage() {
 
       {/* void gymId */}
       {gymId && <span style={{ display: "none" }}>{gymId}</span>}
+
+      {/* ── Modal Convertir prospecto ── */}
+      {convertModal && (
+        <div
+          onClick={() => setConvertModal(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 18, padding: "28px 24px", width: "100%", maxWidth: 380, boxShadow: "0 16px 48px rgba(0,0,0,0.18)" }}
+          >
+            <p style={{ font: `700 1rem/1.3 ${fb}`, color: t1, marginBottom: 4 }}>Convertir en alumno</p>
+            <p style={{ font: `400 0.8rem/1.5 ${fb}`, color: t2, marginBottom: 20 }}>
+              {convertModal.full_name} · DNI para que pueda ingresar al portal
+            </p>
+            <label style={{ display: "block", font: `600 0.7rem/1 ${fb}`, color: t3, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8 }}>DNI <span style={{ color: t3, fontWeight: 400 }}>(opcional)</span></label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={convertDni}
+              onChange={e => setConvertDni(e.target.value.replace(/\D/g, ""))}
+              placeholder="Sin puntos"
+              autoFocus
+              style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E5E7EB", font: `400 0.9rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box", marginBottom: 20 }}
+              onKeyDown={e => { if (e.key === "Enter") convertirProspecto(convertModal, convertDni); }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setConvertModal(null)}
+                style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1px solid #E5E7EB", background: "#F9FAFB", font: `600 0.82rem/1 ${fb}`, color: t2, cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => convertirProspecto(convertModal, convertDni)}
+                style={{ flex: 2, padding: "10px 0", borderRadius: 10, border: "none", background: "#1A1D23", font: `700 0.82rem/1 ${fb}`, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+              >
+                <UserPlus size={13} />
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
