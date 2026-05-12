@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile } from "@/lib/gym-cache";
 import {
   ExternalLink, Copy, Check, Save, Loader2, Globe, Zap, Users,
   Calendar, Heart, Star, Target, Shield, Clock, Trophy, Plus,
-  Trash2, Dumbbell, ChevronRight, AlertTriangle, X, Link2, Sparkles,
+  Trash2, Dumbbell, ChevronRight, AlertTriangle, X, Link2, Sparkles, Upload,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Template   = "energia" | "pro" | "impact" | "link";
+type Template   = "energia" | "pro" | "link";
 type BenefitKey = "Dumbbell"|"Zap"|"Users"|"Calendar"|"Heart"|"Star"|"Target"|"Shield"|"Clock"|"Trophy";
 type Benefit    = { icon: BenefitKey; title: string; desc: string };
 
@@ -52,14 +52,6 @@ const TEMPLATES = [
     bg:      "#FAFAF8",
     accent:  "#2563EB",
     dark:    false,
-  },
-  {
-    id:      "impact"   as Template,
-    name:    "Impact",
-    tagline: "Minimalista · Audaz · Gym premium",
-    bg:      "#060609",
-    accent:  "#E2E8F0",
-    dark:    true,
   },
   {
     id:      "link"     as Template,
@@ -167,7 +159,7 @@ function LivePreview({
   return (
     <div style={{
       width: 375, background: bg, fontFamily: fd,
-      minHeight: 700, padding: template === "impact" ? 0 : 0,
+      minHeight: 700, padding: false ? 0 : 0,
     }}>
       {/* Hero */}
       <div style={{ padding: "48px 28px 32px", textAlign: "center" }}>
@@ -181,14 +173,14 @@ function LivePreview({
           </p>
         )}
         <h1 style={{
-          font: `800 ${template === "impact" ? "2rem" : "1.65rem"}/1.1 ${fd}`,
-          color: template === "impact" ? accent : txt,
+          font: `800 ${false ? "2rem" : "1.65rem"}/1.1 ${fd}`,
+          color: false ? accent : txt,
           letterSpacing: "-0.025em", margin: "0 0 12px",
         }}>
           {title || "Tu titular aquí"}
         </h1>
         {subtitle && (
-          <p style={{ font: `600 1rem/1.4 ${fd}`, color: template === "impact" ? txtMuted : accent, margin: "0 0 10px" }}>
+          <p style={{ font: `600 1rem/1.4 ${fd}`, color: false ? txtMuted : accent, margin: "0 0 10px" }}>
             {subtitle}
           </p>
         )}
@@ -275,6 +267,10 @@ export default function LandingBuilderPage() {
   const [upsellPhone,   setUpsellPhone]   = useState("");
   const [upsellLoading, setUpsellLoading] = useState(false);
   const [upsellDone,    setUpsellDone]    = useState(false);
+  const [logoFile,      setLogoFile]      = useState<File | null>(null);
+  const [logoPreview,   setLogoPreview]   = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
@@ -379,6 +375,33 @@ export default function LandingBuilderPage() {
     setBenefits(prev => prev.map((b, idx) => idx === i ? { ...b, [field]: val } : b));
   };
 
+  async function handleLogoUpload(file: File) {
+    if (!gymId) return;
+    setLogoUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "png";
+      const path = `${gymId}/logo.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("gym-logos").upload(path, file, { upsert: true, contentType: file.type });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("gym-logos").getPublicUrl(path);
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      await supabase.from("gym_settings").upsert({ gym_id: gymId, logo_url: publicUrl }, { onConflict: "gym_id" });
+      setLogoUrl(publicUrl);
+      setLogoPreview(null);
+      setLogoFile(null);
+    } finally {
+      setLogoUploading(false);
+    }
+  }
+
+  async function handleLogoRemove() {
+    if (!gymId) return;
+    await supabase.from("gym_settings").update({ logo_url: null }).eq("gym_id", gymId);
+    setLogoUrl(null);
+    setLogoPreview(null);
+    setLogoFile(null);
+  }
+
   async function submitUpsell(type: "landing_pro" | "whitelabel") {
     setUpsellLoading(true);
     try {
@@ -478,7 +501,52 @@ export default function LandingBuilderPage() {
 
             {/* ── TAB: Plantilla ── */}
             {tab === "plantilla" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+                {/* Logo */}
+                <div>
+                  <p style={{ font: `600 0.75rem/1 ${fd}`, color: t3, letterSpacing: ".08em", textTransform: "uppercase", margin: "0 0 10px" }}>Logo del gym</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 14, border: "1.5px dashed rgba(15,23,42,0.15)", background: "#F8FAFC", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                      {(logoPreview ?? logoUrl)
+                        ? <img src={logoPreview ?? logoUrl!} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                        : <span style={{ font: `700 1.5rem/1 ${fd}`, color: t3 }}>{gymName?.[0]?.toUpperCase() ?? "G"}</span>
+                      }
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(15,23,42,0.10)", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: t1, cursor: "pointer" }}>
+                          <Upload size={12} />
+                          {logoFile ? "Cambiar" : "Subir logo"}
+                          <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp" style={{ display: "none" }}
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (!f) return;
+                              setLogoFile(f);
+                              setLogoPreview(URL.createObjectURL(f));
+                            }}
+                          />
+                        </label>
+                        {logoFile && (
+                          <button onClick={() => handleLogoUpload(logoFile)} disabled={logoUploading}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "none", background: logoUploading ? "#D1D5DB" : "#1A1D23", color: "#fff", font: `700 0.75rem/1 ${fd}`, cursor: "pointer" }}>
+                            <Save size={12} />{logoUploading ? "Subiendo..." : "Guardar"}
+                          </button>
+                        )}
+                        {logoUrl && !logoFile && (
+                          <button onClick={handleLogoRemove}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.15)", background: "rgba(239,68,68,0.05)", font: `600 0.75rem/1 ${fd}`, color: "#EF4444", cursor: "pointer" }}>
+                            <Trash2 size={12} /> Quitar
+                          </button>
+                        )}
+                      </div>
+                      <p style={{ font: `400 0.72rem/1.4 ${fd}`, color: t3, margin: 0 }}>PNG, JPG o SVG. Se muestra en el header de tu landing.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ height: 1, background: "rgba(15,23,42,0.06)" }} />
+
                 <p style={{ font: `600 0.75rem/1 ${fd}`, color: t3, letterSpacing: ".08em", textTransform: "uppercase", margin: 0 }}>
                   Elegí el estilo de tu landing
                 </p>
@@ -820,25 +888,6 @@ export default function LandingBuilderPage() {
                       ))}
                     </div>
 
-                    {/* ── Upsell: landing profesional ── */}
-                    <div style={{ background: "linear-gradient(135deg,#0D1117 0%,#1A1D23 100%)", borderRadius: 16, padding: "18px 20px", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      <p style={{ font: `700 0.65rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: ".08em", marginBottom: 6 }}>Diseño profesional</p>
-                      <p style={{ font: `800 0.95rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>¿Querés una web que impresione?</p>
-                      <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "rgba(255,255,255,0.50)", marginBottom: 14 }}>Nuestros diseñadores te arman una web como <strong style={{ color: "rgba(255,255,255,0.75)" }}>estilogym.com.ar</strong> — con tu marca, dominio y hosting incluido.</p>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <a href="https://estilogym.com.ar" target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.85)", font: `700 0.78rem/1 ${fd}`, textDecoration: "none", cursor: "pointer" }}>
-                          <ExternalLink size={12} /> Ver ejemplo
-                        </a>
-                        <a
-                          href={`https://wa.me/${process.env.NEXT_PUBLIC_FITGROWX_SUPPORT_WA ?? "5491100000000"}?text=${encodeURIComponent(`Hola! Soy dueño de un gym y me interesa una landing profesional como estilogym.com.ar. ¿Me podés dar info?`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: "none", background: "#F97316", color: "#FFFFFF", font: `800 0.78rem/1 ${fd}`, textDecoration: "none", cursor: "pointer" }}
-                        >
-                          Hablar con un diseñador →
-                        </a>
-                      </div>
-                    </div>
                   </>
                 )}
               </div>
@@ -977,6 +1026,26 @@ export default function LandingBuilderPage() {
         )}
       </div>
     </div>
+
+    {/* ── Botón flotante: web pro ── */}
+    <button
+      onClick={() => { setUpsellDone(false); setShowLandingUpsell(true); }}
+      style={{
+        position: "fixed", bottom: 28, right: 28, zIndex: 500,
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "11px 18px", borderRadius: 999,
+        background: "linear-gradient(135deg,#1A1D23 0%,#2D3140 100%)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.18)",
+        color: "#FFFFFF", font: `700 0.78rem/1 ${fd}`, cursor: "pointer",
+        transition: "transform .15s, box-shadow .15s",
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 12px 40px rgba(0,0,0,0.35)"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = ""; (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.18)"; }}
+    >
+      <Sparkles size={13} color="#F97316" />
+      ¿Querés una web más moderna?
+    </button>
 
     {/* ── Modal: Landing profesional ── */}
 
