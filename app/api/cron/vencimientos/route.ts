@@ -17,6 +17,31 @@ export async function GET(req: NextRequest) {
   if (!motorUrl) return NextResponse.json({ error: "Motor WA no configurado." }, { status: 500 });
 
   const log: string[] = [];
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // ── Sincronización de status ────────────────────────────────────────────────
+  // activo → vencido: membresía venció y nadie la renovó
+  const { data: expiredRows } = await supabase
+    .from("alumnos")
+    .update({ status: "vencido" })
+    .eq("status", "activo")
+    .not("next_expiration_date", "is", null)
+    .lt("next_expiration_date", todayStr)
+    .select("id");
+  const expiredCount = expiredRows?.length ?? 0;
+  if (expiredCount) log.push(`→ ${expiredCount} alumno(s) marcados como vencidos`);
+
+  // vencido → activo: renovaron pero el status quedó stale
+  const { data: renewedRows } = await supabase
+    .from("alumnos")
+    .update({ status: "activo" })
+    .eq("status", "vencido")
+    .not("next_expiration_date", "is", null)
+    .gte("next_expiration_date", todayStr)
+    .select("id");
+  const renewedCount = renewedRows?.length ?? 0;
+  if (renewedCount) log.push(`→ ${renewedCount} alumno(s) reactivados por renovación`);
+  // ───────────────────────────────────────────────────────────────────────────
 
   // Gyms con recordatorio de vencimiento activo
   const { data: gyms } = await supabase
