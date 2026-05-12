@@ -8,8 +8,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const DEFAULT_MSG_1 = `¡Hola {nombre}! 👋 ¿Pudiste ver la info que te mandamos? Si tenés alguna duda sobre la clase de prueba en *{gym}*, estamos acá para ayudarte 😊`;
-const DEFAULT_MSG_3 = `Hola {nombre}, último mensajito 🙌 Si en algún momento querés conocer *{gym}*, la puerta está abierta. ¡Éxitos!`;
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
+
+const DEFAULT_MSG_1 = `¡Hola {nombre}! 👋 ¿Pudiste ver la info que te mandamos? Agendá tu clase de prueba en *{gym}* acá 👇\n\n{link}`;
+const DEFAULT_MSG_3 = `Hola {nombre}, último mensajito 🙌 Si en algún momento querés conocer *{gym}*, podés reservar tu clase de prueba acá 👇\n\n{link}`;
 
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
@@ -21,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { data: gyms } = await supabase
     .from("gym_settings")
-    .select("gym_id, gym_name, contactos_msg_1, contactos_msg_3")
+    .select("gym_id, gym_name, contactos_msg_1, contactos_msg_3, slug, mp_access_token, payment_info")
     .eq("lead_auto_welcome", true);
 
   if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con Nuevos Contactos activo."] });
@@ -68,9 +70,17 @@ export async function GET(req: NextRequest) {
 
       if (!msgTemplate || nextStep === null) continue;
 
-      const message = msgTemplate
+      const reservarLink = gym.slug ? `${APP_URL}/gym/${gym.slug}/reservar` : null;
+      const paymentSuffix = gym.payment_info
+        ? `\n\n💳 *Precios y planes:*\n${gym.payment_info}`
+        : gym.mp_access_token
+          ? `\n\n💳 Podés pagar online con MercadoPago al reservar.`
+          : "";
+
+      const message = (msgTemplate + paymentSuffix)
         .replace(/\{nombre\}/g, p.full_name)
-        .replace(/\{gym\}/g, gymName);
+        .replace(/\{gym\}/g, gymName)
+        .replace(/\{link\}/g, reservarLink ?? `Escribinos para coordinar`);
 
       const phone = normalizePhone(p.phone);
 

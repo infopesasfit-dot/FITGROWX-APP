@@ -8,18 +8,22 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-function fillTemplate(template: string, nombre: string, gym: string): string {
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
+
+function fillTemplate(template: string, nombre: string, gym: string, link = ""): string {
   return template
     .replace(/\{nombre\}/g, nombre)
     .replace(/\[Nombre\]/g,  nombre)
     .replace(/\{gym\}/g,     gym)
-    .replace(/\[Gym\]/g,     gym);
+    .replace(/\[Gym\]/g,     gym)
+    .replace(/\{link\}/g,    link)
+    .replace(/\[Link\]/g,    link);
 }
 
 const DEFAULT_MSG_0 = `¡Hola {nombre}! 💪 ¿Cómo te fue en la clase de hoy en *{gym}*? ¡Esperamos que la hayas disfrutado! Cualquier pregunta, escribinos.`;
-const DEFAULT_MSG_2 = `¡Hola {nombre}! 👋 Ya pasaron un par de días desde tu clase de prueba en *{gym}*. ¿Qué te pareció? Te contamos nuestros planes para que puedas arrancar cuando quieras 💥`;
-const DEFAULT_MSG_5 = `{nombre}, ¡tu clase de prueba en *{gym}* fue hace 5 días! 🎯 Si estás listo para arrancar de verdad, este es el momento. ¿Arrancamos?`;
-const DEFAULT_MSG_NOSHOW = `Hola {nombre} 👋 Vimos que no pudiste venir a tu clase de prueba en *{gym}*. ¿Querés reagendar para esta semana?`;
+const DEFAULT_MSG_2 = `¡Hola {nombre}! 👋 Ya pasaron un par de días desde tu clase de prueba en *{gym}*. ¿Qué te pareció? Si querés arrancar, te dejamos la info acá 👇\n\n{link}`;
+const DEFAULT_MSG_5 = `{nombre}, ¡tu clase de prueba en *{gym}* fue hace 5 días! 🎯 Este es el momento. Arrancá acá 👇\n\n{link}`;
+const DEFAULT_MSG_NOSHOW = `Hola {nombre} 👋 Vimos que no pudiste venir a tu clase de prueba en *{gym}*. ¿Querés reagendar? Elegí tu día acá 👇\n\n{link}`;
 
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
@@ -31,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   const { data: gyms } = await supabase
     .from("gym_settings")
-    .select("gym_id, gym_name, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow")
+    .select("gym_id, gym_name, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow, slug, mp_access_token, payment_info")
     .eq("clase_gratis_activo", true);
 
   if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con clase gratis activo."] });
@@ -96,7 +100,15 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      const message = fillTemplate(msgTemplate, p.full_name, gymName);
+      const reservarLink = gym.slug ? `${APP_URL}/gym/${gym.slug}/reservar` : "";
+      const paymentSuffix = p.clase_gratis_status === "asistio"
+        ? gym.payment_info
+          ? `\n\n💳 *Precios y planes:*\n${gym.payment_info}`
+          : gym.mp_access_token
+            ? `\n\n💳 Podés pagar online con MercadoPago al inscribirte.`
+            : ""
+        : "";
+      const message = fillTemplate(msgTemplate + paymentSuffix, p.full_name, gymName, reservarLink);
       const phone = normalizePhone(p.phone);
 
       try {
