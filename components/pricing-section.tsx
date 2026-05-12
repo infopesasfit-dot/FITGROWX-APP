@@ -154,8 +154,10 @@ export function PricingSection({ plans }: { plans: FitgrowxPlanDefinition[] }) {
           30 días gratis.{" "}
           <span className="italic font-normal text-[#FF8C3A]">Después elegís</span> según tu gym.
         </p>
-        <p className="mt-5 text-sm sm:text-[15px] font-light text-white/40">
-          Sin tarjeta. El plan lo elegís cuando cargás tus alumnos y ves cuántos son.
+        <p className="mt-5 text-sm sm:text-[15px] font-light text-white/50">
+          Con retener{" "}
+          <span className="font-semibold text-[#FF8C3A]">3 socios</span>
+          {" "}que de otro modo se irían, ya se paga solo.
         </p>
 
         {/* Billing toggle */}
