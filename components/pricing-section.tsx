@@ -134,9 +134,9 @@ export function PricingSection({ plans }: { plans: Plan[] }) {
             >
               <span className="mt-0.5 text-base leading-none">💡</span>
               <p className="text-[12px] font-light leading-relaxed text-white/55">
-                Si retener{" "}
-                <span className="font-semibold text-[#FF8C3A]">8 socios</span>
-                {" "}que de otro modo se van, ya se paga solo.
+                Con retener{" "}
+                <span className="font-semibold text-[#FF8C3A]">3 socios</span>
+                {" "}que de otro modo se irían, ya se paga solo.
               </p>
             </div>
 
