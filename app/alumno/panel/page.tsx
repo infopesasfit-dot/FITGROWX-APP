@@ -91,6 +91,15 @@ export default function AlumnoPanelPage() {
   const [asistFechas,  setAsistFechas]  = useState<string[]>([]);
   const [asistCount,   setAsistCount]   = useState(0);
   const [isCompactScreen, setIsCompactScreen] = useState(false);
+  const [isOffline,      setIsOffline]      = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsOffline(!navigator.onLine);
+    update();
+    window.addEventListener("online",  update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -378,6 +387,12 @@ export default function AlumnoPanelPage() {
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
       `}</style>
+
+      {isOffline && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999, background: "#78350F", color: "#FDE68A", font: `600 0.78rem/1 ${fd}`, textAlign: "center", padding: "10px 16px", letterSpacing: "0.01em" }}>
+          📵 Sin conexión · Mostrando datos guardados
+        </div>
+      )}
 
       {/* Subtle top glow only */}
       {!isCompactScreen && (
