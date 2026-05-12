@@ -158,6 +158,8 @@ function AjustesContent() {
 
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [gymName, setGymName] = useState("Power House Gym");
+  const [ownerPhone, setOwnerPhone] = useState("");
+  const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
   const [slug, setSlug] = useState("");
   const [slugError, setSlugError] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
@@ -299,7 +301,7 @@ function AjustesContent() {
         supabase.auth.getUser(),
         supabase
           .from("profiles")
-          .select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, subscription_expires_at)")
+          .select("gym_id, phone, gyms(trial_expires_at, is_subscription_active, plan_type, subscription_expires_at)")
           .eq("id", userIdVal)
           .maybeSingle(),
         supabase
@@ -317,6 +319,8 @@ function AjustesContent() {
       ]);
 
       setEmail(authData.user?.email ?? "");
+      setOwnerUserId(userIdVal);
+      if ((profile as { phone?: string | null } | null)?.phone) setOwnerPhone((profile as { phone?: string | null }).phone!);
       if (settings?.gym_name) setGymName(settings.gym_name);
       if (settings?.slug) setSlug(settings.slug);
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
@@ -363,6 +367,9 @@ function AjustesContent() {
     setSlugError("");
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
     await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null, payment_info: paymentInfo.trim() || null }, { onConflict: "gym_id" });
+    if (ownerUserId && ownerPhone.trim()) {
+      await supabase.from("profiles").update({ phone: ownerPhone.trim() }).eq("id", ownerUserId);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
   };
@@ -811,6 +818,15 @@ function AjustesContent() {
 
                     <Field label="Email de acceso" hint="El cambio de email se gestiona desde autenticación, por eso hoy lo mostramos como referencia.">
                       <input value={email} readOnly style={mutedInputStyle} />
+                    </Field>
+
+                    <Field label="Tu número de WhatsApp" hint="Con código de país, sin espacios. Ej: 5491165909374. Necesario para recibir alertas de pagos, socios en riesgo y transferencias pendientes.">
+                      <input
+                        value={ownerPhone}
+                        onChange={(e) => setOwnerPhone(e.target.value.replace(/[^\d+]/g, ""))}
+                        placeholder="5491165909374"
+                        style={inputStyle}
+                      />
                     </Field>
 
                     <Field label="Link de tu landing" hint="Solo letras, números y guiones. Este link se incluye automáticamente en los mensajes de WhatsApp de seguimiento.">

@@ -223,6 +223,7 @@ export default function DashboardPage() {
   const [alerts,            setAlerts]            = useState<DashboardAlerts>({ inactiveCount: 0, inactiveNames: [], upcomingExpirations: [] });
   const [activeInfo,        setActiveInfo]        = useState<{ title: string; body: string } | null>(null);
   const [setup, setSetup] = useState<{ alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null>(null);
+  const [ownerPhoneMissing, setOwnerPhoneMissing] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const realSnapshotRef = useRef<DashboardSnapshot | null>(null);
@@ -316,11 +317,13 @@ export default function DashboardPage() {
     async function loadSetup() {
       const profile = await getCachedProfile();
       if (!profile) return;
-      const [settingsRes, alumnosRes, planesRes] = await Promise.all([
+      const [settingsRes, alumnosRes, planesRes, profileRes] = await Promise.all([
         supabase.from("gym_settings").select("whatsapp_connected, slug, mp_access_token, payment_info, onboarding_completed").eq("gym_id", profile.gymId).maybeSingle(),
         supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
         supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
+        supabase.from("profiles").select("phone").eq("id", profile.userId).maybeSingle(),
       ]);
+      setOwnerPhoneMissing(!profileRes.data?.phone);
       const s = settingsRes.data;
       const computed = {
         alumnos:  (alumnosRes.count ?? 0) > 0,
@@ -947,6 +950,27 @@ export default function DashboardPage() {
           </div>
         );
       })()}
+
+      {ownerPhoneMissing && (
+        <a
+          href="/dashboard/ajustes"
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "12px 16px", borderRadius: 14, textDecoration: "none",
+            background: "rgba(234,179,8,0.07)", border: "1px solid rgba(234,179,8,0.25)",
+          }}
+        >
+          <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ font: `600 0.82rem/1.3 ${fd}`, color: "#92400E", margin: 0 }}>
+              Falta tu número de WhatsApp
+            </p>
+            <p style={{ font: `400 0.74rem/1.4 ${fb}`, color: "#B45309", margin: 0 }}>
+              Sin él, las alertas de pagos, socios en riesgo y transferencias pendientes no te llegan. Agregalo en Ajustes →
+            </p>
+          </div>
+        </a>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20 }}>
         <div className="dashboard-grain" style={{ borderRadius: 30, background: orangeGlow, padding: "22px 22px 20px", position: "relative", overflow: "hidden", boxShadow: "0 22px 54px rgba(255,122,24,0.24)" }}>
