@@ -255,17 +255,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (gym) {
         const subscribed = Boolean(gym.is_subscription_active);
         setIsSubscribed(subscribed);
-        if (!subscribed && gym.trial_expires_at) {
-          const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
-          const left = Math.max(0, Math.ceil(diff / 86_400_000));
-          const expired = diff <= 0;
-          setTrialDaysLeft(left);
-          setTrialExpired(expired);
-          if (!expired && left <= 6) setShowTrialBanner(true);
-          if (!expired && left <= 3) {
-            const dismissKey = `fitgrowx_trial_modal_d${left}`;
-            const dismissed = localStorage.getItem(dismissKey);
-            if (dismissed !== new Date().toDateString()) setShowTrialModal(true);
+        if (!subscribed) {
+          if (gym.trial_expires_at) {
+            const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
+            const left = Math.max(0, Math.ceil(diff / 86_400_000));
+            const expired = diff <= 0;
+            setTrialDaysLeft(left);
+            setTrialExpired(expired);
+            if (!expired && left <= 6) setShowTrialBanner(true);
+            if (!expired && left <= 3) {
+              const dismissKey = `fitgrowx_trial_modal_d${left}`;
+              const dismissed = localStorage.getItem(dismissKey);
+              if (dismissed !== new Date().toDateString()) setShowTrialModal(true);
+            }
+          } else {
+            // Sin trial activo y sin suscripción → suscripción cancelada / pago fallido
+            setTrialExpired(true);
           }
         }
       }
@@ -1018,13 +1023,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
 
             <p style={{ font: `700 0.68rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.10em", marginBottom: 10 }}>
-              Período de prueba finalizado
+              {trialDaysLeft === null ? "Suscripción inactiva" : "Período de prueba finalizado"}
             </p>
             <h1 style={{ font: `800 2rem/1.1 ${fd}`, color: "#0F172A", letterSpacing: "-0.04em", marginBottom: 12 }}>
               Tu acceso está pausado
             </h1>
             <p style={{ font: `400 0.9rem/1.6 ${fd}`, color: "#64748B", marginBottom: 32, maxWidth: 360, margin: "0 auto 32px" }}>
-              Tu período de prueba gratuita terminó. Activá tu plan para retomar el control de tu gimnasio sin perder ningún dato.
+              {trialDaysLeft === null
+                ? "Tu suscripción fue cancelada o hubo un problema con el pago. Reactivá tu plan para recuperar el acceso completo."
+                : "Tu período de prueba gratuita terminó. Activá tu plan para retomar el control de tu gimnasio sin perder ningún dato."}
             </p>
 
             {/* Reassurance */}
