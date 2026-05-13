@@ -1760,72 +1760,47 @@ export default function PlatformPage() {
                 Cada mensaje se dispara automáticamente. Activá o desactivá por separado y editá el texto cuando quieras — se guarda solo.
               </p>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {(["bienvenida", "activacion_d3", "trial_vence", "trial_expirado", "primer_pago", "inactivo_7d", "reactivacion"] as const).map(key => {
-                const meta: Record<string, { label: string; when: string; color: string; bg: string }> = {
-                  bienvenida:     { label: "Bienvenida",             when: "Cuando se registra un gym nuevo",                   color: "#16A34A", bg: "rgba(22,163,74,0.07)"    },
-                  activacion_d3:  { label: "Día 3 sin alumnos",      when: "3 días después del registro si no cargó alumnos",   color: "#0EA5E9", bg: "rgba(14,165,233,0.07)"   },
-                  trial_vence:    { label: "Trial por vencer",       when: "2 días antes de que venza el trial",                color: "#D97706", bg: "rgba(217,119,6,0.07)"    },
-                  trial_expirado: { label: "Trial vencido",          when: "El día que vence el trial sin convertir",           color: "#DC2626", bg: "rgba(220,38,38,0.07)"    },
-                  primer_pago:    { label: "Primer pago 🎉",         when: "Cuando el gym recibe su primer pago",               color: "#7C3AED", bg: "rgba(124,58,237,0.07)"   },
-                  inactivo_7d:    { label: "Sin actividad 7 días",   when: "7 días sin actividad en el sistema",                color: "#6366F1", bg: "rgba(99,102,241,0.07)"   },
-                  reactivacion:   { label: "Reactivación manual",    when: "Disparo manual desde el CRM",                      color: "#6B7280", bg: "rgba(107,114,128,0.07)"  },
+            <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid rgba(15,23,42,0.08)", borderRadius: 14, overflow: "hidden" }}>
+              {(["bienvenida", "activacion_d3", "trial_vence", "trial_expirado", "primer_pago", "inactivo_7d", "reactivacion"] as const).map((key, idx, arr) => {
+                const labels: Record<string, string> = {
+                  bienvenida:     "Bienvenida",
+                  activacion_d3:  "Día 3 sin alumnos",
+                  trial_vence:    "Trial por vencer",
+                  trial_expirado: "Trial vencido",
+                  primer_pago:    "Primer pago 🎉",
+                  inactivo_7d:    "Sin actividad 7 días",
+                  reactivacion:   "Reactivación manual",
                 };
-                const m = meta[key];
                 const enabled = platAutoEnabled[key] !== false;
                 const saving  = tplSaving[key];
                 return (
-                  <div key={key} style={{ borderRadius: 16, border: `1px solid ${enabled ? "rgba(15,23,42,0.08)" : "rgba(15,23,42,0.04)"}`, overflow: "hidden", opacity: enabled ? 1 : 0.55, transition: "opacity 0.2s" }}>
-                    {/* Header row */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: enabled ? m.bg : "rgba(0,0,0,0.02)" }}>
-                      {/* Toggle */}
+                  <div key={key} style={{ borderBottom: idx < arr.length - 1 ? "1px solid rgba(15,23,42,0.06)" : "none", opacity: enabled ? 1 : 0.5, transition: "opacity 0.2s" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: "white" }}>
                       <button
                         type="button"
                         onClick={() => handleTplToggle(key, !enabled)}
-                        style={{
-                          flexShrink: 0,
-                          width: 40, height: 22, borderRadius: 11,
-                          background: enabled ? m.color : "#D1D5DB",
-                          border: "none", cursor: "pointer", position: "relative",
-                          transition: "background 0.2s",
-                        }}
+                        style={{ flexShrink: 0, width: 38, height: 21, borderRadius: 11, background: enabled ? "#111827" : "#D1D5DB", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}
                       >
-                        <span style={{
-                          position: "absolute", top: 3,
-                          left: enabled ? 21 : 3,
-                          width: 16, height: 16, borderRadius: "50%",
-                          background: "white",
-                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                          transition: "left 0.2s",
-                          display: "block",
-                        }} />
+                        <span style={{ position: "absolute", top: 2.5, left: enabled ? 19 : 2.5, width: 16, height: 16, borderRadius: "50%", background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s", display: "block" }} />
                       </button>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, font: `600 0.85rem/1 ${fd}`, color: enabled ? "#111827" : "#9CA3AF" }}>{m.label}</p>
-                        <p style={{ margin: "3px 0 0", font: `400 0.72rem/1 ${fb}`, color: "#94A3B8" }}>{m.when}</p>
-                      </div>
-                      {saving && <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#94A3B8", flexShrink: 0 }}>guardando…</span>}
-                      {enabled && !saving && <span style={{ padding: "2px 8px", borderRadius: 4, background: m.color + "20", font: `600 0.65rem/1 ${fd}`, color: m.color, flexShrink: 0 }}>AUTO</span>}
+                      <p style={{ margin: 0, font: `600 0.85rem/1 ${fd}`, color: enabled ? "#111827" : "#9CA3AF", flex: 1 }}>{labels[key]}</p>
+                      {saving && <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#94A3B8" }}>guardando…</span>}
                       <button
                         type="button"
                         onClick={() => handleTplTest(key, platMsgTemplate[key])}
                         disabled={tplTesting[key] === "sending"}
-                        style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(15,23,42,0.10)", background: tplTesting[key] === "ok" ? "rgba(22,163,74,0.08)" : tplTesting[key] === "error" ? "rgba(220,38,38,0.08)" : "rgba(15,23,42,0.04)", font: `500 0.68rem/1 ${fd}`, color: tplTesting[key] === "ok" ? "#16A34A" : tplTesting[key] === "error" ? "#DC2626" : "#6B7280", cursor: "pointer", flexShrink: 0 }}
+                        style={{ padding: "4px 12px", borderRadius: 7, border: "1px solid rgba(15,23,42,0.10)", background: "white", font: `500 0.72rem/1 ${fd}`, color: tplTesting[key] === "ok" ? "#16A34A" : tplTesting[key] === "error" ? "#DC2626" : "#6B7280", cursor: "pointer", flexShrink: 0 }}
                       >
                         {tplTesting[key] === "sending" ? "Enviando…" : tplTesting[key] === "ok" ? "✓ Enviado" : tplTesting[key] === "error" ? "Error" : "Probar"}
                       </button>
                     </div>
-                    {/* Editable body */}
-                    <div style={{ padding: "12px 16px", background: "#FAFAFA", borderTop: "1px solid rgba(15,23,42,0.05)" }}>
+                    <div style={{ padding: "0 16px 13px 66px", background: "white" }}>
                       <textarea
                         rows={3}
                         value={platMsgTemplate[key]}
                         onChange={e => handleTplChange(key, e.target.value)}
-                        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(15,23,42,0.08)", background: "white", font: `400 0.85rem/1.6 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1px solid rgba(15,23,42,0.08)", background: "#F9FAFB", font: `400 0.83rem/1.6 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
                       />
-                      <p style={{ margin: "6px 0 0", font: `400 0.68rem/1 ${fb}`, color: "#CBD5E1" }}>
-                        Variables disponibles: {"{nombre}"} · {"{dias}"}
-                      </p>
                     </div>
                   </div>
                 );
