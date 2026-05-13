@@ -262,6 +262,7 @@ export default function PlatformPage() {
   const [platMsgTemplate, setPlatMsgTemplate] = useState(DEFAULT_TEMPLATES);
   const [platAutoEnabled, setPlatAutoEnabled] = useState<Record<string, boolean>>({});
   const [tplSaving, setTplSaving] = useState<Record<string, boolean>>({});
+  const [tplTesting, setTplTesting] = useState<Record<string, "idle" | "sending" | "ok" | "error">>({});
   const tplSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const platWaProxy = async (action: string, extra?: Record<string, string>) => {
@@ -496,6 +497,21 @@ export default function PlatformPage() {
       } catch { /* non-fatal */ }
       setTplSaving(prev => ({ ...prev, [key]: false }));
     }, 1500);
+  };
+
+  const handleTplTest = async (key: string, body: string) => {
+    const ownerPhone = process.env.NEXT_PUBLIC_OWNER_PHONE ?? "";
+    const phone = prompt("Número para el test (ej: 5491165909374):", ownerPhone || "");
+    if (!phone?.trim()) return;
+    setTplTesting(prev => ({ ...prev, [key]: "sending" }));
+    const r = await fetch("/api/platform/wa-templates/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, phone: phone.trim(), body }),
+    });
+    const state = r.ok ? "ok" : "error";
+    setTplTesting(prev => ({ ...prev, [key]: state }));
+    setTimeout(() => setTplTesting(prev => ({ ...prev, [key]: "idle" })), 3000);
   };
 
   const handleTplToggle = async (key: string, enabled: boolean) => {
@@ -1790,6 +1806,14 @@ export default function PlatformPage() {
                       </div>
                       {saving && <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#94A3B8", flexShrink: 0 }}>guardando…</span>}
                       {enabled && !saving && <span style={{ padding: "2px 8px", borderRadius: 4, background: m.color + "20", font: `600 0.65rem/1 ${fd}`, color: m.color, flexShrink: 0 }}>AUTO</span>}
+                      <button
+                        type="button"
+                        onClick={() => handleTplTest(key, platMsgTemplate[key])}
+                        disabled={tplTesting[key] === "sending"}
+                        style={{ padding: "3px 10px", borderRadius: 6, border: "1px solid rgba(15,23,42,0.10)", background: tplTesting[key] === "ok" ? "rgba(22,163,74,0.08)" : tplTesting[key] === "error" ? "rgba(220,38,38,0.08)" : "rgba(15,23,42,0.04)", font: `500 0.68rem/1 ${fd}`, color: tplTesting[key] === "ok" ? "#16A34A" : tplTesting[key] === "error" ? "#DC2626" : "#6B7280", cursor: "pointer", flexShrink: 0 }}
+                      >
+                        {tplTesting[key] === "sending" ? "Enviando…" : tplTesting[key] === "ok" ? "✓ Enviado" : tplTesting[key] === "error" ? "Error" : "Probar"}
+                      </button>
                     </div>
                     {/* Editable body */}
                     <div style={{ padding: "12px 16px", background: "#FAFAFA", borderTop: "1px solid rgba(15,23,42,0.05)" }}>

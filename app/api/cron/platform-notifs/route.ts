@@ -68,9 +68,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Cargar todas las plantillas de una sola query
-  const { data: templates } = await sb.from("platform_wa_templates").select("key, body");
+  const { data: templates } = await sb.from("platform_wa_templates").select("key, body, enabled");
   const tpl: Record<string, string> = {};
-  for (const t of templates ?? []) tpl[t.key] = t.body;
+  const tplEnabled: Record<string, boolean> = {};
+  for (const t of templates ?? []) {
+    tpl[t.key] = t.body;
+    tplEnabled[t.key] = t.enabled ?? true;
+  }
 
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
@@ -79,7 +83,7 @@ export async function GET(req: NextRequest) {
   const venceCutoffFrom = new Date(now.getTime() + 2 * 86_400_000).toISOString().slice(0, 10);
   const venceCutoffTo   = new Date(now.getTime() + 4 * 86_400_000).toISOString().slice(0, 10);
 
-  const { data: trialsVence } = await sb
+  const { data: trialsVence } = tplEnabled["trial_vence"] === false ? { data: [] } : await sb
     .from("platform_accounts")
     .select("id, company_name, owner_name, phone, trial_ends_at")
     .in("status", ["trial_active", "trial_risk"])
@@ -88,6 +92,7 @@ export async function GET(req: NextRequest) {
     .is("wa_trial_vence_sent_at", null)
     .not("phone", "is", null);
 
+  if (tplEnabled["trial_vence"] === false) log.push("— Trial vence: desactivado");
   for (const acc of trialsVence ?? []) {
     const phone = normalizePhone(acc.phone);
     if (!phone) { log.push(`Trial vence — sin tel: ${acc.company_name}`); continue; }
@@ -104,7 +109,7 @@ export async function GET(req: NextRequest) {
   // ── 2. Trial vencido HOY sin convertir (ventana 0-36h del vencimiento) ──
   const expiredFrom = new Date(now.getTime() - 36 * 60 * 60 * 1000).toISOString();
 
-  const { data: trialsExpirados } = await sb
+  const { data: trialsExpirados } = tplEnabled["trial_expirado"] === false ? { data: [] } : await sb
     .from("platform_accounts")
     .select("id, company_name, owner_name, phone, trial_ends_at")
     .in("status", ["trial_active", "trial_risk"])   // el trial-check cron cambia status, puede llegar antes o después
@@ -113,6 +118,7 @@ export async function GET(req: NextRequest) {
     .is("wa_trial_expirado_sent_at", null)
     .not("phone", "is", null);
 
+  if (tplEnabled["trial_expirado"] === false) log.push("— Trial expirado: desactivado");
   for (const acc of trialsExpirados ?? []) {
     const phone = normalizePhone(acc.phone);
     if (!phone) { log.push(`Trial expirado — sin tel: ${acc.company_name}`); continue; }
@@ -129,7 +135,7 @@ export async function GET(req: NextRequest) {
   const inactivoCutoff   = new Date(now.getTime() - 7  * 86_400_000).toISOString();
   const reinactivoCutoff = new Date(now.getTime() - 30 * 86_400_000).toISOString();
 
-  const { data: inactivos } = await sb
+  const { data: inactivos } = tplEnabled["inactivo_7d"] === false ? { data: [] } : await sb
     .from("platform_accounts")
     .select("id, company_name, owner_name, phone")
     .in("status", ["trial_active", "trial_risk", "converted"])
@@ -137,6 +143,7 @@ export async function GET(req: NextRequest) {
     .not("phone", "is", null)
     .or(`wa_inactivo_notif_sent_at.is.null,wa_inactivo_notif_sent_at.lt.${reinactivoCutoff}`);
 
+  if (tplEnabled["inactivo_7d"] === false) log.push("— Inactivo 7d: desactivado");
   for (const acc of inactivos ?? []) {
     const phone = normalizePhone(acc.phone);
     if (!phone) { log.push(`Inactivo — sin tel: ${acc.company_name}`); continue; }
@@ -154,7 +161,7 @@ export async function GET(req: NextRequest) {
   const d3From = new Date(now.getTime() - 5 * 86_400_000).toISOString();
   const d3To   = new Date(now.getTime() - 3 * 86_400_000).toISOString();
 
-  const { data: d3Candidates } = await sb
+  const { data: d3Candidates } = tplEnabled["activacion_d3"] === false ? { data: [] } : await sb
     .from("platform_accounts")
     .select("id, company_name, owner_name, phone, auth_user_id")
     .in("status", ["trial_active", "trial_risk", "trial_setup"])
@@ -163,6 +170,7 @@ export async function GET(req: NextRequest) {
     .is("wa_activacion_d3_sent_at", null)
     .not("phone", "is", null);
 
+  if (tplEnabled["activacion_d3"] === false) log.push("— Día 3 sin alumnos: desactivado");
   for (const acc of d3Candidates ?? []) {
     if (!acc.auth_user_id) continue;
 
@@ -203,13 +211,14 @@ export async function GET(req: NextRequest) {
   // ── 5. Primer pago registrado en el gym ──────────────────────────────────
   const since48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
 
-  const { data: primerPagoCandidates } = await sb
+  const { data: primerPagoCandidates } = tplEnabled["primer_pago"] === false ? { data: [] } : await sb
     .from("platform_accounts")
     .select("id, company_name, owner_name, phone, auth_user_id")
     .in("status", ["trial_active", "trial_risk", "converted"])
     .is("wa_primer_pago_sent_at", null)
     .not("phone", "is", null);
 
+  if (tplEnabled["primer_pago"] === false) log.push("— Primer pago: desactivado");
   for (const acc of primerPagoCandidates ?? []) {
     if (!acc.auth_user_id) continue;
 
