@@ -14,6 +14,10 @@ function valueOrNull(value: string) {
   return trimmed ? trimmed : null;
 }
 
+function generateRefCode(): string {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
 function getDaysUntil(value: string) {
   const diff = new Date(value).getTime() - Date.now();
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
@@ -31,7 +35,12 @@ export async function POST(req: NextRequest) {
     const {
       fullName,
       whatsApp,
-    }: { fullName?: string; whatsApp?: string } = await req.json();
+      refCode,
+      resellerSlug: resellerSlugBody,
+    }: { fullName?: string; whatsApp?: string; refCode?: string; resellerSlug?: string } = await req.json();
+
+    // Cookie is the authoritative source (30-day httpOnly), body is fallback
+    const resellerSlug = req.cookies.get("fitgrowx_ref")?.value || resellerSlugBody;
 
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData.user) {
@@ -66,7 +75,7 @@ export async function POST(req: NextRequest) {
           .maybeSingle(),
         supabase
           .from("platform_accounts")
-          .select("id, status, trial_starts_at, trial_ends_at, converted_at, onboarding_stage")
+          .select("id, status, trial_starts_at, trial_ends_at, converted_at, onboarding_stage, ref_code")
           .eq("auth_user_id", user.id)
           .maybeSingle(),
       ]);
@@ -110,6 +119,18 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const defaultTrialEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
+    // Resolve reseller_id from slug if provided and gym doesn't have one yet
+    let resellerId: string | null = null;
+    if (resellerSlug && !existingGym) {
+      const { data: reseller } = await supabase
+        .from("resellers")
+        .select("id")
+        .eq("slug", resellerSlug)
+        .eq("status", "active")
+        .maybeSingle();
+      resellerId = reseller?.id ?? null;
+    }
+
     const { error: gymUpsertError } = await supabase.from("gyms").upsert(
       {
         id: user.id,
@@ -124,6 +145,7 @@ export async function POST(req: NextRequest) {
         gym_status: existingGym?.gym_status ?? "trial",
         plan_type: existingGym?.plan_type ?? null,
         is_subscription_active: existingGym?.is_subscription_active ?? false,
+        ...(resellerId ? { reseller_id: resellerId } : {}),
       },
       { onConflict: "id" },
     );
@@ -235,12 +257,36 @@ export async function POST(req: NextRequest) {
           converted_at: existingAccount?.converted_at ?? null,
           activation_score: activationScore,
           last_seen_at: now.toISOString(),
+          // Genera ref_code solo en el primer registro; no sobreescribir uno existente
+          ...(existingAccount?.ref_code ? {} : { ref_code: generateRefCode() }),
         },
         { onConflict: "auth_user_id" },
       );
 
     if (accountError) {
       return NextResponse.json({ error: accountError.message }, { status: 500 });
+    }
+
+    // Registrar referido: si vino con ?ref=, buscar el referente y crear la fila
+    if (!existingAccount && refCode?.trim()) {
+      (async () => {
+        try {
+          const { data: referrer } = await supabase
+            .from("platform_accounts")
+            .select("gym_id")
+            .eq("ref_code", refCode.trim().toUpperCase())
+            .maybeSingle();
+          if (referrer?.gym_id) {
+            await supabase.from("referrals").insert({
+              referrer_gym_id: referrer.gym_id,
+              referred_gym_id: user.id,
+              referred_email:  normalizedEmail,
+              code:            refCode.trim().toUpperCase(),
+              status:          "registered",
+            });
+          }
+        } catch { /* non-fatal */ }
+      })();
     }
 
     // Notificar al dueño de la plataforma sobre nuevo gym registrado (solo en primer registro)
@@ -261,6 +307,46 @@ export async function POST(req: NextRequest) {
             signal: AbortSignal.timeout(5000),
           });
         } catch { /* non-fatal */ }
+      }
+
+      // Mensaje de bienvenida WA desde el número de soporte (fire-and-forget)
+      const motorUrl = process.env.WA_MOTOR_URL;
+      if (motorUrl && normalizedPhone) {
+        (async () => {
+          try {
+            // Cargar plantilla editable
+            const { data: tplRow } = await supabase
+              .from("platform_wa_templates")
+              .select("body")
+              .eq("key", "bienvenida")
+              .maybeSingle();
+
+            const nombre = normalizedName?.split(" ")[0] ?? companyName.split(" ")[0];
+            const body = (tplRow?.body ?? "¡Hola {nombre}! 🎉 Bienvenido a FitGrowX. Cualquier duda, respondé este mensaje.")
+              .replace(/\{nombre\}/gi, nombre);
+
+            const digits = normalizedPhone.replace(/\D/g, "");
+            const phone = digits.startsWith("549") ? digits : digits.startsWith("54") ? "549" + digits.slice(2) : "549" + digits;
+
+            const res = await fetch(`${motorUrl}/send/fitgrowx-platform`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
+              },
+              body: JSON.stringify({ phone, message: body }),
+              signal: AbortSignal.timeout(10_000),
+            });
+
+            // Marcar como enviado para no repetir
+            if (res.ok) {
+              await supabase
+                .from("platform_accounts")
+                .update({ wa_bienvenida_sent_at: new Date().toISOString() })
+                .eq("auth_user_id", user.id);
+            }
+          } catch { /* non-fatal */ }
+        })();
       }
     }
 

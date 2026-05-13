@@ -11,9 +11,9 @@ export interface FitgrowxPlanDefinition {
   studentLimitCount: number | null;
   ctaLabel: string;
   priceMonthly: number;
-  priceAnnual: number;
-  annualTotal: number;
-  savings: number;
+  priceAnnual: number;   // display price per month on annual plan (same as monthly for 10+2)
+  annualTotal: number;   // total one-time charge = priceMonthly × 10
+  savings: number;       // 2 free months = priceMonthly × 2
   features: string[];
 }
 
@@ -29,9 +29,9 @@ export const FITGROWX_PLANS: FitgrowxPlanDefinition[] = [
     studentLimitCount: 60,
     ctaLabel: "Empezar gratis",
     priceMonthly: 35000,
-    priceAnnual: 28000,
-    annualTotal: 336000,
-    savings: 84000,
+    priceAnnual: 35000,
+    annualTotal: 350000,
+    savings: 70000,
     features: [
       "Avisos automáticos por WhatsApp cuando vence una cuota",
       "Cobrás y tomás asistencia desde el mismo lugar",
@@ -51,9 +51,9 @@ export const FITGROWX_PLANS: FitgrowxPlanDefinition[] = [
     studentLimitCount: null,
     ctaLabel: "Empezar gratis",
     priceMonthly: 65000,
-    priceAnnual: 52000,
-    annualTotal: 624000,
-    savings: 156000,
+    priceAnnual: 65000,
+    annualTotal: 650000,
+    savings: 130000,
     features: [
       "Avisos automáticos por WhatsApp cuando vence una cuota — sin que te acuerdes",
       "Cada lead de Instagram llega solo a tu lista, sin copiar ni pegar",

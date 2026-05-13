@@ -16,14 +16,11 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // Implicit flow: Supabase procesa el hash automáticamente y dispara PASSWORD_RECOVERY
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true);
-    });
-
-    // Por si el evento ya disparó antes de registrar el listener
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
+    // Handles both implicit (PASSWORD_RECOVERY) and PKCE (SIGNED_IN) flows
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        setReady(true);
+      }
     });
 
     return () => subscription.unsubscribe();

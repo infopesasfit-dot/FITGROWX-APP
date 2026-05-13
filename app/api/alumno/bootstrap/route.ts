@@ -58,9 +58,13 @@ export async function GET(req: NextRequest) {
       .gte("fecha", monthStart)
       .lte("fecha", todayStr)
       .order("fecha", { ascending: true }),
+    supabase
+      .from("asistencias")
+      .select("*", { count: "exact", head: true })
+      .eq("alumno_id", alumno_id),
   ]);
 
-  const [clasesRes, reservasRes, countsRes, settingsRes, gymRes, asistRes] = baseQueries;
+  const [clasesRes, reservasRes, countsRes, settingsRes, gymRes, asistRes, asistTotalRes] = baseQueries;
 
   const counts_map: Record<string, number> = {};
   countsRes.data?.forEach((r: { clase_id: string; fecha: string }) => {
@@ -87,6 +91,7 @@ export async function GET(req: NextRequest) {
       asistencias: {
         fechas,
         count: fechas.length,
+        total: asistTotalRes.count ?? fechas.length,
       },
     });
   }
@@ -111,6 +116,7 @@ export async function GET(req: NextRequest) {
     asistencias: {
       fechas,
       count: fechas.length,
+      total: asistTotalRes.count ?? fechas.length,
     },
     rutina: rutinaRes.data ?? null,
     pesos: pesosRes.data ?? [],

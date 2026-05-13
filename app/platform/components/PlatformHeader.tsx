@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { Activity, LogOut, Shield } from "lucide-react";
+import { Activity, Heart, LogOut, Shield, Users } from "lucide-react";
 
 export default function PlatformHeader() {
   const router = useRouter();
@@ -42,6 +42,34 @@ export default function PlatformHeader() {
             interno
           </span>
         </div>
+        <Link
+          href="/platform/pulso"
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            font: "600 0.75rem/1 'Inter', sans-serif",
+            color: pathname === "/platform/pulso" ? "#6366f1" : "#6b7280",
+            textDecoration: "none",
+            padding: "4px 8px", borderRadius: 6,
+            background: pathname === "/platform/pulso" ? "rgba(99,102,241,0.08)" : "transparent",
+          }}
+        >
+          <Heart size={13} />
+          Pulso
+        </Link>
+        <Link
+          href="/platform/resellers"
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            font: "600 0.75rem/1 'Inter', sans-serif",
+            color: pathname === "/platform/resellers" ? "#6366f1" : "#6b7280",
+            textDecoration: "none",
+            padding: "4px 8px", borderRadius: 6,
+            background: pathname === "/platform/resellers" ? "rgba(99,102,241,0.08)" : "transparent",
+          }}
+        >
+          <Users size={13} />
+          Resellers
+        </Link>
         <Link
           href="/platform/radar"
           style={{

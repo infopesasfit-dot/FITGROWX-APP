@@ -11,6 +11,47 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+async function createResellerCommission(gymId: string, paymentAmount: number, paymentRef: string, paymentType: "monthly" | "annual") {
+  const { data: gym } = await supabaseAdmin
+    .from("gyms")
+    .select("reseller_id")
+    .eq("id", gymId)
+    .maybeSingle();
+  if (!gym?.reseller_id) return;
+
+  const { data: reseller } = await supabaseAdmin
+    .from("resellers")
+    .select("id, commission_pct, status, slug")
+    .eq("id", gym.reseller_id)
+    .maybeSingle();
+  if (!reseller || reseller.status !== "active") return;
+
+  // Idempotency: skip if this payment ref already has a commission
+  const { data: existing } = await supabaseAdmin
+    .from("reseller_commissions")
+    .select("id")
+    .eq("mp_payment_ref", paymentRef)
+    .maybeSingle();
+  if (existing) return;
+
+  const commissionAmount = Math.round(paymentAmount * (reseller.commission_pct / 100));
+  const periodMonth = new Date().toISOString().slice(0, 7);
+
+  await supabaseAdmin.from("reseller_commissions").insert({
+    reseller_id:       reseller.id,
+    gym_id:            gymId,
+    mp_payment_ref:    paymentRef,
+    payment_amount:    paymentAmount,
+    commission_pct:    reseller.commission_pct,
+    commission_amount: commissionAmount,
+    payment_type:      paymentType,
+    period_month:      periodMonth,
+    status:            "pending",
+  });
+
+  console.log(`Reseller commission: gym ${gymId} → reseller ${reseller.id} → $${commissionAmount} (${paymentType})`);
+}
+
 export async function POST(req: NextRequest) {
   if (!MP_WEBHOOK_SECRET) {
     console.error("MP_WEBHOOK_SECRET no configurado");
@@ -32,6 +73,81 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ ok: true });
 
   const { type, data } = body;
+
+  // ── Pago único anual ──────────────────────────────────────────────────────
+  if (type === "payment" && data?.id) {
+    const payRes = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+      headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+    });
+    if (!payRes.ok) return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
+
+    const payment = await payRes.json();
+    const { id: paymentId, status: payStatus, external_reference: payRef } = payment;
+    if (payStatus !== "approved") return NextResponse.json({ ok: true });
+
+    const parts = (payRef ?? "").split("|");
+    const gymId   = parts[0];
+    const planKey = parts[1];
+    const isAnnual = parts[2] === "annual";
+    if (!gymId || !isAnnual) return NextResponse.json({ ok: true });
+
+    // Idempotency: skip if already processed this exact payment
+    const { data: currentGym } = await supabaseAdmin
+      .from("gyms")
+      .select("mp_preapproval_id, subscription_expires_at")
+      .eq("id", gymId)
+      .maybeSingle();
+
+    if (currentGym?.mp_preapproval_id === String(paymentId)) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const annualExpiry = new Date();
+    annualExpiry.setFullYear(annualExpiry.getFullYear() + 1);
+
+    await supabaseAdmin
+      .from("gyms")
+      .update({
+        is_subscription_active: true,
+        subscription_expires_at: annualExpiry.toISOString(),
+        subscription_type: "annual",
+        mp_preapproval_id: String(paymentId),
+        plan_type: planKey ?? "crecimiento",
+        gym_status: "active",
+      })
+      .eq("id", gymId);
+
+    console.log(`MP webhook: gym ${gymId} → annual payment ${paymentId} → activo hasta ${annualExpiry.toISOString().slice(0, 10)}`);
+
+    createResellerCommission(gymId, payment.transaction_amount ?? 0, String(paymentId), "annual").catch(() => {});
+
+    // WA de confirmación al dueño
+    const motorUrl = process.env.WA_MOTOR_URL;
+    if (motorUrl) {
+      const { data: settings } = await supabaseAdmin
+        .from("gym_settings")
+        .select("gym_name, whatsapp")
+        .eq("gym_id", gymId)
+        .maybeSingle();
+      if (settings?.whatsapp) {
+        const msg =
+          `🎉 *¡Tu Plan Anual FitGrowX está activo!*\n\n` +
+          `✅ 12 meses de acceso garantizado\n` +
+          `📅 Válido hasta el ${annualExpiry.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}\n\n` +
+          `Gracias por confiar en FitGrowX. ¡A hacer crecer ${settings.gym_name ?? "tu gym"}! 💪`;
+        fetch(`${motorUrl}/send/${gymId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+          body: JSON.stringify({ phone: settings.whatsapp, message: msg }),
+          signal: AbortSignal.timeout(8000),
+        }).catch(() => {});
+      }
+    }
+
+    return NextResponse.json({ ok: true });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   if (type !== "preapproval" || !data?.id) return NextResponse.json({ ok: true });
 
   // Fetch current preapproval state from MP
@@ -100,6 +216,71 @@ export async function POST(req: NextRequest) {
   }
 
   console.log(`MP webhook: gym ${gymId} → preapproval ${id} → ${status}`);
+
+  if (isActive) {
+    createResellerCommission(gymId, preapproval.auto_recurring?.transaction_amount ?? 0, id, "monthly").catch(() => {});
+  }
+
+  // ── Bonus de referido: aplica solo en el primer pago (alreadyActive era false) ──
+  if (isActive && !alreadyActive) {
+    (async () => {
+      try {
+        const { data: referral } = await supabaseAdmin
+          .from("referrals")
+          .select("id, referrer_gym_id")
+          .eq("referred_gym_id", gymId)
+          .eq("status", "registered")
+          .maybeSingle();
+
+        if (referral?.referrer_gym_id && referral.referrer_gym_id !== gymId) {
+          // Extender suscripción del referente 1 mes
+          const { data: referrerGym } = await supabaseAdmin
+            .from("gyms")
+            .select("subscription_expires_at, is_subscription_active")
+            .eq("id", referral.referrer_gym_id)
+            .maybeSingle();
+
+          const refBase = referrerGym?.subscription_expires_at && new Date(referrerGym.subscription_expires_at) > new Date()
+            ? new Date(referrerGym.subscription_expires_at)
+            : new Date();
+          const refNewExpiry = addOneMonth(refBase).toISOString();
+
+          await supabaseAdmin
+            .from("gyms")
+            .update({ subscription_expires_at: refNewExpiry, is_subscription_active: true })
+            .eq("id", referral.referrer_gym_id);
+
+          await supabaseAdmin
+            .from("referrals")
+            .update({ status: "rewarded", rewarded_at: new Date().toISOString() })
+            .eq("id", referral.id);
+
+          console.log(`MP webhook: referral bonus → gym ${referral.referrer_gym_id} extendido hasta ${refNewExpiry}`);
+
+          // Notificar al referente por WA (fire-and-forget)
+          const motorUrl = process.env.WA_MOTOR_URL;
+          if (motorUrl) {
+            const { data: refSettings } = await supabaseAdmin
+              .from("gym_settings")
+              .select("gym_name, whatsapp")
+              .eq("gym_id", referral.referrer_gym_id)
+              .maybeSingle();
+            if (refSettings?.whatsapp) {
+              const msg = `🎁 *¡Ganaste 1 mes gratis!* Uno de los gyms que recomendaste a FitGrowX acaba de activar su suscripción. Tu acceso se extendió hasta el ${refNewExpiry.slice(0, 10)}. ¡Gracias por recomendar FitGrowX! 🙌`;
+              fetch(`${motorUrl}/send/${referral.referrer_gym_id}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+                body: JSON.stringify({ phone: refSettings.whatsapp, message: msg }),
+                signal: AbortSignal.timeout(8000),
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (err) {
+        console.error("MP webhook: referral bonus error:", err instanceof Error ? err.message : err);
+      }
+    })();
+  }
 
   if (isCancelled) {
     const motorUrl = process.env.WA_MOTOR_URL;

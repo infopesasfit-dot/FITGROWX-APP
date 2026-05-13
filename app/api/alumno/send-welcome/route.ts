@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
+import { logger } from "@/lib/logger";
+
+const ROUTE = "/api/alumno/send-welcome";
 
 function fill(template: string, nombre: string, gym: string, link = "") {
   return template
@@ -22,6 +26,22 @@ const DEFAULT_RENEWAL =
 
 // type: "welcome" → nuevo alumno, "renewal" → renovó cuota
 export async function POST(req: NextRequest) {
+  const requestId = crypto.randomUUID().slice(0, 8);
+
+  const sessionClient = await createSupabaseServerClient();
+  const { data: { user } } = await sessionClient.auth.getUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+
+  const { data: callerProfile } = await supabase
+    .from("profiles")
+    .select("gym_id, role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!callerProfile?.gym_id || !["admin", "staff"].includes(callerProfile.role ?? "")) {
+    return NextResponse.json({ ok: false }, { status: 403 });
+  }
+
   const { alumno_id, type = "welcome" } = await req.json();
   if (!alumno_id) return NextResponse.json({ ok: true });
 
@@ -29,9 +49,13 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, gym_id, full_name, phone")
     .eq("id", alumno_id)
+    .eq("gym_id", callerProfile.gym_id)
     .single();
 
-  if (!alumno?.phone) return NextResponse.json({ ok: true });
+  if (!alumno?.phone) {
+    logger.warn("send-welcome: alumno sin teléfono, mensaje omitido", { route: ROUTE, meta: { requestId, alumno_id, type } });
+    return NextResponse.json({ ok: true });
+  }
 
   // Crear token de 30 días
   const token = crypto.randomUUID();
@@ -51,8 +75,14 @@ export async function POST(req: NextRequest) {
     supabase.from("gyms").select("name").eq("id", alumno.gym_id).maybeSingle(),
   ]);
 
-  if (type === "welcome"  && settings?.bienvenida_activo === false) return NextResponse.json({ ok: true });
-  if (type === "renewal"  && settings?.renewal_activo    === false) return NextResponse.json({ ok: true });
+  if (type === "welcome" && settings?.bienvenida_activo === false) {
+    logger.warn("send-welcome: bienvenida desactivada en gym_settings", { route: ROUTE, meta: { requestId, alumno_id, gymId: alumno.gym_id } });
+    return NextResponse.json({ ok: true });
+  }
+  if (type === "renewal" && settings?.renewal_activo === false) {
+    logger.warn("send-welcome: renewal desactivado en gym_settings", { route: ROUTE, meta: { requestId, alumno_id, gymId: alumno.gym_id } });
+    return NextResponse.json({ ok: true });
+  }
 
   const gymName = settings?.gym_name || gym?.name || "tu gimnasio";
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? (() => {
@@ -63,35 +93,47 @@ export async function POST(req: NextRequest) {
   const link = `${baseUrl}/alumno/auth?token=${token}`;
 
   const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) return NextResponse.json({ ok: true });
+  if (!motorUrl) {
+    logger.warn("send-welcome: WA_MOTOR_URL no configurado", { route: ROUTE, meta: { requestId, alumno_id, gymId: alumno.gym_id, type } });
+    return NextResponse.json({ ok: true });
+  }
 
   const phone = normalizePhone(alumno.phone);
+  const logMeta = { requestId, alumno_id: alumno.id, gymId: alumno.gym_id, phone: phone.slice(-4), type };
 
-  async function sendWA(message: string) {
+  async function sendWA(message: string, step: string) {
     try {
-      await fetch(`${motorUrl}/send/${alumno!.gym_id}`, {
+      const res = await fetch(`${motorUrl}/send/${alumno!.gym_id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
         body: JSON.stringify({ phone, message }),
         signal: AbortSignal.timeout(8000),
       });
-    } catch { /* no fatal */ }
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        logger.error(`send-welcome: motor respondió ${res.status} en paso ${step}`, { route: ROUTE, meta: { ...logMeta, motorStatus: res.status, motorBody: body.slice(0, 200) } });
+      } else {
+        logger.info(`send-welcome: mensaje enviado (${step})`, { route: ROUTE, meta: logMeta });
+      }
+    } catch (err) {
+      logger.error(`send-welcome: fetch al motor falló en paso ${step}`, { route: ROUTE, meta: { ...logMeta, error: String(err) } });
+    }
   }
 
   if (type === "renewal") {
     const msg = fill(settings?.renewal_msg?.trim() || DEFAULT_RENEWAL, alumno.full_name, gymName, link);
-    await sendWA(msg);
+    await sendWA(msg, "renewal");
     return NextResponse.json({ ok: true });
   }
 
   // welcome: msg 1 (link) → 3s → msg 2 (app explanation)
   const msg1 = fill(settings?.magiclink_msg?.trim() || DEFAULT_WELCOME, alumno.full_name, gymName, link);
-  await sendWA(msg1);
+  await sendWA(msg1, "welcome-link");
 
   if (settings?.bienvenida_app_msg !== "") {
     await new Promise(r => setTimeout(r, 3000));
     const msg2 = fill(settings?.bienvenida_app_msg?.trim() || DEFAULT_APP_MSG, alumno.full_name, gymName);
-    await sendWA(msg2);
+    await sendWA(msg2, "welcome-app");
   }
 
   return NextResponse.json({ ok: true });

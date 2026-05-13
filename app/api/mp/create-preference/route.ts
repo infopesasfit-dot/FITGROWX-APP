@@ -1,14 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
-  const { plan_key, plan_label, price_ars } = await req.json();
-
   if (!MP_ACCESS_TOKEN || MP_ACCESS_TOKEN === "TU_ACCESS_TOKEN_MP_AQUI") {
     return NextResponse.json({ error: "MP_ACCESS_TOKEN no configurado" }, { status: 500 });
   }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const admin = getSupabaseAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("gym_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const gymId = profile?.gym_id;
+  if (!gymId) return NextResponse.json({ error: "Gym no encontrado" }, { status: 404 });
+
+  const { plan_key, plan_label, price_ars } = await req.json();
 
   const body = {
     items: [
@@ -18,7 +34,7 @@ export async function POST(req: NextRequest) {
         quantity: 1,
         currency_id: "ARS",
         unit_price: Math.round(price_ars),
-        description: "Pago anual FitGrowX con 20% OFF aplicado",
+        description: "Plan Anual FitGrowX · Pagás 10 meses, entrenás 12",
       },
     ],
     back_urls: {
@@ -28,7 +44,7 @@ export async function POST(req: NextRequest) {
     },
     auto_return: "approved",
     statement_descriptor: "FITGROWX",
-    external_reference: plan_key,
+    external_reference: `${gymId}|${plan_key}|annual`,
   };
 
   const res = await fetch("https://api.mercadopago.com/checkout/preferences", {

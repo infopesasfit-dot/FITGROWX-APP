@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
+import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
 const ADMIN_EMAIL = "elianafrancoanahi@gmail.com";
 
@@ -11,6 +12,10 @@ export async function POST(req: NextRequest) {
   if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const ip = getClientIp(req);
+  const limit = await applyRateLimit({ namespace: "email-blast", identifier: ip, windowMs: 3_600_000, maxAttempts: 3 });
+  if (!limit.allowed) return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
 
   const { subject, html, text, filter } = await req.json();
   if (!subject || (!html && !text)) {

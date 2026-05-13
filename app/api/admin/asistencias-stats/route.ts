@@ -24,8 +24,6 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const gym_id = new URL(req.url).searchParams.get("gym_id") ?? user.id;
-
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("gym_id, role")
@@ -38,7 +36,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
   }
 
-  const resolvedGymId = profileRow.gym_id ?? gym_id;
+  const resolvedGymId = profileRow.gym_id;
+  if (!resolvedGymId) {
+    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+  }
 
   const today = getTodayDate();
   const monthStart = `${today.slice(0, 7)}-01`;

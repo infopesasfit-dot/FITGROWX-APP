@@ -4,28 +4,22 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { normalizePhone } from "@/lib/phone";
 
-const WEBHOOK_MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? process.env.CRON_SECRET ?? "";
+// ── Cliente y constantes ──────────────────────────────────────────────────────
 
-function gymWebhookToken(gym_id: string): string {
-  return createHmac("sha256", WEBHOOK_MASTER_SECRET).update(gym_id).digest("hex").slice(0, 32);
-}
+const supabase     = getSupabaseAdminClient();
+const MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? process.env.CRON_SECRET ?? "";
+const MOTOR_URL    = process.env.WA_MOTOR_URL ?? "";
+const MOTOR_KEY    = process.env.WA_MOTOR_API_KEY ?? "";
 
-function verifyGymWebhookToken(gym_id: string, received: string): boolean {
-  if (!WEBHOOK_MASTER_SECRET) return false;
-  const expected = gymWebhookToken(gym_id);
-  try {
-    return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
-  } catch {
-    return false;
-  }
-}
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 
-const supabase = getSupabaseAdminClient();
-const MOTOR_URL = process.env.WA_MOTOR_URL ?? "";
-const MOTOR_KEY = process.env.WA_MOTOR_API_KEY ?? "";
+type GymSettings = {
+  mp_access_token: string | null;
+  gym_name: string | null;
+  whatsapp: string | null;
+};
 
-type GymSettingsRow = { mp_access_token: string | null; gym_name: string | null; whatsapp: string | null };
-type AlumnoRow = {
+type Alumno = {
   id: string;
   full_name: string;
   gym_id: string;
@@ -34,45 +28,201 @@ type AlumnoRow = {
   next_expiration_date: string | null;
   planes: { nombre: string; precio: number; periodo: string; duracion_dias: number | null } | null;
 };
-type ProfileRow = { phone: string | null };
 
-function calcNewExpiry(current: string | null, periodo: string, duracion_dias: number | null): string {
-  const today = new Date();
-  const base = current && new Date(current) > today ? new Date(current) : today;
-  if (duracion_dias && duracion_dias > 0) {
+type MPPayment = {
+  status: string;
+  external_reference: string | null;
+  transaction_amount: number;
+  date_approved: string | null;
+};
+
+// ── Seguridad del webhook ─────────────────────────────────────────────────────
+
+function generarTokenWebhook(gymId: string): string {
+  return createHmac("sha256", MASTER_SECRET).update(gymId).digest("hex").slice(0, 32);
+}
+
+function verificarTokenWebhook(gymId: string, tokenRecibido: string): boolean {
+  if (!MASTER_SECRET) return false;
+  const esperado = generarTokenWebhook(gymId);
+  try {
+    return timingSafeEqual(Buffer.from(esperado), Buffer.from(tokenRecibido));
+  } catch {
+    return false;
+  }
+}
+
+export { generarTokenWebhook };
+
+// ── Cálculo de vencimiento ────────────────────────────────────────────────────
+
+function calcularNuevoVencimiento(
+  vencimientoActual: string | null,
+  periodo: string,
+  duracionDias: number | null,
+): string {
+  const hoy  = new Date();
+  const base = vencimientoActual && new Date(vencimientoActual) > hoy
+    ? new Date(vencimientoActual)
+    : hoy;
+
+  if (duracionDias && duracionDias > 0) {
     const d = new Date(base);
-    d.setDate(d.getDate() + duracion_dias);
+    d.setDate(d.getDate() + duracionDias);
     return d.toISOString().slice(0, 10);
   }
-  const MONTHS: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
-  const DAYS:   Record<string, number> = { semanal: 7, semana: 7 };
-  if (MONTHS[periodo]) return addMonths(base, MONTHS[periodo]).toISOString().slice(0, 10);
+
+  const MESES: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
+  const DIAS:  Record<string, number> = { semanal: 7, semana: 7 };
+
+  if (MESES[periodo]) return addMonths(base, MESES[periodo]).toISOString().slice(0, 10);
   const d = new Date(base);
-  d.setDate(d.getDate() + (DAYS[periodo] ?? 30));
+  d.setDate(d.getDate() + (DIAS[periodo] ?? 30));
   return d.toISOString().slice(0, 10);
 }
 
-async function sendWA(gym_id: string, phone: string, message: string) {
+// ── Envío WA ──────────────────────────────────────────────────────────────────
+
+async function enviarMensajeWA(gymId: string, phone: string, message: string): Promise<void> {
   if (!MOTOR_URL || !phone) return;
   try {
-    await fetch(`${MOTOR_URL}/send/${gym_id}`, {
+    await fetch(`${MOTOR_URL}/send/${gymId}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": MOTOR_KEY },
       body: JSON.stringify({ phone: normalizePhone(phone), message }),
       signal: AbortSignal.timeout(6000),
     });
-  } catch { /* non-blocking */ }
+  } catch (e) {
+    console.error(`[gym-webhook] enviarMensajeWA gym=${gymId}:`, e instanceof Error ? e.message : e);
+  }
 }
 
-export async function POST(req: NextRequest) {
-  const url = new URL(req.url);
-  const gym_id = url.searchParams.get("gym_id");
-  if (!gym_id) return NextResponse.json({ error: "gym_id requerido." }, { status: 400 });
+// ── Consulta del pago a MP ────────────────────────────────────────────────────
 
-  const wt = url.searchParams.get("wt") ?? "";
-  if (!verifyGymWebhookToken(gym_id, wt)) {
-    return NextResponse.json({ error: "Token inválido." }, { status: 401 });
+async function consultarPagoMP(paymentId: string, accessToken: string): Promise<MPPayment | null> {
+  const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    console.error(`[gym-webhook] consultarPagoMP paymentId=${paymentId} HTTP ${res.status}`);
+    return null;
   }
+  return res.json() as Promise<MPPayment>;
+}
+
+// ── Idempotencia ──────────────────────────────────────────────────────────────
+
+type RegistrarPagoResult = "ok" | "duplicado" | "error";
+
+async function registrarPago(
+  gymId: string,
+  alumnoId: string,
+  monto: number,
+  paymentId: string,
+  planNombre: string,
+  today: string,
+): Promise<RegistrarPagoResult> {
+  const { error } = await supabase.from("pagos").insert({
+    gym_id:      gymId,
+    alumno_id:   alumnoId,
+    amount:      monto,
+    date:        today,
+    method:      "mercadopago",
+    status:      "validado",
+    concepto:    "membresia",
+    descripcion: `Pago MP automático — ${planNombre}`,
+    notes:       `payment_id:${paymentId}`,
+    mp_payment_id: paymentId,
+  });
+
+  if (!error) return "ok";
+  if (error.code === "23505") return "duplicado";
+
+  console.error("[gym-webhook] registrarPago:", error.message, { gymId, alumnoId, paymentId });
+  return "error";
+}
+
+// ── Actualización de membresía ────────────────────────────────────────────────
+
+async function extenderMembresia(alumnoId: string, today: string, nuevoVencimiento: string): Promise<void> {
+  const { error } = await supabase.from("alumnos")
+    .update({ status: "activo", last_payment_date: today, next_expiration_date: nuevoVencimiento })
+    .eq("id", alumnoId);
+  if (error) console.error(`[gym-webhook] extenderMembresia alumno=${alumnoId}:`, error.message);
+}
+
+async function convertirProspectoSiExiste(gymId: string, phone: string): Promise<void> {
+  const { error } = await supabase
+    .from("prospectos")
+    .update({ clase_gratis_status: "convertido", status: "contactado" })
+    .eq("gym_id", gymId)
+    .eq("phone", phone)
+    .not("clase_gratis_date", "is", null)
+    .neq("clase_gratis_status", "convertido");
+  if (error) console.error("[gym-webhook] convertirProspecto:", error.message);
+}
+
+async function crearNotificacionInApp(
+  gymId: string,
+  alumnoNombre: string,
+  monto: number,
+  planNombre: string,
+  vencimiento: string,
+): Promise<void> {
+  const { error } = await supabase.from("notifications").insert({
+    gym_id: gymId,
+    type:   "pago_mp",
+    title:  `💳 Pago recibido: ${alumnoNombre}`,
+    body:   `$${Math.round(monto).toLocaleString("es-AR")} — ${planNombre}. Membresía renovada hasta el ${vencimiento}.`,
+    read:   false,
+  });
+  if (error) console.error("[gym-webhook] crearNotificacionInApp:", error.message);
+}
+
+async function notificarDueno(
+  gymId: string,
+  gym: GymSettings,
+  alumno: Alumno,
+  monto: number,
+  planNombre: string,
+  nuevoVencimiento: string,
+  today: string,
+): Promise<void> {
+  const [ownerRes, dupRes] = await Promise.all([
+    supabase.from("profiles").select("phone").eq("gym_id", gymId).eq("role", "admin").maybeSingle(),
+    supabase.from("pagos")
+      .select("id", { count: "exact", head: true })
+      .eq("gym_id", gymId)
+      .eq("alumno_id", alumno.id)
+      .eq("status", "validado")
+      .neq("method", "mercadopago")
+      .eq("date", today),
+  ]);
+
+  const ownerPhone = (ownerRes.data as { phone: string | null } | null)?.phone ?? null;
+  const gymWaPhone = gym.whatsapp ? normalizePhone(gym.whatsapp) : null;
+  const esMismoNumero = ownerPhone && gymWaPhone && normalizePhone(ownerPhone) === gymWaPhone;
+
+  if (!ownerPhone || esMismoNumero) return;
+
+  const montoFmt    = `$${Math.round(monto).toLocaleString("es-AR")}`;
+  const dupWarning  = (dupRes.count ?? 0) > 0
+    ? `\n\n⚠️ *Atención:* Este alumno ya tiene un pago registrado hoy por otro medio. Verificá si fue un pago duplicado.`
+    : "";
+  const mensaje = `💳 *Pago MP recibido*\n\n👤 ${alumno.full_name}\n💰 ${montoFmt} — ${planNombre}\n📅 Vence: ${nuevoVencimiento}${dupWarning}`;
+
+  await enviarMensajeWA(gymId, ownerPhone, mensaje);
+}
+
+// ── Handler principal ─────────────────────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const gymId = searchParams.get("gym_id");
+  const wt    = searchParams.get("wt") ?? "";
+
+  if (!gymId) return NextResponse.json({ error: "gym_id requerido." }, { status: 400 });
+  if (!verificarTokenWebhook(gymId, wt)) return NextResponse.json({ error: "Token inválido." }, { status: 401 });
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: true }); }
@@ -83,152 +233,66 @@ export async function POST(req: NextRequest) {
   const paymentId = String((body.data as Record<string, unknown>)?.id ?? body.id ?? "");
   if (!paymentId) return NextResponse.json({ ok: true });
 
-  // Verify payment with gym's own MP token
-  const { data: gymSettings } = await supabase
+  // Cargar credenciales del gym
+  const { data: gymData } = await supabase
     .from("gym_settings")
     .select("mp_access_token, gym_name, whatsapp")
-    .eq("gym_id", gym_id)
+    .eq("gym_id", gymId)
     .single();
 
-  const gym = gymSettings as GymSettingsRow | null;
+  const gym = gymData as GymSettings | null;
   if (!gym?.mp_access_token) return NextResponse.json({ ok: true });
 
-  const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: { Authorization: `Bearer ${gym.mp_access_token}` },
-  });
-  if (!mpRes.ok) return NextResponse.json({ ok: true });
+  // Verificar pago con MP
+  const payment = await consultarPagoMP(paymentId, gym.mp_access_token);
+  if (!payment || payment.status !== "approved") return NextResponse.json({ ok: true });
 
-  const payment = await mpRes.json() as {
-    status: string;
-    external_reference: string | null;
-    transaction_amount: number;
-    date_approved: string | null;
-  };
+  // Parsear referencia: "gym_id|alumno_id"
+  const [refGymId, alumnoId] = (payment.external_reference ?? "").split("|");
+  if (refGymId !== gymId || !alumnoId) return NextResponse.json({ ok: true });
 
-  if (payment.status !== "approved") return NextResponse.json({ ok: true });
-
-  // Parse external_reference: "gym_id|alumno_id"
-  const parts = (payment.external_reference ?? "").split("|");
-  if (parts[0] !== gym_id) return NextResponse.json({ ok: true });
-  const alumno_id = parts[1];
-  if (!alumno_id) return NextResponse.json({ ok: true });
-
-  // Load alumno with plan info
+  // Cargar alumno con su plan
   const { data: alumnoData } = await supabase
     .from("alumnos")
     .select("id, full_name, gym_id, phone, plan_id, next_expiration_date, planes(nombre, precio, periodo, duracion_dias)")
-    .eq("id", alumno_id)
-    .eq("gym_id", gym_id)
+    .eq("id", alumnoId)
+    .eq("gym_id", gymId)
     .single();
 
-  const alumno = alumnoData as AlumnoRow | null;
+  const alumno = alumnoData as Alumno | null;
   if (!alumno) return NextResponse.json({ ok: true });
 
-  const plan = alumno.planes;
-  const newExpiry = calcNewExpiry(
-    alumno.next_expiration_date,
-    plan?.periodo ?? "mensual",
-    plan?.duracion_dias ?? null,
-  );
-  const today = getTodayDate();
+  const plan           = alumno.planes;
+  const planNombre     = plan?.nombre ?? "Membresía";
+  const nuevoVencimiento = calcularNuevoVencimiento(alumno.next_expiration_date, plan?.periodo ?? "mensual", plan?.duracion_dias ?? null);
+  const today          = getTodayDate();
 
-  // ── ATOMIC IDEMPOTENCY GATE ─────────────────────────────────────────────
-  // Insert pagos FIRST. The UNIQUE index on mp_payment_id ensures that
-  // simultaneous or retried webhooks can never double-extend membership.
-  // If the server crashed after this insert but before updating alumnos,
-  // the duplicate path below fixes the inconsistency.
-  const { error: pagoErr } = await supabase.from("pagos").insert({
-    gym_id,
-    alumno_id,
-    amount: payment.transaction_amount,
-    date: today,
-    method: "mercadopago",
-    status: "validado",
-    concepto: "membresia",
-    descripcion: `Pago MP automático — ${plan?.nombre ?? "Membresía"}`,
-    notes: `payment_id:${paymentId}`,
-    mp_payment_id: paymentId,
-  });
+  // ── Gate de idempotencia: insertamos el pago primero ─────────────────────────
+  const resultadoPago = await registrarPago(gymId, alumnoId, payment.transaction_amount, paymentId, planNombre, today);
 
-  if (pagoErr) {
-    if (pagoErr.code === "23505") {
-      // Payment already recorded — idempotent success.
-      // Recovery: if a prior run crashed before updating alumnos, fix it now.
-      // This update is safe to repeat — same values, same result.
-      await supabase.from("alumnos")
-        .update({ status: "activo", last_payment_date: today, next_expiration_date: newExpiry })
-        .eq("id", alumno_id);
-      // 200 → MP marks webhook as delivered and stops retrying.
-      return NextResponse.json({ ok: true });
-    }
-    // Any other error (transient DB issue, connection timeout, etc.).
-    // 500 → MP will retry later. Once the error clears, the payment processes normally.
-    // Do NOT return 200 here — that would silently drop the payment with no retry.
-    return NextResponse.json({ error: "db_error" }, { status: 500 });
-  }
-  // ────────────────────────────────────────────────────────────────────────
+  if (resultadoPago === "error") return NextResponse.json({ error: "db_error" }, { status: 500 });
 
-  // Renew membership
-  await supabase.from("alumnos").update({
-    status: "activo",
-    last_payment_date: today,
-    next_expiration_date: newExpiry,
-  }).eq("id", alumno_id);
+  // Si era duplicado: igual extendemos membresía (recovery ante crash entre insert y update)
+  await extenderMembresia(alumnoId, today, nuevoVencimiento);
+  if (resultadoPago === "duplicado") return NextResponse.json({ ok: true });
+  // ─────────────────────────────────────────────────────────────────────────────
 
-  // Mark any open free-class prospecto as converted
-  if (alumno.phone) {
-    await supabase
-      .from("prospectos")
-      .update({ clase_gratis_status: "convertido", status: "contactado" })
-      .eq("gym_id", gym_id)
-      .eq("phone", alumno.phone)
-      .not("clase_gratis_date", "is", null)
-      .neq("clase_gratis_status", "convertido");
-  }
-
-  // In-app notification for gym owner
-  try {
-    await supabase.from("notifications").insert({
-      gym_id,
-      type: "pago_mp",
-      title: `💳 Pago recibido: ${alumno.full_name}`,
-      body: `$${Math.round(payment.transaction_amount).toLocaleString("es-AR")} — ${plan?.nombre ?? "Membresía"}. Membresía renovada hasta el ${newExpiry}.`,
-      read: false,
-    });
-  } catch { /* non-blocking */ }
-
-  // WA to alumno confirming payment
-  if (alumno.phone) {
-    const fechaFmt = new Date(newExpiry + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-    const msgAlumno = `✅ *¡Pago recibido!* Gracias ${alumno.full_name}.\n\nTu membresía en *${gym.gym_name ?? "el gimnasio"}* fue renovada hasta el *${fechaFmt}*. ¡Seguí entrenando! 💪`;
-    await sendWA(gym_id, alumno.phone, msgAlumno);
-  }
-
-  // WA to gym owner — include warning if another payment was already registered today
-  const [ownerRes, dupRes] = await Promise.all([
-    supabase.from("profiles").select("phone").eq("gym_id", gym_id).eq("role", "admin").maybeSingle(),
-    supabase.from("pagos")
-      .select("id", { count: "exact", head: true })
-      .eq("gym_id", gym_id)
-      .eq("alumno_id", alumno_id)
-      .eq("status", "validado")
-      .neq("method", "mercadopago")
-      .eq("date", today),
+  // Acciones post-pago (non-blocking: errores no deben bloquear la respuesta a MP)
+  await Promise.allSettled([
+    alumno.phone ? convertirProspectoSiExiste(gymId, alumno.phone) : Promise.resolve(),
+    crearNotificacionInApp(gymId, alumno.full_name, payment.transaction_amount, planNombre, nuevoVencimiento),
   ]);
 
-  const owner = ownerRes.data as ProfileRow | null;
-  const ownerPhone = owner?.phone;
-  const gymWaPhone = gym.whatsapp ? normalizePhone(gym.whatsapp) : null;
-  const ownerIsSameAsGym = ownerPhone && gymWaPhone && normalizePhone(ownerPhone) === gymWaPhone;
-
-  if (ownerPhone && !ownerIsSameAsGym) {
-    const monto = `$${Math.round(payment.transaction_amount).toLocaleString("es-AR")}`;
-    const dupWarning = (dupRes.count ?? 0) > 0
-      ? `\n\n⚠️ *Atención:* Este alumno ya tiene un pago registrado hoy por otro medio. Verificá si fue un pago duplicado.`
-      : "";
-    const msgOwner = `💳 *Pago MP recibido*\n\n👤 ${alumno.full_name}\n💰 ${monto} — ${plan?.nombre ?? "Membresía"}\n📅 Vence: ${newExpiry}${dupWarning}`;
-    await sendWA(gym_id, ownerPhone, msgOwner);
+  // WA al alumno
+  if (alumno.phone) {
+    const fechaFmt = new Date(nuevoVencimiento + "T12:00:00")
+      .toLocaleDateString("es-AR", { day: "numeric", month: "long" });
+    const msgAlumno = `✅ *¡Pago recibido!* Gracias ${alumno.full_name}.\n\nTu membresía en *${gym.gym_name ?? "el gimnasio"}* fue renovada hasta el *${fechaFmt}*. ¡Seguí entrenando! 💪`;
+    await enviarMensajeWA(gymId, alumno.phone, msgAlumno);
   }
+
+  // WA al dueño
+  await notificarDueno(gymId, gym, alumno, payment.transaction_amount, planNombre, nuevoVencimiento, today);
 
   return NextResponse.json({ ok: true });
 }

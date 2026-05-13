@@ -7,6 +7,7 @@ import {
   Building2,
   CheckCircle,
   Clock3,
+  ExternalLink,
   FileText,
   FolderOpen,
   Loader2,
@@ -20,7 +21,9 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { invalidateProfile, setImpersonatedGym } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -33,6 +36,7 @@ type PlatformStats = {
 
 type PlatformAccount = {
   id: string;
+  auth_user_id: string | null;
   company_name: string;
   owner_name: string | null;
   phone: string | null;
@@ -200,6 +204,8 @@ function emptyState(title: string, body: string) {
 }
 
 export default function PlatformPage() {
+  const router = useRouter();
+  const [navigatingToGymId, setNavigatingToGymId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -244,12 +250,18 @@ export default function PlatformPage() {
   const [platQrError, setPlatQrError] = useState<"max" | null>(null);
   const platPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const platRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [platMsgTemplate, setPlatMsgTemplate] = useState({
-    bienvenida: "¡Hola {nombre}! 🎉 Bienvenido a FitGrowX. Tu gym ya está listo para escalar. Si tenés alguna duda, respondé este mensaje.",
-    onboarding: "¡Hola {nombre}! 🚀 Antes de arrancar, te recomendamos cargar tus alumnos y configurar los turnos para sacarle el máximo al sistema desde el día uno.\n\nSi necesitás ayuda con algún paso, respondé este mensaje y lo resolvemos juntos. ¡Estamos para acompañarte! 💪",
-    trial_vence: "¡Hola {nombre}! ⏰ Tu período de prueba de FitGrowX vence en {dias} días. ¿Querés seguir creciendo? Hablemos para activar tu plan.",
-    reactivacion: "¡Hola {nombre}! 👋 Hace un tiempo que no te vemos por FitGrowX. ¿Todo bien? Estamos acá para ayudarte a recuperar el control de tu gym.",
-  });
+  const DEFAULT_TEMPLATES = {
+    bienvenida:    "¡Hola {nombre}! 🎉 Bienvenido a FitGrowX. Tu gym ya está listo para escalar. Si tenés alguna duda, respondé este mensaje.",
+    activacion_d3: "Ey {nombre}! Eli de FitGrowX 👋 ¿Pudiste arrancar a cargar tus alumnos? Si querés te muestro cómo hacerlo en 5 minutos, es más fácil de lo que parece.",
+    trial_vence:   "¡Hola {nombre}! ⏰ Tu período de prueba de FitGrowX vence en {dias} días. ¿Querés seguir creciendo? Hablemos para activar tu plan.",
+    trial_expirado:"Hola {nombre}! Tu prueba de FitGrowX venció hoy. Tus datos siguen guardados. Si querés seguir usándolo, hablemos ahora y lo resolvemos 🙌",
+    primer_pago:   "🎉 {nombre}, tu gym acaba de recibir su primer pago en FitGrowX. Así se empieza a escalar. Cualquier cosa estamos acá.",
+    inactivo_7d:   "Ey {nombre}! Eli de FitGrowX. ¿Cómo va el gym? ¿Pudieron arrancar a usar el sistema o todavía están poniéndolo a punto? Cualquier cosa me avisás 🙌",
+    reactivacion:  "¡Hola {nombre}! 👋 Hace un tiempo que no te vemos por FitGrowX. ¿Todo bien con el gym? Estamos acá para ayudarte.",
+  };
+  const [platMsgTemplate, setPlatMsgTemplate] = useState(DEFAULT_TEMPLATES);
+  const [tplSaving, setTplSaving] = useState<Record<string, boolean>>({});
+  const tplSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [platSendPhone, setPlatSendPhone] = useState("");
   const [platSendMsg, setPlatSendMsg] = useState("");
   const [platSending, setPlatSending] = useState(false);
@@ -468,9 +480,36 @@ export default function PlatformPage() {
       } catch {
         setPlatWaStatus("disconnected");
       }
+      // Cargar plantillas desde DB
+      try {
+        const res = await fetch("/api/platform/wa-templates");
+        if (res.ok) {
+          const dbTpl = await res.json();
+          if (Object.keys(dbTpl).length > 0) {
+            setPlatMsgTemplate(prev => ({ ...prev, ...dbTpl }));
+          }
+        }
+      } catch { /* non-fatal */ }
     })();
     return () => platStopPolling();
   }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Autoguardado de plantillas con debounce 1.5s
+  const handleTplChange = (key: string, value: string) => {
+    setPlatMsgTemplate(prev => ({ ...prev, [key]: value }));
+    if (tplSaveTimers.current[key]) clearTimeout(tplSaveTimers.current[key]);
+    tplSaveTimers.current[key] = setTimeout(async () => {
+      setTplSaving(prev => ({ ...prev, [key]: true }));
+      try {
+        await fetch("/api/platform/wa-templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, body: value }),
+        });
+      } catch { /* non-fatal */ }
+      setTplSaving(prev => ({ ...prev, [key]: false }));
+    }, 1500);
+  };
 
   const crmHealth = useMemo(() => {
     const convertedClients = accounts.filter((account) => account.status === "converted").length;
@@ -510,6 +549,20 @@ export default function PlatformPage() {
     window.setTimeout(() => setFeedback(null), 2600);
   };
 
+
+  const openGymDashboard = async (account: PlatformAccount) => {
+    if (!account.auth_user_id) return;
+    setNavigatingToGymId(account.id);
+    try {
+      const { data } = await supabase.from("profiles").select("gym_id").eq("id", account.auth_user_id).single();
+      if (!data?.gym_id) { setNavigatingToGymId(null); return; }
+      setImpersonatedGym({ gym_id: data.gym_id, gym_name: account.company_name });
+      invalidateProfile();
+      router.push("/dashboard");
+    } catch {
+      setNavigatingToGymId(null);
+    }
+  };
 
   const updateAccountStatus = async (id: string, status: AccountStatus) => {
     try {
@@ -962,7 +1015,7 @@ export default function PlatformPage() {
                                   <span style={{ font: `500 0.76rem/1.3 ${fb}`, color: "#475569" }}>{formatDate(a.next_follow_up_at)}</span>
                                 </div>
                                 {/* WA */}
-                                <div style={cellStyle}>
+                                <div style={{ ...cellStyle, gap: 6 }}>
                                   {a.phone ? (
                                     <a href={`https://wa.me/${a.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title="Abrir WhatsApp" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 10, background: "rgba(37,211,102,0.12)", color: "#16A34A", textDecoration: "none" }}>
                                       <MessageCircle size={15} />
@@ -971,6 +1024,18 @@ export default function PlatformPage() {
                                     <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(148,163,184,0.10)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                       <MessageCircle size={15} color="#CBD5E1" />
                                     </div>
+                                  )}
+                                  {a.auth_user_id && (
+                                    <button
+                                      onClick={() => openGymDashboard(a)}
+                                      disabled={navigatingToGymId === a.id}
+                                      title="Ver dashboard del gym"
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 10, background: "rgba(37,99,235,0.10)", color: "#2563EB", border: "none", cursor: "pointer" }}
+                                    >
+                                      {navigatingToGymId === a.id
+                                        ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} />
+                                        : <ExternalLink size={14} />}
+                                    </button>
                                   )}
                                 </div>
                               </div>
@@ -1765,32 +1830,42 @@ export default function PlatformPage() {
                 Variables: <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 4px", borderRadius: 4, fontSize: "0.85em" }}>{"{nombre}"}</code> <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 4px", borderRadius: 4, fontSize: "0.85em" }}>{"{dias}"}</code>
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {(["bienvenida", "onboarding", "trial_vence", "reactivacion"] as const).map(key => {
-                  const meta: Record<typeof key, { label: string; color: string; bg: string }> = {
-                    bienvenida: { label: "Bienvenida", color: "#16A34A", bg: "rgba(22,163,74,0.08)" },
-                    onboarding: { label: "Onboarding", color: "#2563EB", bg: "rgba(37,99,235,0.08)" },
-                    trial_vence: { label: "Trial por vencer", color: "#D97706", bg: "rgba(217,119,6,0.08)" },
-                    reactivacion: { label: "Reactivación", color: "#7C3AED", bg: "rgba(124,58,237,0.08)" },
+                {(["bienvenida", "activacion_d3", "trial_vence", "trial_expirado", "primer_pago", "inactivo_7d", "reactivacion"] as const).map(key => {
+                  const meta: Record<typeof key, { label: string; color: string; bg: string; auto: boolean }> = {
+                    bienvenida:    { label: "Bienvenida",          color: "#16A34A", bg: "rgba(22,163,74,0.08)",   auto: true  },
+                    activacion_d3: { label: "Día 3 sin alumnos",   color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  auto: true  },
+                    trial_vence:   { label: "Trial por vencer",    color: "#D97706", bg: "rgba(217,119,6,0.08)",   auto: true  },
+                    trial_expirado:{ label: "Trial vencido hoy",   color: "#DC2626", bg: "rgba(220,38,38,0.08)",   auto: true  },
+                    primer_pago:   { label: "Primer pago 🎉",      color: "#7C3AED", bg: "rgba(124,58,237,0.08)",  auto: true  },
+                    inactivo_7d:   { label: "Sin actividad 7d",    color: "#6366F1", bg: "rgba(99,102,241,0.08)",  auto: true  },
+                    reactivacion:  { label: "Reactivación manual", color: "#6B7280", bg: "rgba(107,114,128,0.08)", auto: false },
                   };
                   const m = meta[key];
+                  const saving = tplSaving[key];
                   return (
                     <div key={key} style={{ borderRadius: 14, border: "1px solid rgba(15,23,42,0.07)", overflow: "hidden" }}>
-                      {/* Template header */}
-                      <div style={{ padding: "10px 14px", background: m.bg, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ font: `600 0.8rem/1 ${fd}`, color: m.color }}>{m.label}</span>
-                        <button
-                          type="button"
-                          onClick={() => setPlatSendMsg(platMsgTemplate[key])}
-                          style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: m.color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
-                        >
-                          <MessageCircle size={10} /> Usar
-                        </button>
+                      <div style={{ padding: "10px 14px", background: m.bg, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ font: `600 0.8rem/1 ${fd}`, color: m.color }}>{m.label}</span>
+                          {m.auto && (
+                            <span style={{ padding: "2px 6px", borderRadius: 4, background: m.color + "20", font: `600 0.62rem/1 ${fd}`, color: m.color }}>AUTO</span>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          {saving && <span style={{ font: `400 0.68rem/1 ${fb}`, color: "#9ca3af" }}>guardando…</span>}
+                          <button
+                            type="button"
+                            onClick={() => setPlatSendMsg(platMsgTemplate[key])}
+                            style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: m.color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
+                          >
+                            <MessageCircle size={10} /> Usar
+                          </button>
+                        </div>
                       </div>
-                      {/* Editable text */}
                       <textarea
                         rows={3}
                         value={platMsgTemplate[key]}
-                        onChange={e => setPlatMsgTemplate(prev => ({ ...prev, [key]: e.target.value }))}
+                        onChange={e => handleTplChange(key, e.target.value)}
                         style={{ width: "100%", padding: "10px 14px", border: "none", borderTop: "1px solid rgba(15,23,42,0.06)", background: "#fff", font: `400 0.8rem/1.6 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
                       />
                     </div>
@@ -1811,35 +1886,43 @@ export default function PlatformPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
               {[
                 {
-                  label: "Bienvenida al registrarse",
-                  desc: "Se envía automáticamente cuando un nuevo gym completa el onboarding.",
+                  label: "Bienvenida",
+                  desc: "Al registrarse. Una sola vez.",
                   color: "#16A34A", bg: "rgba(22,163,74,0.08)",
-                  trigger: "onboarding_completed",
-                  active: true,
+                  tplKey: "bienvenida", active: true,
                 },
                 {
-                  label: "Trial por vencer (3 días)",
-                  desc: "Aviso automático cuando el trial vence en 3 días o menos.",
+                  label: "Día 3 sin alumnos",
+                  desc: "Si a los 3 días no cargaron ningún alumno. Cron diario.",
+                  color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",
+                  tplKey: "activacion_d3", active: true,
+                },
+                {
+                  label: "Trial por vencer (2-4d)",
+                  desc: "Cuando el trial vence pronto. Una sola vez.",
                   color: "#D97706", bg: "rgba(217,119,6,0.08)",
-                  trigger: "trial_expires_soon",
-                  active: true,
+                  tplKey: "trial_vence", active: true,
                 },
                 {
-                  label: "Trial vencido — reactivar",
-                  desc: "Se dispara el día que vence el trial sin conversión.",
+                  label: "Trial vencido hoy",
+                  desc: "El día que vence sin convertir. Ventana de rescate.",
                   color: "#DC2626", bg: "rgba(220,38,38,0.08)",
-                  trigger: "trial_expired",
-                  active: false,
+                  tplKey: "trial_expirado", active: true,
+                },
+                {
+                  label: "Primer pago 🎉",
+                  desc: "Cuando el gym registra su primer pago validado.",
+                  color: "#7C3AED", bg: "rgba(124,58,237,0.08)",
+                  tplKey: "primer_pago", active: true,
                 },
                 {
                   label: "Sin actividad 7 días",
-                  desc: "Alerta si el gym no registró actividad en 7 días durante el trial.",
-                  color: "#7C3AED", bg: "rgba(124,58,237,0.08)",
-                  trigger: "inactive_7d",
-                  active: false,
+                  desc: "Si no entran en 7+ días. Máx 1 vez cada 30 días.",
+                  color: "#6366F1", bg: "rgba(99,102,241,0.08)",
+                  tplKey: "inactivo_7d", active: true,
                 },
               ].map(auto => (
-                <div key={auto.trigger} style={{ borderRadius: 16, border: "1px solid rgba(15,23,42,0.07)", overflow: "hidden" }}>
+                <div key={auto.tplKey} style={{ borderRadius: 16, border: "1px solid rgba(15,23,42,0.07)", overflow: "hidden" }}>
                   <div style={{ padding: "12px 16px", background: auto.bg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ font: `600 0.82rem/1.2 ${fd}`, color: auto.color }}>{auto.label}</span>
                     <span style={{ padding: "3px 8px", borderRadius: 999, background: auto.active ? auto.color : "rgba(148,163,184,0.2)", font: `600 0.68rem/1 ${fd}`, color: auto.active ? "#fff" : "#94A3B8", flexShrink: 0 }}>
@@ -1850,11 +1933,7 @@ export default function PlatformPage() {
                     <p style={{ margin: "0 0 10px", font: `400 0.78rem/1.5 ${fb}`, color: "#6B7280" }}>{auto.desc}</p>
                     <button
                       type="button"
-                      onClick={() => setPlatSendMsg(platMsgTemplate[
-                        auto.trigger === "onboarding_completed" ? "bienvenida"
-                        : auto.trigger === "trial_expires_soon" ? "trial_vence"
-                        : "reactivacion"
-                      ])}
+                      onClick={() => setPlatSendMsg(platMsgTemplate[auto.tplKey as keyof typeof platMsgTemplate] ?? "")}
                       style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${auto.color}30`, background: "transparent", font: `600 0.72rem/1 ${fd}`, color: auto.color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
                     >
                       <MessageCircle size={10} /> Ver plantilla
@@ -1864,7 +1943,7 @@ export default function PlatformPage() {
               ))}
             </div>
             <p style={{ margin: "16px 0 0", font: `400 0.75rem/1.5 ${fb}`, color: "#9CA3AF" }}>
-              Las automatizaciones ON se envían desde el motor WA cuando se cumple el trigger. Editá el mensaje en las plantillas de arriba.
+              Las automatizaciones ON requieren que el QR esté conectado. El cron corre diariamente — podés dispararlo manualmente desde Dev. Editá el mensaje en las plantillas de arriba; se guarda automáticamente.
             </p>
           </section>
         </>

@@ -1,6 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+
+// null = sin límite. Cambiar aquí para aplicar a todos los gyms de ese plan.
+const PLAN_LIMITS: Record<string, number | null> = {
+  crecimiento: null,
+};
 
 type AuthorizedProfile = {
   gym_id: string | null;
@@ -36,6 +41,7 @@ export async function GET() {
         .from("alumnos")
         .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
         .eq("gym_id", gymId)
+        .is("deleted_at", null)
         .order("full_name"),
       admin
         .from("planes")
@@ -74,14 +80,90 @@ export async function GET() {
     if (!ultimaMap[row.alumno_id]) ultimaMap[row.alumno_id] = row.fecha;
   }
 
+  const isStaff = profile.role === "staff";
+  const alumnos = (alumnosData ?? []).map((a: Record<string, unknown>) => {
+    if (!isStaff) return a;
+    const { dni: _dni, ...rest } = a;
+    return rest;
+  });
+
   return NextResponse.json({
     ok: true,
     gym_id: gymId,
     role: profile.role ?? "admin",
     plan_type: (gymData as { plan_type?: string } | null)?.plan_type ?? "crecimiento",
-    alumnos: alumnosData ?? [],
+    alumnos,
     planes: planesData ?? [],
     promos: promosData ?? [],
     ultimaMap,
   });
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("gym_id, role")
+    .eq("id", user.id)
+    .maybeSingle<AuthorizedProfile>();
+
+  if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? "")) {
+    return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 403 });
+  }
+
+  const gymId = profile.gym_id;
+
+  // Verificar límite del plan
+  const { data: gymData } = await admin.from("gyms").select("plan_type").eq("id", gymId).maybeSingle();
+  const planType = (gymData as { plan_type?: string } | null)?.plan_type ?? "crecimiento";
+  const limit = PLAN_LIMITS[planType] ?? null;
+
+  if (limit !== null) {
+    const { count } = await admin
+      .from("alumnos")
+      .select("id", { count: "exact", head: true })
+      .eq("gym_id", gymId)
+      .is("deleted_at", null);
+    if ((count ?? 0) >= limit) {
+      return NextResponse.json(
+        { ok: false, error: `Tu plan permite hasta ${limit} alumnos. Contactanos para ampliar tu cuenta.` },
+        { status: 422 },
+      );
+    }
+  }
+
+  const body = await req.json();
+  const { full_name, dni, phone, email, plan_id, status, next_expiration_date, last_payment_date } = body;
+
+  if (!full_name?.trim()) {
+    return NextResponse.json({ ok: false, error: "El nombre es obligatorio." }, { status: 400 });
+  }
+
+  const { data: newAlumno, error } = await admin
+    .from("alumnos")
+    .insert([{
+      gym_id: gymId,
+      full_name: full_name.trim(),
+      dni: dni?.trim() || null,
+      phone: phone?.trim() || null,
+      email: email?.trim() || null,
+      plan_id: plan_id || null,
+      status: status ?? "activo",
+      next_expiration_date: next_expiration_date || null,
+      last_payment_date: last_payment_date || null,
+    }])
+    .select("id, full_name, dni, phone, email, plan_id, status, next_expiration_date")
+    .single();
+
+  if (error) {
+    const msg = error.code === "23505"
+      ? "Ya existe un alumno con ese DNI, teléfono o email."
+      : "No se pudo crear el alumno. Intentá de nuevo.";
+    return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true, alumno: newAlumno });
 }

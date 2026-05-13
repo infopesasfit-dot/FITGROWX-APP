@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Building2, CheckCircle, Phone, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CheckCircle, Loader2, Phone, Send, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const STEPS = [
@@ -50,6 +50,9 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(true);
+  const [testWaSending, setTestWaSending] = useState(false);
+  const [testWaSent, setTestWaSent]       = useState(false);
+  const [testWaError, setTestWaError]     = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -132,6 +135,28 @@ export default function OnboardingPage() {
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && canContinue && !saving) void handleContinue();
+  };
+
+  const handleTestWa = async () => {
+    if (testWaSending || testWaSent) return;
+    setTestWaSending(true);
+    setTestWaError(null);
+    const rawPhone = values.phone.trim().replace(/\D/g, "");
+    const fullPhone = rawPhone ? `${countryCode.replace("+", "")}${rawPhone}` : "";
+    try {
+      const res = await fetch("/api/onboarding/test-wa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: fullPhone, nombre: values.name, gymName: values.gymName }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) setTestWaError(data.error ?? "No se pudo enviar.");
+      else setTestWaSent(true);
+    } catch {
+      setTestWaError("Sin conexión. Intentá de nuevo.");
+    } finally {
+      setTestWaSending(false);
+    }
   };
 
   return (
@@ -278,6 +303,38 @@ export default function OnboardingPage() {
                         : "none",
                     }}
                   />
+                )}
+
+                {/* Aha Moment — solo en el paso de teléfono con número válido */}
+                {current.key === "phone" && values.phone.trim().replace(/\D/g, "").length >= 8 && (
+                  <div className="mt-4 rounded-2xl p-4" style={{ background: "rgba(22,163,74,0.09)", border: "1px solid rgba(22,163,74,0.22)" }}>
+                    <p className="text-[12px] font-semibold text-white/60 mb-3 leading-relaxed">
+                      ✨ <span style={{ color: "#4ADE80" }}>Aha Moment</span> — Probá el sistema ahora mismo
+                    </p>
+                    {testWaSent ? (
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(22,163,74,0.2)" }}>
+                          <CheckCircle size={16} color="#4ADE80" />
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-bold" style={{ color: "#4ADE80" }}>¡Revisá tu WhatsApp!</p>
+                          <p className="text-[11px] text-white/40">El mensaje llegó desde FitGrowX</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleTestWa()}
+                        disabled={testWaSending}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold transition-all"
+                        style={{ background: testWaSending ? "rgba(22,163,74,0.12)" : "rgba(22,163,74,0.18)", border: "1px solid rgba(22,163,74,0.35)", color: "#4ADE80", opacity: testWaSending ? 0.7 : 1 }}
+                      >
+                        {testWaSending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
+                        {testWaSending ? "Enviando..." : "Mandarme un mensaje de prueba →"}
+                      </button>
+                    )}
+                    {testWaError && <p className="mt-2 text-[11px] text-red-400">{testWaError}</p>}
+                  </div>
                 )}
 
                 {error && (

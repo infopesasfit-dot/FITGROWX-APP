@@ -45,6 +45,7 @@ interface Ejercicio {
 }
 
 interface Peso { id: string; ejercicio: string; peso: number; fecha: string; notas: string | null; }
+interface Medida { id: string; peso_kg: number; grasa_pct: number | null; cintura_cm: number | null; fecha: string; }
 
 function getNext7Days() {
   const days: { date: Date; label: string; iso: string; dow: number }[] = [];
@@ -93,6 +94,21 @@ function AlumnoPanelInner() {
   const [asistCount,   setAsistCount]   = useState(0);
   const [isCompactScreen, setIsCompactScreen] = useState(false);
   const [isOffline,      setIsOffline]      = useState(false);
+  const [medidas,    setMedidas]    = useState<Medida[]>([]);
+  const [medLoading, setMedLoading] = useState(false);
+  const [medPeso,    setMedPeso]    = useState("");
+  const [medGrasa,   setMedGrasa]   = useState("");
+  const [medCintura, setMedCintura] = useState("");
+  const [asistTotal,  setAsistTotal]  = useState(0);
+  const [ranking,     setRanking]     = useState<{ pos: number; name: string; count: number; isMe: boolean }[]>([]);
+  const [myRankPos,   setMyRankPos]   = useState(0);
+  const [rankLoaded,  setRankLoaded]  = useState(false);
+  const [guestPassUrl,     setGuestPassUrl]     = useState<string | null>(null);
+  const [guestPassLoading, setGuestPassLoading] = useState(false);
+  const [guestPassCopied,  setGuestPassCopied]  = useState(false);
+  const [pendingHitos, setPendingHitos] = useState<{ key: string; label: string; cardUrl: string }[]>([]);
+  const [hitosChecked, setHitosChecked] = useState(false);
+  const [hitoSharing,  setHitoSharing]  = useState(false);
 
   useEffect(() => {
     const update = () => setIsOffline(!navigator.onLine);
@@ -163,6 +179,7 @@ function AlumnoPanelInner() {
     if (d.asistencias) {
       setAsistFechas(d.asistencias.fechas ?? []);
       setAsistCount(d.asistencias.count ?? 0);
+      setAsistTotal(prev => Math.max(prev, d.asistencias.total ?? 0));
     }
     if (includeTraining) {
       setRutina(d.rutina ?? null);
@@ -176,6 +193,30 @@ function AlumnoPanelInner() {
     });
     const d = await r.json();
     setPesos(d.pesos ?? []);
+  }, []);
+
+  const fetchMedidas = useCallback(async (s: Session) => {
+    setMedLoading(true);
+    const r = await fetch(`/api/alumno/medidas?alumno_id=${s.alumno_id}`, {
+      headers: { Authorization: `Bearer ${s.token}` },
+    }).catch(() => null);
+    if (r?.ok) {
+      const d = await r.json();
+      setMedidas(d.medidas ?? []);
+    }
+    setMedLoading(false);
+  }, []);
+
+  const fetchRanking = useCallback(async (s: Session) => {
+    const r = await fetch(`/api/alumno/ranking?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}`, {
+      headers: { Authorization: `Bearer ${s.token}` },
+    }).catch(() => null);
+    if (r?.ok) {
+      const d = await r.json();
+      setRanking(d.top ?? []);
+      setMyRankPos(d.myPos ?? 0);
+    }
+    setRankLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -195,6 +236,49 @@ function AlumnoPanelInner() {
     if ((tab !== "entrenamiento" && tab !== "metas" && tab !== "perfil") || pesos.length > 0) return;
     void fetchBootstrap(session, true);
   }, [session, tab, pesos.length, fetchBootstrap]);
+
+  useEffect(() => {
+    if (!session || tab !== "metas" || medidas.length > 0 || medLoading) return;
+    void fetchMedidas(session);
+  }, [session, tab, medidas.length, medLoading, fetchMedidas]);
+
+  useEffect(() => {
+    if (!session || tab !== "metas" || rankLoaded) return;
+    void fetchRanking(session);
+  }, [session, tab, rankLoaded, fetchRanking]);
+
+  useEffect(() => {
+    if (!session?.token || hitosChecked) return;
+    setHitosChecked(true);
+    fetch("/api/alumno/hitos", { headers: { Authorization: `Bearer ${session.token}` } })
+      .then(r => r.ok ? r.json() : { hitos: [] })
+      .then(d => { if (d.hitos?.length) setPendingHitos(d.hitos); })
+      .catch(() => {});
+  }, [session, hitosChecked]);
+
+  const handleSaveMedida = async () => {
+    if (!session || !medPeso.trim()) return;
+    const body: Record<string, unknown> = {
+      alumno_id: session.alumno_id,
+      gym_id: session.gym_id,
+      peso_kg: parseFloat(medPeso),
+    };
+    if (medGrasa.trim()) body.grasa_pct = parseFloat(medGrasa);
+    if (medCintura.trim()) body.cintura_cm = parseFloat(medCintura);
+    const r = await fetch("/api/alumno/medidas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (r.ok && d.medida) {
+      setMedidas(prev => [d.medida as Medida, ...prev]);
+      setMedPeso(""); setMedGrasa(""); setMedCintura("");
+      showToast("Medición guardada");
+    } else {
+      showToast("Error al guardar", false);
+    }
+  };
 
   const handleReservar = async (clase_id: string, fecha: string) => {
     if (!session) return;
@@ -298,6 +382,44 @@ function AlumnoPanelInner() {
       showToast("Error de conexión. Intentá de nuevo.", false);
     } finally {
       setLoadingPago(false);
+    }
+  };
+
+  const handleGuestPass = async () => {
+    if (!session || guestPassLoading) return;
+    if (guestPassUrl) {
+      if (navigator.share) {
+        navigator.share({ title: `Pase libre para ${gymInfo?.gym_name ?? "el gym"}`, url: guestPassUrl }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(guestPassUrl);
+        setGuestPassCopied(true);
+        setTimeout(() => setGuestPassCopied(false), 2000);
+      }
+      return;
+    }
+    setGuestPassLoading(true);
+    try {
+      const r = await fetch("/api/alumno/guest-pass", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+      });
+      const d = await r.json();
+      if (r.ok && d.passUrl) {
+        setGuestPassUrl(d.passUrl);
+        if (navigator.share) {
+          navigator.share({ title: `Pase libre para ${gymInfo?.gym_name ?? "el gym"}`, url: d.passUrl }).catch(() => {});
+        } else {
+          navigator.clipboard.writeText(d.passUrl);
+          setGuestPassCopied(true);
+          setTimeout(() => setGuestPassCopied(false), 2000);
+        }
+      } else {
+        showToast("No se pudo generar el pase", false);
+      }
+    } catch {
+      showToast("Error de conexión", false);
+    } finally {
+      setGuestPassLoading(false);
     }
   };
 
@@ -793,47 +915,187 @@ function AlumnoPanelInner() {
             {/* TAB — METAS */}
             {tab === "metas" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp 0.22s ease" }}>
+
+                {/* Insignias */}
+                {(() => {
+                  const BADGES = [
+                    { emoji: "🥇", title: "Primera visita",    desc: "Viniste por primera vez",           earned: asistTotal >= 1   },
+                    { emoji: "⚡", title: "10 visitas",         desc: "Acumulaste 10 asistencias",          earned: asistTotal >= 10  },
+                    { emoji: "💪", title: "25 visitas",         desc: "Acumulaste 25 asistencias",          earned: asistTotal >= 25  },
+                    { emoji: "🏆", title: "50 visitas",         desc: "Acumulaste 50 asistencias",          earned: asistTotal >= 50  },
+                    { emoji: "👑", title: "100 visitas",        desc: "Leyenda del gym",                    earned: asistTotal >= 100 },
+                    { emoji: "🔥", title: "Activo este mes",    desc: "8+ asistencias en el mes",           earned: asistCount >= 8   },
+                    { emoji: "📊", title: "Me mido",            desc: "Registraste tus medidas corporales", earned: medidas.length > 0 },
+                    { emoji: "🎯", title: "Registro de cargas", desc: "Registraste tus pesos en ejercicios",earned: pesos.length > 0  },
+                  ];
+                  const earnedCount = BADGES.filter(b => b.earned).length;
+                  return (
+                    <div style={{ ...gc, padding: "18px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                        <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF" }}>Insignias</p>
+                        <span style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>{earnedCount}/{BADGES.length}</span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                        {BADGES.map(b => (
+                          <div key={b.title} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, opacity: b.earned ? 1 : 0.22 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 14, background: b.earned ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${b.earned ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, transition: "all 0.2s" }}>
+                              {b.emoji}
+                            </div>
+                            <span style={{ font: `500 0.52rem/1.2 ${fd}`, color: b.earned ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.3)", textAlign: "center", letterSpacing: "0.01em" }}>{b.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Ranking del mes */}
+                {(ranking.length > 0 || rankLoaded) && (
+                  <div style={{ ...gc, padding: "18px 18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                      <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF" }}>Top del mes</p>
+                      {myRankPos > 0 && (
+                        <span style={{ font: `500 0.65rem/1 ${fd}`, color: myRankPos <= 3 ? "#F97316" : "rgba(255,255,255,0.3)", background: myRankPos <= 3 ? "rgba(249,115,22,0.1)" : "transparent", padding: myRankPos <= 3 ? "3px 8px" : 0, borderRadius: 99 }}>
+                          #{myRankPos} en tu gym
+                        </span>
+                      )}
+                    </div>
+                    {ranking.length === 0 ? (
+                      <p style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", textAlign: "center", padding: "8px 0" }}>Nadie registró asistencias este mes aún.</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {ranking.slice(0, 5).map(r => (
+                          <div key={r.pos} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, background: r.isMe ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)", border: r.isMe ? "1px solid rgba(249,115,22,0.2)" : "1px solid transparent" }}>
+                            <span style={{ font: `700 0.75rem/1 ${fd}`, color: r.pos <= 3 ? ["#FFD700","#C0C0C0","#CD7F32"][r.pos-1] : "rgba(255,255,255,0.2)", width: 18, textAlign: "center", flexShrink: 0 }}>
+                              {r.pos <= 3 ? ["🥇","🥈","🥉"][r.pos-1] : `#${r.pos}`}
+                            </span>
+                            <span style={{ flex: 1, font: `${r.isMe ? "600" : "400"} 0.82rem/1 ${fd}`, color: r.isMe ? "#FFFFFF" : "rgba(255,255,255,0.55)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {r.name}{r.isMe ? " (vos)" : ""}
+                            </span>
+                            <span style={{ font: `600 0.8rem/1 ${fd}`, color: r.isMe ? "#F97316" : "rgba(255,255,255,0.35)", flexShrink: 0 }}>{r.count}</span>
+                          </div>
+                        ))}
+                        {myRankPos > 5 && (() => {
+                          const me = ranking.find(r => r.isMe);
+                          if (!me) return null;
+                          return (
+                            <>
+                              <div style={{ textAlign: "center", font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.15)", padding: "2px 0" }}>· · ·</div>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)" }}>
+                                <span style={{ font: `700 0.75rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", width: 18, textAlign: "center" }}>#{me.pos}</span>
+                                <span style={{ flex: 1, font: `600 0.82rem/1 ${fd}`, color: "#FFFFFF" }}>{me.name} (vos)</span>
+                                <span style={{ font: `600 0.8rem/1 ${fd}`, color: "#F97316" }}>{me.count}</span>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Peso actual */}
+                {medidas.length > 0 && (() => {
+                  const latest = medidas[0];
+                  const prev   = medidas[1];
+                  const diff   = prev ? +(latest.peso_kg - prev.peso_kg).toFixed(1) : null;
+                  return (
+                    <div style={{ ...gc, padding: "18px 20px" }}>
+                      <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Peso actual</p>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: diff !== null ? 6 : 0 }}>
+                        <span style={{ font: `700 2.4rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em" }}>{latest.peso_kg}</span>
+                        <span style={{ font: `500 0.9rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>kg</span>
+                        {latest.grasa_pct != null && <span style={{ font: `500 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginLeft: 4 }}>{latest.grasa_pct}% grasa</span>}
+                      </div>
+                      {diff !== null && (
+                        <p style={{ font: `500 0.72rem/1 ${fd}`, color: diff < 0 ? "#34D399" : diff > 0 ? "#F87171" : "rgba(255,255,255,0.3)" }}>
+                          {diff > 0 ? "+" : ""}{diff} kg vs medición anterior
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Sparkline evolución peso */}
+                {medidas.length >= 2 && (() => {
+                  const vals = [...medidas].reverse().map(m => +m.peso_kg);
+                  const min  = Math.min(...vals);
+                  const max  = Math.max(...vals);
+                  const rng  = max - min || 1;
+                  const W = 280, H = 52;
+                  const pts = vals.map((v, i) => {
+                    const x = ((i / (vals.length - 1)) * W).toFixed(1);
+                    const y = (H - ((v - min) / rng) * H * 0.75 - H * 0.1).toFixed(1);
+                    return `${x},${y}`;
+                  }).join(" ");
+                  const lx = W;
+                  const ly = (H - ((vals[vals.length - 1] - min) / rng) * H * 0.75 - H * 0.1).toFixed(1);
+                  return (
+                    <div style={{ ...gc, padding: "16px 18px" }}>
+                      <p style={{ font: `500 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Evolución de peso</p>
+                      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 52, display: "block", overflow: "visible" }}>
+                        <polyline points={pts} fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <circle cx={lx} cy={ly} r="3.5" fill="#F97316" />
+                      </svg>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                        <span style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)" }}>{medidas[medidas.length - 1].fecha}</span>
+                        <span style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)" }}>{medidas[0].fecha}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Formulario registrar medición */}
                 <div style={{ ...gc, padding: "18px 20px" }}>
-                  <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>Tu progreso</p>
-                  <h2 style={{ font: `700 1.5rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", marginBottom: 16 }}>Metas</h2>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {[
-                      { label: "Racha", value: "—", unit: "dias" },
-                      { label: "Sesiones", value: pesos.length > 0 ? `${pesos.length}` : "—", unit: "registros" },
-                    ].map(m => (
-                      <div key={m.label} style={{ flex: 1, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px 12px", textAlign: "center" }}>
-                        <span style={{ font: `700 1.5rem/1 ${fd}`, color: "#FFFFFF" }}>{m.value}</span>
-                        <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 5 }}>{m.unit}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {[
-                  { title: "Consistencia", desc: "Entrana 3 veces esta semana", progress: 0, total: 3 },
-                  { title: "Fuerza", desc: "Registra un nuevo maximo personal", progress: 0, total: 1 },
-                  { title: "Asistencia", desc: "Reserva y asiste a 5 clases", progress: Math.min(misReservas.length, 5), total: 5 },
-                ].map(r => (
-                  <div key={r.title} style={{ ...gc, padding: "15px 16px" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                      <div>
-                        <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 3 }}>{r.title}</p>
-                        <p style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>{r.desc}</p>
-                      </div>
-                      <span style={{ font: `600 0.8rem/1 ${fd}`, color: r.progress >= r.total ? "#34D399" : "rgba(255,255,255,0.2)" }}>
-                        {r.progress}/{r.total}
-                      </span>
+                  <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 14 }}>Registrar medición</p>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", font: `500 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>Peso kg *</label>
+                      <input type="number" step="0.1" min="30" max="250" value={medPeso} onChange={e => setMedPeso(e.target.value)} placeholder="75.0"
+                        style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", font: `600 0.9rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }} />
                     </div>
-                    <div style={{ height: 2, background: "rgba(255,255,255,0.06)", borderRadius: 99 }}>
-                      <div style={{ height: "100%", width: `${Math.min((r.progress / r.total) * 100, 100)}%`, background: r.progress >= r.total ? "#34D399" : "rgba(255,255,255,0.2)", borderRadius: 99, transition: "width 0.5s ease" }} />
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: "block", font: `500 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>% Grasa</label>
+                      <input type="number" step="0.1" min="1" max="60" value={medGrasa} onChange={e => setMedGrasa(e.target.value)} placeholder="—"
+                        style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", font: `600 0.9rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }} />
                     </div>
                   </div>
-                ))}
-
-                <div style={{ ...gc, padding: "24px 20px", textAlign: "center" }}>
-                  <Target size={20} color="rgba(255,255,255,0.15)" strokeWidth={1.5} style={{ margin: "0 auto 10px" }} />
-                  <p style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Mas retos proxximamente</p>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: "block", font: `500 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 5 }}>Cintura cm</label>
+                    <input type="number" step="0.5" min="40" max="200" value={medCintura} onChange={e => setMedCintura(e.target.value)} placeholder="—"
+                      style={{ width: "100%", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "10px 12px", font: `600 0.9rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }} />
+                  </div>
+                  <button onClick={handleSaveMedida} disabled={!medPeso.trim()}
+                    style={{ width: "100%", padding: "12px 0", background: !medPeso.trim() ? "rgba(249,115,22,0.3)" : "#F97316", border: "none", borderRadius: 12, font: `600 0.85rem/1 ${fd}`, color: "white", cursor: !medPeso.trim() ? "not-allowed" : "pointer" }}>
+                    Guardar medición
+                  </button>
                 </div>
+
+                {/* Historial */}
+                {medidas.length > 0 && (
+                  <div style={{ ...gc, padding: "16px 18px" }}>
+                    <p style={{ font: `500 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Historial</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {medidas.slice(0, 10).map(m => (
+                        <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>{m.fecha}</span>
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <span style={{ font: `600 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>{m.peso_kg}<span style={{ font: `400 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.25)" }}> kg</span></span>
+                            {m.grasa_pct != null && <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>{m.grasa_pct}%</span>}
+                            {m.cintura_cm != null && <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>{m.cintura_cm}cm</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {medidas.length === 0 && !medLoading && (
+                  <div style={{ ...gc, padding: "28px 20px", textAlign: "center" }}>
+                    <Target size={22} color="rgba(255,255,255,0.12)" strokeWidth={1.5} style={{ margin: "0 auto 10px" }} />
+                    <p style={{ font: `400 0.68rem/1.5 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.06em" }}>Registrá tu peso hoy y en unas semanas vas a ver tu progreso acá.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -880,6 +1142,30 @@ function AlumnoPanelInner() {
                     </div>
                   );
                 })()}
+
+                {/* Invitar amigo — Guest pass */}
+                <button
+                  onClick={handleGuestPass}
+                  disabled={guestPassLoading}
+                  style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "16px 18px", background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 16, cursor: guestPassLoading ? "not-allowed" : "pointer", textAlign: "left" }}
+                >
+                  <span style={{ fontSize: 28, lineHeight: 1, flexShrink: 0 }}>🎟️</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ font: `600 0.88rem/1.2 ${fd}`, color: "#FFFFFF", marginBottom: 2 }}>
+                      {guestPassLoading ? "Generando pase..." : guestPassCopied ? "¡Link copiado!" : guestPassUrl ? "Compartir pase de nuevo" : "Invitar un amigo"}
+                    </p>
+                    <p style={{ font: `400 0.7rem/1.3 ${fd}`, color: "rgba(255,255,255,0.35)" }}>
+                      {guestPassUrl ? "Tu amigo puede entrenar gratis 1 día" : "Generá un pase libre de un día para un amigo"}
+                    </p>
+                  </div>
+                  {!guestPassLoading && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                      <polyline points="16 6 12 2 8 6"/>
+                      <line x1="12" y1="2" x2="12" y2="15"/>
+                    </svg>
+                  )}
+                </button>
 
                 {/* MP payment button */}
                 {gymInfo?.has_mp && (
@@ -1143,6 +1429,77 @@ function AlumnoPanelInner() {
           </div>
         </div>
       )}
+
+      {/* Branding footer */}
+      <div style={{ textAlign: "center", padding: "28px 16px 20px", borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: 8 }}>
+        <p style={{ font: `400 0.66rem/1.5 ${fd}`, color: "rgba(255,255,255,0.18)", margin: 0 }}>
+          Potenciado por <strong style={{ color: "rgba(255,255,255,0.32)" }}>FitGrowX</strong>
+        </p>
+        <a
+          href="https://fitgrowx.com/start?utm_source=panel_alumno"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ font: `500 0.64rem/1 ${fd}`, color: "rgba(255,255,255,0.22)", textDecoration: "none", letterSpacing: "0.03em" }}
+        >
+          ¿Tenés un gym? Digitalizalo acá →
+        </a>
+      </div>
+
+      {/* Hito celebration modal */}
+      {pendingHitos.length > 0 && (() => {
+        const hito = pendingHitos[0];
+        const dismiss = () => setPendingHitos(prev => prev.slice(1));
+        const handleShare = async () => {
+          setHitoSharing(true);
+          try {
+            if (navigator.share) {
+              await navigator.share({ title: `¡Logré ${hito.label}!`, url: hito.cardUrl });
+            } else {
+              await navigator.clipboard.writeText(hito.cardUrl);
+              showToast("Link copiado 📋");
+            }
+          } catch {
+            window.open(hito.cardUrl, "_blank");
+          }
+          setHitoSharing(false);
+        };
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 500, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.75)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}>
+            <div style={{ width: "100%", maxWidth: 480, background: "#0D0D14", borderRadius: "28px 28px 0 0", padding: "28px 24px 40px", animation: "fadeUp 0.35s cubic-bezier(.22,.99,.44,1) both" }}>
+              {/* Pill handle */}
+              <div style={{ width: 36, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.1)", margin: "0 auto 24px" }} />
+
+              {/* Card preview */}
+              <div style={{ borderRadius: 18, overflow: "hidden", marginBottom: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.6)" }}>
+                <img src={hito.cardUrl} alt={hito.label} style={{ width: "100%", display: "block", aspectRatio: "1/1", objectFit: "cover" }} />
+              </div>
+
+              {/* Text */}
+              <p style={{ font: `800 1.3rem/1.2 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", margin: "0 0 6px" }}>
+                ¡Lograste {hito.label}!
+              </p>
+              <p style={{ font: `400 0.8rem/1.5 ${fd}`, color: "rgba(255,255,255,0.4)", margin: "0 0 22px" }}>
+                Compartí tu logro en Stories 📸
+              </p>
+
+              {/* Share button */}
+              <button
+                onClick={handleShare}
+                disabled={hitoSharing}
+                style={{ width: "100%", padding: "15px 0", background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)", border: "none", borderRadius: 16, font: `700 0.9rem/1 ${fd}`, color: "#FFFFFF", cursor: "pointer", marginBottom: 10, letterSpacing: "0.01em" }}
+              >
+                {hitoSharing ? "Abriendo..." : "Compartir en Stories ✨"}
+              </button>
+              <button
+                onClick={dismiss}
+                style={{ width: "100%", padding: "13px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, font: `500 0.78rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", cursor: "pointer" }}
+              >
+                Ahora no
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast */}
       {toast && (

@@ -134,6 +134,11 @@ function EnergiaTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
             </form>
           )}
         </div>
+        <p style={{ font: `400 0.6rem/1.5 ${fd}`, color: "rgba(255,255,255,0.12)", textAlign: "center", marginTop: 28, paddingBottom: 12 }}>
+          Potenciado por <strong style={{ color: "rgba(255,255,255,0.2)" }}>FitGrowX</strong>
+          {" · "}
+          <a href="https://fitgrowx.com/start?utm_source=gym_landing" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>¿Tenés un gym? Digitalizalo acá →</a>
+        </p>
       </div>
     </div>
   );
@@ -210,6 +215,11 @@ function ProTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
             </form>
           )}
         </div>
+        <p style={{ font: `400 0.6rem/1.5 ${fd}`, color: "rgba(15,23,42,0.25)", textAlign: "center", marginTop: 28, paddingBottom: 12 }}>
+          Potenciado por <strong>FitGrowX</strong>
+          {" · "}
+          <a href="https://fitgrowx.com/start?utm_source=gym_landing" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(15,23,42,0.3)", textDecoration: "none" }}>¿Tenés un gym? Digitalizalo acá →</a>
+        </p>
       </div>
     </div>
   );
@@ -279,6 +289,11 @@ function ImpactTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
             </form>
           )}
         </div>
+        <p style={{ font: `400 0.6rem/1.5 ${fd}`, color: "rgba(255,255,255,0.12)", textAlign: "center", marginTop: 12, paddingBottom: 12 }}>
+          Potenciado por <strong style={{ color: "rgba(255,255,255,0.2)" }}>FitGrowX</strong>
+          {" · "}
+          <a href="https://fitgrowx.com/start?utm_source=gym_landing" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>¿Tenés un gym? Digitalizalo acá →</a>
+        </p>
       </div>
     </div>
   );
@@ -381,8 +396,10 @@ function LinkTemplate({ gym, ACCENT, onSubmit, fields }: TemplateProps) {
         </div>
 
         {/* Footer */}
-        <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,.12)", margin: "24px 0 0", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-          Powered by FitGrowX
+        <p style={{ font: `400 0.6rem/1.5 ${fd}`, color: "rgba(255,255,255,0.12)", margin: "24px 0 0", textAlign: "center" }}>
+          Potenciado por <strong style={{ color: "rgba(255,255,255,0.2)" }}>FitGrowX</strong>
+          {" · "}
+          <a href="https://fitgrowx.com/start?utm_source=gym_landing" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>¿Tenés un gym? Digitalizalo acá →</a>
         </p>
       </div>
     </div>

@@ -349,7 +349,7 @@ export default function MembresiasPage() {
           .select("id, nombre, precio, periodo, duracion_dias, access_type, classes_per_week, active, features, destacado, accent_color")
           .maybeSingle();
         if (error) { clearSaving(); showToast(`Error: ${error.message}`, "err"); return; }
-        if (!updated) { clearSaving(); showToast("No se pudo guardar. Verificá permisos en Supabase (RLS).", "err"); return; }
+        if (!updated) { clearSaving(); showToast("No se pudo guardar. Recargá la página e intentá de nuevo.", "err"); return; }
         setPlanes(prev => {
           const next = prev.map(p => p.id === planId ? (updated as PlanDB) : p);
           syncMembresiasCache(next);

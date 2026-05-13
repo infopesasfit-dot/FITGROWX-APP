@@ -12,6 +12,8 @@ const ALLOWED_PATHS = new Set([
   "send-message",
 ]);
 
+const ADMIN_ONLY_ACTIONS = new Set(["session-delete", "session-reconnect", "qr-data"]);
+
 const PLATFORM_SESSION_ID = "fitgrowx-platform";
 
 export async function POST(req: NextRequest) {
@@ -32,18 +34,25 @@ export async function POST(req: NextRequest) {
   if (!action || !gymId) return NextResponse.json({ error: "Faltan parámetros" }, { status: 400 });
   if (!ALLOWED_PATHS.has(action)) return NextResponse.json({ error: "Acción no permitida" }, { status: 400 });
 
-  // Para la sesión de plataforma, verificar que el usuario es platform_owner
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("gym_id, role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const callerRole = profile?.role ?? "";
+
   if (gymId === PLATFORM_SESSION_ID) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (profile?.role !== "platform_owner") {
+    if (callerRole !== "platform_owner") {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
     }
-  } else if (user.id !== gymId) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  } else {
+    if (profile?.gym_id !== gymId) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+    if (ADMIN_ONLY_ACTIONS.has(action) && callerRole !== "admin") {
+      return NextResponse.json({ error: "Acción restringida a administradores." }, { status: 403 });
+    }
   }
 
   const headers = {

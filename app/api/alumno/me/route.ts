@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     .from("alumnos")
     .select("id, dni, gym_id, full_name, status, next_expiration_date, planes!plan_id(nombre)")
     .eq("id", alumno_id)
+    .eq("gym_id", tokenRow.gym_id)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Alumno no encontrado." }, { status: 404 });

@@ -1,23 +1,28 @@
-"use client";
+import type { Metadata, Viewport } from "next";
+import { PwaShell } from "./PwaShell";
 
-import { useEffect } from "react";
+export const metadata: Metadata = {
+  title: "Mi Panel | FitGrowX",
+  description: "Tu panel de entrenamiento y membresía",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FitGrowX",
+  },
+  icons: {
+    apple: "/images/logo-favicon-fitgrowx.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F97316",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export default function AlumnoLayout({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    }
-  }, []);
-
-  return (
-    <>
-      <link rel="manifest" href="/manifest.json" />
-      <meta name="theme-color" content="#F97316" />
-      <meta name="mobile-web-app-capable" content="yes" />
-      <meta name="apple-mobile-web-app-capable" content="yes" />
-      <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-      <meta name="apple-mobile-web-app-title" content="FitGrowX" />
-      {children}
-    </>
-  );
+  return <PwaShell>{children}</PwaShell>;
 }

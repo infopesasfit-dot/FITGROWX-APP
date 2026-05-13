@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { getGymSummary } from "@/lib/supabase-relations";
-import { getCachedProfile } from "@/lib/gym-cache";
+import { getCachedProfile, getImpersonatedGym, clearImpersonation, type ImpersonatedGym } from "@/lib/gym-cache";
+import { useNotificationPolling, type Notif } from "@/hooks/useNotificationPolling";
 
 type NavItem = {
   href: string;
@@ -163,7 +164,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [trialDaysLeft,    setTrialDaysLeft]    = useState<number | null>(null);
   const [trialExpired,     setTrialExpired]     = useState(false);
   const [isSubscribed,     setIsSubscribed]     = useState(false);
+  const [isAnnual,         setIsAnnual]         = useState(false);
   const [showTrialBanner,  setShowTrialBanner]  = useState(false);
+  const [showAnnualUpsell, setShowAnnualUpsell] = useState(false);
   const [showTrialModal,   setShowTrialModal]   = useState(false);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
@@ -172,12 +175,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const notifRef   = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
-  type Notif = { id: string; type: string; title: string; body: string | null; read: boolean; created_at: string; link?: string | null };
   const [notifOpen,   setNotifOpen]   = useState(false);
-  const [notifs,      setNotifs]      = useState<Notif[]>([]);
-  const [notifLoadedGymId, setNotifLoadedGymId] = useState<string | null>(null);
   const [gymId,       setGymId]       = useState<string | null>(null);
-  const [role,        setRole]        = useState<"admin" | "staff">("admin");
+  const { notifs, setNotifs, ensureLoaded, notifLoadedGymId } = useNotificationPolling(gymId);
+  const [role,        setRole]        = useState<"admin" | "staff" | "platform_owner">("admin");
+  const [impersonatedGym, setImpersonatedGym] = useState<ImpersonatedGym | null>(null);
   const [roleLoaded,  setRoleLoaded]  = useState(false);
   const [attractOpen, setAttractOpen] = useState(() => ATTRACT_ROUTES.some(r => pathname.startsWith(r)));
   const [configOpen,  setConfigOpen]  = useState(() => pathname.startsWith("/dashboard/ajustes"));
@@ -229,17 +231,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
       const gymIdVal = cachedProfile.gymId;
       const userIdVal = cachedProfile.userId;
-      const roleVal = cachedProfile.role as "admin" | "staff";
+      const roleVal = cachedProfile.role as "admin" | "staff" | "platform_owner";
 
       setGymId(gymIdVal);
       setRole(roleVal);
       setRoleLoaded(true);
 
+      if (roleVal === "platform_owner") {
+        setImpersonatedGym(getImpersonatedGym());
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
+
+      // Actualiza last_seen_at en platform_accounts (fire-and-forget, no bloquea)
+      fetch("/api/platform/ping", { method: "POST" }).catch(() => {});
 
       const [{ count }, { data: profile }, { data: settings }] = await Promise.all([
         supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", gymIdVal).eq("status", "pendiente"),
-        supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status)").eq("id", userIdVal).maybeSingle(),
+        supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status, subscription_type)").eq("id", userIdVal).maybeSingle(),
         supabase.from("gym_settings").select("logo_url, gym_name, owner_name").eq("gym_id", gymIdVal).maybeSingle(),
       ]);
 
@@ -254,7 +263,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       if (gym) {
         const subscribed = Boolean(gym.is_subscription_active);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const subType = (gym as any).subscription_type ?? "monthly";
         setIsSubscribed(subscribed);
+        setIsAnnual(subType === "annual");
+        if (subscribed && subType !== "annual") {
+          const upsellDismissed = localStorage.getItem("fitgrowx_annual_upsell_dismissed");
+          if (upsellDismissed !== new Date().toDateString()) setShowAnnualUpsell(true);
+        }
         if (!subscribed) {
           if (gym.trial_expires_at) {
             const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
@@ -287,57 +303,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Fetch notifications lazily on demand (first open)
+  // Fetch notifications lazily when panel first opens
   useEffect(() => {
-    if (!gymId || !notifOpen || notifLoadedGymId === gymId) return;
-    fetch(`/api/notifications?gym_id=${gymId}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.notifications) setNotifs(d.notifications);
-        setNotifLoadedGymId(gymId);
-      })
-      .catch(() => {});
-  }, [gymId, notifOpen, notifLoadedGymId]);
-
-  // Poll every 30 s for new notifications (background)
-  const latestNotifAt = useRef<string | null>(null);
-  useEffect(() => {
-    if (!gymId) return;
-    const poll = async () => {
-      try {
-        const r = await fetch(`/api/notifications?gym_id=${gymId}`);
-        const d = await r.json();
-        if (!d.notifications?.length) return;
-        const incoming: Notif[] = d.notifications;
-        const newLatest = incoming[0].created_at;
-        const prev = latestNotifAt.current;
-        latestNotifAt.current = newLatest;
-        if (prev === null) return; // first poll — just seed, no sound
-        const hasNew = incoming.some(n => !n.read && n.created_at > prev);
-        if (hasNew) {
-          setNotifs(incoming);
-          // Web Audio beep
-          try {
-            const ctx = new AudioContext();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(880, ctx.currentTime);
-            gain.gain.setValueAtTime(0.18, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-            osc.start(ctx.currentTime);
-            osc.stop(ctx.currentTime + 0.35);
-            osc.onended = () => ctx.close();
-          } catch {}
-        }
-      } catch {}
-    };
-    poll(); // seed latestNotifAt immediately
-    const id = window.setInterval(poll, 30_000);
-    return () => window.clearInterval(id);
-  }, [gymId]);
+    if (!gymId || !notifOpen) return;
+    void ensureLoaded(gymId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gymId, notifOpen]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
   const notificationsNowMs = notifs.length > 0 ? new Date(notifs[0].created_at).getTime() : 0;
@@ -812,6 +783,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
+        {/* ── Impersonation banner ── */}
+        {role === "platform_owner" && impersonatedGym && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: "rgba(37,99,235,0.07)",
+            borderBottom: "1px solid rgba(37,99,235,0.18)",
+            flexShrink: 0,
+          }}>
+            <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#2563EB" }}>
+              Viendo dashboard de <strong>{impersonatedGym.gym_name}</strong> como plataforma
+            </span>
+            <button
+              onClick={() => { clearImpersonation(); router.push("/platform"); }}
+              style={{ font: `700 0.72rem/1 ${fd}`, color: "white", background: "#2563EB", padding: "5px 12px", borderRadius: 9999, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              Salir
+            </button>
+          </div>
+        )}
+
         {/* ── Trial countdown banner (day 10+) ── */}
         {role === "admin" && showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
           <div style={{
@@ -837,6 +829,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 whiteSpace: "nowrap",
               }}>Ver planes</Link>
               <button onClick={() => setShowTrialBanner(false)} style={{ background: "none", border: "none", cursor: "pointer", color: trialDaysLeft <= 2 ? "#DC2626" : "#D97706", display: "flex", padding: 2 }}>
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Annual upsell banner (monthly subscribers only) ── */}
+        {role === "admin" && isSubscribed && !isAnnual && showAnnualUpsell && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: "rgba(249,115,22,0.06)",
+            borderBottom: "1px solid rgba(249,115,22,0.15)",
+            flexShrink: 0,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 14 }}>🎁</span>
+              <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#C2410C" }}>
+                {isMobile ? "Pasate al anual: pagás 10, usás 12." : "Pasate al Plan Anual: pagás 10 meses y te regalamos 2. Sin cambios en tu workflow."}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href="/dashboard/suscripcion?billing=anual" style={{
+                font: `700 0.72rem/1 ${fd}`, color: "white",
+                background: "#F97316",
+                padding: "5px 12px", borderRadius: 9999, textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>Ver oferta</Link>
+              <button onClick={() => { setShowAnnualUpsell(false); localStorage.setItem("fitgrowx_annual_upsell_dismissed", new Date().toDateString()); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#C2410C", display: "flex", padding: 2 }}>
                 <X size={13} />
               </button>
             </div>
@@ -1013,7 +1034,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* ── Trial expired paywall ── */}
-      {!isSubscribed && trialExpired && role === "admin" && (
+      {!isSubscribed && trialExpired && role === "admin" && !impersonatedGym && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
 
@@ -1035,7 +1056,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
 
             {/* Reassurance */}
-            <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 16, padding: "16px 20px", marginBottom: 24, textAlign: "left" }}>
+            <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 16, padding: "16px 20px", marginBottom: 16, textAlign: "left" }}>
               <p style={{ font: `600 0.78rem/1 ${fd}`, color: "#0F172A", marginBottom: 10 }}>Tus datos están seguros</p>
               {["Alumnos y pagos guardados", "Automatizaciones conservadas", "Landing y prospectos intactos"].map((item) => (
                 <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
@@ -1043,6 +1064,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span style={{ font: `400 0.78rem/1 ${fd}`, color: "#475569" }}>{item}</span>
                 </div>
               ))}
+            </div>
+
+            {/* Export while paused */}
+            <div style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 14, padding: "14px 16px", marginBottom: 20, textAlign: "left" }}>
+              <p style={{ font: `500 0.78rem/1.45 ${fd}`, color: "#374151", marginBottom: 10 }}>
+                Si querés llevarte tus datos mientras decidís, podés descargar tu lista de alumnos en cualquier momento.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <a
+                  href="/api/user/export-alumnos-csv"
+                  download
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, background: "rgba(99,102,241,0.1)", color: "#4f46e5", font: `700 0.75rem/1 ${fd}`, textDecoration: "none" }}
+                >
+                  Alumnos CSV
+                </a>
+                <a
+                  href="/api/user/export-data"
+                  download
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, background: "rgba(15,23,42,0.05)", color: "#6b7280", font: `600 0.75rem/1 ${fd}`, textDecoration: "none" }}
+                >
+                  Todo JSON
+                </a>
+              </div>
             </div>
 
             <Link

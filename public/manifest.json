@@ -1,24 +1,39 @@
 {
-  "name": "FitGrowX - Mi Panel",
+  "id": "/alumno/panel",
+  "name": "FitGrowX — Mi Panel",
   "short_name": "FitGrowX",
-  "description": "Tu panel de entrenamiento",
-  "start_url": "/alumno/panel",
+  "description": "Tu panel de membresía, rutinas y progreso",
+  "start_url": "/alumno/panel?pwa=1",
+  "scope": "/alumno/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0A0A0A",
   "theme_color": "#F97316",
+  "categories": ["fitness", "health"],
   "icons": [
     {
       "src": "/images/logo-favicon-fitgrowx.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/images/logo-favicon-fitgrowx.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ver mis clases",
+      "url": "/alumno/panel?tab=clases",
+      "icons": [{ "src": "/images/logo-favicon-fitgrowx.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Mi progreso",
+      "url": "/alumno/panel?tab=metas",
+      "icons": [{ "src": "/images/logo-favicon-fitgrowx.png", "sizes": "96x96" }]
     }
   ]
 }

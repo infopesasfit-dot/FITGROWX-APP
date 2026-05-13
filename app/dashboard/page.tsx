@@ -866,73 +866,70 @@ export default function DashboardPage() {
       </div>
 
       {setup && !Object.values(setup).every(Boolean) && (() => {
-        const tasks: { key: keyof typeof setup; label: string; desc: string; href: string }[] = [
-          { key: "whatsapp", label: "Conectá WhatsApp",   desc: "Necesario para los mensajes automáticos", href: "/dashboard/ajustes" },
-          { key: "alumnos",  label: "Cargá alumnos",      desc: "Importá o agregá tus miembros",           href: "/dashboard/alumnos" },
-          { key: "planes",   label: "Armá tus planes",    desc: "Definí membresías y precios",             href: "/dashboard/planes"  },
-          { key: "landing",  label: "Publicá tu landing", desc: "Página pública para captar prospectos",   href: "/dashboard/landing" },
-          { key: "pagos",    label: "Configurá pagos",    desc: "MercadoPago o transferencia",             href: "/dashboard/ajustes" },
+        const tasks: { key: keyof typeof setup; label: string; desc: string; href: string; time: string }[] = [
+          { key: "alumnos",  label: "Cargá tu primer alumno", desc: "El sistema cobra vida cuando hay gente adentro",  href: "/dashboard/alumnos", time: "1 min"  },
+          { key: "planes",   label: "Creá un plan",           desc: "Definí qué incluye cada membresía y su precio",   href: "/dashboard/planes",  time: "2 min"  },
+          { key: "whatsapp", label: "Conectá WhatsApp",       desc: "Recordatorios y bienvenidas automáticas",         href: "/dashboard/ajustes", time: "2 min"  },
+          { key: "landing",  label: "Publicá tu landing",     desc: "Página pública para captar prospectos",           href: "/dashboard/landing", time: "3 min"  },
+          { key: "pagos",    label: "Configurá pagos",        desc: "MercadoPago o datos de transferencia",            href: "/dashboard/ajustes", time: "2 min"  },
         ];
-        const done = tasks.filter(t => setup[t.key]).length;
+        const done      = tasks.filter(t => setup[t.key]).length;
+        const nextTask  = tasks.find(t => !setup[t.key]);
         const dinoState = getDinoState(done);
         return (
           <div style={{ background: "#FFFBF6", border: "1px solid rgba(249,115,22,0.18)", borderRadius: 20, padding: "18px 20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
               <div style={{ position: "relative", flexShrink: 0 }}>
                 <DinoSVG state={dinoState} pixelSize={3} />
-                {done === 0 && (
-                  <div style={{
-                    position: "absolute", bottom: "100%", left: "50%", transform: "translateX(-20%)",
-                    marginBottom: 6, background: "white", border: "1.5px solid rgba(249,115,22,0.30)",
-                    borderRadius: 10, padding: "6px 10px", whiteSpace: "nowrap",
-                    font: `700 0.72rem/1.3 ${fd}`, color: "#C2410C",
-                    boxShadow: "0 4px 12px rgba(249,115,22,0.15)",
-                    pointerEvents: "none",
-                  }}>
-                    ¡Hola! Empecemos por acá 👇
-                    <div style={{
-                      position: "absolute", top: "100%", left: "22%",
-                      width: 0, height: 0,
-                      borderLeft: "6px solid transparent",
-                      borderRight: "6px solid transparent",
-                      borderTop: "6px solid white",
-                      filter: "drop-shadow(0 1px 0 rgba(249,115,22,0.25))",
-                    }} />
-                  </div>
-                )}
               </div>
               <div style={{ flex: 1 }}>
-                <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, marginBottom: 5 }}>Configurá tu sistema</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                  <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Quick Start</p>
+                  {nextTask && (
+                    <span style={{ font: `600 0.68rem/1 ${fd}`, color: "#F97316", background: "rgba(249,115,22,0.10)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 999, padding: "2px 8px" }}>
+                      Próximo: {nextTask.label} · {nextTask.time}
+                    </span>
+                  )}
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ flex: 1, height: 5, borderRadius: 999, background: "rgba(0,0,0,0.07)", overflow: "hidden" }}>
                     <div style={{ width: `${(done / 5) * 100}%`, height: "100%", borderRadius: 999, background: accent, transition: "width 0.4s ease" }} />
                   </div>
-                  <p style={{ font: `500 0.75rem/1 ${fb}`, color: t2, whiteSpace: "nowrap" }}>{done} de 5</p>
+                  <p style={{ font: `500 0.75rem/1 ${fb}`, color: t2, whiteSpace: "nowrap" }}>{done} de 5 completados</p>
                 </div>
               </div>
-              <button
-                onClick={() => setOnboardingOpen(true)}
-                style={{ padding: "7px 13px", borderRadius: 10, background: "rgba(249,115,22,0.08)", border: "1.5px solid rgba(249,115,22,0.18)", font: `600 0.75rem/1 ${fd}`, color: "#F97316", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
-              >
-                Ver guía
-              </button>
+              {nextTask && (
+                <a
+                  href={nextTask.href}
+                  style={{ padding: "9px 16px", borderRadius: 11, background: accent, border: "none", font: `700 0.78rem/1 ${fd}`, color: "white", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, boxShadow: "0 4px 14px rgba(249,115,22,0.30)" }}
+                >
+                  Hacerlo ahora
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6h8M6 2l4 4-4 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </a>
+              )}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
-              {tasks.map(t => (
-                <a key={t.key} href={setup[t.key] ? undefined : t.href} style={{ textDecoration: "none", display: "block", padding: "11px 12px", borderRadius: 12, background: setup[t.key] ? "rgba(34,197,94,0.06)" : "white", border: `1px solid ${setup[t.key] ? "rgba(34,197,94,0.18)" : "rgba(0,0,0,0.07)"}`, cursor: setup[t.key] ? "default" : "pointer" }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 999, background: setup[t.key] ? "#22C55E" : "rgba(0,0,0,0.07)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 7, flexShrink: 0 }}>
-                    {setup[t.key]
-                      ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2.5" stroke="rgba(0,0,0,0.22)" strokeWidth="1.2"/></svg>
-                    }
-                  </div>
-                  <p style={{ font: `600 0.76rem/1.3 ${fd}`, color: setup[t.key] ? "#15803D" : t1, marginBottom: 2 }}>{t.label}</p>
-                  <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t2 }}>{t.desc}</p>
-                  {t.key === "whatsapp" && !setup[t.key] && (
-                    <p style={{ font: `500 0.65rem/1.3 ${fb}`, color: "#F97316", marginTop: 4 }}>Podés hacerlo después</p>
-                  )}
-                </a>
-              ))}
+              {tasks.map((t, i) => {
+                const isDone    = setup[t.key];
+                const isNext    = !isDone && tasks.slice(0, i).every(prev => setup[prev.key]);
+                return (
+                  <a key={t.key} href={isDone ? undefined : t.href} style={{ textDecoration: "none", display: "block", padding: "11px 12px", borderRadius: 12, background: isDone ? "rgba(34,197,94,0.06)" : isNext ? "rgba(249,115,22,0.04)" : "white", border: `1px solid ${isDone ? "rgba(34,197,94,0.18)" : isNext ? "rgba(249,115,22,0.25)" : "rgba(0,0,0,0.07)"}`, cursor: isDone ? "default" : "pointer", transition: "box-shadow 0.15s" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: 999, background: isDone ? "#22C55E" : isNext ? "rgba(249,115,22,0.15)" : "rgba(0,0,0,0.07)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {isDone
+                          ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5 4-4" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                          : isNext
+                            ? <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" fill="#F97316" opacity="0.7"/></svg>
+                            : <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="2.5" stroke="rgba(0,0,0,0.22)" strokeWidth="1.2"/></svg>
+                        }
+                      </div>
+                      {!isDone && <span style={{ font: `500 0.6rem/1 ${fd}`, color: isNext ? "#F97316" : t3 }}>{t.time}</span>}
+                    </div>
+                    <p style={{ font: `600 0.76rem/1.3 ${fd}`, color: isDone ? "#15803D" : isNext ? "#C2410C" : t1, marginBottom: 2 }}>{t.label}</p>
+                    <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t2 }}>{t.desc}</p>
+                  </a>
+                );
+              })}
             </div>
             {!demoMode && (
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>

@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile } from "@/lib/gym-cache";
+import { useWaSession } from "@/hooks/useWaSession";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -172,6 +173,16 @@ function AjustesContent() {
   const [lastMonthlyReport, setLastMonthlyReport] = useState<LastMonthlyReport | null>(null);
 
   const [gymId, setGymId] = useState<string | null>(null);
+  const [refCode, setRefCode] = useState<string | null>(null);
+  const [refCopied, setRefCopied] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"export" | "confirm">("export");
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pagoSound, setPagoSound] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("fitgrowx_pago_sound") !== "off" : true
+  );
   const [isTrial, setIsTrial] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [isSubscriptionActive, setIsSubscriptionActive] = useState(false);
@@ -185,37 +196,13 @@ function AjustesContent() {
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [waStatus, setWaStatus] = useState<"unknown" | "connected" | "disconnected" | "needs_reauth">("unknown");
-  const [panicLoading, setPanicLoading] = useState(false);
-  const [waPhone, setWaPhone] = useState<string | null>(null);
-  const [waBattery, setWaBattery] = useState<number | null>(null);
-  const [waSignal, setWaSignal] = useState<number | null>(null);
-  const [waPlugged, setWaPlugged] = useState<boolean | null>(null);
-  const [waRetries, setWaRetries] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
-  const [qrModalOpen, setQrModalOpen] = useState(false);
-  const [qrImage, setQrImage] = useState<string | null>(null);
-  const [qrLoading, setQrLoading] = useState(false);
-  const [qrError, setQrError] = useState<"max" | null>(null);
-  const [qrAttempt, setQrAttempt] = useState(0);
-  const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null);
-  const qrCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const waProxy = async (action: string) => {
-    const res = await fetch("/api/wa/proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, gymId }),
-    });
-    return res;
-  };
-
-  const parseWaStatus = (raw: string) => {
-    if (raw === "active")       return "connected"  as const;
-    if (raw === "needs_reauth") return "needs_reauth" as const;
-    return "disconnected" as const;
-  };
+  const {
+    waStatus, waPhone, waBattery, waSignal, waPlugged, waRetries,
+    refreshing, panicLoading,
+    qrModalOpen, qrImage, qrLoading, qrError, qrAttempt, qrSecondsLeft,
+    openQrModal, closeQrModal, disconnectWA,
+    handlePanicReconnect, handleRefreshSession,
+  } = useWaSession(gymId);
 
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [staffLoading, setStaffLoading] = useState(true);
@@ -347,6 +334,14 @@ function AjustesContent() {
 
       void loadLastMonthlyReport(gymIdVal);
 
+      // Cargar ref_code para el link de referidos
+      supabase
+        .from("platform_accounts")
+        .select("ref_code")
+        .eq("auth_user_id", userIdVal)
+        .maybeSingle()
+        .then(({ data: pa }) => { if (pa?.ref_code) setRefCode(pa.ref_code); });
+
       fetch("/api/admin/staff")
         .then((response) => response.json())
         .then((data) => {
@@ -355,6 +350,21 @@ function AjustesContent() {
         .finally(() => setStaffLoading(false));
     })();
   }, [loadLastMonthlyReport]);
+
+  const handleDeleteGym = async () => {
+    if (deleteConfirm !== gymName) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/gym/delete", { method: "DELETE" });
+      if (!res.ok) { const d = await res.json(); setDeleteError(d.error ?? "Error al eliminar."); setDeleting(false); return; }
+      await supabase.auth.signOut();
+      router.push("/start");
+    } catch {
+      setDeleteError("Error de conexión. Intentá de nuevo.");
+      setDeleting(false);
+    }
+  };
 
   const handleSaveGym = async () => {
     if (!gymId) return;
@@ -553,203 +563,6 @@ function AjustesContent() {
     setDeletingId(null);
   };
 
-  useEffect(() => {
-    if (!gymId) return;
-    (async () => {
-      try {
-        const response = await waProxy("session-status");
-        const data = await response.json();
-        setWaStatus(parseWaStatus(data.status));
-        if (data.retries != null) setWaRetries(data.retries);
-        if (data.phone) setWaPhone(data.phone);
-        if (data.battery != null) setWaBattery(data.battery);
-        if (data.signal != null) setWaSignal(data.signal);
-        if (data.plugged != null) setWaPlugged(data.plugged);
-      } catch {
-        setWaStatus("disconnected");
-      }
-    })();
-  }, [gymId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const stopQrCountdown = () => {
-    if (qrCountdownRef.current) {
-      clearInterval(qrCountdownRef.current);
-      qrCountdownRef.current = null;
-    }
-    setQrSecondsLeft(null);
-  };
-
-  const startQrCountdown = () => {
-    stopQrCountdown();
-    setQrSecondsLeft(60);
-    qrCountdownRef.current = setInterval(() => {
-      setQrSecondsLeft(s => {
-        if (s === null || s <= 1) { stopQrCountdown(); return null; }
-        return s - 1;
-      });
-    }, 1000);
-  };
-
-  const stopPolling = () => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    if (retryRef.current) {
-      clearTimeout(retryRef.current);
-      retryRef.current = null;
-    }
-    stopQrCountdown();
-  };
-
-  const startStatusPoll = () => {
-    stopPolling();
-    pollRef.current = setInterval(async () => {
-      try {
-        const response = await waProxy("session-status");
-        const data = await response.json();
-        if (data.retries != null) setWaRetries(data.retries);
-        if (data.status === "needs_reauth") {
-          stopPolling();
-          setWaStatus("needs_reauth");
-        }
-        // QR expiró y Baileys generó uno nuevo — reemplazar imagen sin cerrar modal
-        if (data.status === "qr" && data.qr) {
-          setQrImage((prev: string | null) => {
-            if (prev !== data.qr) { startQrCountdown(); return data.qr; }
-            return prev;
-          });
-        }
-        if (data.status === "active") {
-          stopPolling();
-          setWaStatus("connected");
-          setWaRetries(0);
-          if (data.phone) setWaPhone(data.phone);
-          if (data.battery != null) setWaBattery(data.battery);
-          if (data.signal != null) setWaSignal(data.signal);
-          if (data.plugged != null) setWaPlugged(data.plugged);
-          setQrModalOpen(false);
-        }
-      } catch {
-        // noop
-      }
-    }, 3000);
-  };
-
-  const attemptQrConnect = async (attempt: number) => {
-    if (!gymId) return;
-    setQrAttempt(Math.min(attempt, 2));
-    setQrLoading(true);
-    setQrImage(null);
-
-    try {
-      if (attempt === 0) {
-        await waProxy("session-delete").catch(() => {});
-      }
-
-      const response = await waProxy("qr-data");
-      const data = await response.json();
-
-      if (data.status === "active") {
-        setWaStatus("connected");
-        setQrModalOpen(false);
-        setQrLoading(false);
-        return;
-      }
-
-      if (data.qr) {
-        setQrImage(data.qr);
-        setQrLoading(false);
-        startStatusPoll();
-        startQrCountdown();
-        return;
-      }
-
-      retryRef.current = setTimeout(() => attemptQrConnect(attempt + 1), 2000);
-    } catch {
-      setQrLoading(false);
-      if (attempt < 4) {
-        retryRef.current = setTimeout(() => attemptQrConnect(attempt + 1), 3000);
-      } else {
-        setQrError("max");
-      }
-    }
-  };
-
-  const openQrModal = () => {
-    stopPolling();
-    setQrModalOpen(true);
-    setQrImage(null);
-    setQrError(null);
-    setQrAttempt(0);
-    void attemptQrConnect(0);
-  };
-
-  const closeQrModal = () => {
-    stopPolling();
-    setQrModalOpen(false);
-    // QR nunca fue escaneado: detener la sesión en el servidor para no dejar
-    // el WebSocket de Baileys abierto generando QRs nuevos indefinidamente
-    if (qrImage) {
-      waProxy("session-delete").catch(() => {});
-      setQrImage(null);
-    }
-  };
-
-  const disconnectWA = async () => {
-    if (!gymId || !window.confirm("¿Desvincular WhatsApp? Se detendrán los mensajes automáticos.")) return;
-    stopPolling();
-    await waProxy("session-delete");
-    setWaStatus("disconnected");
-    setWaPhone(null);
-    setWaBattery(null);
-    setWaSignal(null);
-    setWaPlugged(null);
-    openQrModal();
-  };
-
-  const handlePanicReconnect = async () => {
-    if (!gymId || panicLoading) return;
-    setPanicLoading(true);
-    try {
-      await waProxy("session-reconnect");
-      await new Promise(r => setTimeout(r, 6000));
-      const res  = await waProxy("session-status");
-      const data = await res.json();
-      const resolved = parseWaStatus(data.status);
-      setWaStatus(resolved);
-      if (data.retries != null) setWaRetries(data.retries);
-      if (resolved !== "connected") {
-        // soft reconnect no sirvió → QR nuevo
-        openQrModal();
-      }
-    } catch {
-      openQrModal();
-    } finally {
-      setPanicLoading(false);
-    }
-  };
-
-  const handleRefreshSession = async () => {
-    if (!gymId || refreshing) return;
-    setRefreshing(true);
-    try {
-      await waProxy("session-reconnect");
-      setTimeout(async () => {
-        try {
-          const response = await waProxy("session-status");
-          const data = await response.json();
-          setWaStatus(parseWaStatus(data.status));
-          if (data.retries != null) setWaRetries(data.retries);
-        } catch {}
-        setRefreshing(false);
-      }, 3500);
-    } catch {
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => () => { stopPolling(); stopQrCountdown(); }, []);
 
   return (
     <>
@@ -1060,6 +873,84 @@ function AjustesContent() {
                 })()}
               </div>
             </SectionCard>
+
+            {/* ── Sonido de pago ── */}
+            <div style={{ border: "1px solid rgba(15,23,42,0.07)", borderRadius: 22, padding: "20px 24px", background: "#FAFBFC" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Sonido al recibir un pago</p>
+                  <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2 }}>
+                    Suena un ca-ching cuando MercadoPago confirma un pago. Desactivalo si estás con música.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const next = !pagoSound;
+                    setPagoSound(next);
+                    localStorage.setItem("fitgrowx_pago_sound", next ? "on" : "off");
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    width: 44, height: 24, borderRadius: 9999,
+                    background: pagoSound ? "#16A34A" : "#D1D5DB",
+                    border: "none", cursor: "pointer",
+                    position: "relative", transition: "background 0.2s",
+                  }}
+                >
+                  <span style={{
+                    position: "absolute", top: 3,
+                    left: pagoSound ? 23 : 3,
+                    width: 18, height: 18, borderRadius: "50%",
+                    background: "white",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                    transition: "left 0.2s",
+                  }} />
+                </button>
+              </div>
+            </div>
+
+            {/* ── Exportar datos ── */}
+            <div style={{ border: "1px solid rgba(15,23,42,0.07)", borderRadius: 22, padding: "20px 24px", background: "#FAFBFC" }}>
+              <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Exportar mis datos</p>
+              <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, marginBottom: 14 }}>
+                Tus datos son tuyos. Descargalos en cualquier momento para migrar, hacer backup o llevarlos a otro sistema.
+              </p>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const }}>
+                <a
+                  href="/api/user/export-alumnos-csv"
+                  download
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: `1px solid ${ACCENT}22`, background: ACCENT_SOFT, color: ACCENT, font: `700 0.8rem/1 ${fd}`, textDecoration: "none", whiteSpace: "nowrap" as const }}
+                >
+                  Alumnos (CSV)
+                </a>
+                <a
+                  href="/api/user/export-data"
+                  download
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "white", color: t2, font: `600 0.8rem/1 ${fd}`, textDecoration: "none", whiteSpace: "nowrap" as const }}
+                >
+                  Todo (JSON)
+                </a>
+              </div>
+            </div>
+
+            {/* ── Zona de peligro ── */}
+            <div style={{ border: "1px solid rgba(220,38,38,0.18)", borderRadius: 22, padding: "20px 24px", background: "rgba(220,38,38,0.02)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const }}>
+                <div>
+                  <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#DC2626", marginBottom: 4 }}>Eliminar cuenta</p>
+                  <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, maxWidth: 460 }}>
+                    Borra permanentemente el gym, todos los alumnos, pagos, automatizaciones y datos asociados. Esta acción <strong>no se puede deshacer</strong>.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setDeleteModalOpen(true); setDeleteStep("export"); setDeleteConfirm(""); setDeleteError(null); }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(220,38,38,0.30)", background: "rgba(220,38,38,0.06)", color: "#DC2626", font: `700 0.8rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap" as const, flexShrink: 0 }}
+                >
+                  <Trash2 size={13} />
+                  Eliminar cuenta
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1083,7 +974,7 @@ function AjustesContent() {
                         ? "La sesión venció o fue cerrada desde el teléfono. Necesitás vincular de nuevo."
                         : waRetries > 0
                         ? "Reintentando reconectar... Si tu teléfono perdió internet, revisalo."
-                        : "Usá el motor para recordatorios, reactivaciones y mensajes automáticos.",
+                        : "Escaneá el QR para activar los mensajes automáticos.",
                     badge: waStatus === "connected"
                       ? { label: "Conexión estable", bg: "rgba(34,197,94,0.10)", color: "#15803D" }
                       : waStatus === "needs_reauth"
@@ -1335,6 +1226,38 @@ function AjustesContent() {
                   </button>
                 </div>
               </div>
+            </SectionCard>
+
+            {/* Link de referidos */}
+            <SectionCard
+              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>}
+              title="Tu link de referidos"
+              desc="Compartí este link con otros dueños de gym. Ganás 1 mes gratis cada vez que alguien que te recomendaste pague su primera suscripción."
+            >
+              {refCode ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 12, padding: "10px 14px" }}>
+                    <span style={{ flex: 1, font: `500 0.82rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      fitgrowx.com/start?ref={refCode}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://fitgrowx.com/start?ref=${refCode}`);
+                        setRefCopied(true);
+                        setTimeout(() => setRefCopied(false), 2000);
+                      }}
+                      style={{ flexShrink: 0, padding: "7px 12px", borderRadius: 9, border: "none", background: refCopied ? "#DCFCE7" : ACCENT_SOFT, color: refCopied ? "#15803D" : ACCENT, font: `700 0.75rem/1 ${fd}`, cursor: "pointer", transition: "all .15s" }}
+                    >
+                      {refCopied ? "¡Copiado!" : "Copiar"}
+                    </button>
+                  </div>
+                  <p style={{ font: `400 0.75rem/1.5 ${fd}`, color: t3, margin: 0 }}>
+                    Cada gym que se registre con tu link y pague su primer mes te extiende la suscripción 1 mes automáticamente. Sin límite de referidos.
+                  </p>
+                </div>
+              ) : (
+                <p style={{ font: `400 0.8rem/1.5 ${fd}`, color: t3, margin: 0 }}>Cargando tu link...</p>
+              )}
             </SectionCard>
           </div>
         )}
@@ -1692,15 +1615,26 @@ function AjustesContent() {
                     {qrAttempt === 0 ? "Conectando con el motor..." : `Reintentando (${qrAttempt + 1}/3)...`}
                   </p>
                 </div>
-              ) : qrError === "max" ? (
-                <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              ) : qrError ? (
+                <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
                   <WifiOff size={20} color="#DC2626" />
-                  <p style={{ font: `700 0.82rem/1.3 ${fd}`, color: "#DC2626" }}>No se pudo conectar</p>
+                  <p style={{ font: `700 0.82rem/1.3 ${fd}`, color: "#DC2626" }}>
+                    {qrError === "max_network" ? "No llegamos al servidor"
+                      : qrError === "scan_failed" ? "WhatsApp no aceptó el escaneo"
+                      : "La sesión necesita reiniciarse"}
+                  </p>
+                  <p style={{ font: `400 0.75rem/1.45 ${fd}`, color: "#6b7280", maxWidth: 210, textAlign: "left" }}>
+                    {qrError === "max_network"
+                      ? "Puede ser un problema temporal de nuestra parte. Esperá 1 minuto e intentá de nuevo."
+                      : qrError === "scan_failed"
+                      ? <>Causas frecuentes:<br />• Ya tenés 4 dispositivos vinculados en tu celu → abrí WhatsApp → ⋮ → <strong>Dispositivos vinculados</strong> → eliminá uno viejo.<br />• El teléfono perdió internet justo al escanear.<br />• La sesión anterior no cerró bien.</>
+                      : "Tu sesión de WhatsApp quedó en un estado inválido. Tocá 'Reiniciar' para limpiarla y generar un QR nuevo."}
+                  </p>
                   <button
                     onClick={openQrModal}
                     style={{ marginTop: 4, background: `linear-gradient(135deg, ${ACCENT_DARK} 0%, ${ACCENT} 100%)`, color: "white", border: "none", borderRadius: 10, padding: "9px 18px", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
                   >
-                    Volver a intentar
+                    {qrError === "max_network" ? "Reintentar" : "Reiniciar sesión"}
                   </button>
                 </div>
               ) : qrImage ? (
@@ -1853,6 +1787,101 @@ function AjustesContent() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete account modal ── */}
+      {deleteModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 24, padding: "28px 24px", maxWidth: 440, width: "100%", boxShadow: "0 40px 100px rgba(0,0,0,0.22)" }}>
+            {deleteStep === "export" ? (
+              <>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.18)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 0 16px" }}>
+                  <AlertTriangle size={20} color="#6366f1" />
+                </div>
+                <h3 style={{ font: `800 1.1rem/1.2 ${fd}`, color: t1, marginBottom: 8 }}>Antes de eliminar, descargá tus datos</h3>
+                <p style={{ font: `400 0.84rem/1.55 ${fb}`, color: t2, marginBottom: 20 }}>
+                  Tus alumnos y pagos te pertenecen. Descargalos en CSV para importarlos en cualquier otro sistema. Una vez eliminada la cuenta no hay recuperación posible.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 22 }}>
+                  <a
+                    href="/api/user/export-alumnos-csv"
+                    download
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 12, border: "1px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.04)", textDecoration: "none" }}
+                  >
+                    <div>
+                      <p style={{ font: `700 0.84rem/1 ${fd}`, color: "#4f46e5", margin: "0 0 3px" }}>Lista de alumnos (CSV)</p>
+                      <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, margin: 0 }}>Nombre, teléfono, email, plan, vencimiento</p>
+                    </div>
+                    <span style={{ font: `700 0.75rem/1 ${fd}`, color: "#4f46e5", padding: "6px 10px", borderRadius: 8, background: "rgba(99,102,241,0.1)" }}>CSV</span>
+                  </a>
+                  <a
+                    href="/api/user/export-data"
+                    download
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "#fafbfc", textDecoration: "none" }}
+                  >
+                    <div>
+                      <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, margin: "0 0 3px" }}>Copia completa de todos los datos</p>
+                      <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, margin: 0 }}>Alumnos, pagos, egresos, prospectos</p>
+                    </div>
+                    <span style={{ font: `700 0.75rem/1 ${fd}`, color: t2, padding: "6px 10px", borderRadius: 8, background: "rgba(15,23,42,0.05)" }}>JSON</span>
+                  </a>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={() => setDeleteModalOpen(false)}
+                    style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "none", color: t2, font: `600 0.82rem/1 ${fd}`, cursor: "pointer" }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => setDeleteStep("confirm")}
+                    style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: "#DC2626", color: "white", font: `700 0.82rem/1 ${fd}`, cursor: "pointer" }}
+                  >
+                    Continuar y eliminar →
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ width: 48, height: 48, borderRadius: 14, background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.18)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 0 16px" }}>
+                  <Trash2 size={20} color="#DC2626" />
+                </div>
+                <h3 style={{ font: `800 1.1rem/1.2 ${fd}`, color: t1, marginBottom: 8 }}>¿Eliminar cuenta?</h3>
+                <p style={{ font: `400 0.84rem/1.55 ${fb}`, color: t2, marginBottom: 20 }}>
+                  Se eliminarán permanentemente todos los alumnos, pagos, planes, automatizaciones y datos del gym. <strong>No hay vuelta atrás.</strong>
+                </p>
+                <p style={{ font: `600 0.78rem/1 ${fd}`, color: t1, marginBottom: 8 }}>
+                  Escribí <strong>{gymName}</strong> para confirmar:
+                </p>
+                <input
+                  value={deleteConfirm}
+                  onChange={e => setDeleteConfirm(e.target.value)}
+                  placeholder={gymName}
+                  style={{ ...inputStyle, marginBottom: 12, border: `1px solid ${deleteConfirm === gymName ? "rgba(220,38,38,0.40)" : "rgba(15,23,42,0.08)"}` }}
+                />
+                {deleteError && (
+                  <p style={{ font: `500 0.78rem/1 ${fb}`, color: "#DC2626", marginBottom: 10 }}>{deleteError}</p>
+                )}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={() => setDeleteStep("export")}
+                    disabled={deleting}
+                    style={{ flex: 1, padding: "11px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "none", color: t2, font: `600 0.82rem/1 ${fd}`, cursor: "pointer" }}
+                  >
+                    ← Atrás
+                  </button>
+                  <button
+                    onClick={handleDeleteGym}
+                    disabled={deleteConfirm !== gymName || deleting}
+                    style={{ flex: 1, padding: "11px", borderRadius: 12, border: "none", background: deleteConfirm === gymName && !deleting ? "#DC2626" : "#E5E7EB", color: deleteConfirm === gymName && !deleting ? "white" : t3, font: `700 0.82rem/1 ${fd}`, cursor: deleteConfirm === gymName && !deleting ? "pointer" : "not-allowed", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+                  >
+                    {deleting ? <><Loader2 size={13} style={{ animation: "spin 0.7s linear infinite" }} /> Eliminando...</> : "Eliminar para siempre"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

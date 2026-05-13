@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Clock, CreditCard, X, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getGymSummary } from "@/lib/supabase-relations";
@@ -90,12 +91,12 @@ function PlanCard({
         <span style={{ font: `800 1.6rem/1 ${fd}`, color: t1, letterSpacing: "-0.04em" }}>${formatArs(price)}</span>
         <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>/mes</span>
         {billing === "anual" && (
-          <span style={{ marginLeft: 6, padding: "2px 7px", borderRadius: 6, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 0.62rem/1 ${fd}` }}>−20%</span>
+          <span style={{ marginLeft: 6, padding: "2px 7px", borderRadius: 6, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 0.62rem/1 ${fd}` }}>2 meses gratis</span>
         )}
       </div>
       {billing === "anual" && (
         <p style={{ font: `400 0.68rem/1 ${fb}`, color: "#16A34A", marginBottom: 12 }}>
-          Ahorrás ${formatArs(plan.savings)}/año
+          Pagás 10, entrenás 12 · ahorrás ${formatArs(plan.savings)}
         </p>
       )}
 
@@ -111,6 +112,7 @@ function PlanCard({
 }
 
 export default function PlanesPage() {
+  const searchParams = useSearchParams();
   const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(null);
   const [subscriptionExpiresAt, setSubExpAt] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -119,7 +121,7 @@ export default function PlanesPage() {
   const [mpLoading, setMpLoading] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [billing, setBilling] = useState<"mensual" | "anual">("anual");
+  const [billing, setBilling] = useState<"mensual" | "anual">(searchParams.get("billing") === "anual" ? "anual" : "anual");
   const [selectedPlanKey, setSelectedPlanKey] = useState<string>("crecimiento");
 
   useEffect(() => {
@@ -266,7 +268,7 @@ export default function PlanesPage() {
                 display: "flex", alignItems: "center", gap: 5,
               }}>
                 {b === "mensual" ? "Mensual" : (
-                  <>Anual <span style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 0.62rem/1 ${fd}` }}>−20%</span></>
+                  <>Anual <span style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 0.62rem/1 ${fd}` }}>+2 gratis</span></>
                 )}
               </button>
             ))}
@@ -291,7 +293,7 @@ export default function PlanesPage() {
           <div style={{ padding: "16px 24px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
             <p style={{ font: `400 0.75rem/1.4 ${fb}`, color: t3, flex: 1 }}>
               {billing === "anual"
-                ? `Pago de $${formatArs(checkoutAmount)} ARS · 20% off ya aplicado.`
+                ? `Pago único de $${formatArs(checkoutAmount)} ARS · 10 meses + 2 de regalo.`
                 : "Se renueva mensualmente. Cancelás cuando querés."}
             </p>
             <button
@@ -303,7 +305,7 @@ export default function PlanesPage() {
                 boxShadow: "0 6px 20px rgba(255,96,0,0.24)", whiteSpace: "nowrap",
               }}
             >
-              {billing === "mensual" ? `Activar ${selectedPlan.name} mensual` : `Activar ${selectedPlan.name} · −20%`}
+              {billing === "mensual" ? `Activar ${selectedPlan.name} mensual` : `Activar Plan Anual · 2 meses gratis 🎁`}
             </button>
           </div>
         )}
@@ -348,7 +350,7 @@ export default function PlanesPage() {
             <h2 style={{ font: `800 1.2rem/1 ${fd}`, color: t1, marginBottom: 4 }}>FitGrowX {selectedPlan.name}</h2>
             <p style={{ font: `400 0.8rem/1.45 ${fb}`, color: t2, marginBottom: 22 }}>
               {billing === "anual"
-                ? <>Pago único de <strong>${formatArs(selectedPlan.annualTotal)} ARS</strong>. Descuento del 20% ya aplicado.</>
+                ? <>Pago único de <strong>${formatArs(selectedPlan.annualTotal)} ARS</strong>. Pagás 10 meses, entrenás los 12. Los 2 últimos son nuestro regalo.</>
                 : <>Primer cobro de <strong>${formatArs(selectedPlan.priceMonthly)} ARS</strong>. Cancelás cuando querés.</>}
             </p>
 

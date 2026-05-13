@@ -1,0 +1,265 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
+
+export const dynamic = "force-dynamic";
+
+const sb = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
+
+const PLAT_SESSION = "fitgrowx-platform";
+
+function fill(template: string, vars: Record<string, string>) {
+  return Object.entries(vars).reduce(
+    (s, [k, v]) => s.replace(new RegExp(`\\{${k}\\}`, "gi"), v),
+    template,
+  );
+}
+
+async function sendWA(motorUrl: string, phone: string, message: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${motorUrl}/send/${PLAT_SESSION}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
+      },
+      body: JSON.stringify({ phone, message }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function normalizePhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  if (digits.startsWith("549")) return digits;
+  if (digits.startsWith("54"))  return "549" + digits.slice(2);
+  return "549" + digits;
+}
+
+function nombre(acc: { owner_name?: string | null; company_name: string }) {
+  return acc.owner_name?.split(" ")[0] ?? acc.company_name.split(" ")[0];
+}
+
+export async function GET(req: NextRequest) {
+  if (!isCronAuthorized(req)) return cronUnauthorized();
+
+  const motorUrl = process.env.WA_MOTOR_URL;
+  const log: string[] = [];
+
+  if (!motorUrl) return NextResponse.json({ ok: false, log: ["WA_MOTOR_URL no configurado."] });
+
+  // Verificar sesión activa
+  const sessionCheck = await fetch(`${motorUrl}/session-status/${PLAT_SESSION}`, {
+    headers: { "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+    signal: AbortSignal.timeout(6_000),
+  }).catch(() => null);
+
+  const sessionData = await sessionCheck?.json().catch(() => ({})) ?? {};
+  if (sessionData?.status !== "active") {
+    return NextResponse.json({ ok: false, log: ["Sesión WA de plataforma no activa. Escaneá el QR primero."] });
+  }
+
+  // Cargar todas las plantillas de una sola query
+  const { data: templates } = await sb.from("platform_wa_templates").select("key, body");
+  const tpl: Record<string, string> = {};
+  for (const t of templates ?? []) tpl[t.key] = t.body;
+
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+
+  // ── 1. Trial por vencer (2-4 días) ──────────────────────────────────────
+  const venceCutoffFrom = new Date(now.getTime() + 2 * 86_400_000).toISOString().slice(0, 10);
+  const venceCutoffTo   = new Date(now.getTime() + 4 * 86_400_000).toISOString().slice(0, 10);
+
+  const { data: trialsVence } = await sb
+    .from("platform_accounts")
+    .select("id, company_name, owner_name, phone, trial_ends_at")
+    .in("status", ["trial_active", "trial_risk"])
+    .gte("trial_ends_at", venceCutoffFrom)
+    .lte("trial_ends_at", venceCutoffTo)
+    .is("wa_trial_vence_sent_at", null)
+    .not("phone", "is", null);
+
+  for (const acc of trialsVence ?? []) {
+    const phone = normalizePhone(acc.phone);
+    if (!phone) { log.push(`Trial vence — sin tel: ${acc.company_name}`); continue; }
+    const dias = Math.ceil((new Date(acc.trial_ends_at).getTime() - now.getTime()) / 86_400_000);
+    const msg  = fill(tpl["trial_vence"] ?? "Tu trial vence en {dias} días, {nombre}.", { nombre: nombre(acc), dias: String(dias) });
+    if (await sendWA(motorUrl, phone, msg)) {
+      await sb.from("platform_accounts").update({ wa_trial_vence_sent_at: now.toISOString() }).eq("id", acc.id);
+      log.push(`✓ Trial vence → ${acc.company_name} (${dias}d)`);
+    } else {
+      log.push(`✗ Trial vence → ${acc.company_name} (reintentará mañana)`);
+    }
+  }
+
+  // ── 2. Trial vencido HOY sin convertir (ventana 0-36h del vencimiento) ──
+  const expiredFrom = new Date(now.getTime() - 36 * 60 * 60 * 1000).toISOString();
+
+  const { data: trialsExpirados } = await sb
+    .from("platform_accounts")
+    .select("id, company_name, owner_name, phone, trial_ends_at")
+    .in("status", ["trial_active", "trial_risk"])   // el trial-check cron cambia status, puede llegar antes o después
+    .lt("trial_ends_at", now.toISOString().slice(0, 10))
+    .gte("trial_ends_at", expiredFrom.slice(0, 10))
+    .is("wa_trial_expirado_sent_at", null)
+    .not("phone", "is", null);
+
+  for (const acc of trialsExpirados ?? []) {
+    const phone = normalizePhone(acc.phone);
+    if (!phone) { log.push(`Trial expirado — sin tel: ${acc.company_name}`); continue; }
+    const msg = fill(tpl["trial_expirado"] ?? "Hola {nombre}, tu prueba venció hoy. Tus datos siguen guardados.", { nombre: nombre(acc) });
+    if (await sendWA(motorUrl, phone, msg)) {
+      await sb.from("platform_accounts").update({ wa_trial_expirado_sent_at: now.toISOString() }).eq("id", acc.id);
+      log.push(`✓ Trial expirado → ${acc.company_name}`);
+    } else {
+      log.push(`✗ Trial expirado → ${acc.company_name} (reintentará)`);
+    }
+  }
+
+  // ── 3. Sin actividad ≥7 días (máx 1 vez cada 30 días) ──────────────────
+  const inactivoCutoff   = new Date(now.getTime() - 7  * 86_400_000).toISOString();
+  const reinactivoCutoff = new Date(now.getTime() - 30 * 86_400_000).toISOString();
+
+  const { data: inactivos } = await sb
+    .from("platform_accounts")
+    .select("id, company_name, owner_name, phone")
+    .in("status", ["trial_active", "trial_risk", "converted"])
+    .lt("last_seen_at", inactivoCutoff)
+    .not("phone", "is", null)
+    .or(`wa_inactivo_notif_sent_at.is.null,wa_inactivo_notif_sent_at.lt.${reinactivoCutoff}`);
+
+  for (const acc of inactivos ?? []) {
+    const phone = normalizePhone(acc.phone);
+    if (!phone) { log.push(`Inactivo — sin tel: ${acc.company_name}`); continue; }
+    const msg = fill(tpl["inactivo_7d"] ?? "Ey {nombre}! ¿Cómo va el gym?", { nombre: nombre(acc) });
+    if (await sendWA(motorUrl, phone, msg)) {
+      await sb.from("platform_accounts").update({ wa_inactivo_notif_sent_at: now.toISOString() }).eq("id", acc.id);
+      log.push(`✓ Inactivo 7d → ${acc.company_name}`);
+    } else {
+      log.push(`✗ Inactivo 7d → ${acc.company_name}`);
+    }
+  }
+
+  // ── 4. Día 3 sin cargar alumnos ──────────────────────────────────────────
+  // Gyms registrados hace 3-5 días, notif no enviada, con 0 alumnos cargados
+  const d3From = new Date(now.getTime() - 5 * 86_400_000).toISOString();
+  const d3To   = new Date(now.getTime() - 3 * 86_400_000).toISOString();
+
+  const { data: d3Candidates } = await sb
+    .from("platform_accounts")
+    .select("id, company_name, owner_name, phone, auth_user_id")
+    .in("status", ["trial_active", "trial_risk", "trial_setup"])
+    .gte("created_at", d3From)
+    .lte("created_at", d3To)
+    .is("wa_activacion_d3_sent_at", null)
+    .not("phone", "is", null);
+
+  for (const acc of d3Candidates ?? []) {
+    if (!acc.auth_user_id) continue;
+
+    // Obtener gym_id del perfil del dueño
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("gym_id")
+      .eq("id", acc.auth_user_id)
+      .maybeSingle();
+
+    if (!profile?.gym_id) continue;
+
+    // Contar alumnos cargados
+    const { count: alumnosCount } = await sb
+      .from("alumnos")
+      .select("id", { count: "exact", head: true })
+      .eq("gym_id", profile.gym_id);
+
+    if ((alumnosCount ?? 0) > 0) {
+      // Ya cargaron alumnos — marcar como enviado para no volver a evaluar
+      await sb.from("platform_accounts").update({ wa_activacion_d3_sent_at: now.toISOString() }).eq("id", acc.id);
+      log.push(`— Día 3 skip (ya cargó alumnos): ${acc.company_name}`);
+      continue;
+    }
+
+    const phone = normalizePhone(acc.phone);
+    if (!phone) continue;
+
+    const msg = fill(tpl["activacion_d3"] ?? "Ey {nombre}! ¿Pudiste cargar tus alumnos?", { nombre: nombre(acc) });
+    if (await sendWA(motorUrl, phone, msg)) {
+      await sb.from("platform_accounts").update({ wa_activacion_d3_sent_at: now.toISOString() }).eq("id", acc.id);
+      log.push(`✓ Día 3 sin alumnos → ${acc.company_name}`);
+    } else {
+      log.push(`✗ Día 3 → ${acc.company_name}`);
+    }
+  }
+
+  // ── 5. Primer pago registrado en el gym ──────────────────────────────────
+  const since48h = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
+
+  const { data: primerPagoCandidates } = await sb
+    .from("platform_accounts")
+    .select("id, company_name, owner_name, phone, auth_user_id")
+    .in("status", ["trial_active", "trial_risk", "converted"])
+    .is("wa_primer_pago_sent_at", null)
+    .not("phone", "is", null);
+
+  for (const acc of primerPagoCandidates ?? []) {
+    if (!acc.auth_user_id) continue;
+
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("gym_id")
+      .eq("id", acc.auth_user_id)
+      .maybeSingle();
+
+    if (!profile?.gym_id) continue;
+
+    // Verificar si el primer pago validado fue en las últimas 48h
+    const { count: totalPagos } = await sb
+      .from("pagos")
+      .select("id", { count: "exact", head: true })
+      .eq("gym_id", profile.gym_id)
+      .eq("status", "validado");
+
+    if ((totalPagos ?? 0) !== 1) {
+      // 0 pagos → todavía no, >1 → ya pasó el momento
+      if ((totalPagos ?? 0) > 1) {
+        // Marcar para no evaluar más
+        await sb.from("platform_accounts").update({ wa_primer_pago_sent_at: now.toISOString() }).eq("id", acc.id);
+      }
+      continue;
+    }
+
+    // Confirmar que ese único pago fue reciente
+    const { data: primerPago } = await sb
+      .from("pagos")
+      .select("created_at")
+      .eq("gym_id", profile.gym_id)
+      .eq("status", "validado")
+      .gte("created_at", since48h)
+      .maybeSingle();
+
+    if (!primerPago) continue;
+
+    const phone = normalizePhone(acc.phone);
+    if (!phone) continue;
+
+    const msg = fill(tpl["primer_pago"] ?? "🎉 {nombre}, tu gym recibió su primer pago en FitGrowX.", { nombre: nombre(acc) });
+    if (await sendWA(motorUrl, phone, msg)) {
+      await sb.from("platform_accounts").update({ wa_primer_pago_sent_at: now.toISOString() }).eq("id", acc.id);
+      log.push(`✓ Primer pago → ${acc.company_name}`);
+    } else {
+      log.push(`✗ Primer pago → ${acc.company_name}`);
+    }
+  }
+
+  log.push(`Completado: ${todayStr}`);
+  return NextResponse.json({ ok: true, log });
+}

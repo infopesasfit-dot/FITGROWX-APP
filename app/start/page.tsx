@@ -46,6 +46,8 @@ function StartPageInner() {
   const searchParams = useSearchParams();
   const [screen, setScreen] = useState<Screen>("form");
   const [isLogin, setIsLogin] = useState(searchParams.get("login") === "1");
+  const refCode      = searchParams.get("ref")      ?? (typeof localStorage !== "undefined" ? localStorage.getItem("fitgrowx_ref")      : null);
+  const resellerSlug = searchParams.get("reseller") ?? (typeof localStorage !== "undefined" ? localStorage.getItem("fitgrowx_reseller") : null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -58,6 +60,18 @@ function StartPageInner() {
   const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) localStorage.setItem("fitgrowx_ref", ref);
+    const reseller = searchParams.get("reseller");
+    if (reseller) {
+      localStorage.setItem("fitgrowx_reseller", reseller);
+      // Set httpOnly cookie with 30-day TTL as server-side fallback
+      fetch("/api/reseller/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: reseller }),
+      }).catch(() => {});
+    }
     if (searchParams.get("login") === "1") setIsLogin(true);
     const errorCode = searchParams.get("error_code");
     if (errorCode === "otp_expired") {
@@ -176,7 +190,13 @@ function StartPageInner() {
         if (gymSettingsError) throw gymSettingsError;
 
         if (signUpData.session?.access_token) {
-          await syncPlatformSignup(signUpData.session.access_token, { email });
+          const syncPayload: Record<string, string> = { email };
+          if (refCode)      syncPayload.refCode      = refCode;
+          if (resellerSlug) syncPayload.resellerSlug = resellerSlug;
+          await syncPlatformSignup(signUpData.session.access_token, syncPayload);
+          if (refCode)      localStorage.removeItem("fitgrowx_ref");
+          if (resellerSlug) localStorage.removeItem("fitgrowx_reseller");
+          fetch("/api/reseller/track", { method: "DELETE" }).catch(() => {});
         }
 
         router.push("/onboarding");

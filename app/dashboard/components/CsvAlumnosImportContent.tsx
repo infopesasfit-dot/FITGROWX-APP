@@ -82,8 +82,10 @@ export function CsvAlumnosImportContent({
   // post-import phase
   const [importedAlumnos, setImportedAlumnos] = useState<ImportedAlumno[] | null>(null);
   const [importedCount,   setImportedCount]   = useState(0);
+  const [partialCount,    setPartialCount]    = useState(0);
   const [sendPhase,       setSendPhase]       = useState<SendPhase>("idle");
   const [sendProgress,    setSendProgress]    = useState(0);
+  const [skippedRows,     setSkippedRows]     = useState(0);
   const abortRef = useRef(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -103,7 +105,7 @@ export function CsvAlumnosImportContent({
       skipEmptyLines: true,
       transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, "_"),
       complete: (results) => {
-        const parsed: ManualRow[] = results.data
+        const allRows: ManualRow[] = results.data
           .filter((r): r is CsvInputRow => typeof r === "object" && r !== null)
           .map((r) => {
             const nombre   = String(r.nombre ?? "").trim();
@@ -117,14 +119,43 @@ export function CsvAlumnosImportContent({
             const phone_number = String(r.telefono ?? r.phone_number ?? r.whatsapp ?? r.phone ?? "").trim();
             const dni = String(r.dni ?? r.documento ?? r.document ?? "").trim().replace(/\./g, "");
             return { full_name, phone_number, dni };
-          })
-          .filter((r) => r.full_name || r.phone_number);
+          });
 
-        setCsvData(parsed);
-        setError(null);
+        const valid   = allRows.filter((r) => r.full_name.length > 0);
+        const skipped = allRows.length - valid.length;
+
+        setCsvData(valid);
+        setSkippedRows(skipped);
+
+        if (valid.length === 0 && allRows.length > 0) {
+          setError("Ninguna fila tiene un nombre válido. Revisá que la columna de nombre se llame 'nombre', 'apellido' o 'full_name'.");
+          return;
+        }
+
+        const parseWarnings = results.errors.slice(0, 3).map(e => e.message).join("; ");
+        setError(
+          results.errors.length > 0
+            ? `Advertencia: ${results.errors.length} fila(s) con formato incorrecto fueron omitidas (${parseWarnings}).`
+            : null
+        );
       },
-      error: () => setError("No se pudo leer el archivo CSV."),
+      error: (err) => setError(`No se pudo leer el archivo CSV: ${err.message}.`),
     });
+  };
+
+  const friendlyInsertError = (msg: string): string => {
+    if (msg.includes("23505") || msg.includes("duplicate key")) {
+      if (msg.includes("dni"))   return "Hay alumnos con DNI duplicado. Revisá que no estés importando contactos que ya existen en el sistema.";
+      if (msg.includes("phone")) return "Hay alumnos con número de teléfono duplicado. Revisá que no estés importando contactos que ya existen.";
+      return "Algunos registros ya existen en el sistema (DNI o teléfono duplicado). Eliminá esas filas del CSV y volvé a intentarlo.";
+    }
+    if (msg.includes("violates not-null") || msg.includes("null value")) {
+      return "Una fila tiene un campo obligatorio vacío. Revisá que todos los contactos tengan al menos nombre.";
+    }
+    if (msg.includes("network") || msg.includes("fetch")) {
+      return "Error de conexión. Verificá tu internet y volvé a intentarlo.";
+    }
+    return `Error al importar: ${msg}`;
   };
 
   const handleImport = async () => {
@@ -135,29 +166,48 @@ export function CsvAlumnosImportContent({
     }
     setLoading(true);
     setError(null);
+    setPartialCount(0);
+
     const allInserted: ImportedAlumno[] = [];
-    try {
-      const CHUNK = 200;
-      for (let i = 0; i < csvData.length; i += CHUNK) {
-        const { data, error: insertErr } = await supabase.from("alumnos").insert(
-          csvData.slice(i, i + CHUNK).map((r) => ({
-            gym_id:    gymId,
-            full_name: r.full_name,
-            phone:     r.phone_number || null,
-            dni:       r.dni || null,
-            status:    "activo",
-          }))
-        ).select("id, phone, full_name");
-        if (insertErr) throw insertErr;
-        if (data) allInserted.push(...(data as ImportedAlumno[]));
+    let chunkError: string | null = null;
+    const CHUNK = 50; // smaller chunks = better partial progress + easier duplicate detection
+
+    for (let i = 0; i < csvData.length; i += CHUNK) {
+      const { data, error: insertErr } = await supabase.from("alumnos").insert(
+        csvData.slice(i, i + CHUNK).map((r) => ({
+          gym_id:    gymId,
+          full_name: r.full_name,
+          phone:     r.phone_number || null,
+          dni:       r.dni || null,
+          status:    "activo",
+        }))
+      ).select("id, phone, full_name");
+
+      if (insertErr) {
+        chunkError = friendlyInsertError(insertErr.message);
+        break; // stop on first chunk error, report partial progress
       }
-      setImportedAlumnos(allInserted);
-      setImportedCount(allInserted.length);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Ocurrió un error. Intentá de nuevo.");
-    } finally {
-      setLoading(false);
+      if (data) allInserted.push(...(data as ImportedAlumno[]));
+      setPartialCount(allInserted.length);
     }
+
+    setLoading(false);
+
+    if (chunkError) {
+      const partial = allInserted.length;
+      if (partial > 0) {
+        // Partial success: show what was imported + the error
+        setImportedAlumnos(allInserted);
+        setImportedCount(partial);
+        setError(`Se importaron ${partial} de ${csvData.length} alumnos. ${chunkError}`);
+      } else {
+        setError(chunkError);
+      }
+      return;
+    }
+
+    setImportedAlumnos(allInserted);
+    setImportedCount(allInserted.length);
   };
 
   const handleSendAccesos = async () => {
@@ -219,12 +269,13 @@ export function CsvAlumnosImportContent({
   if (importedAlumnos !== null) {
     const withPhone = importedAlumnos.filter(a => a.phone);
     const pct = withPhone.length > 0 ? Math.round((sendProgress / withPhone.length) * 100) : 0;
+    const isPartial = error !== null; // partial success = we have data AND an error message
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        {/* Success header */}
+        {/* Success / partial header */}
         <div style={{ textAlign: "center", padding: "8px 0" }}>
-          <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
+          <div style={{ fontSize: 36, marginBottom: 10 }}>{isPartial ? "⚠️" : "✅"}</div>
           <p style={{ font: `800 1.1rem/1 ${fd}`, color: t1 }}>{importedCount} alumnos importados</p>
           <p style={{ font: `400 0.8rem/1.4 ${fb}`, color: t2, marginTop: 6 }}>
             {withPhone.length > 0
@@ -232,6 +283,12 @@ export function CsvAlumnosImportContent({
               : "Ninguno tiene número de teléfono registrado."}
           </p>
         </div>
+
+        {isPartial && (
+          <div style={{ background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.22)", borderRadius: 10, padding: "10px 14px" }}>
+            <p style={{ font: `500 0.8rem/1.45 ${fb}`, color: "#92400E" }}>{error}</p>
+          </div>
+        )}
 
         {withPhone.length > 0 && sendPhase === "idle" && (
           <div style={{ background: "rgba(37,211,102,0.06)", border: "1px solid rgba(37,211,102,0.20)", borderRadius: 14, padding: "18px 20px" }}>
@@ -405,6 +462,14 @@ export function CsvAlumnosImportContent({
         </div>
       )}
 
+      {skippedRows > 0 && (
+        <div style={{ background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.18)", borderRadius: 10, padding: "10px 14px" }}>
+          <p style={{ font: `500 0.78rem/1.45 ${fb}`, color: "#92400E" }}>
+            ⚠️ Se ignoraron {skippedRows} fila{skippedRows !== 1 ? "s" : ""} sin nombre. Verificá que la columna de nombre se llame <strong>nombre</strong>, <strong>apellido</strong> o <strong>full_name</strong>.
+          </p>
+        </div>
+      )}
+
       {error && (
         <div style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px" }}>
           <p style={{ font: `500 0.8rem/1 ${fb}`, color: "#DC2626" }}>{error}</p>
@@ -425,7 +490,9 @@ export function CsvAlumnosImportContent({
           disabled={loading}
           style={{ flex: onSecondaryAction ? 2 : 1, padding: "13px", borderRadius: 12, border: "none", cursor: loading ? "not-allowed" : "pointer", background: loading ? "#D1D5DB" : accent, color: "white", font: `800 0.88rem/1 ${fd}`, boxShadow: loading ? "none" : `0 4px 14px ${accent}50`, transition: "background 0.14s, box-shadow 0.14s", opacity: loading ? 0.7 : 1 }}
         >
-          {loading ? "Importando..." : `${confirmLabel}${csvData.length > 0 ? ` (${csvData.length})` : ""} →`}
+          {loading
+            ? `Importando${partialCount > 0 ? ` (${partialCount}/${csvData.length})` : ""}...`
+            : `${confirmLabel}${csvData.length > 0 ? ` (${csvData.length})` : ""} →`}
         </button>
       </div>
     </div>

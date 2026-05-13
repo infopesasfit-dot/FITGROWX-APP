@@ -8,6 +8,8 @@ import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { CsvAlumnosImportContent } from "@/app/dashboard/components/CsvAlumnosImportContent";
 import { EJERCICIOS } from "@/lib/ejercicios";
+import { usePagoModal } from "@/hooks/usePagoModal";
+import { useRutinaModal } from "@/hooks/useRutinaModal";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -47,11 +49,6 @@ interface Alumno {
   next_expiration_date: string | null;
 }
 
-interface RutinaDraft {
-  nombre: string;
-  ejercicios: unknown;
-  notas: string | null;
-}
 
 const STATUS_STYLE: Record<Status, { color: string; bg: string; label: string }> = {
   activo:    { color: "#16A34A", bg: "rgba(22,163,74,0.08)",   label: "Activo" },
@@ -77,7 +74,7 @@ const statusFromDate = (dateStr: string | null): Status => {
   return new Date(dateStr) < new Date(new Date().toISOString().slice(0, 10)) ? "vencido" : "activo";
 };
 
-const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry() };
+const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry(), wa_consent: false };
 
 export default function AlumnosPage() {
   const [isMobile,        setIsMobile]        = useState(false);
@@ -102,36 +99,8 @@ export default function AlumnosPage() {
   const [editForm,        setEditForm]        = useState({ id: "", full_name: "", phone: "", plan_id: "", next_expiration_date: "" });
   const [editSaving,      setEditSaving]      = useState(false);
   const [editError,       setEditError]       = useState<string | null>(null);
-  const [pagoModalOpen,   setPagoModalOpen]   = useState(false);
-  const [pagoTarget,      setPagoTarget]      = useState<Alumno | null>(null);
-  const [pagoMonto,       setPagoMonto]       = useState("");
-  const [pagoFecha,       setPagoFecha]       = useState(new Date().toISOString().slice(0, 10));
-  const [pagoTipo,        setPagoTipo]        = useState<"cuota" | "otro">("cuota");
-  const [pagoMetodo,      setPagoMetodo]      = useState("efectivo");
-  const [pagoDetalle,     setPagoDetalle]     = useState("");
-  const [pagoDiscountType, setPagoDiscountType] = useState<"none" | "monto" | "porcentaje">("none");
-  const [pagoDiscountValue, setPagoDiscountValue] = useState("");
-  const [pagoDiscountReason, setPagoDiscountReason] = useState("");
-  const [pagoPromoId,     setPagoPromoId]     = useState("");
-  const [pagoSaving,      setPagoSaving]      = useState(false);
-  const [pagoError,       setPagoError]       = useState<string | null>(null);
-  const [toast,           setToast]           = useState<string | null>(null);
-  const [rutinaModalOpen,  setRutinaModalOpen]  = useState(false);
-  const [rutinaTarget,     setRutinaTarget]     = useState<Alumno | null>(null);
-  const [rutinaNombre,     setRutinaNombre]     = useState("Mi Rutina");
-  const [rutinaEjercicios, setRutinaEjercicios] = useState<{ nombre: string; series: number; repeticiones: number; peso_sugerido: string; descanso: string }[]>([]);
-  const [rutinaSaving,     setRutinaSaving]     = useState(false);
-  const [ejAutoIdx,        setEjAutoIdx]        = useState<number | null>(null);
-  const [rutinaError,      setRutinaError]      = useState<string | null>(null);
-  const [objetivo,         setObjetivo]         = useState("Hipertrofia");
-  const [notas,            setNotas]            = useState("");
-  const [aiLoading,        setAiLoading]        = useState(false);
-  const [publicado,        setPublicado]        = useState(false);
-  const [rutinatipo,       setRutinatipo]       = useState<"gym" | "wod">("gym");
-  const [wodModalidad,     setWodModalidad]     = useState("AMRAP");
-  const [wodTimeCap,       setWodTimeCap]       = useState("15");
-  const [wodMovimientos,   setWodMovimientos]   = useState<{ nombre: string; reps: string }[]>([]);
-  const [gymId,            setGymId]            = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [gymId, setGymId] = useState<string | null>(null);
   const [gymPlanType,      setGymPlanType]      = useState<string>("crecimiento");
   const [ultimaMap,        setUltimaMap]        = useState<Record<string, string>>({});
   const [checkinTarget,    setCheckinTarget]    = useState<Alumno | null>(null);
@@ -146,7 +115,9 @@ export default function AlumnosPage() {
   const [membresiaError,   setMembresiaError]   = useState<string | null>(null);
   const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
   const [bulkMembresiaOpen, setBulkMembresiaOpen] = useState(false);
-  const [rutinasCache,     setRutinasCache]     = useState<Record<string, RutinaDraft | null>>({});
+  const [guestLeads,       setGuestLeads]       = useState<{ id: string; code: string; status: string; lead_name: string | null; lead_phone: string | null; claimed_at: string | null; expires_at: string; alumnos: { full_name: string } | null }[]>([]);
+  const [guestLeadsOpen,   setGuestLeadsOpen]   = useState(false);
+  const [guestLeadsLoaded, setGuestLeadsLoaded] = useState(false);
   const deferredSearch = useDeferredValue(search);
 
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -160,6 +131,47 @@ export default function AlumnosPage() {
       return next;
     });
   }, [gymId]);
+
+  const {
+    pagoModalOpen, setPagoModalOpen,
+    pagoTarget,
+    pagoMonto,         setPagoMonto,
+    pagoFecha,         setPagoFecha,
+    pagoTipo,          setPagoTipo,
+    pagoMetodo,        setPagoMetodo,
+    pagoDetalle,       setPagoDetalle,
+    pagoDiscountType,  setPagoDiscountType,
+    pagoDiscountValue, setPagoDiscountValue,
+    pagoDiscountReason,setPagoDiscountReason,
+    pagoPromoId,       setPagoPromoId,
+    pagoSaving,
+    pagoError,
+    openPagoModal,
+    handlePagoSubmit,
+  } = usePagoModal(gymId, replaceAlumno, setToast);
+
+  const {
+    rutinaModalOpen, setRutinaModalOpen,
+    rutinaTarget,
+    rutinaNombre,     setRutinaNombre,
+    rutinaEjercicios, setRutinaEjercicios,
+    rutinaSaving,
+    ejAutoIdx,        setEjAutoIdx,
+    rutinaError,
+    objetivo,         setObjetivo,
+    notas,            setNotas,
+    aiLoading,
+    publicado,
+    rutinatipo,       setRutinatipo,
+    wodModalidad,     setWodModalidad,
+    wodTimeCap,       setWodTimeCap,
+    wodMovimientos,   setWodMovimientos,
+    openRutinaModal,
+    handleRutinaSave,
+    handleAISugerir,
+    EMPTY_EJ,
+    EMPTY_MOV,
+  } = useRutinaModal(gymId, setToast);
 
   const loadPlanes = useCallback(async (gid: string) => {
     const cacheKey = `planes_${gid}`;
@@ -248,6 +260,22 @@ export default function AlumnosPage() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
+  const loadGuestLeads = async () => {
+    if (guestLeadsLoaded) return;
+    const r = await fetch("/api/admin/guest-passes").catch(() => null);
+    if (r?.ok) { const d = await r.json(); setGuestLeads(d.passes ?? []); }
+    setGuestLeadsLoaded(true);
+  };
+
+  const markPassUsed = async (passId: string) => {
+    await fetch("/api/admin/guest-passes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passId }),
+    });
+    setGuestLeads(prev => prev.map(p => p.id === passId ? { ...p, status: "used" } : p));
+  };
+
   // ── Open modal + fetch planes ─────────────────────────────────────
   const openModal = async () => {
     setForm({ ...EMPTY_FORM, fecha_inicio: defaultExpiry() });
@@ -287,48 +315,29 @@ export default function AlumnosPage() {
 
     if (!gymId) { setFormError("Sesión expirada."); setSaving(false); return; }
 
-    // ── Chequeo de duplicados antes de insertar ───────────────────
-    const normalizedPhone = normalizePhone(form.phone.trim());
-    const { data: existing } = await supabase
-      .from("alumnos")
-      .select("id, dni, phone, email")
-      .eq("gym_id", gymId)
-      .or(`dni.eq.${form.dni.trim()},phone.eq.${normalizedPhone},email.eq.${form.email.trim()}`);
+    const res = await fetch("/api/admin/alumnos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        full_name:           form.full_name.trim(),
+        dni:                 form.dni.trim() || null,
+        phone:               normalizePhone(form.phone.trim()),
+        email:               form.email.trim() || null,
+        plan_id:             form.plan_id || null,
+        status:              statusFromDate(form.fecha_inicio || null),
+        last_payment_date:   new Date().toISOString().slice(0, 10),
+        next_expiration_date: form.fecha_inicio || null,
+      }),
+    });
+    const result = await res.json();
 
-    if (existing && existing.length > 0) {
-      const dup = existing[0];
-      if (dup.dni === form.dni.trim())
-        return (setFormError("Ya hay un alumno registrado con ese DNI."), setSaving(false));
-      if (dup.phone === normalizedPhone)
-        return (setFormError("Ya hay un alumno registrado con ese número de teléfono."), setSaving(false));
-      if (dup.email?.toLowerCase() === form.email.trim().toLowerCase())
-        return (setFormError("Ya hay un alumno registrado con ese email."), setSaving(false));
-    }
-
-    // ── Starter plan limit ────────────────────────────────────────────
-    if (gymPlanType === "starter" && alumnos.length >= 60) {
-      setFormError("Tu plan Starter tiene un límite de 60 alumnos. Pasá al plan Pro para agregar más.");
+    if (!res.ok || !result.ok) {
+      setFormError(result.error ?? "No se pudo crear el alumno.");
       setSaving(false);
       return;
     }
 
-    const { data: newAlumno, error } = await supabase.from("alumnos").insert([{
-      gym_id:              gymId,
-      full_name:           form.full_name.trim(),
-      dni:                 form.dni.trim(),
-      phone:               normalizePhone(form.phone.trim()),
-      email:               form.email.trim() || null,
-      plan_id:             form.plan_id || null,
-      status:              statusFromDate(form.fecha_inicio || null),
-      last_payment_date:   new Date().toISOString().slice(0, 10),
-      next_expiration_date: form.fecha_inicio || null,
-    }]).select("id").single();
-
-    if (error) {
-      setFormError(error.code === "23505" ? "Ya existe un alumno con ese dato (DNI, teléfono o email) en este gimnasio." : error.message);
-      setSaving(false);
-      return;
-    }
+    const newAlumno = result.alumno;
 
     // Notificación: nuevo alumno registrado
     fetch("/api/notifications", {
@@ -342,8 +351,8 @@ export default function AlumnosPage() {
       }),
     }).catch(() => {});
 
-    // Bienvenida por WhatsApp con link a /alumno/login
-    if (newAlumno?.id && form.phone.trim()) {
+    // Bienvenida por WhatsApp — solo si el alumno dio consentimiento
+    if (newAlumno?.id && form.phone.trim() && form.wa_consent) {
       fetch("/api/alumno/send-welcome", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -413,278 +422,7 @@ export default function AlumnosPage() {
     }
   };
 
-  const openPagoModal = (a: Alumno) => {
-    setPagoTarget(a);
-    setPagoMonto(String(a.planes?.precio ?? ""));
-    setPagoFecha(today);
-    setPagoTipo("cuota");
-    setPagoMetodo("efectivo");
-    setPagoDetalle("");
-    setPagoDiscountType("none");
-    setPagoDiscountValue("");
-    setPagoDiscountReason("");
-    setPagoPromoId("");
-    setPagoError(null);
-    setPagoModalOpen(true);
-  };
 
-  const handlePagoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pagoTarget) return;
-    const montoBase = parseFloat(pagoMonto);
-    if (isNaN(montoBase) || montoBase <= 0) { setPagoError("Ingresá un monto válido."); return; }
-    if (pagoTipo === "otro" && !pagoDetalle.trim()) { setPagoError("Agregá un detalle para este cobro."); return; }
-
-    const discountValue = parseFloat(pagoDiscountValue || "0");
-    if (pagoDiscountType !== "none" && (!discountValue || discountValue <= 0)) {
-      setPagoError("Ingresá un descuento válido.");
-      return;
-    }
-    if (pagoDiscountType !== "none" && !pagoDiscountReason.trim()) {
-      setPagoError("Agregá el motivo del descuento.");
-      return;
-    }
-
-    setPagoSaving(true);
-    setPagoError(null);
-
-    if (!gymId) { setPagoError("Sesión expirada."); setPagoSaving(false); return; }
-
-    const paymentDate = pagoFecha || today;
-    const paymentBaseDate = new Date(`${paymentDate}T12:00:00`);
-
-    const isCuota = pagoTipo === "cuota";
-    const discountAmount = pagoDiscountType === "monto"
-      ? discountValue
-      : pagoDiscountType === "porcentaje"
-        ? (montoBase * discountValue) / 100
-        : 0;
-    const montoFinal = Math.max(0, montoBase - discountAmount);
-    if (montoFinal <= 0) {
-      setPagoError("El total final no puede quedar en $0 o menos.");
-      setPagoSaving(false);
-      return;
-    }
-    const duracion = pagoTarget.planes?.duracion_dias ?? 30;
-    const currentExpiry = pagoTarget.next_expiration_date ? new Date(pagoTarget.next_expiration_date) : null;
-    const base = currentExpiry && currentExpiry > paymentBaseDate ? currentExpiry : paymentBaseDate;
-    const newExpiry = new Date(base);
-    newExpiry.setDate(newExpiry.getDate() + duracion);
-    const newExpiryStr = newExpiry.toISOString().slice(0, 10);
-    const nextStatus = statusFromDate(newExpiryStr);
-    const discountLabel = pagoDiscountType === "monto"
-      ? `Descuento: -$${discountAmount.toLocaleString("es-AR")}`
-      : pagoDiscountType === "porcentaje"
-        ? `Descuento: ${discountValue}% (-$${discountAmount.toLocaleString("es-AR")})`
-        : null;
-    const paymentNote = isCuota
-      ? (pagoDetalle.trim() ? `Cuota · ${pagoDetalle.trim()}` : "Cuota")
-      : (pagoDetalle.trim() || "Otro cobro");
-    const paymentMeta = [
-      paymentNote,
-      discountLabel,
-      pagoDiscountReason.trim() ? `Motivo: ${pagoDiscountReason.trim()}` : null,
-      discountLabel ? `Base: $${montoBase.toLocaleString("es-AR")} · Final: $${montoFinal.toLocaleString("es-AR")}` : null,
-    ].filter(Boolean).join(" · ");
-
-    const paymentInsert = supabase.from("pagos").insert([{
-      gym_id:    gymId,
-      alumno_id: pagoTarget.id,
-      amount:    montoFinal,
-      date:      paymentDate,
-      notes:     paymentMeta,
-      status:    "validado",
-      method:    pagoMetodo,
-    }]);
-
-    const alumnoUpdate = isCuota
-      ? supabase.from("alumnos").update({
-          status:               nextStatus,
-          last_payment_date:    paymentDate,
-          next_expiration_date: newExpiryStr,
-        }).eq("id", pagoTarget.id)
-      : Promise.resolve({ error: null });
-
-    const [{ error: pagoErr }, { error: alumnoErr }] = await Promise.all([paymentInsert, alumnoUpdate]);
-
-    if (pagoErr || alumnoErr) { setPagoError((pagoErr ?? alumnoErr)!.message); setPagoSaving(false); return; }
-
-    // Mark any matching prospecto as converted on cuota payment
-    if (isCuota && gymId && pagoTarget.phone) {
-      supabase.from("prospectos")
-        .update({ clase_gratis_status: "convertido", status: "contactado" })
-        .eq("gym_id", gymId)
-        .eq("phone", pagoTarget.phone)
-        .not("clase_gratis_date", "is", null)
-        .neq("clase_gratis_status", "convertido")
-        .then(() => {});
-    }
-
-    // Notificación: pago registrado
-    fetch("/api/notifications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        gym_id: gymId,
-        type: "new_payment",
-        title: `${isCuota ? "Pago de cuota" : "Cobro registrado"}: ${pagoTarget.full_name}`,
-        body: `$${montoFinal.toLocaleString("es-AR")}${discountLabel ? ` · ${discountLabel}` : ""} · ${paymentNote}`,
-      }),
-    }).catch(() => {});
-
-    if (isCuota && pagoTarget.phone) {
-      const digits = pagoTarget.phone.replace(/\D/g, "");
-      let e164 = digits;
-      if (!e164.startsWith("54")) e164 = "54" + e164;
-      if (e164.startsWith("54") && !e164.startsWith("549")) e164 = "549" + e164.slice(2);
-      const msgBody = `¡Hola ${pagoTarget.full_name}! 💪 Confirmamos tu pago de $${montoFinal.toLocaleString("es-AR")}. Tu membresía está al día.`;
-      fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gym_id: gymId, phone: e164, message: msgBody }),
-      }).catch(() => {});
-    }
-
-    // Enviar magic link de acceso al panel
-    if (isCuota) {
-      fetch("/api/alumno/send-welcome", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alumno_id: pagoTarget.id, type: "renewal" }),
-      }).catch(() => {});
-    }
-
-    setPagoSaving(false);
-    setPagoModalOpen(false);
-    setPagoTarget(null);
-    setToast(isCuota ? "¡Pago de cuota registrado!" : "¡Cobro registrado con éxito!");
-    if (isCuota) {
-      replaceAlumno(pagoTarget.id, (current) => ({
-        ...current,
-        status: nextStatus,
-        next_expiration_date: newExpiryStr,
-      }));
-    }
-  };
-
-  // ── Rutina ────────────────────────────────────────────────────────
-  const EMPTY_EJ  = { nombre: "", series: 3, repeticiones: 10, peso_sugerido: "", descanso: "60s" };
-  const EMPTY_MOV = { nombre: "", reps: "" };
-
-  const openRutinaModal = async (a: Alumno) => {
-    setRutinaTarget(a);
-    setRutinaNombre("Mi Rutina");
-    setRutinaEjercicios([{ ...EMPTY_EJ }]);
-    setWodMovimientos([{ ...EMPTY_MOV }]);
-    setRutinaError(null);
-    setNotas("");
-    setObjetivo("Hipertrofia");
-    setRutinatipo("gym");
-    setWodModalidad("AMRAP");
-    setWodTimeCap("15");
-    setPublicado(false);
-    setRutinaModalOpen(true);
-    let data = rutinasCache[a.id];
-    if (data === undefined) {
-      const result = await supabase.from("rutinas").select("nombre, ejercicios, notas").eq("alumno_id", a.id).maybeSingle();
-      data = (result.data as RutinaDraft | null) ?? null;
-      setRutinasCache(prev => ({ ...prev, [a.id]: data }));
-    }
-    if (data) {
-      setRutinaNombre(data.nombre);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ejercicios = data.ejercicios as any[];
-      if (ejercicios?.[0]?._meta) {
-        const meta = ejercicios[0];
-        setRutinatipo("wod");
-        setWodModalidad(meta.modalidad ?? "AMRAP");
-        setWodTimeCap(meta.time_cap ?? "15");
-        setWodMovimientos(ejercicios.slice(1).map((e: { nombre?: string; reps?: string }) => ({ nombre: e.nombre ?? "", reps: e.reps ?? "" })));
-      } else {
-        setRutinatipo("gym");
-        setRutinaEjercicios(ejercicios.map(e => ({ ...EMPTY_EJ, ...e })));
-      }
-      setNotas(data.notas ?? "");
-    }
-  };
-
-  const handleRutinaSave = async () => {
-    if (!rutinaTarget) return;
-    setRutinaError(null);
-
-    let ejerciciosToSave: object[];
-    if (rutinatipo === "wod") {
-      const validMov = wodMovimientos.filter(m => m.nombre.trim());
-      if (validMov.length === 0) { setRutinaError("Agregá al menos un movimiento."); return; }
-      ejerciciosToSave = [{ _meta: true, modalidad: wodModalidad, time_cap: wodTimeCap }, ...validMov];
-    } else {
-      const valid = rutinaEjercicios.filter(ej => ej.nombre.trim());
-      if (valid.length === 0) { setRutinaError("Agregá al menos un ejercicio."); return; }
-      ejerciciosToSave = valid;
-    }
-
-    setRutinaSaving(true);
-    if (!gymId) { setRutinaError("Sesión expirada."); setRutinaSaving(false); return; }
-    const res = await fetch("/api/alumno/rutina", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gym_id: gymId, alumno_id: rutinaTarget.id, nombre: rutinaNombre.trim(), ejercicios: ejerciciosToSave, notas: notas.trim() || null }),
-    });
-    const d = await res.json();
-    if (!res.ok || d.error) { setRutinaError(d.error ?? "Error al guardar."); setRutinaSaving(false); return; }
-    setRutinasCache(prev => ({
-      ...prev,
-      [rutinaTarget.id]: {
-        nombre: rutinaNombre.trim(),
-        ejercicios: ejerciciosToSave,
-        notas: notas.trim() || null,
-      },
-    }));
-    setRutinaSaving(false);
-    setPublicado(true);
-    setTimeout(() => {
-      setRutinaModalOpen(false);
-      setPublicado(false);
-      setToast(`✓ ${rutinatipo === "wod" ? "WOD" : "Rutina"} publicado para ${rutinaTarget.full_name}`);
-    }, 1600);
-  };
-
-  const handleAISugerir = async () => {
-    if (!rutinaTarget || aiLoading) return;
-    setAiLoading(true);
-    setRutinaError(null);
-    try {
-      const body = rutinatipo === "wod"
-        ? { tipo: "wod", modalidad: wodModalidad, time_cap: wodTimeCap, alumno_name: rutinaTarget.full_name, notas }
-        : { objetivo, alumno_name: rutinaTarget.full_name, notas };
-      const res = await fetch("/api/rutina/sugerir", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const d = await res.json();
-      if (rutinatipo === "wod") {
-        if (d.movimientos) {
-          setWodMovimientos(d.movimientos.map((m: { nombre: string; reps: string }) => ({ nombre: m.nombre ?? "", reps: m.reps ?? "" })));
-          setRutinaNombre(d.nombre ?? `WOD ${wodModalidad}`);
-          setWodModalidad(d.modalidad ?? wodModalidad);
-          setWodTimeCap(d.time_cap ?? wodTimeCap);
-        } else {
-          setRutinaError(d.error ?? "Error al generar el WOD.");
-        }
-      } else {
-        if (d.ejercicios) {
-          setRutinaEjercicios(d.ejercicios.map((e: { nombre: string; series: number; repeticiones: number; peso_sugerido: string; descanso: string }) => ({ ...EMPTY_EJ, ...e })));
-          setRutinaNombre(d.nombre ?? `${objetivo} — ${rutinaTarget.full_name.split(" ")[0]}`);
-        } else {
-          setRutinaError(d.error ?? "Error al generar la rutina.");
-        }
-      }
-    } catch {
-      setRutinaError("Error de red. Intentá de nuevo.");
-    }
-    setAiLoading(false);
-  };
 
   // ── Pausar / Reanudar ─────────────────────────────────────────────
   const handlePausar = async (id: string) => {
@@ -703,8 +441,8 @@ export default function AlumnosPage() {
 
   // ── Eliminar Alumno ───────────────────────────────────────────────
   const handleEliminar = async (id: string, name: string) => {
-    if (!confirm(`¿Eliminar a ${name}? Esta acción no se puede deshacer.`)) return;
-    const { error } = await supabase.from("alumnos").delete().eq("id", id);
+    if (!confirm(`¿Eliminar a ${name}? Podrás recuperarlo contactando a soporte.`)) return;
+    const { error } = await supabase.from("alumnos").update({ deleted_at: new Date().toISOString(), status: "inactivo" as Status }).eq("id", id);
     if (!error) {
       setAlumnos(prev => prev.filter(alumno => alumno.id !== id));
       setTotalCount(prev => Math.max(0, prev - 1));
@@ -951,6 +689,63 @@ export default function AlumnosPage() {
         ))}
       </div>
       )}
+
+      {/* Guest Pass Leads */}
+      <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 16, overflow: "hidden" }}>
+        <button
+          onClick={() => { setGuestLeadsOpen(o => !o); if (!guestLeadsLoaded) loadGuestLeads(); }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🎟️</span>
+            <div>
+              <p style={{ font: `600 0.88rem/1.2 ${fb}`, color: t1, margin: 0 }}>Leads de Pases Libres</p>
+              <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, margin: "2px 0 0" }}>Amigos invitados por tus alumnos</p>
+            </div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t3} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: guestLeadsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        {guestLeadsOpen && (
+          <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", padding: "12px 0" }}>
+            {!guestLeadsLoaded ? (
+              <p style={{ font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center", padding: "12px 0" }}>Cargando...</p>
+            ) : guestLeads.length === 0 ? (
+              <p style={{ font: `400 0.8rem/1.5 ${fb}`, color: t3, textAlign: "center", padding: "12px 20px" }}>
+                Ningún alumno generó un pase aún. Aparecerán aquí cuando un amigo reclame uno.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {guestLeads.map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 18px", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: p.status === "used" ? "#9CA3AF" : p.status === "claimed" ? "#22C55E" : "#F59E0B", flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.83rem/1.2 ${fb}`, color: t1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.lead_name ?? "—"} · {p.lead_phone ?? "—"}
+                      </p>
+                      <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, margin: "2px 0 0" }}>
+                        Invitado por {p.alumnos?.full_name ?? "?"} · Código: <strong>{p.code}</strong>
+                      </p>
+                    </div>
+                    <span style={{ font: `500 0.65rem/1 ${fb}`, color: p.status === "used" ? t3 : p.status === "claimed" ? "#16A34A" : "#D97706", background: p.status === "used" ? "rgba(0,0,0,0.04)" : p.status === "claimed" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.1)", padding: "3px 8px", borderRadius: 9999, flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      {p.status === "used" ? "Usado" : p.status === "claimed" ? "Reclamado" : "Pendiente"}
+                    </span>
+                    {p.status === "claimed" && (
+                      <button
+                        onClick={() => markPassUsed(p.id)}
+                        style={{ flexShrink: 0, padding: "5px 10px", background: "#1A1D23", color: "white", border: "none", borderRadius: 8, font: `600 0.7rem/1 ${fb}`, cursor: "pointer" }}
+                      >
+                        Marcar usado
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Search + Filters */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1351,6 +1146,21 @@ export default function AlumnosPage() {
               </div>
               <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 5 }}>Formato internacional sin + ni espacios. n8n lo usará para automatizaciones.</p>
             </div>
+
+            {/* WA consent */}
+            {form.phone.trim() && (
+              <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={form.wa_consent}
+                  onChange={e => setForm(f => ({ ...f, wa_consent: e.target.checked }))}
+                  style={{ marginTop: 2, flexShrink: 0, accentColor: "#25D366", width: 15, height: 15 }}
+                />
+                <span style={{ font: `400 0.78rem/1.45 ${fb}`, color: t2 }}>
+                  El alumno acepta recibir mensajes de WhatsApp del gimnasio (bienvenida, renovaciones y recordatorios).
+                </span>
+              </label>
+            )}
 
             {/* Error */}
             {formError && (
