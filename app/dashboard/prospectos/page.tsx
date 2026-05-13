@@ -273,19 +273,52 @@ export default function ProspectosPage() {
         )}
 
         {!loading && filtered.length === 0 && (
-          <div style={{ padding: "52px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(30,80,240,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Target size={22} color="#1E50F0" />
+          <>
+            {!search && filter === "todos" && [
+              { name: "Lucas Fernández", status: "pendiente"  as const, date: "hoy",  source: "Landing" },
+              { name: "Camila Torres",   status: "contactado" as const, date: "ayer", source: "Instagram" },
+              { name: "Agustín García",  status: "pendiente"  as const, date: "ayer", source: "Landing" },
+            ].map((ghost, i) => {
+              const s = STATUS_CFG[ghost.status];
+              return (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 130px 110px 120px 180px 150px", padding: "14px 22px", alignItems: "center", borderBottom: "1px solid rgba(0,0,0,0.04)", opacity: i === 0 ? 0.55 : i === 1 ? 0.35 : 0.2, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#FF6A00,#1E50F0)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ font: `700 0.62rem/1 ${fd}`, color: "white" }}>
+                        {ghost.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase()}
+                      </span>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ghost.name}</p>
+                      <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{ghost.source}</p>
+                    </div>
+                  </div>
+                  <span style={{ font: `400 0.82rem/1 ${fb}`, color: t2 }}>—</span>
+                  <div>
+                    <p style={{ font: `500 0.82rem/1 ${fb}`, color: t1 }}>{ghost.date}</p>
+                  </div>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: s.bg, border: `1px solid ${s.border}`, color: s.color, font: `700 0.72rem/1 ${fb}` }}>
+                    {s.icon}{s.label}
+                  </div>
+                  <span />
+                  <span />
+                </div>
+              );
+            })}
+            <div style={{ padding: "52px 22px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(30,80,240,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Target size={22} color="#1E50F0" />
+              </div>
+              <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>
+                {search || filter !== "todos" ? "Sin resultados" : "Todavía no hay prospectos"}
+              </p>
+              <p style={{ font: `400 0.82rem/1.4 ${fb}`, color: t2, textAlign: "center" as const, maxWidth: 320 }}>
+                {search || filter !== "todos"
+                  ? "Probá ajustar los filtros de búsqueda."
+                  : "Activá tu landing desde Automatizaciones para empezar a recibir leads automáticamente."}
+              </p>
             </div>
-            <p style={{ font: `700 0.95rem/1 ${fd}`, color: t1 }}>
-              {search || filter !== "todos" ? "Sin resultados" : "Todavía no hay prospectos"}
-            </p>
-            <p style={{ font: `400 0.82rem/1.4 ${fb}`, color: t2, textAlign: "center" as const, maxWidth: 320 }}>
-              {search || filter !== "todos"
-                ? "Probá ajustar los filtros de búsqueda."
-                : "Activá tu landing desde Automatizaciones para empezar a recibir leads automáticamente."}
-            </p>
-          </div>
+          </>
         )}
 
         {!loading && filtered.map((p, i) => {

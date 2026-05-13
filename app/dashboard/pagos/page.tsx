@@ -689,7 +689,45 @@ export default function PagosPage() {
               {loading ? (
                 <p style={{ padding: "32px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Cargando...</p>
               ) : pagos.slice(0, 5).length === 0 ? (
-                <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados aún.</p>
+                <>
+                  {[
+                    { name: "Valentina G.", date: "2025-07-15", method: "efectivo",      status: "validado",  amount: 15000 },
+                    { name: "Martín R.",    date: "2025-07-10", method: "transferencia", status: "validado",  amount: 10000 },
+                  ].map((ghost, i) => (
+                    isMobile ? (
+                      <div key={i} style={{ padding: "12px 16px", borderBottom: "1px solid rgba(0,0,0,0.04)", opacity: i === 0 ? 0.55 : 0.35, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                            {initials(ghost.name)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1 }}>{ghost.name}</p>
+                            <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{ghost.date}</p>
+                          </div>
+                          <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{fmtARS(ghost.amount)}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: 5 }}>
+                          <Chip meta={METHOD_META[ghost.method as keyof typeof METHOD_META]} />
+                          <Chip meta={STATUS_META[ghost.status as keyof typeof STATUS_META]} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: "1px solid rgba(0,0,0,0.04)", opacity: i === 0 ? 0.55 : 0.35, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                        <div style={{ width: 32, height: 32, borderRadius: 9, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                          {initials(ghost.name)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ font: `600 0.82rem/1 ${fd}`, color: t1 }}>{ghost.name}</p>
+                          <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{ghost.date}</p>
+                        </div>
+                        <Chip meta={METHOD_META[ghost.method as keyof typeof METHOD_META]} />
+                        <Chip meta={STATUS_META[ghost.status as keyof typeof STATUS_META]} />
+                        <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, minWidth: 80, textAlign: "right" }}>{fmtARS(ghost.amount)}</span>
+                      </div>
+                    )
+                  ))}
+                  <p style={{ padding: "24px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados aún.</p>
+                </>
               ) : pagos.slice(0, 5).map((p, i) => (
                 isMobile ? (
                   <div key={p.id} style={{ padding: "12px 16px", borderBottom: i < 4 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
@@ -801,7 +839,28 @@ export default function PagosPage() {
             {loading ? (
               <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Cargando...</p>
             ) : pagos.length === 0 ? (
-              <p style={{ padding: "48px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados.</p>
+              <>
+                {[
+                  { name: "Valentina G.", date: "2025-07-15", concepto: "membresia", method: "efectivo", status: "validado", amount: 15000 },
+                  { name: "Martín R.",    date: "2025-07-10", concepto: "membresia", method: "transferencia", status: "validado", amount: 10000 },
+                  { name: "Carlos B.",   date: "2025-07-05", concepto: "clase",     method: "efectivo", status: "pendiente", amount: 5000 },
+                ].map((ghost, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "11px 20px", borderBottom: i < 2 ? "1px solid rgba(0,0,0,0.04)" : "none", alignItems: "center", opacity: i === 0 ? 0.55 : i === 1 ? 0.35 : 0.2, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                        {initials(ghost.name)}
+                      </div>
+                      <span style={{ font: `500 0.8rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ghost.name}</span>
+                    </div>
+                    <span style={{ font: `400 0.78rem/1 ${fb}`, color: t2 }}>{ghost.date}</span>
+                    <Chip meta={CONCEPTO_META[ghost.concepto as keyof typeof CONCEPTO_META]} />
+                    <Chip meta={METHOD_META[ghost.method as keyof typeof METHOD_META]} />
+                    <Chip meta={STATUS_META[ghost.status as keyof typeof STATUS_META]} />
+                    <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, textAlign: "right" }}>{fmtARS(ghost.amount)}</span>
+                  </div>
+                ))}
+                <p style={{ padding: "32px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados.</p>
+              </>
             ) : pagos.map((p, idx) => (
               <div key={p.id} className="pago-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "11px 20px", borderBottom: idx < pagos.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", transition: "background 0.12s", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9 }}>

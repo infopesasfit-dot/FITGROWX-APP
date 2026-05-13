@@ -204,7 +204,37 @@ export default function EgresosPage() {
               {loading ? (
                 <tr><td colSpan={4} style={{ padding: "40px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando egresos...</td></tr>
               ) : egresos.length === 0 ? (
-                <tr><td colSpan={4} style={{ padding: "40px", textAlign: "center", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Sin egresos registrados.</td></tr>
+                <>
+                  {[
+                    { titulo: "Alquiler del local", categoria: "Alquiler", fecha: "2025-07-01", monto: 45000 },
+                    { titulo: "Servicios contratados", categoria: "Servicios", fecha: "2025-06-15", monto: 12000 },
+                    { titulo: "Equipamiento", categoria: "Equipamiento", fecha: "2025-06-01", monto: 30000 },
+                  ].map((ghost, i) => {
+                    const cat = CAT_COLOR[ghost.categoria] ?? CAT_COLOR.Otros;
+                    return (
+                      <tr key={i} style={{ opacity: i === 0 ? 0.55 : i === 1 ? 0.35 : 0.2, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                        <td style={{ padding: "13px 20px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 9, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <DollarSign size={14} color={cat.color} />
+                            </div>
+                            <span style={{ font: `600 0.85rem/1 ${fd}`, color: t1 }}>{ghost.titulo}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: "13px 20px" }}>
+                          <span style={{ font: `600 0.72rem/1 ${fb}`, color: cat.color, background: cat.bg, padding: "4px 10px", borderRadius: 9999 }}>{ghost.categoria}</span>
+                        </td>
+                        <td style={{ padding: "13px 20px", font: `400 0.83rem/1 ${fb}`, color: t2, fontVariantNumeric: "tabular-nums" }}>
+                          {new Date(ghost.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                        </td>
+                        <td style={{ padding: "13px 20px", font: `700 0.9rem/1 ${fd}`, color: "#DC2626", fontVariantNumeric: "tabular-nums" }}>
+                          −${ghost.monto.toLocaleString("es-AR")}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr><td colSpan={4} style={{ textAlign: "center", padding: "32px 20px", font: `400 0.875rem/1 ${fb}`, color: t3 }}>Sin egresos registrados.</td></tr>
+                </>
               ) : egresos.map((e, i) => {
                 const cat = CAT_COLOR[e.categoria] ?? CAT_COLOR.Otros;
                 return (
@@ -248,7 +278,31 @@ export default function EgresosPage() {
           {loading ? (
             <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Cargando...</p>
           ) : egresos.length === 0 ? (
-            <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Sin egresos registrados.</p>
+            <>
+              {[
+                { titulo: "Alquiler del local", categoria: "Alquiler", fecha: "2025-07-01", monto: 45000 },
+                { titulo: "Servicios contratados", categoria: "Servicios", fecha: "2025-06-15", monto: 12000 },
+                { titulo: "Equipamiento", categoria: "Equipamiento", fecha: "2025-06-01", monto: 30000 },
+              ].map((ghost, i) => {
+                const cat = CAT_COLOR[ghost.categoria] ?? CAT_COLOR.Otros;
+                return (
+                  <div key={i} style={{ ...card, padding: "14px 16px", opacity: i === 0 ? 0.55 : i === 1 ? 0.35 : 0.2, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <DollarSign size={15} color={cat.color} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ghost.titulo}</p>
+                        <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{new Date(ghost.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}</p>
+                      </div>
+                      <span style={{ font: `700 0.9rem/1 ${fd}`, color: "#DC2626", flexShrink: 0 }}>−${ghost.monto.toLocaleString("es-AR")}</span>
+                    </div>
+                    <span style={{ font: `600 0.72rem/1 ${fb}`, color: cat.color, background: cat.bg, padding: "3px 10px", borderRadius: 9999 }}>{ghost.categoria}</span>
+                  </div>
+                );
+              })}
+              <p style={{ padding: "24px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Sin egresos registrados.</p>
+            </>
           ) : egresos.map((e, i) => {
             const cat = CAT_COLOR[e.categoria] ?? CAT_COLOR.Otros;
             return (

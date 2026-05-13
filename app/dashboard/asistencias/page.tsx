@@ -569,11 +569,29 @@ export default function AsistenciasPage() {
             <p style={{ textAlign: "center", padding: "32px 0", font: `400 0.8rem/1 ${fb}`, color: t3 }}>Cargando...</p>
           ) : tab === "presentes" ? (
             presentes.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "48px 24px" }}>
-                <Clock size={32} color={t3} style={{ margin: "0 auto 12px", display: "block" }} />
-                <p style={{ font: `500 0.85rem/1 ${fd}`, color: t3 }}>Nadie escaneó aún hoy.</p>
-                <Link href="/dashboard/scanner" style={{ display: "inline-block", marginTop: 14, font: `600 0.78rem/1 ${fd}`, color: "#FF6A00" }}>Ir al escáner →</Link>
-              </div>
+              <>
+                {[
+                  { name: "Valentina Gómez",   plan: "Full",   time: "09:15" },
+                  { name: "Martín Rodríguez",  plan: "Básico", time: "10:30" },
+                  { name: "Carlos Benítez",    plan: "VIP",    time: "11:00" },
+                ].map((ghost, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: "1px solid rgba(0,0,0,0.04)", opacity: i === 0 ? 0.55 : i === 1 ? 0.35 : 0.2, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1A1D23", color: "white", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, flexShrink: 0 }}>{initials(ghost.name)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ghost.name}</p>
+                      <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3, marginTop: 2 }}>{ghost.plan}</p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 9999, padding: "4px 10px" }}>
+                      <Clock size={11} color="#34D399" />
+                      <span style={{ font: `600 0.7rem/1 ${fd}`, color: "#34D399" }}>{ghost.time}</span>
+                    </div>
+                  </div>
+                ))}
+                <div style={{ textAlign: "center", padding: "28px 24px" }}>
+                  <p style={{ font: `500 0.85rem/1 ${fd}`, color: t3 }}>Nadie escaneó aún hoy.</p>
+                  <Link href="/dashboard/scanner" style={{ display: "inline-block", marginTop: 14, font: `600 0.78rem/1 ${fd}`, color: "#FF6A00" }}>Ir al escáner →</Link>
+                </div>
+              </>
             ) : (
               <div>
                 {presentes.map((p, i) => {
