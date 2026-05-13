@@ -74,7 +74,7 @@ const statusFromDate = (dateStr: string | null): Status => {
   return new Date(dateStr) < new Date(new Date().toISOString().slice(0, 10)) ? "vencido" : "activo";
 };
 
-const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry(), wa_consent: false };
+const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry(), fecha_nacimiento: "", wa_consent: false };
 
 export default function AlumnosPage() {
   const [isMobile,        setIsMobile]        = useState(false);
@@ -327,6 +327,7 @@ export default function AlumnosPage() {
         status:              statusFromDate(form.fecha_inicio || null),
         last_payment_date:   new Date().toISOString().slice(0, 10),
         next_expiration_date: form.fecha_inicio || null,
+        fecha_nacimiento:     form.fecha_nacimiento || null,
       }),
     });
     const result = await res.json();
@@ -1161,6 +1162,19 @@ export default function AlumnosPage() {
                 </span>
               </label>
             )}
+
+            {/* Fecha de nacimiento */}
+            <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Fecha de nacimiento <span style={{ color: t3, fontWeight: 400 }}>(opcional · para saludo de cumple)</span></label>
+              <input
+                type="date"
+                value={form.fecha_nacimiento}
+                onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
+                style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
+                onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+              />
+            </div>
 
             {/* Error */}
             {formError && (

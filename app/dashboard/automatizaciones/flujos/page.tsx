@@ -11,6 +11,7 @@ const COL_PAL: Record<string, { color: string; label: string; emoji: string; dbK
   claseGratis:  { color: "#EC4899", label: "Clase de Prueba",  emoji: "🎯", dbKey: "clase_gratis_activo", desc: "Hace seguimiento del prospecto después de su clase" },
   diadia:       { color: "#10B981", label: "Día a Día",         emoji: "🔥", dbKey: "vencimiento_activo",  desc: "Marca presentes, recuerda clases y avisa antes del vencimiento" },
   vuelvencasa:  { color: "#F59E0B", label: "Vuelven a Casa",   emoji: "💌", dbKey: "inactividad_activo",  desc: "Reengacha socios que llevan días sin aparecer" },
+  cumpleanos:   { color: "#EC4899", label: "Cumpleaños",       emoji: "🎂", dbKey: "cumple_activo",        desc: "Felicita automáticamente a cada socio el día de su cumple" },
 };
 
 const MSG_DB_KEY: Record<string, string | null> = {
@@ -30,6 +31,7 @@ const MSG_DB_KEY: Record<string, string | null> = {
   "m-c1":    "contactos_msg_0",
   "m-c3":    "contactos_msg_1",
   "m-c4":    "contactos_msg_3",
+  "m-cumple": "cumple_msg",
 };
 
 interface MsgData {
@@ -64,6 +66,9 @@ const MESSAGES: Record<string, MsgData[]> = {
   vuelvencasa: [
     { id: "m-v1", icon: "😢", title: "Te extrañamos (10d)", trigger: "Sin visita hace 10 días",  sent: 78, read: 61, msg: "¡{nombre}, te extrañamos en *{gym}*! 🥊 Hace 10 días que no te vemos. ¿Todo bien? Cuando quieras, acá te esperamos 💪" },
     { id: "m-v3", icon: "🚪", title: "Último aviso (30d)",  trigger: "30 días sin visitas",      sent: 18, read: 11, msg: "Hola {nombre} 👋 Hace un mes que no nos vemos en *{gym}*. Si en algún momento querés retomar, la puerta está abierta. ¡Éxitos!" },
+  ],
+  cumpleanos: [
+    { id: "m-cumple", icon: "🎂", title: "Feliz cumpleaños", trigger: "El día del cumpleaños del socio", sent: 0, read: 0, msg: "🎂 ¡Feliz cumpleaños, {nombre}! Todo el equipo de *{gym}* te desea un día increíble 🎉💪" },
   ],
 };
 
@@ -407,7 +412,7 @@ export default function FlujosPage() {
 
       const { data: s } = await supabase
         .from("gym_settings")
-        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, clase_gratis_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, inactividad_msg_3, vencimiento_msg, magiclink_msg, bienvenida_app_msg, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow, contactos_msg_0, contactos_msg_1, contactos_msg_3, diadia_presente_msg, diadia_post_msg, diadia_recordatorio_msg, diadia_logro_msg, wa_status, wa_phone")
+        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, clase_gratis_activo, cumple_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, inactividad_msg_3, vencimiento_msg, cumple_msg, magiclink_msg, bienvenida_app_msg, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow, contactos_msg_0, contactos_msg_1, contactos_msg_3, diadia_presente_msg, diadia_post_msg, diadia_recordatorio_msg, diadia_logro_msg, wa_status, wa_phone")
         .eq("gym_id", id)
         .maybeSingle();
 
@@ -418,6 +423,7 @@ export default function FlujosPage() {
           claseGratis: s.clase_gratis_activo ?? false,
           diadia:      s.vencimiento_activo  ?? false,
           vuelvencasa: s.inactividad_activo  ?? false,
+          cumpleanos:  s.cumple_activo       ?? false,
         });
         setChannelActive({
           maps: s.canal_maps_activo ?? false,
@@ -447,6 +453,7 @@ export default function FlujosPage() {
         loadCol(s.contactos_msg_0,         "m-c1");
         loadCol(s.contactos_msg_1,         "m-c3");
         loadCol(s.contactos_msg_3,         "m-c4");
+        loadCol(s.cumple_msg,              "m-cumple");
         if (Object.keys(updates).length) setMsgMap(prev => ({ ...prev, ...updates }));
         if (Object.keys(actives).length) setMsgActiveMap(prev => ({ ...prev, ...actives }));
         if (s.wa_status) { setWaStatus(s.wa_status); setWaPhone(s.wa_phone ?? undefined); }
