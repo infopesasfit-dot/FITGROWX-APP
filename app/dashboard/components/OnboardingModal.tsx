@@ -38,6 +38,8 @@ const DINO_CSS = `
   .rex-celebrate{ animation: rex-celebrate 0.75s ease-in-out 1 forwards; }
 `;
 
+const DINO_ANIM_KEY = "dino_anim_done";
+
 export function DinoSVG({
   state,
   pixelSize = 6,
@@ -46,10 +48,17 @@ export function DinoSVG({
   pixelSize?: number;
 }) {
   const size = pixelSize * 16;
+  const alreadyPlayed = typeof sessionStorage !== "undefined" && sessionStorage.getItem(DINO_ANIM_KEY) === state;
+  const animClass = alreadyPlayed ? "" : DINO_ANIMS[state];
+
+  if (!alreadyPlayed && typeof sessionStorage !== "undefined") {
+    sessionStorage.setItem(DINO_ANIM_KEY, state);
+  }
+
   return (
     <>
       <style>{DINO_CSS}</style>
-      <div className={DINO_ANIMS[state]} style={{ width: size, height: size, flexShrink: 0 }}>
+      <div className={animClass} style={{ width: size, height: size, flexShrink: 0 }}>
         <img
           src={DINO_SRCS[state]}
           alt="Rex"
