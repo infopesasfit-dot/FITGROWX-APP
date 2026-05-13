@@ -868,10 +868,10 @@ export default function DashboardPage() {
       {setup && !Object.values(setup).every(Boolean) && (() => {
         const tasks: { key: keyof typeof setup; label: string; desc: string; href: string; time: string }[] = [
           { key: "alumnos",  label: "Cargá tu primer alumno", desc: "El sistema cobra vida cuando hay gente adentro",  href: "/dashboard/alumnos", time: "1 min"  },
-          { key: "planes",   label: "Creá un plan",           desc: "Definí qué incluye cada membresía y su precio",   href: "/dashboard/planes",  time: "2 min"  },
-          { key: "whatsapp", label: "Conectá WhatsApp",       desc: "Recordatorios y bienvenidas automáticas",         href: "/dashboard/ajustes", time: "2 min"  },
+          { key: "planes",   label: "Creá un plan",           desc: "Definí qué incluye cada membresía y su precio",   href: "/dashboard/membresias",  time: "2 min"  },
+          { key: "whatsapp", label: "Conectá WhatsApp",       desc: "Recordatorios y bienvenidas automáticas",         href: "/dashboard/conexiones", time: "2 min"  },
           { key: "landing",  label: "Publicá tu landing",     desc: "Página pública para captar prospectos",           href: "/dashboard/landing", time: "3 min"  },
-          { key: "pagos",    label: "Configurá pagos",        desc: "MercadoPago o datos de transferencia",            href: "/dashboard/ajustes", time: "2 min"  },
+          { key: "pagos",    label: "Configurá pagos",        desc: "MercadoPago o datos de transferencia",            href: "/dashboard/conexiones", time: "2 min"  },
         ];
         const done      = tasks.filter(t => setup[t.key]).length;
         const nextTask  = tasks.find(t => !setup[t.key]);

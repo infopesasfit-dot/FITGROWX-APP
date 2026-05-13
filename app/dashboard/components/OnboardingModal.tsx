@@ -33,9 +33,9 @@ const DINO_CSS = `
     30%      { transform: translateY(-10px) scale(1.06) rotate(-3deg); }
     60%      { transform: translateY(-5px) scale(1.03) rotate(3deg); }
   }
-  .rex-sad      { animation: rex-sad      2.4s ease-in-out infinite; }
-  .rex-fight    { animation: rex-fight    1.1s ease-in-out infinite; }
-  .rex-celebrate{ animation: rex-celebrate 0.75s ease-in-out infinite; }
+  .rex-sad      { animation: rex-sad      2.4s ease-in-out 1 forwards; }
+  .rex-fight    { animation: rex-fight    1.1s ease-in-out 1 forwards; }
+  .rex-celebrate{ animation: rex-celebrate 0.75s ease-in-out 1 forwards; }
 `;
 
 export function DinoSVG({
