@@ -1,0 +1,2 @@
+ALTER TABLE platform_wa_templates
+  ADD COLUMN IF NOT EXISTS enabled BOOLEAN NOT NULL DEFAULT true;

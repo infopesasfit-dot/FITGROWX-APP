@@ -17,9 +17,9 @@ export async function GET() {
   const sb = await authorize();
   if (!sb) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data } = await sb.from("platform_wa_templates").select("key, body, updated_at");
-  const map: Record<string, string> = {};
-  for (const row of data ?? []) map[row.key] = row.body;
+  const { data } = await sb.from("platform_wa_templates").select("key, body, enabled, updated_at");
+  const map: Record<string, { body: string; enabled: boolean }> = {};
+  for (const row of data ?? []) map[row.key] = { body: row.body, enabled: row.enabled ?? true };
   return NextResponse.json(map);
 }
 
@@ -27,15 +27,14 @@ export async function POST(req: NextRequest) {
   const sb = await authorize();
   if (!sb) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { key, body } = await req.json();
-  if (!key || !VALID_KEYS.has(key) || typeof body !== "string" || !body.trim()) {
-    return NextResponse.json({ error: "key o body inválido" }, { status: 400 });
-  }
+  const { key, body, enabled } = await req.json();
+  if (!key || !VALID_KEYS.has(key)) return NextResponse.json({ error: "key inválido" }, { status: 400 });
 
-  const { error } = await sb.from("platform_wa_templates").upsert(
-    { key, body: body.trim(), updated_at: new Date().toISOString() },
-    { onConflict: "key" },
-  );
+  const upsertData: Record<string, unknown> = { key, updated_at: new Date().toISOString() };
+  if (typeof body === "string" && body.trim()) upsertData.body = body.trim();
+  if (typeof enabled === "boolean") upsertData.enabled = enabled;
+
+  const { error } = await sb.from("platform_wa_templates").upsert(upsertData, { onConflict: "key" });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

@@ -133,7 +133,8 @@
       "Bash(open -a \"Google Chrome\" \"http://localhost:3000/reseller/portal\")",
       "Bash(open -a \"Google Chrome\" \"http://localhost:3000/platform/resellers\")",
       "Bash(open -a \"Google Chrome\" \"http://localhost:3000/platform/pulso\")",
-      "Bash(open -a \"Google Chrome\" \"http://localhost:3000/platform/radar\")"
+      "Bash(open -a \"Google Chrome\" \"http://localhost:3000/platform/radar\")",
+      "Bash(awk 'NR>=1756' /Users/eliydan/Desktop/fitgrowx/app/platform/page.tsx)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/.ssh",

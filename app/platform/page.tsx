@@ -260,12 +260,9 @@ export default function PlatformPage() {
     reactivacion:  "¡Hola {nombre}! 👋 Hace un tiempo que no te vemos por FitGrowX. ¿Todo bien con el gym? Estamos acá para ayudarte.",
   };
   const [platMsgTemplate, setPlatMsgTemplate] = useState(DEFAULT_TEMPLATES);
+  const [platAutoEnabled, setPlatAutoEnabled] = useState<Record<string, boolean>>({});
   const [tplSaving, setTplSaving] = useState<Record<string, boolean>>({});
   const tplSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-  const [platSendPhone, setPlatSendPhone] = useState("");
-  const [platSendMsg, setPlatSendMsg] = useState("");
-  const [platSending, setPlatSending] = useState(false);
-  const [platSendResult, setPlatSendResult] = useState<"ok" | "error" | null>(null);
 
   const platWaProxy = async (action: string, extra?: Record<string, string>) => {
     return fetch("/api/wa/proxy", {
@@ -329,23 +326,6 @@ export default function PlatformPage() {
     setPlatQrImage(null);
     setPlatQrError(null);
     void platAttemptQr(0);
-  };
-
-  const platSendMessage = async () => {
-    const phone = platSendPhone.trim().replace(/[^0-9]/g, "");
-    const msg = platSendMsg.trim();
-    if (!phone || !msg) return;
-    setPlatSending(true);
-    setPlatSendResult(null);
-    try {
-      const res = await platWaProxy("send-message", { phone, message: msg });
-      const data = await res.json();
-      setPlatSendResult(data.ok ? "ok" : "error");
-    } catch {
-      setPlatSendResult("error");
-    }
-    setPlatSending(false);
-    setTimeout(() => setPlatSendResult(null), 3500);
   };
 
   const fetchPlatformData = async () => {
@@ -484,9 +464,16 @@ export default function PlatformPage() {
       try {
         const res = await fetch("/api/platform/wa-templates");
         if (res.ok) {
-          const dbTpl = await res.json();
+          const dbTpl: Record<string, { body: string; enabled: boolean }> = await res.json();
           if (Object.keys(dbTpl).length > 0) {
-            setPlatMsgTemplate(prev => ({ ...prev, ...dbTpl }));
+            const bodies: Record<string, string> = {};
+            const enableds: Record<string, boolean> = {};
+            for (const [k, v] of Object.entries(dbTpl)) {
+              bodies[k] = v.body;
+              enableds[k] = v.enabled;
+            }
+            setPlatMsgTemplate(prev => ({ ...prev, ...bodies }));
+            setPlatAutoEnabled(prev => ({ ...prev, ...enableds }));
           }
         }
       } catch { /* non-fatal */ }
@@ -509,6 +496,17 @@ export default function PlatformPage() {
       } catch { /* non-fatal */ }
       setTplSaving(prev => ({ ...prev, [key]: false }));
     }, 1500);
+  };
+
+  const handleTplToggle = async (key: string, enabled: boolean) => {
+    setPlatAutoEnabled(prev => ({ ...prev, [key]: enabled }));
+    try {
+      await fetch("/api/platform/wa-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, enabled }),
+      });
+    } catch { /* non-fatal */ }
   };
 
   const crmHealth = useMemo(() => {
@@ -1738,213 +1736,77 @@ export default function PlatformPage() {
             </div>
           )}
 
-          {/* 2-col layout: compose + templates */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 18, alignItems: "start" }}>
-            {/* Left: composer */}
-            <section style={{ ...shellCard, padding: "26px 28px" }}>
-              <p style={{ margin: "0 0 4px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Enviar mensaje</p>
-              <p style={{ margin: "0 0 20px", font: `400 0.83rem/1 ${fb}`, color: "#6B7280" }}>
-                {platWaStatus !== "connected" && <span style={{ color: "#B91C1C" }}>Conectá WhatsApp primero para habilitar el envío. </span>}
-                Usá las plantillas de la derecha como base.
+          {/* ── Automatizaciones ── */}
+          <section style={{ ...shellCard, padding: "26px 28px" }}>
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: "0 0 4px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Automatizaciones</p>
+              <p style={{ margin: 0, font: `400 0.83rem/1.5 ${fb}`, color: "#6B7280" }}>
+                Cada mensaje se dispara automáticamente. Activá o desactivá por separado y editá el texto cuando quieras — se guarda solo.
               </p>
-
-              {/* Quick-select from CRM */}
-              {accounts.length > 0 && (
-                <div style={{ marginBottom: 14 }}>
-                  <p style={{ margin: "0 0 8px", font: `600 0.78rem/1 ${fd}`, color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>Seleccionar cliente</p>
-                  <select
-                    onChange={e => {
-                      const acc = accounts.find(a => a.id === e.target.value);
-                      if (acc?.phone) setPlatSendPhone(acc.phone.replace(/\D/g, ""));
-                    }}
-                    defaultValue=""
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "#F8FAFC", font: `400 0.88rem/1 ${fb}`, color: "#111827", outline: "none", cursor: "pointer" }}
-                  >
-                    <option value="" disabled>Elegir gym del CRM...</option>
-                    {accounts.filter(a => a.phone).map(a => (
-                      <option key={a.id} value={a.id}>{a.company_name}{a.owner_name ? ` · ${a.owner_name}` : ""}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div>
-                  <p style={{ margin: "0 0 6px", font: `600 0.78rem/1 ${fd}`, color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>Número WhatsApp</p>
-                  <input
-                    type="text"
-                    placeholder="Ej: 5491165909374 (sin + ni espacios)"
-                    value={platSendPhone}
-                    onChange={e => setPlatSendPhone(e.target.value)}
-                    style={{ width: "100%", padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "#F8FAFC", font: `400 0.9rem/1 ${fb}`, color: "#111827", outline: "none", boxSizing: "border-box" }}
-                  />
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 6px", font: `600 0.78rem/1 ${fd}`, color: "#374151", letterSpacing: "0.04em", textTransform: "uppercase" }}>Mensaje</p>
-                  <textarea
-                    rows={6}
-                    placeholder="Escribí el mensaje o cargá una plantilla..."
-                    value={platSendMsg}
-                    onChange={e => setPlatSendMsg(e.target.value)}
-                    style={{ width: "100%", padding: "11px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "#F8FAFC", font: `400 0.9rem/1.6 ${fb}`, color: "#111827", outline: "none", resize: "vertical", boxSizing: "border-box" }}
-                  />
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <button
-                    type="button"
-                    onClick={platSendMessage}
-                    disabled={platSending || platWaStatus !== "connected" || !platSendPhone.trim() || !platSendMsg.trim()}
-                    style={{
-                      padding: "11px 22px",
-                      borderRadius: 12,
-                      border: "none",
-                      background: (platWaStatus === "connected" && platSendPhone.trim() && platSendMsg.trim()) ? "#111827" : "#D1D5DB",
-                      color: (platWaStatus === "connected" && platSendPhone.trim() && platSendMsg.trim()) ? "#fff" : "#6B7280",
-                      font: `600 0.9rem/1 ${fd}`,
-                      cursor: (platWaStatus === "connected" && platSendPhone.trim() && platSendMsg.trim()) ? "pointer" : "not-allowed",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 7,
-                    }}
-                  >
-                    {platSending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
-                    {platSending ? "Enviando..." : "Enviar mensaje"}
-                  </button>
-                  {platSendResult === "ok" && (
-                    <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.85rem/1 ${fb}`, color: "#15803D" }}>
-                      <CheckCircle size={14} /> Enviado
-                    </span>
-                  )}
-                  {platSendResult === "error" && (
-                    <span style={{ font: `500 0.85rem/1 ${fb}`, color: "#B91C1C" }}>Error al enviar</span>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Right: templates */}
-            <section style={{ ...shellCard, padding: "22px 24px" }}>
-              <p style={{ margin: "0 0 3px", font: `700 0.95rem/1 ${fd}`, color: "#111827" }}>Plantillas</p>
-              <p style={{ margin: "0 0 16px", font: `400 0.8rem/1.5 ${fb}`, color: "#6B7280" }}>
-                Hacé clic en "Usar" para cargarlo en el compositor.
-                Variables: <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 4px", borderRadius: 4, fontSize: "0.85em" }}>{"{nombre}"}</code> <code style={{ background: "rgba(0,0,0,0.05)", padding: "1px 4px", borderRadius: 4, fontSize: "0.85em" }}>{"{dias}"}</code>
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {(["bienvenida", "activacion_d3", "trial_vence", "trial_expirado", "primer_pago", "inactivo_7d", "reactivacion"] as const).map(key => {
-                  const meta: Record<typeof key, { label: string; color: string; bg: string; auto: boolean }> = {
-                    bienvenida:    { label: "Bienvenida",          color: "#16A34A", bg: "rgba(22,163,74,0.08)",   auto: true  },
-                    activacion_d3: { label: "Día 3 sin alumnos",   color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  auto: true  },
-                    trial_vence:   { label: "Trial por vencer",    color: "#D97706", bg: "rgba(217,119,6,0.08)",   auto: true  },
-                    trial_expirado:{ label: "Trial vencido hoy",   color: "#DC2626", bg: "rgba(220,38,38,0.08)",   auto: true  },
-                    primer_pago:   { label: "Primer pago 🎉",      color: "#7C3AED", bg: "rgba(124,58,237,0.08)",  auto: true  },
-                    inactivo_7d:   { label: "Sin actividad 7d",    color: "#6366F1", bg: "rgba(99,102,241,0.08)",  auto: true  },
-                    reactivacion:  { label: "Reactivación manual", color: "#6B7280", bg: "rgba(107,114,128,0.08)", auto: false },
-                  };
-                  const m = meta[key];
-                  const saving = tplSaving[key];
-                  return (
-                    <div key={key} style={{ borderRadius: 14, border: "1px solid rgba(15,23,42,0.07)", overflow: "hidden" }}>
-                      <div style={{ padding: "10px 14px", background: m.bg, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ font: `600 0.8rem/1 ${fd}`, color: m.color }}>{m.label}</span>
-                          {m.auto && (
-                            <span style={{ padding: "2px 6px", borderRadius: 4, background: m.color + "20", font: `600 0.62rem/1 ${fd}`, color: m.color }}>AUTO</span>
-                          )}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          {saving && <span style={{ font: `400 0.68rem/1 ${fb}`, color: "#9ca3af" }}>guardando…</span>}
-                          <button
-                            type="button"
-                            onClick={() => setPlatSendMsg(platMsgTemplate[key])}
-                            style={{ padding: "4px 10px", borderRadius: 7, border: "none", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: m.color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" }}
-                          >
-                            <MessageCircle size={10} /> Usar
-                          </button>
-                        </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {(["bienvenida", "activacion_d3", "trial_vence", "trial_expirado", "primer_pago", "inactivo_7d", "reactivacion"] as const).map(key => {
+                const meta: Record<string, { label: string; when: string; color: string; bg: string }> = {
+                  bienvenida:     { label: "Bienvenida",             when: "Cuando se registra un gym nuevo",                   color: "#16A34A", bg: "rgba(22,163,74,0.07)"    },
+                  activacion_d3:  { label: "Día 3 sin alumnos",      when: "3 días después del registro si no cargó alumnos",   color: "#0EA5E9", bg: "rgba(14,165,233,0.07)"   },
+                  trial_vence:    { label: "Trial por vencer",       when: "2 días antes de que venza el trial",                color: "#D97706", bg: "rgba(217,119,6,0.07)"    },
+                  trial_expirado: { label: "Trial vencido",          when: "El día que vence el trial sin convertir",           color: "#DC2626", bg: "rgba(220,38,38,0.07)"    },
+                  primer_pago:    { label: "Primer pago 🎉",         when: "Cuando el gym recibe su primer pago",               color: "#7C3AED", bg: "rgba(124,58,237,0.07)"   },
+                  inactivo_7d:    { label: "Sin actividad 7 días",   when: "7 días sin actividad en el sistema",                color: "#6366F1", bg: "rgba(99,102,241,0.07)"   },
+                  reactivacion:   { label: "Reactivación manual",    when: "Disparo manual desde el CRM",                      color: "#6B7280", bg: "rgba(107,114,128,0.07)"  },
+                };
+                const m = meta[key];
+                const enabled = platAutoEnabled[key] !== false;
+                const saving  = tplSaving[key];
+                return (
+                  <div key={key} style={{ borderRadius: 16, border: `1px solid ${enabled ? "rgba(15,23,42,0.08)" : "rgba(15,23,42,0.04)"}`, overflow: "hidden", opacity: enabled ? 1 : 0.55, transition: "opacity 0.2s" }}>
+                    {/* Header row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: enabled ? m.bg : "rgba(0,0,0,0.02)" }}>
+                      {/* Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => handleTplToggle(key, !enabled)}
+                        style={{
+                          flexShrink: 0,
+                          width: 40, height: 22, borderRadius: 11,
+                          background: enabled ? m.color : "#D1D5DB",
+                          border: "none", cursor: "pointer", position: "relative",
+                          transition: "background 0.2s",
+                        }}
+                      >
+                        <span style={{
+                          position: "absolute", top: 3,
+                          left: enabled ? 21 : 3,
+                          width: 16, height: 16, borderRadius: "50%",
+                          background: "white",
+                          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                          transition: "left 0.2s",
+                          display: "block",
+                        }} />
+                      </button>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, font: `600 0.85rem/1 ${fd}`, color: enabled ? "#111827" : "#9CA3AF" }}>{m.label}</p>
+                        <p style={{ margin: "3px 0 0", font: `400 0.72rem/1 ${fb}`, color: "#94A3B8" }}>{m.when}</p>
                       </div>
+                      {saving && <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#94A3B8", flexShrink: 0 }}>guardando…</span>}
+                      {enabled && !saving && <span style={{ padding: "2px 8px", borderRadius: 4, background: m.color + "20", font: `600 0.65rem/1 ${fd}`, color: m.color, flexShrink: 0 }}>AUTO</span>}
+                    </div>
+                    {/* Editable body */}
+                    <div style={{ padding: "12px 16px", background: "#FAFAFA", borderTop: "1px solid rgba(15,23,42,0.05)" }}>
                       <textarea
                         rows={3}
                         value={platMsgTemplate[key]}
                         onChange={e => handleTplChange(key, e.target.value)}
-                        style={{ width: "100%", padding: "10px 14px", border: "none", borderTop: "1px solid rgba(15,23,42,0.06)", background: "#fff", font: `400 0.8rem/1.6 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
+                        style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(15,23,42,0.08)", background: "white", font: `400 0.85rem/1.6 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
                       />
+                      <p style={{ margin: "6px 0 0", font: `400 0.68rem/1 ${fb}`, color: "#CBD5E1" }}>
+                        Variables disponibles: {"{nombre}"} · {"{dias}"}
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-
-          {/* Automatizaciones */}
-          <section style={{ ...shellCard, padding: "26px 28px", marginTop: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-              <p style={{ margin: 0, font: `700 1rem/1 ${fd}`, color: "#111827" }}>Automatizaciones</p>
-              <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(124,58,237,0.08)", font: `600 0.72rem/1 ${fd}`, color: "#7C3AED" }}>
-                {platWaStatus === "connected" ? "Activas" : "WA desconectado"}
-              </span>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-              {[
-                {
-                  label: "Bienvenida",
-                  desc: "Al registrarse. Una sola vez.",
-                  color: "#16A34A", bg: "rgba(22,163,74,0.08)",
-                  tplKey: "bienvenida", active: true,
-                },
-                {
-                  label: "Día 3 sin alumnos",
-                  desc: "Si a los 3 días no cargaron ningún alumno. Cron diario.",
-                  color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",
-                  tplKey: "activacion_d3", active: true,
-                },
-                {
-                  label: "Trial por vencer (2-4d)",
-                  desc: "Cuando el trial vence pronto. Una sola vez.",
-                  color: "#D97706", bg: "rgba(217,119,6,0.08)",
-                  tplKey: "trial_vence", active: true,
-                },
-                {
-                  label: "Trial vencido hoy",
-                  desc: "El día que vence sin convertir. Ventana de rescate.",
-                  color: "#DC2626", bg: "rgba(220,38,38,0.08)",
-                  tplKey: "trial_expirado", active: true,
-                },
-                {
-                  label: "Primer pago 🎉",
-                  desc: "Cuando el gym registra su primer pago validado.",
-                  color: "#7C3AED", bg: "rgba(124,58,237,0.08)",
-                  tplKey: "primer_pago", active: true,
-                },
-                {
-                  label: "Sin actividad 7 días",
-                  desc: "Si no entran en 7+ días. Máx 1 vez cada 30 días.",
-                  color: "#6366F1", bg: "rgba(99,102,241,0.08)",
-                  tplKey: "inactivo_7d", active: true,
-                },
-              ].map(auto => (
-                <div key={auto.tplKey} style={{ borderRadius: 16, border: "1px solid rgba(15,23,42,0.07)", overflow: "hidden" }}>
-                  <div style={{ padding: "12px 16px", background: auto.bg, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ font: `600 0.82rem/1.2 ${fd}`, color: auto.color }}>{auto.label}</span>
-                    <span style={{ padding: "3px 8px", borderRadius: 999, background: auto.active ? auto.color : "rgba(148,163,184,0.2)", font: `600 0.68rem/1 ${fd}`, color: auto.active ? "#fff" : "#94A3B8", flexShrink: 0 }}>
-                      {auto.active ? "ON" : "OFF"}
-                    </span>
                   </div>
-                  <div style={{ padding: "12px 16px", background: "#fff" }}>
-                    <p style={{ margin: "0 0 10px", font: `400 0.78rem/1.5 ${fb}`, color: "#6B7280" }}>{auto.desc}</p>
-                    <button
-                      type="button"
-                      onClick={() => setPlatSendMsg(platMsgTemplate[auto.tplKey as keyof typeof platMsgTemplate] ?? "")}
-                      style={{ padding: "5px 12px", borderRadius: 8, border: `1px solid ${auto.color}30`, background: "transparent", font: `600 0.72rem/1 ${fd}`, color: auto.color, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
-                    >
-                      <MessageCircle size={10} /> Ver plantilla
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <p style={{ margin: "16px 0 0", font: `400 0.75rem/1.5 ${fb}`, color: "#9CA3AF" }}>
-              Las automatizaciones ON requieren que el QR esté conectado. El cron corre diariamente — podés dispararlo manualmente desde Dev. Editá el mensaje en las plantillas de arriba; se guarda automáticamente.
-            </p>
           </section>
         </>
       )}
