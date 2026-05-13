@@ -48,11 +48,11 @@ export function DinoSVG({
   pixelSize?: number;
 }) {
   const size = pixelSize * 16;
-  const alreadyPlayed = typeof sessionStorage !== "undefined" && sessionStorage.getItem(DINO_ANIM_KEY) === state;
+  const alreadyPlayed = typeof localStorage !== "undefined" && localStorage.getItem(DINO_ANIM_KEY) === state;
   const animClass = alreadyPlayed ? "" : DINO_ANIMS[state];
 
-  if (!alreadyPlayed && typeof sessionStorage !== "undefined") {
-    sessionStorage.setItem(DINO_ANIM_KEY, state);
+  if (!alreadyPlayed && typeof localStorage !== "undefined") {
+    localStorage.setItem(DINO_ANIM_KEY, state);
   }
 
   return (
