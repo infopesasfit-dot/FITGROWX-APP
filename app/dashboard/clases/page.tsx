@@ -329,13 +329,44 @@ export default function ClasesPage() {
       {loading ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: t2, font: `400 0.85rem/1 ${fd}` }}>Cargando...</div>
       ) : clases.length === 0 ? (
-        <div style={{ ...card, padding: "52px 28px", textAlign: "center" }}>
-          <Calendar size={36} color="#E2E8F0" style={{ margin: "0 auto 16px" }} />
-          <p style={{ font: `600 1rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Sin clases configuradas</p>
-          <p style={{ font: `400 0.8rem/1 ${fd}`, color: t2, marginBottom: 18 }}>Añadí la primera clase para comenzar.</p>
-          <button onClick={openAdd} style={{ padding: "9px 20px", background: t1, color: "white", border: "none", borderRadius: 9, font: `600 0.82rem/1 ${fd}`, cursor: "pointer" }}>
-            Agregar clase
-          </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { day: "LUNES", clases: [{ name: "CrossFit", time: "07:00", cap: 15, coach: "Marcos" }, { name: "Funcional", time: "19:00", cap: 12, coach: "Laura" }] },
+            { day: "MIÉRCOLES", clases: [{ name: "CrossFit", time: "07:00", cap: 15, coach: "Marcos" }, { name: "Yoga", time: "18:00", cap: 10, coach: "Sofía" }] },
+            { day: "VIERNES", clases: [{ name: "Funcional", time: "08:00", cap: 12, coach: "Laura" }] },
+          ].map((g, gi) => (
+            <div key={gi} style={{ ...card, overflow: "hidden", opacity: gi === 0 ? 0.55 : gi === 1 ? 0.35 : 0.2, filter: "blur(0.5px)", pointerEvents: "none", userSelect: "none" }}>
+              <div style={{ padding: "12px 18px", background: "#FAFAFA", borderBottom: "1px solid rgba(0,0,0,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ font: `700 0.8rem/1 ${fd}`, color: t2, textTransform: "uppercase", letterSpacing: "0.06em" }}>{g.day}</span>
+              </div>
+              <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                {g.clases.map((c, ci) => (
+                  <div key={ci} style={{ border: "1px solid rgba(0,0,0,0.06)", borderRadius: 10, overflow: "hidden" }}>
+                    <div style={{ padding: "11px 14px", display: "grid", gridTemplateColumns: "minmax(0,1fr) auto auto auto", alignItems: "center", gap: 10 }}>
+                      <div>
+                        <p style={{ font: `600 0.9rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{c.name}</p>
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: t2 }}>{c.time}h</span>
+                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: "#CBD5E1" }}>·</span>
+                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: t2 }}>Máx {c.cap}</span>
+                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: "#CBD5E1" }}>·</span>
+                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: t2 }}>{c.coach}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div style={{ ...card, padding: "36px 28px", textAlign: "center" }}>
+            <Calendar size={36} color="#E2E8F0" style={{ margin: "0 auto 16px" }} />
+            <p style={{ font: `600 1rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Sin clases configuradas</p>
+            <p style={{ font: `400 0.8rem/1 ${fd}`, color: t2, marginBottom: 18 }}>Añadí la primera clase para comenzar.</p>
+            <button onClick={openAdd} style={{ padding: "9px 20px", background: t1, color: "white", border: "none", borderRadius: 9, font: `600 0.82rem/1 ${fd}`, cursor: "pointer" }}>
+              Agregar clase
+            </button>
+          </div>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
