@@ -536,7 +536,6 @@ export default function FlujosPage() {
 
       {/* Cards */}
       <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, paddingBottom: 32 }}>
-        <OriginCard channelActive={channelActive} onChannelToggle={toggleChannel}/>
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
           {Object.keys(COL_PAL).map(nodeId => (
             <FlowCard
