@@ -606,6 +606,21 @@ export default function AlumnosPage() {
   const menuTarget = menuOpenId ? alumnos.find(a => a.id === menuOpenId) ?? null : null;
   const portalRoot = typeof document !== "undefined" ? document.body : null;
 
+  const handleSendPayLink = async (alumno: Alumno) => {
+    if (!alumno.phone) { setToast("El alumno no tiene teléfono cargado."); return; }
+    setMenuOpenId(null); setMenuPos(null);
+    try {
+      const res = await fetch("/api/admin/alumnos/pay-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alumno_id: alumno.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setToast(data.error ?? "No se pudo generar el link."); return; }
+      setToast(`Link de pago enviado a ${alumno.full_name} por WA ✓`);
+    } catch { setToast("Error al enviar el link."); }
+  };
+
   return (
     <>
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1271,6 +1286,7 @@ export default function AlumnosPage() {
     {menuTarget && menuPos && portalRoot && createPortal(
       <div onClick={e => e.stopPropagation()} style={{ position: "fixed", ...(menuPos.openUp ? { bottom: window.innerHeight - menuPos.top } : { top: menuPos.top }), right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
         {[
+          { label: "💳 Enviar link de pago", color: "#16A34A", action: () => { handleSendPayLink(menuTarget); } },
           { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           { label: "Editar Datos", color: t1, action: () => { openEditModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
