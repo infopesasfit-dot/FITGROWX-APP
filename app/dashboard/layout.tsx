@@ -170,6 +170,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showTrialModal,   setShowTrialModal]   = useState(false);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
+  const [waDisconnected,   setWaDisconnected]   = useState(false);
+  const [waBannerDismissed, setWaBannerDismissed] = useState(false);
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
@@ -249,12 +251,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const [{ count }, { data: profile }, { data: settings }] = await Promise.all([
         supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", gymIdVal).eq("status", "pendiente"),
         supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status, subscription_type)").eq("id", userIdVal).maybeSingle(),
-        supabase.from("gym_settings").select("logo_url, gym_name, owner_name").eq("gym_id", gymIdVal).maybeSingle(),
+        supabase.from("gym_settings").select("logo_url, gym_name, owner_name, wa_status").eq("gym_id", gymIdVal).maybeSingle(),
       ]);
 
       setProspectBadge(count ?? 0);
       setGymLogoUrl(settings?.logo_url ?? null);
       setGymDisplayName(settings?.gym_name ?? null);
+      if (["needs_reauth", "disconnected"].includes(settings?.wa_status ?? "")) {
+        setWaDisconnected(true);
+      }
       const displayName = settings?.owner_name?.trim() || user?.email?.split("@")[0] || "Admin";
       setUserName(displayName);
       setUserInitials(displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase());
@@ -801,6 +806,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             >
               Salir
             </button>
+          </div>
+        )}
+
+        {/* ── WA disconnected banner ── */}
+        {role === "admin" && waDisconnected && !waBannerDismissed && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: "rgba(220,38,38,0.06)",
+            borderBottom: "1px solid rgba(220,38,38,0.16)",
+            flexShrink: 0,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={13} color="#DC2626" />
+              <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#DC2626" }}>
+                {isMobile ? "WhatsApp desconectado — los mensajes automáticos están pausados." : "WhatsApp desconectado — ningún mensaje automático se está enviando. Reconectá para reanudar."}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href="/dashboard/ajustes?tab=conexiones" style={{
+                font: `700 0.72rem/1 ${fd}`, color: "white",
+                background: "#DC2626",
+                padding: "5px 12px", borderRadius: 9999, textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>Reconectar</Link>
+              <button onClick={() => setWaBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", display: "flex", padding: 2 }}>
+                <X size={13} />
+              </button>
+            </div>
           </div>
         )}
 
