@@ -7,6 +7,7 @@ import { Tooltip } from "@/components/tooltip";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { CsvAlumnosImportContent } from "@/app/dashboard/components/CsvAlumnosImportContent";
+import SensitiveConfirm from "@/app/dashboard/components/SensitiveConfirm";
 import { EJERCICIOS } from "@/lib/ejercicios";
 import { usePagoModal } from "@/hooks/usePagoModal";
 import { useRutinaModal } from "@/hooks/useRutinaModal";
@@ -108,6 +109,7 @@ export default function AlumnosPage() {
   const [checkinSaving,    setCheckinSaving]    = useState(false);
   const [checkinResult,    setCheckinResult]    = useState<string | null>(null);
   const [exportMenuOpen,   setExportMenuOpen]   = useState(false);
+  const [exportConfirm,    setExportConfirm]    = useState<null | (() => void)>(null);
   const [membresiaTarget,  setMembresiaTarget]  = useState<Alumno | null>(null);
   const [membresiaPlanId,  setMembresiaPlanId]  = useState("");
   const [membresiaFecha,   setMembresiaFecha]   = useState(defaultExpiry());
@@ -914,8 +916,8 @@ export default function AlumnosPage() {
                   <div onClick={() => setExportMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 900 }} />
                   <div style={{ position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 901, background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 140, overflow: "hidden" }}>
                     {[
-                      { label: "Exportar CSV", action: exportCSV },
-                      { label: "Exportar PDF", action: exportPDF },
+                      { label: "Exportar CSV", action: () => { setExportMenuOpen(false); setExportConfirm(() => exportCSV); } },
+                      { label: "Exportar PDF", action: () => { setExportMenuOpen(false); setExportConfirm(() => exportPDF); } },
                     ].map(item => (
                       <button key={item.label} onClick={item.action}
                         style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", font: `500 0.825rem/1 ${fb}`, color: t1, cursor: "pointer" }}
@@ -1988,6 +1990,15 @@ export default function AlumnosPage() {
       <div style={{ position: "fixed", bottom: isMobile ? "calc(72px + env(safe-area-inset-bottom, 0px))" : "28px", left: "50%", transform: "translateX(-50%)", zIndex: 10000, background: "#FF6A00", color: "white", padding: "12px 22px", borderRadius: 12, font: `600 0.875rem/1 ${fb}`, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", pointerEvents: "none", whiteSpace: "nowrap" }}>
         {toast}
       </div>
+    )}
+
+    {exportConfirm && (
+      <SensitiveConfirm
+        title="Confirmar exportación"
+        description="Estás a punto de exportar la base de datos de tus alumnos. Te mandamos un código por WhatsApp para verificar que sos vos."
+        onConfirmed={() => { exportConfirm(); setExportConfirm(null); }}
+        onCancel={() => setExportConfirm(null)}
+      />
     )}
     </>
   );
