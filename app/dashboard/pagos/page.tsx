@@ -64,6 +64,7 @@ type PagoRow = {
 interface AlumnoOption {
   id: string;
   full_name: string;
+  planes: { precio: number } | null;
 }
 
 interface GymClass {
@@ -226,21 +227,26 @@ export default function PagosPage() {
     const periodo = getPlanPeriodo(alumno.planes) ?? "mensual";
     const durationDays = getPlanDurationDays(alumno.planes);
 
-    // Extender desde el vencimiento actual si no venció; si no, desde la fecha registrada del pago
+    // T12:00:00 evita que el browser interprete YYYY-MM-DD como UTC midnight
+    // (que en Buenos Aires UTC-3 cae el día anterior a las 21:00).
     const paymentBaseDate = new Date(`${paymentDate}T12:00:00`);
-    const base = alumno.next_expiration_date && new Date(alumno.next_expiration_date) > paymentBaseDate
-      ? new Date(alumno.next_expiration_date)
-      : paymentBaseDate;
+    const expiryDate = alumno.next_expiration_date
+      ? new Date(`${alumno.next_expiration_date}T12:00:00`)
+      : null;
+    const base = expiryDate && expiryDate > paymentBaseDate ? expiryDate : paymentBaseDate;
 
     let newExpiry: string;
     if (typeof durationDays === "number" && durationDays > 0) {
-      base.setDate(base.getDate() + durationDays);
-      newExpiry = base.toISOString().slice(0, 10);
+      const d = new Date(base);
+      d.setDate(d.getDate() + durationDays);
+      newExpiry = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     } else if (PERIOD_MONTHS[periodo]) {
-      newExpiry = addMonths(base, PERIOD_MONTHS[periodo]).toISOString().slice(0, 10);
+      const r = addMonths(base, PERIOD_MONTHS[periodo]);
+      newExpiry = `${r.getFullYear()}-${String(r.getMonth() + 1).padStart(2, "0")}-${String(r.getDate()).padStart(2, "0")}`;
     } else {
-      base.setDate(base.getDate() + (PERIOD_DAYS[periodo] ?? 30));
-      newExpiry = base.toISOString().slice(0, 10);
+      const d = new Date(base);
+      d.setDate(d.getDate() + (PERIOD_DAYS[periodo] ?? 30));
+      newExpiry = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
 
     await supabase.from("alumnos").update({
@@ -293,7 +299,7 @@ export default function PagosPage() {
         .order("created_at"),
       supabase
         .from("alumnos")
-        .select("id, full_name")
+        .select("id, full_name, planes(precio)")
         .eq("gym_id", profile.gymId)
         .order("full_name"),
       supabase
@@ -1096,7 +1102,14 @@ export default function PagosPage() {
                       {filteredAlumnos.map(a => (
                           <button
                             key={a.id}
-                            onMouseDown={() => { setSelectedAlumno(a); setAlumnoSearch(""); setShowAlumnoList(false); }}
+                            onMouseDown={() => {
+                              setSelectedAlumno(a);
+                              setAlumnoSearch("");
+                              setShowAlumnoList(false);
+                              if (a.planes?.precio && pagoConcepto === "membresia") {
+                                setPagoMonto(String(a.planes.precio));
+                              }
+                            }}
                             style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const, transition: "background 0.1s" }}
                             onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
                             onMouseLeave={e => (e.currentTarget.style.background = "none")}
