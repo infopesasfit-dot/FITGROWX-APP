@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "El reporte mensual solo está disponible para gimnasios activos o con trial vigente." }, { status: 403 });
   }
 
-  const email = (gymSettings?.email ?? user.email ?? "").trim();
+  const email = (gymSettings?.email ?? session.user.email ?? "").trim();
   if (!email) {
     return NextResponse.json({ ok: false, error: "No hay email configurado para enviar el reporte." }, { status: 400 });
   }
