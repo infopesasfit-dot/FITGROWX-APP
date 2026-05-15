@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
 
         if (res.ok) {
           await supabase.from("prospectos").update({ contactos_step: nextStep }).eq("id", p.id);
-          logWASend(supabase, gym.gym_id, "nuevo_contacto");
+          logWASend(supabase, gym.gym_id, "nuevo_contacto", p.id, p.full_name);
           totalEnviados++;
           log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} (día ${diffDays})`);
         } else {

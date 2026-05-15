@@ -222,6 +222,7 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+  const [botActivity, setBotActivity] = useState<{ msgHoy: number; vencHoy: number; pagosHoyCount: number; feed: { ts: string; tipo: "wa" | "pago"; label: string; name: string }[] } | null>(null);
   const [gymName, setGymName] = useState("tu gym");
   const [greetPhase, setGreetPhase] = useState<"hola" | "exit" | "welcome">("hola");
 
@@ -348,6 +349,12 @@ export default function DashboardPage() {
 
     applySnapshot(snapshot);
     setPageCache(cacheKey, snapshot);
+
+    // Bot activity feed — fire and forget, doesn't block the dashboard
+    fetch("/api/admin/bot-activity", { cache: "no-store" })
+      .then(r => r.json())
+      .then(d => { if (d.ok) setBotActivity(d); })
+      .catch(() => {});
 
     setLoading(false);
   }, [applySnapshot]);
@@ -710,34 +717,52 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Vencimientos próximos */}
+          {/* Monitor de Automatización */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 12, background: "rgba(239,68,68,0.08)", color: statusNegative, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Clock size={15} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 12, background: "rgba(99,102,241,0.10)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Zap size={15} />
               </div>
-              <div>
-                <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Vencimientos próximos</p>
-                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Avisales antes de que pierdan su lugar</p>
+              <div style={{ flex: 1 }}>
+                <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Monitor de automatización</p>
+                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Actividad del bot hoy</p>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {alerts.upcomingExpirations.length > 0 ? alerts.upcomingExpirations.map((row) => {
-                const days = daysUntil(row.next_expiration_date);
-                const urgent = days !== null && days <= 1;
+            {/* Stat chips */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 12 }}>
+              <div style={{ padding: "8px 8px", borderRadius: 10, background: "rgba(99,102,241,0.07)", textAlign: "center" }}>
+                <p style={{ font: `800 1.1rem/1 ${fd}`, color: "#4338CA" }}>{botActivity?.msgHoy ?? "—"}</p>
+                <p style={{ font: `400 0.6rem/1.3 ${fb}`, color: "#818CF8", marginTop: 2 }}>mensajes hoy</p>
+              </div>
+              <div style={{ padding: "8px 8px", borderRadius: 10, background: "rgba(239,68,68,0.06)", textAlign: "center" }}>
+                <p style={{ font: `800 1.1rem/1 ${fd}`, color: statusNegative }}>{botActivity?.vencHoy ?? "—"}</p>
+                <p style={{ font: `400 0.6rem/1.3 ${fb}`, color: "#F87171", marginTop: 2 }}>vencen hoy</p>
+              </div>
+              <div style={{ padding: "8px 8px", borderRadius: 10, background: "rgba(16,185,129,0.07)", textAlign: "center" }}>
+                <p style={{ font: `800 1.1rem/1 ${fd}`, color: "#047857" }}>{botActivity?.pagosHoyCount ?? "—"}</p>
+                <p style={{ font: `400 0.6rem/1.3 ${fb}`, color: "#10B981", marginTop: 2 }}>pagos hoy</p>
+              </div>
+            </div>
+            {/* Feed */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 0, maxHeight: 180, overflowY: "auto" }}>
+              {botActivity && botActivity.feed.length > 0 ? botActivity.feed.map((item, i) => {
+                const hora = new Date(item.ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+                const isPago = item.tipo === "pago";
                 return (
-                  <div key={row.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 12, background: urgent ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ font: `800 0.68rem/1 ${fd}`, color: urgent ? statusNegative : "#D97706" }}>{days === 0 ? "Hoy" : `${days}d`}</span>
-                    </div>
-                    <p style={{ font: `600 0.8rem/1 ${fd}`, color: t1, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.full_name}</p>
-                    <span style={{ font: `500 0.68rem/1 ${fb}`, color: t3, flexShrink: 0 }}>{row.next_expiration_date ?? "—"}</span>
+                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 0", borderBottom: i < botActivity.feed.length - 1 ? `1px solid ${softBorder.replace("border:", "").trim().replace("1px solid ", "")}` : "none" }}>
+                    <span style={{ font: `600 0.62rem/1 ${fm}`, color: t3, flexShrink: 0, marginTop: 2, minWidth: 42 }}>{hora}</span>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: isPago ? "#10B981" : "#818CF8", flexShrink: 0, marginTop: 4 }} />
+                    <p style={{ font: `400 0.72rem/1.35 ${fb}`, color: t2, flex: 1 }}>
+                      <span style={{ fontWeight: 600, color: isPago ? "#047857" : "#4338CA" }}>{item.label}</span>
+                      {item.name !== "—" && <> — <span style={{ color: t1 }}>{item.name}</span></>}
+                    </p>
                   </div>
                 );
               }) : (
-                <div style={{ padding: "14px 14px", borderRadius: 16, background: "#F0FDF4", border: "1px solid rgba(16,185,129,0.15)", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: "1.1rem" }}>✅</span>
-                  <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: "#166534" }}>Sin vencimientos en los próximos días.</p>
+                <div style={{ padding: "12px 0" }}>
+                  <p style={{ font: `500 0.72rem/1.5 ${fb}`, color: t3 }}>
+                    {botActivity ? "Sin actividad del bot hoy aún." : "Cargando actividad..."}
+                  </p>
                 </div>
               )}
             </div>

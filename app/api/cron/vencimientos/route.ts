@@ -380,7 +380,7 @@ async function enviarFollowupsPostVencimiento(
           message:  mensaje,
           dedupKey: `venc_${step}:${alumno.id}:${alumno.next_expiration_date}`,
         }]);
-        logWASend(supabase, gym.gym_id, "vencimiento");
+        logWASend(supabase, gym.gym_id, "vencimiento", alumno.id, alumno.full_name);
         void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", `Recordatorio vencimiento día ${diasVencido} encolado`);
         enviados++;
         log.push(`✓ ${alumno.full_name} (${gymName}) — follow-up ${step} encolado (día ${diasVencido})`);
@@ -442,7 +442,7 @@ async function enviarNotificacionesVenceHoy(
         message:  mensaje,
         dedupKey: `vence_hoy:${alumno.id}:${todayStr}`,
       }]);
-      logWASend(supabase, gym.gym_id, "vencimiento");
+      logWASend(supabase, gym.gym_id, "vencimiento", alumno.id, alumno.full_name);
       void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", "Aviso de vencimiento hoy encolado");
       enviados++;
       log.push(`🔔 ${alumno.full_name} (${gymName}) — vence hoy (encolado)`);
@@ -514,7 +514,7 @@ async function enviarRecordatoriosProximos(
         message:  mensaje,
         dedupKey: `recordatorio:${alumno.id}:${alumno.next_expiration_date}`,
       }]);
-      logWASend(supabase, gym.gym_id, "vencimiento");
+      logWASend(supabase, gym.gym_id, "vencimiento", alumno.id, alumno.full_name);
       void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", `Recordatorio pre-vencimiento encolado · vence ${alumno.next_expiration_date}`);
       enviados++;
       log.push(`✓ ${alumno.full_name} (${gymName}) — vence ${alumno.next_expiration_date} (encolado)`);

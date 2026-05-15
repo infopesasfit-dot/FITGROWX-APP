@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
             .replace(/\{dias\}/g, String(step1Days)).replace(/\[Dias\]/g, String(step1Days));
           await supabase.from("alumnos").update({ ultima_notif_inactividad: today.toISOString() }).eq("id", alumno.id);
           await enqueueWABulk([{ gymId: gym.gym_id, phone, message: msg, dedupKey: `inactivo1:${alumno.id}:${today.toISOString().slice(0,10)}` }]);
-          logWASend(supabase, gym.gym_id, "inactivo");
+          logWASend(supabase, gym.gym_id, "inactivo", alumno.id, alumno.full_name);
           totalEnviados++;
           log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 1 encolado (día ${diffDays})`);
         }
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
             .replace(/\{dias\}/g, "30").replace(/\[Dias\]/g, "30");
           await supabase.from("alumnos").update({ ultima_notif_inactividad_3: today.toISOString() }).eq("id", alumno.id);
           await enqueueWABulk([{ gymId: gym.gym_id, phone, message: msg, dedupKey: `inactivo3:${alumno.id}:${today.toISOString().slice(0,10)}` }]);
-          logWASend(supabase, gym.gym_id, "inactivo");
+          logWASend(supabase, gym.gym_id, "inactivo", alumno.id, alumno.full_name);
           totalEnviados++;
           log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 3 encolado (día ${diffDays})`);
         }

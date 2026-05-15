@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
       await supabase.from("alumnos").update({ notif_cumple_year: thisYear }).eq("id", alumno.id);
       await enqueueWABulk([{ gymId: gym.gym_id, phone, message: msg, dedupKey: `cumple:${alumno.id}:${thisYear}` }]);
-      logWASend(supabase, gym.gym_id, "cumple");
+      logWASend(supabase, gym.gym_id, "cumple", alumno.id, alumno.full_name);
       log.push(`🎂 ${alumno.full_name} (${gymName}) — encolado`);
     }
   }
