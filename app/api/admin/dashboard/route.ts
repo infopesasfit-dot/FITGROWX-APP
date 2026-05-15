@@ -111,18 +111,23 @@ export async function GET(req: NextRequest) {
   const gymId = profile.gym_id;
   const today = new Date();
   const todayStr = getTodayDate();
+
+  // thisMonthFrom/To se derivan del filtro seleccionado, no de hoy.
+  // Así el calendario filtra correctamente todos los datos del dashboard.
+  const selectedStart = fromParam ? new Date(fromParam + "T00:00:00") : startOfMonth(today);
+  const thisMonthFrom = isoDate(startOfMonth(selectedStart));
+  const thisMonthTo   = isoDate(endOfMonth(selectedStart));
+  const isCurrentMonth = thisMonthFrom === isoDate(startOfMonth(today));
+
+  const prevMonthDate  = new Date(selectedStart.getFullYear(), selectedStart.getMonth() - 1, 1);
+  const prevMonthFrom  = isoDate(startOfMonth(prevMonthDate));
+  const prevMonthTo    = isoDate(endOfMonth(prevMonthDate));
+
+  // Asistencias: siempre los últimos 30 días reales (el chart diario no depende del filtro)
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setDate(today.getDate() - 30);
   const thirtyStr = isoDate(thirtyDaysAgo);
-  const nowMonthStart = startOfMonth(today);
-  const nowMonthEnd = endOfMonth(today);
-  const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const prevMonthStart = startOfMonth(prevMonthDate);
-  const prevMonthEnd = endOfMonth(prevMonthDate);
-  const thisMonthFrom = isoDate(nowMonthStart);
-  const thisMonthTo = isoDate(nowMonthEnd);
-  const prevMonthFrom = isoDate(prevMonthStart);
-  const prevMonthTo = isoDate(prevMonthEnd);
+
   const recentInactiveCutoff = new Date(today);
   recentInactiveCutoff.setDate(today.getDate() - 7);
   const recentInactiveCutoffStr = isoDate(recentInactiveCutoff);
@@ -130,10 +135,10 @@ export async function GET(req: NextRequest) {
   expiration72h.setHours(0, 0, 0, 0);
   expiration72h.setDate(expiration72h.getDate() + 3);
   const expiration72hStr = isoDate(expiration72h);
-  const oldestMonthKey = isoDate(new Date(today.getFullYear(), today.getMonth() - 4, 1));
-  const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  const nextMonthFrom = isoDate(startOfMonth(nextMonthDate));
-  const nextMonthTo = isoDate(endOfMonth(nextMonthDate));
+  const oldestMonthKey = isoDate(new Date(selectedStart.getFullYear(), selectedStart.getMonth() - 4, 1));
+  const nextMonthDate  = new Date(selectedStart.getFullYear(), selectedStart.getMonth() + 1, 1);
+  const nextMonthFrom  = isoDate(startOfMonth(nextMonthDate));
+  const nextMonthTo    = isoDate(endOfMonth(nextMonthDate));
 
   const [
     { data: egresosData, error: egresosError },
@@ -267,7 +272,8 @@ export async function GET(req: NextRequest) {
   }
 
   const dailyCounts: { fecha: string; count: number }[] = [];
-  for (let d = new Date(nowMonthStart); d <= today; d.setDate(d.getDate() + 1)) {
+  const asistMonthEnd = isCurrentMonth ? today : new Date(thisMonthTo + "T00:00:00");
+  for (let d = new Date(thisMonthFrom + "T00:00:00"); d <= asistMonthEnd; d.setDate(d.getDate() + 1)) {
     const key = isoDate(d);
     dailyCounts.push({ fecha: key, count: dailyMap[key] ?? 0 });
   }
@@ -400,6 +406,7 @@ export async function GET(req: NextRequest) {
     ok: true,
     ownerName: ownerDisplayRaw.split(" ")[0],
     gymName: gymDisplay,
+    fetchedAt: new Date().toISOString(),
     snapshot: {
       activosCount: activos,
       totalCount: total,

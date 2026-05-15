@@ -221,6 +221,7 @@ export default function DashboardPage() {
   const userIdRef = useRef<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [ownerName, setOwnerName] = useState<string | null>(null);
+  const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [gymName, setGymName] = useState("tu gym");
   const [greetPhase, setGreetPhase] = useState<"hola" | "exit" | "welcome">("hola");
 
@@ -325,6 +326,7 @@ export default function DashboardPage() {
       error?: string;
       ownerName?: string;
       gymName?: string;
+      fetchedAt?: string;
       snapshot?: DashboardSnapshot;
     } | null;
 
@@ -337,6 +339,7 @@ export default function DashboardPage() {
     const name = payload.ownerName?.trim() || null;
     setOwnerName(name);
     setGymName(payload.gymName?.trim() || "tu gym");
+    if (payload.fetchedAt) setFetchedAt(new Date(payload.fetchedAt));
     if (name) {
       setGreetPhase("exit");
       setTimeout(() => setGreetPhase("welcome"), 650);
@@ -478,20 +481,35 @@ export default function DashboardPage() {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const isCurrentMonth = selectedMonth.getFullYear() === new Date().getFullYear() && selectedMonth.getMonth() === new Date().getMonth();
+
+  const fetchedAtLabel = (() => {
+    if (!fetchedAt) return null;
+    const diff = Math.floor((Date.now() - fetchedAt.getTime()) / 60000);
+    if (diff < 1) return "Actualizado ahora";
+    if (diff === 1) return "Actualizado hace 1 min";
+    if (diff < 60) return `Actualizado hace ${diff} min`;
+    return `Actualizado hace ${Math.floor(diff / 60)}h`;
+  })();
+
   const renderFilters = (compact = false) => (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F5F7FA", borderRadius: compact ? 14 : 16, padding: 4, border: "1px solid rgba(17,24,39,0.06)" }}>
-      <button
-        onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-        style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, fontSize: 14 }}
-      >‹</button>
-      <span style={{ font: `700 ${compact ? "0.72rem" : "0.76rem"}/1 ${fb}`, color: t1, minWidth: compact ? 110 : 130, textAlign: "center", padding: "0 4px" }}>
-        {MONTH_NAMES[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
-      </span>
-      <button
-        onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-        disabled={isCurrentMonth}
-        style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: isCurrentMonth ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: isCurrentMonth ? t3 : t2, fontSize: 14 }}
-      >›</button>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F5F7FA", borderRadius: compact ? 14 : 16, padding: 4, border: "1px solid rgba(17,24,39,0.06)" }}>
+        <button
+          onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
+          style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, fontSize: 14 }}
+        >‹</button>
+        <span style={{ font: `700 ${compact ? "0.72rem" : "0.76rem"}/1 ${fb}`, color: t1, minWidth: compact ? 110 : 130, textAlign: "center", padding: "0 4px" }}>
+          {MONTH_NAMES[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
+        </span>
+        <button
+          onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
+          disabled={isCurrentMonth}
+          style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: isCurrentMonth ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: isCurrentMonth ? t3 : t2, fontSize: 14 }}
+        >›</button>
+      </div>
+      {fetchedAtLabel && !compact && (
+        <span style={{ font: `400 0.68rem/1 ${fb}`, color: t3, whiteSpace: "nowrap" }}>{fetchedAtLabel}</span>
+      )}
     </div>
   );
 
