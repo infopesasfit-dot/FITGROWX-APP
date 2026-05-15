@@ -29,6 +29,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile } from "@/lib/gym-cache";
 import { useWaSession } from "@/hooks/useWaSession";
+import { normalizePhone } from "@/lib/phone";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -310,7 +311,34 @@ function AjustesContent() {
       setOwnerUserId(userIdVal);
       if ((profile as { phone?: string | null } | null)?.phone) setOwnerPhone((profile as { phone?: string | null }).phone!);
       if (settings?.gym_name) setGymName(settings.gym_name);
-      if (settings?.slug) setSlug(settings.slug);
+      if (settings?.slug) {
+        setSlug(settings.slug);
+      } else {
+        // Auto-generate and persist slug for gyms that don't have one yet
+        const base = (settings?.gym_name ?? "gym")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40) || "gym";
+        let candidate = base;
+        let n = 2;
+        for (;;) {
+          const { data: taken } = await supabase
+            .from("gym_settings")
+            .select("gym_id")
+            .eq("slug", candidate)
+            .neq("gym_id", gymIdVal)
+            .maybeSingle();
+          if (!taken) break;
+          candidate = `${base}-${n++}`;
+        }
+        setSlug(candidate);
+        await supabase
+          .from("gym_settings")
+          .upsert({ gym_id: gymIdVal, slug: candidate }, { onConflict: "gym_id" });
+      }
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
       if (settings?.instagram_url) setInstagramUrl(settings.instagram_url);
       if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
@@ -380,7 +408,7 @@ function AjustesContent() {
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
     await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null, payment_info: paymentInfo.trim() || null }, { onConflict: "gym_id" });
     if (ownerUserId && ownerPhone.trim()) {
-      await supabase.from("profiles").update({ phone: ownerPhone.trim() }).eq("id", ownerUserId);
+      await supabase.from("profiles").update({ phone: normalizePhone(ownerPhone.trim()) }).eq("id", ownerUserId);
     }
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
@@ -628,7 +656,7 @@ function AjustesContent() {
                 <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) 200px", gap: 14 }}>
                   <div style={{ display: "grid", gap: 12 }}>
                     <Field label="Nombre del gimnasio">
-                      <input value={gymName} onChange={(event) => setGymName(event.target.value)} style={inputStyle} />
+                      <input value={gymName} onChange={(event) => setGymName(event.target.value)} maxLength={100} style={inputStyle} />
                     </Field>
 
                     <Field label="Email de acceso" hint="El cambio de email se gestiona desde autenticación, por eso hoy lo mostramos como referencia.">
@@ -640,6 +668,7 @@ function AjustesContent() {
                         value={ownerPhone}
                         onChange={(e) => setOwnerPhone(e.target.value.replace(/[^\d+]/g, ""))}
                         placeholder="5491165909374"
+                        maxLength={30}
                         style={inputStyle}
                       />
                     </Field>
@@ -1052,6 +1081,7 @@ function AjustesContent() {
                           onChange={e => setInstagramUrl(e.target.value)}
                           onBlur={handleSaveGym}
                           placeholder="@tugym"
+                          maxLength={200}
                           style={{ ...inputStyle, paddingLeft: 36, width: 200, fontSize: "0.78rem" }}
                         />
                       </div>
@@ -1222,6 +1252,7 @@ function AjustesContent() {
                     onChange={e => setPaymentInfo(e.target.value)}
                     placeholder={"CBU: 0000003100012345678901\nAlias: gimnasio.nombre\nEfectivo: pagá en recepción de lunes a viernes."}
                     rows={4}
+                    maxLength={500}
                     style={{ ...inputStyle, resize: "vertical", fontFamily: fb, lineHeight: 1.5 }}
                   />
                   <button
@@ -1745,15 +1776,15 @@ function AjustesContent() {
 
             <div style={{ display: "grid", gap: 14 }}>
               <Field label="Nombre">
-                <input value={staffName} onChange={(event) => setStaffName(event.target.value)} placeholder="Ej: Lucas Pérez" style={inputStyle} />
+                <input value={staffName} onChange={(event) => setStaffName(event.target.value)} placeholder="Ej: Lucas Pérez" maxLength={100} style={inputStyle} />
               </Field>
 
               <Field label="Email">
-                <input type="email" value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder="staff@gym.com" style={inputStyle} />
+                <input type="email" value={staffEmail} onChange={(event) => setStaffEmail(event.target.value)} placeholder="staff@gym.com" maxLength={255} style={inputStyle} />
               </Field>
 
               <Field label="Contraseña" hint="Mínimo 6 caracteres. Esta es la clave inicial que le vas a compartir para que entre.">
-                <input type="password" value={staffPassword} onChange={(event) => setStaffPassword(event.target.value)} placeholder="********" style={inputStyle} />
+                <input type="password" value={staffPassword} onChange={(event) => setStaffPassword(event.target.value)} placeholder="********" maxLength={128} style={inputStyle} />
               </Field>
 
               {staffError && <p style={{ font: `600 0.78rem/1.4 ${fb}`, color: "#DC2626" }}>{staffError}</p>}

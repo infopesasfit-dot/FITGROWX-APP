@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { generateUniqueSlug } from "@/lib/slug-utils";
 
 const supabase = getSupabaseAdminClient();
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
           .maybeSingle(),
         supabase
           .from("gym_settings")
-          .select("gym_id, gym_name, owner_name, whatsapp, email")
+          .select("gym_id, gym_name, owner_name, whatsapp, email, slug")
           .eq("gym_id", user.id)
           .maybeSingle(),
         supabase
@@ -102,13 +103,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: profileUpsertError.message }, { status: 500 });
     }
 
+    const resolvedGymName = gymSettings?.gym_name ?? existingGym?.gym_name ?? existingGym?.name ?? companyName;
+    const autoSlug = gymSettings?.slug
+      ? gymSettings.slug
+      : await generateUniqueSlug(supabase, resolvedGymName, user.id);
+
     const { error: gymSettingsUpsertError } = await supabase.from("gym_settings").upsert(
       {
         gym_id: user.id,
-        gym_name: gymSettings?.gym_name ?? existingGym?.gym_name ?? existingGym?.name ?? companyName,
+        gym_name: resolvedGymName,
         owner_name: valueOrNull(normalizedName) ?? gymSettings?.owner_name ?? existingGym?.owner_name ?? null,
         whatsapp: valueOrNull(normalizedPhone) ?? gymSettings?.whatsapp ?? existingGym?.whatsapp ?? null,
         email: valueOrNull(normalizedEmail) ?? gymSettings?.email ?? existingGym?.email ?? null,
+        slug: autoSlug,
       },
       { onConflict: "gym_id" },
     );
