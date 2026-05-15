@@ -827,35 +827,39 @@ export default function DashboardPage() {
 
       {renderQuickActions()}
 
-      {!loading && morososCount > 0 && (
-        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)", border: "1px solid rgba(234,88,12,0.20)", textDecoration: "none", display: "block" }}>
+      {!loading && (
+        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 14, background: "rgba(234,88,12,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <CreditCard size={17} color="#EA580C" />
+            <div style={{ width: 38, height: 38, borderRadius: 14, background: morososCount > 0 ? "rgba(234,88,12,0.12)" : "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <CreditCard size={17} color={morososCount > 0 ? "#EA580C" : "#15803D"} />
             </div>
             <div>
-              <p style={{ font: `700 0.65rem/1 ${fb}`, color: "#EA580C", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Cuotas impagas</p>
-              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: "#7C2D12", letterSpacing: "-0.03em" }}>
-                {morososCount} {morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · {fmt(deudaTotal)} por cobrar
+              <p style={{ font: `700 0.65rem/1 ${fb}`, color: morososCount > 0 ? "#EA580C" : "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Cuotas impagas</p>
+              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: morososCount > 0 ? "#7C2D12" : "#14532D", letterSpacing: "-0.03em" }}>
+                {morososCount > 0 ? `${morososCount} ${morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · ${fmt(deudaTotal)} por cobrar` : "Sin deuda pendiente — todo al día ✅"}
               </p>
-              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: "#9A3412", marginTop: 4 }}>Membresías vencidas sin pago registrado este ciclo.</p>
+              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: morososCount > 0 ? "#9A3412" : "#166534", marginTop: 4 }}>
+                {morososCount > 0 ? "Membresías vencidas sin pago registrado este ciclo." : "Todos los socios tienen su membresía al día."}
+              </p>
             </div>
           </div>
         </a>
       )}
 
-      {!loading && recuperadosCount > 0 && (
-        <div style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "1px solid rgba(34,197,94,0.18)" }}>
+      {!loading && (
+        <div style={{ ...cardBase, padding: "16px 16px", background: recuperadosCount > 0 ? "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)" : "linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)", border: recuperadosCount > 0 ? "1px solid rgba(34,197,94,0.18)" : "1px solid rgba(15,23,42,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 14, background: "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <ArrowUpRight size={17} color="#15803D" />
+            <div style={{ width: 38, height: 38, borderRadius: 14, background: recuperadosCount > 0 ? "rgba(34,197,94,0.14)" : "rgba(99,102,241,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ArrowUpRight size={17} color={recuperadosCount > 0 ? "#15803D" : "#6366F1"} />
             </div>
             <div>
-              <p style={{ font: `700 0.65rem/1 ${fb}`, color: "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>ROI del sistema este mes</p>
-              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: "#14532D", letterSpacing: "-0.03em" }}>
-                {recuperadosCount} {recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} · {fmt(recuperadosRevenue)} recuperados
+              <p style={{ font: `700 0.65rem/1 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>ROI del sistema este mes</p>
+              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#1E1B4B", letterSpacing: "-0.03em" }}>
+                {recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} · ${fmt(recuperadosRevenue)} recuperados` : "Los mensajes automáticos están activos"}
               </p>
-              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: "#166534", marginTop: 4 }}>Socios que no renovaron el mes pasado y este mes volvieron a pagar.</p>
+              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: recuperadosCount > 0 ? "#166534" : "#4338CA", marginTop: 4 }}>
+                {recuperadosCount > 0 ? "Socios que no renovaron el mes pasado y este mes volvieron a pagar." : "Cuando algún socio vuelva a renovar este mes, lo vas a ver acá."}
+              </p>
             </div>
           </div>
         </div>
@@ -1235,43 +1239,43 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {!loading && morososCount > 0 && (
-        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)", border: "1px solid rgba(234,88,12,0.20)", textDecoration: "none", display: "block" }}>
+      {!loading && (
+        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "20px 22px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 16, background: "rgba(234,88,12,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <CreditCard size={20} color="#EA580C" />
+              <div style={{ width: 44, height: 44, borderRadius: 16, background: morososCount > 0 ? "rgba(234,88,12,0.12)" : "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <CreditCard size={20} color={morososCount > 0 ? "#EA580C" : "#15803D"} />
               </div>
               <div>
-                <p style={{ font: `700 0.7rem/1 ${fb}`, color: "#EA580C", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Cuotas impagas</p>
-                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: "#7C2D12", letterSpacing: "-0.03em" }}>
-                  {morososCount} {morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · {fmt(deudaTotal)} por cobrar
+                <p style={{ font: `700 0.7rem/1 ${fb}`, color: morososCount > 0 ? "#EA580C" : "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Cuotas impagas</p>
+                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: morososCount > 0 ? "#7C2D12" : "#14532D", letterSpacing: "-0.03em" }}>
+                  {morososCount > 0 ? `${morososCount} ${morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · ${fmt(deudaTotal)} por cobrar` : "Sin deuda pendiente — todo al día ✅"}
                 </p>
               </div>
             </div>
-            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: "#9A3412", maxWidth: 340 }}>
-              Membresías vencidas sin pago registrado. Hacé clic para verlos.
+            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: morososCount > 0 ? "#9A3412" : "#166534", maxWidth: 340 }}>
+              {morososCount > 0 ? "Membresías vencidas sin pago registrado. Hacé clic para verlos." : "Todos los socios tienen su membresía al día."}
             </p>
           </div>
         </a>
       )}
 
-      {!loading && recuperadosCount > 0 && (
-        <div style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "1px solid rgba(34,197,94,0.18)" }}>
+      {!loading && (
+        <div style={{ ...cardBase, padding: "20px 22px", background: recuperadosCount > 0 ? "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)" : "linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)", border: recuperadosCount > 0 ? "1px solid rgba(34,197,94,0.18)" : "1px solid rgba(15,23,42,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 16, background: "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <ArrowUpRight size={20} color="#15803D" />
+              <div style={{ width: 44, height: 44, borderRadius: 16, background: recuperadosCount > 0 ? "rgba(34,197,94,0.14)" : "rgba(99,102,241,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <ArrowUpRight size={20} color={recuperadosCount > 0 ? "#15803D" : "#6366F1"} />
               </div>
               <div>
-                <p style={{ font: `700 0.7rem/1 ${fb}`, color: "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>ROI del sistema este mes</p>
-                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: "#14532D", letterSpacing: "-0.03em" }}>
-                  {recuperadosCount} {recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} — {fmt(recuperadosRevenue)} recuperados
+                <p style={{ font: `700 0.7rem/1 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>ROI del sistema este mes</p>
+                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#1E1B4B", letterSpacing: "-0.03em" }}>
+                  {recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} — ${fmt(recuperadosRevenue)} recuperados` : "Los mensajes automáticos están activos"}
                 </p>
               </div>
             </div>
-            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: "#166534", maxWidth: 340 }}>
-              Socios antiguos que no renovaron el mes pasado y este mes volvieron a pagar. El sistema los recordó.
+            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: recuperadosCount > 0 ? "#166534" : "#4338CA", maxWidth: 340 }}>
+              {recuperadosCount > 0 ? "Socios antiguos que no renovaron el mes pasado y este mes volvieron a pagar. El sistema los recordó." : "Cuando algún socio vuelva a pagar este mes después de haberse ido, lo vas a ver acá."}
             </p>
           </div>
         </div>
