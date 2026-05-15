@@ -56,6 +56,8 @@ const NEXT_STATUS: Record<Status, Status> = {
   descartado: "pendiente",
 };
 
+type GuestPass = { id: string; code: string; status: string; lead_name: string | null; lead_phone: string | null; claimed_at: string | null; expires_at: string; alumnos: { full_name: string } | null };
+
 export default function ProspectosPage() {
   const [isMobile,        setIsMobile]        = useState(false);
   const [prospectos,      setProspectos]      = useState<Prospecto[]>([]);
@@ -64,6 +66,9 @@ export default function ProspectosPage() {
   const [filter,          setFilter]          = useState<Status | "todos">("todos");
   const [gymId,           setGymId]           = useState<string | null>(null);
   const [clasePickingId,  setClasePickingId]  = useState<string | null>(null);
+  const [guestLeads,       setGuestLeads]       = useState<GuestPass[]>([]);
+  const [guestLeadsOpen,   setGuestLeadsOpen]   = useState(false);
+  const [guestLeadsLoaded, setGuestLeadsLoaded] = useState(false);
   const deferredSearch = useDeferredValue(search);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -159,6 +164,22 @@ export default function ProspectosPage() {
     scrollToList();
   };
 
+  const loadGuestLeads = async () => {
+    if (guestLeadsLoaded) return;
+    const r = await fetch("/api/admin/guest-passes").catch(() => null);
+    if (r?.ok) { const d = await r.json(); setGuestLeads(d.passes ?? []); }
+    setGuestLeadsLoaded(true);
+  };
+
+  const markPassUsed = async (passId: string) => {
+    await fetch("/api/admin/guest-passes", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passId }),
+    });
+    setGuestLeads(prev => prev.map(p => p.id === passId ? { ...p, status: "used" } : p));
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
       {/* Header */}
@@ -219,6 +240,63 @@ export default function ProspectosPage() {
             </div>
           </button>
         ))}
+      </div>
+
+      {/* Guest Pass Leads */}
+      <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 16, overflow: "hidden" }}>
+        <button
+          onClick={() => { setGuestLeadsOpen(o => !o); if (!guestLeadsLoaded) void loadGuestLeads(); }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🎟️</span>
+            <div>
+              <p style={{ font: `600 0.88rem/1.2 ${fb}`, color: t1, margin: 0 }}>Leads de Pases Libres</p>
+              <p style={{ font: `400 0.7rem/1 ${fb}`, color: t2, margin: "2px 0 0" }}>Amigos invitados por tus alumnos</p>
+            </div>
+          </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={t2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: guestLeadsOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        {guestLeadsOpen && (
+          <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", padding: "12px 0" }}>
+            {!guestLeadsLoaded ? (
+              <p style={{ font: `400 0.8rem/1 ${fb}`, color: t2, textAlign: "center", padding: "12px 0" }}>Cargando...</p>
+            ) : guestLeads.length === 0 ? (
+              <p style={{ font: `400 0.8rem/1.5 ${fb}`, color: t2, textAlign: "center", padding: "12px 20px" }}>
+                Ningún alumno generó un pase aún. Aparecerán aquí cuando un amigo reclame uno.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {guestLeads.map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 18px", borderBottom: "1px solid rgba(0,0,0,0.04)" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: p.status === "used" ? "#9CA3AF" : p.status === "claimed" ? "#22C55E" : "#F59E0B", flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.83rem/1.2 ${fb}`, color: t1, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.lead_name ?? "—"} · {p.lead_phone ?? "—"}
+                      </p>
+                      <p style={{ font: `400 0.7rem/1 ${fb}`, color: t2, margin: "2px 0 0" }}>
+                        Invitado por {p.alumnos?.full_name ?? "?"} · Código: <strong>{p.code}</strong>
+                      </p>
+                    </div>
+                    <span style={{ font: `500 0.65rem/1 ${fb}`, color: p.status === "used" ? t2 : p.status === "claimed" ? "#16A34A" : "#D97706", background: p.status === "used" ? "rgba(0,0,0,0.04)" : p.status === "claimed" ? "rgba(34,197,94,0.08)" : "rgba(245,158,11,0.1)", padding: "3px 8px", borderRadius: 9999, flexShrink: 0, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+                      {p.status === "used" ? "Usado" : p.status === "claimed" ? "Reclamado" : "Pendiente"}
+                    </span>
+                    {p.status === "claimed" && (
+                      <button
+                        onClick={() => void markPassUsed(p.id)}
+                        style={{ flexShrink: 0, padding: "5px 10px", background: "#1A1D23", color: "white", border: "none", borderRadius: 8, font: `600 0.7rem/1 ${fb}`, cursor: "pointer" }}
+                      >
+                        Marcar usado
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filters */}
