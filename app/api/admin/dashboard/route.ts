@@ -16,6 +16,7 @@ type CreatedAtRow = { created_at: string };
 type EgresoMontoRow = { monto: number | null };
 type PlanPrecioRow = { planes: unknown };
 type PlanNombreRow = { planes: unknown };
+type AlumnoPlanRow = { id: string; next_expiration_date: string | null; planes: unknown };
 type ProspectoRow = { created_at: string; phone: string | null; clase_gratis_date: string | null };
 type PagoMetricRow = { amount: number; date: string; status: string | null; concepto: string | null; alumno_id: string | null };
 type EgresoMetricRow = { monto: number | null; fecha: string; categoria: string | null };
@@ -135,13 +136,8 @@ export async function GET(req: NextRequest) {
   const nextMonthTo = isoDate(endOfMonth(nextMonthDate));
 
   const [
-    { count: total },
-    { count: activos },
-    { data: todasCreatedAt, error: createdError },
     { data: egresosData, error: egresosError },
-    { data: recientesData, error: recientesError },
-    { data: activosConPlan, error: activosPlanError },
-    { data: activosConNombrePlan, error: activosPlanNombreError },
+    { data: activosConPlanFull, error: activosPlanError },
     { count: prospectosPendientes, error: prospectosCountError },
     { data: gymSettings, error: settingsError },
     { data: gymRow, error: gymError },
@@ -150,19 +146,12 @@ export async function GET(req: NextRequest) {
     { data: egresosMetricRows, error: egresosMetricError },
     { data: alumnosMetricRows, error: alumnosError },
     { data: reservasMetricRows, error: reservasError },
-    { data: monthlyAssistRows, error: monthlyAssistError },
-    { data: recentAssistRows, error: recentAssistError },
+    { data: allAsistRows, error: asistError },
     { data: gymClassesMetricRows, error: classesError },
-    { data: proximoMesRows, error: proximoMesError },
     { count: mensajesAutoCount, error: mensajesAutoError },
   ] = await Promise.all([
-    admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).is("deleted_at", null),
-    admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
-    admin.from("alumnos").select("created_at").eq("gym_id", gymId).gte("created_at", oldestMonthKey).is("deleted_at", null),
     admin.from("egresos").select("monto").eq("gym_id", gymId).gte("fecha", from).lte("fecha", to),
-    admin.from("alumnos").select("id, full_name, created_at").eq("gym_id", gymId).is("deleted_at", null).order("created_at", { ascending: false }).limit(4),
-    admin.from("alumnos").select("planes!plan_id(precio)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
-    admin.from("alumnos").select("planes!plan_id(nombre)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
+    admin.from("alumnos").select("id, next_expiration_date, planes!plan_id(precio, nombre)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
     admin.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "pendiente"),
     admin.from("gym_settings").select("gym_name, owner_name").eq("gym_id", gymId).maybeSingle<GymSettingsRow>(),
     admin.from("gyms").select("name, owner_name").eq("id", gymId).maybeSingle<GymRow>(),
@@ -171,17 +160,15 @@ export async function GET(req: NextRequest) {
     admin.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
     admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gymId).is("deleted_at", null),
     admin.from("reservas").select("clase_id, fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
-    admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thisMonthFrom).lte("fecha", todayStr),
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("id, day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
-    admin.from("alumnos").select("next_expiration_date, planes!plan_id(precio)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null).gte("next_expiration_date", nextMonthFrom).lte("next_expiration_date", nextMonthTo),
     admin.from("wa_mensajes_log").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("sent_at", `${thisMonthFrom}T00:00:00Z`).lte("sent_at", `${thisMonthTo}T23:59:59Z`),
   ]);
 
   const anyError =
-    createdError || egresosError || recientesError || activosPlanError || activosPlanNombreError || prospectosCountError ||
-    settingsError || gymError || prospectRowsError || pagosError || egresosMetricError || alumnosError || reservasError ||
-    monthlyAssistError || recentAssistError || classesError || proximoMesError || mensajesAutoError;
+    egresosError || activosPlanError || prospectosCountError || settingsError || gymError ||
+    prospectRowsError || pagosError || egresosMetricError || alumnosError || reservasError ||
+    asistError || classesError || mensajesAutoError;
 
   if (anyError) {
     return NextResponse.json({
@@ -204,20 +191,35 @@ export async function GET(req: NextRequest) {
     gymRow?.name?.trim() ||
     "tu gym";
 
-  const proyectado = (activosConPlan ?? []).reduce((sum, row) => {
-    const plan = getRelationRecord((row as PlanPrecioRow).planes);
+  const activosPlanRows = (activosConPlanFull ?? []) as AlumnoPlanRow[];
+
+  const proyectado = activosPlanRows.reduce((sum, row) => {
+    const plan = getRelationRecord(row.planes);
     return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
   }, 0);
 
-  const renovacionesPendientes = (proximoMesRows ?? []).length;
-  const proyeccionProximoMes = (proximoMesRows ?? []).reduce((sum, row) => {
-    const plan = getRelationRecord((row as PlanPrecioRow).planes);
+  const proximoMesFiltrados = activosPlanRows.filter(r =>
+    r.next_expiration_date != null &&
+    r.next_expiration_date >= nextMonthFrom &&
+    r.next_expiration_date <= nextMonthTo
+  );
+  const renovacionesPendientes = proximoMesFiltrados.length;
+  const proyeccionProximoMes = proximoMesFiltrados.reduce((sum, row) => {
+    const plan = getRelationRecord(row.planes);
     return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
   }, 0);
+
+  const alumnoRows = (alumnosMetricRows ?? []) as AlumnoMetricRow[];
+  const total = alumnoRows.length;
+  const activos = alumnoRows.filter(r => r.status === "activo").length;
+  const recientes = [...alumnoRows]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 4)
+    .map(r => ({ id: r.id, full_name: r.full_name, created_at: r.created_at }));
 
   const captMap: Record<string, number> = {};
-  (todasCreatedAt ?? []).forEach((row) => {
-    const m = (row as CreatedAtRow).created_at.slice(0, 7);
+  alumnoRows.filter(row => row.created_at >= oldestMonthKey).forEach(row => {
+    const m = row.created_at.slice(0, 7);
     captMap[m] = (captMap[m] || 0) + 1;
   });
 
@@ -228,8 +230,8 @@ export async function GET(req: NextRequest) {
   const captacion5 = monthKeys.map((key) => captMap[key] || 0);
 
   const planMap: Record<string, number> = {};
-  (activosConNombrePlan ?? []).forEach((row) => {
-    const nombre = getPlanNombre((row as PlanNombreRow).planes) ?? "Sin plan";
+  activosPlanRows.forEach(row => {
+    const nombre = getPlanNombre(row.planes) ?? "Sin plan";
     planMap[nombre] = (planMap[nombre] || 0) + 1;
   });
   const planDist = Object.entries(planMap).sort((a, b) => b[1] - a[1]).map(([nombre, count]) => ({ nombre, count }));
@@ -237,10 +239,10 @@ export async function GET(req: NextRequest) {
   const prospectRows = (prospectosRows ?? []) as ProspectoRow[];
   const pagoRows = ((pagosMetricRows ?? []) as PagoMetricRow[]).filter((row) => row.status === "validado");
   const egresoRows = (egresosMetricRows ?? []) as EgresoMetricRow[];
-  const alumnoRows = (alumnosMetricRows ?? []) as AlumnoMetricRow[];
   const reservaRows = ((reservasMetricRows ?? []) as ReservaMetricRow[]).filter((row) => row.estado === "confirmada");
-  const monthlyAsistenciaRows = (monthlyAssistRows ?? []) as AsistenciaMetricRow[];
-  const asistenciaRows = (recentAssistRows ?? []) as AsistenciaMetricRow[];
+  const allAsistencias = (allAsistRows ?? []) as AsistenciaMetricRow[];
+  const monthlyAsistenciaRows = allAsistencias.filter(r => r.fecha >= thisMonthFrom);
+  const asistenciaRows = allAsistencias;
   const classRows = (gymClassesMetricRows ?? []) as GymClassMetricRow[];
 
   const dailyMap: Record<string, number> = {};
@@ -381,8 +383,8 @@ export async function GET(req: NextRequest) {
     ownerName: ownerDisplayRaw.split(" ")[0],
     gymName: gymDisplay,
     snapshot: {
-      activosCount: activos ?? 0,
-      totalCount: total ?? 0,
+      activosCount: activos,
+      totalCount: total,
       ingresoProyectado: proyectado,
       proyeccionProximoMes,
       renovacionesPendientes,
@@ -390,7 +392,7 @@ export async function GET(req: NextRequest) {
       recuperadosCount,
       recuperadosRevenue,
       gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
-      recientes: recientesData ?? [],
+      recientes,
       captacion5,
       planDist,
       prospectos: prospectosPendientes ?? 0,
