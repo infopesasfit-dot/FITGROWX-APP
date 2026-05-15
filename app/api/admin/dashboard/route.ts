@@ -130,6 +130,9 @@ export async function GET(req: NextRequest) {
   expiration72h.setDate(expiration72h.getDate() + 3);
   const expiration72hStr = isoDate(expiration72h);
   const oldestMonthKey = isoDate(new Date(today.getFullYear(), today.getMonth() - 4, 1));
+  const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const nextMonthFrom = isoDate(startOfMonth(nextMonthDate));
+  const nextMonthTo = isoDate(endOfMonth(nextMonthDate));
 
   const [
     { count: total },
@@ -150,6 +153,7 @@ export async function GET(req: NextRequest) {
     { data: monthlyAssistRows, error: monthlyAssistError },
     { data: recentAssistRows, error: recentAssistError },
     { data: gymClassesMetricRows, error: classesError },
+    { data: proximoMesRows, error: proximoMesError },
   ] = await Promise.all([
     admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).is("deleted_at", null),
     admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
@@ -169,12 +173,13 @@ export async function GET(req: NextRequest) {
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thisMonthFrom).lte("fecha", todayStr),
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("id, day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
+    admin.from("alumnos").select("next_expiration_date, planes!plan_id(precio)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null).gte("next_expiration_date", nextMonthFrom).lte("next_expiration_date", nextMonthTo),
   ]);
 
   const anyError =
     createdError || egresosError || recientesError || activosPlanError || activosPlanNombreError || prospectosCountError ||
     settingsError || gymError || prospectRowsError || pagosError || egresosMetricError || alumnosError || reservasError ||
-    monthlyAssistError || recentAssistError || classesError;
+    monthlyAssistError || recentAssistError || classesError || proximoMesError;
 
   if (anyError) {
     return NextResponse.json({
@@ -198,6 +203,12 @@ export async function GET(req: NextRequest) {
     "tu gym";
 
   const proyectado = (activosConPlan ?? []).reduce((sum, row) => {
+    const plan = getRelationRecord((row as PlanPrecioRow).planes);
+    return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
+  }, 0);
+
+  const renovacionesPendientes = (proximoMesRows ?? []).length;
+  const proyeccionProximoMes = (proximoMesRows ?? []).reduce((sum, row) => {
     const plan = getRelationRecord((row as PlanPrecioRow).planes);
     return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
   }, 0);
@@ -360,6 +371,8 @@ export async function GET(req: NextRequest) {
       activosCount: activos ?? 0,
       totalCount: total ?? 0,
       ingresoProyectado: proyectado,
+      proyeccionProximoMes,
+      renovacionesPendientes,
       gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
       recientes: recientesData ?? [],
       captacion5,

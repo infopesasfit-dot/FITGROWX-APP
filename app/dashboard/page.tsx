@@ -47,6 +47,8 @@ interface DashboardSnapshot {
   activosCount: number;
   totalCount: number;
   ingresoProyectado: number;
+  proyeccionProximoMes: number;
+  renovacionesPendientes: number;
   gastosTotal: number;
   recientes: RecenteAlumno[];
   captacion5: number[];
@@ -162,7 +164,7 @@ function buildDemoSnapshot(): DashboardSnapshot {
     return 0;
   });
   return {
-    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, gastosTotal: 210_000,
+    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, gastosTotal: 210_000,
     recientes: [
       { id: "d1", full_name: "Valentina Ríos",    created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
       { id: "d2", full_name: "Matías Fernández",  created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -223,8 +225,10 @@ export default function DashboardPage() {
 
   const [activosCount,      setActivosCount]      = useState(0);
   const [totalCount,        setTotalCount]        = useState(0);
-  const [ingresoProyectado, setIngresoProyectado] = useState(0);
-  const [gastosTotal,       setGastosTotal]       = useState(0);
+  const [ingresoProyectado,     setIngresoProyectado]     = useState(0);
+  const [proyeccionProximoMes,  setProyeccionProximoMes]  = useState(0);
+  const [renovacionesPendientes,setRenovacionesPendientes]= useState(0);
+  const [gastosTotal,           setGastosTotal]           = useState(0);
   const [recientes,         setRecientes]         = useState<RecenteAlumno[]>([]);
   const [captacion5,        setCaptacion5]        = useState<number[]>([0, 0, 0, 0, 0]);
   const [planDist,          setPlanDist]          = useState<PlanDist[]>([]);
@@ -245,6 +249,8 @@ export default function DashboardPage() {
     setActivosCount(snapshot.activosCount);
     setTotalCount(snapshot.totalCount);
     setIngresoProyectado(snapshot.ingresoProyectado);
+    setProyeccionProximoMes(snapshot.proyeccionProximoMes);
+    setRenovacionesPendientes(snapshot.renovacionesPendientes);
     setGastosTotal(snapshot.gastosTotal);
     setRecientes(snapshot.recientes);
     setCaptacion5(snapshot.captacion5);
@@ -258,7 +264,7 @@ export default function DashboardPage() {
   }, []);
 
   const enterDemo = useCallback(() => {
-    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
+    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
     applySnapshot(buildDemoSnapshot());
     setDemoMode(true);
   }, [activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts, applySnapshot]);
@@ -729,6 +735,13 @@ export default function DashboardPage() {
                   : <span style={{ font: `800 2rem/0.95 ${fd}`, letterSpacing: "-0.06em" }}>{fmt(ingresoProyectado)}</span>}
                 {!loading && <span style={{ font: `500 0.74rem/1 ${fb}`, color: "rgba(255,255,255,0.72)" }}>/ mes</span>}
               </div>
+              {!loading && proyeccionProximoMes > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                  <span style={{ font: `500 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.52)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Próximo mes · {renovacionesPendientes} renovaciones</span>
+                  <span style={{ font: `700 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.88)" }}>{fmt(proyeccionProximoMes)}</span>
+                  <span style={{ font: `500 0.58rem/1 ${fb}`, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.1)", borderRadius: 6, padding: "2px 6px" }}>esperado</span>
+                </div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[
                   { label: "Con membresía", value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(activosCount) },
@@ -1074,9 +1087,17 @@ export default function DashboardPage() {
                     : <span style={{ font: `800 3rem/0.92 ${fd}`, color: "white", letterSpacing: "-0.08em" }}>{fmt(ingresoProyectado)}</span>}
                   {!loading && <span style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.78)" }}>/ mes</span>}
                 </div>
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.18)" }}>
-                  <ArrowUpRight size={14} color="white" />
-                  <span style={{ font: `700 0.74rem/1 ${fb}`, color: "white" }}>Suma de membresías vigentes</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                    <ArrowUpRight size={14} color="white" />
+                    <span style={{ font: `700 0.74rem/1 ${fb}`, color: "white" }}>Suma de membresías vigentes</span>
+                  </div>
+                  {!loading && proyeccionProximoMes > 0 && (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
+                      <span style={{ font: `500 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.62)" }}>Próximo mes · {renovacionesPendientes} renovaciones</span>
+                      <span style={{ font: `700 0.74rem/1 ${fd}`, color: "rgba(255,255,255,0.92)" }}>{fmt(proyeccionProximoMes)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ width: 48, height: 48, borderRadius: 18, background: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
