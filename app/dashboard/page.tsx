@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
   Users, CreditCard, Zap,
-  ArrowUpRight, ArrowDownRight, Send, Target, CircleHelp, BadgeAlert, Activity, UserMinus,
+  ArrowUpRight, ArrowDownRight, Send, Target, CircleHelp, BadgeAlert, Activity, UserMinus, Clock, UserPlus,
 } from "lucide-react";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { supabase } from "@/lib/supabase";
@@ -639,52 +639,90 @@ export default function DashboardPage() {
     return <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>{content}</section>;
   };
 
-  const renderAlertsPanel = () => (
-    <section id="dashboard-alertas" style={{ ...cardBase, padding: isMobile ? "18px 16px" : "20px 20px", background: "#FFFFFF", scrollMarginTop: isMobile ? 84 : 112 }} {...cardHover}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-        <div>
-          <p style={{ font: `800 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>Lo que necesita tu atención hoy</p>
-          <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t3 }}>Socios que conviene contactar para que no se vayan.</p>
-        </div>
-        <div style={{ width: 36, height: 36, borderRadius: 14, background: "rgba(255,122,24,0.10)", color: accentDeep, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <BadgeAlert size={17} />
-        </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-        <div style={{ padding: "14px 14px", borderRadius: 18, background: "#FFF8F1", border: "1px solid rgba(255,122,24,0.12)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>No vinieron en 7 días</p>
-            <span style={{ font: `800 0.86rem/1 ${fd}`, color: accentDeep }}>{alerts.inactiveCount}</span>
-          </div>
-          <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t2, marginBottom: 10 }}>Tienen membresía activa pero hace más de una semana que no entrenan.</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {alerts.inactiveNames.length > 0 ? alerts.inactiveNames.map((name) => (
-              <span key={name} style={{ font: `600 0.66rem/1 ${fb}`, color: "#7A3E13", background: "rgba(255,122,24,0.10)", borderRadius: 9999, padding: "6px 9px" }}>{name}</span>
-            )) : (
-              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>¡Excelente! Todos los socios vinieron esta semana.</span>
-            )}
-          </div>
-        </div>
-        <div style={{ padding: "14px 14px", borderRadius: 18, background: "#FFF7F4", border: "1px solid rgba(230,84,58,0.10)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 8 }}>
-            <p style={{ font: `700 0.78rem/1 ${fd}`, color: t1 }}>Membresías que vencen en 3 días</p>
-            <span style={{ font: `800 0.86rem/1 ${fd}`, color: statusNegative }}>{alerts.upcomingExpirations.length}</span>
-          </div>
-          <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t2, marginBottom: 10 }}>Avisales antes de que venza para que no se pierdan.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {alerts.upcomingExpirations.length > 0 ? alerts.upcomingExpirations.map((row) => (
-              <div key={row.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <span style={{ font: `600 0.68rem/1 ${fb}`, color: t1 }}>{row.full_name}</span>
-                <span style={{ font: `700 0.66rem/1 ${fm}`, color: statusNegative }}>{row.next_expiration_date ?? "—"}</span>
+  const renderPulsoPanel = () => {
+    const now = Date.now();
+    const relDate = (iso: string) => {
+      const diff = Math.floor((now - new Date(iso).getTime()) / 86400000);
+      if (diff === 0) return "Hoy";
+      if (diff === 1) return "Ayer";
+      return `Hace ${diff} días`;
+    };
+    const daysUntil = (iso: string | null) => {
+      if (!iso) return null;
+      return Math.max(0, Math.ceil((new Date(iso).getTime() - now) / 86400000));
+    };
+    const initials = (name: string) => name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const AVATAR_COLORS = ["#FF7A18","#6366F1","#10B981","#F59E0B","#EC4899","#3B82F6"];
+
+    return (
+      <section style={{ ...cardBase, padding: isMobile ? "18px 16px" : "22px 22px", background: "#FFFFFF" }} {...cardHover}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 20 : 24 }}>
+
+          {/* Últimas altas */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 12, background: "rgba(99,102,241,0.10)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <UserPlus size={15} />
               </div>
-            )) : (
-              <span style={{ font: `500 0.68rem/1.45 ${fb}`, color: t3 }}>Sin vencimientos en los próximos 3 días.</span>
-            )}
+              <div>
+                <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Últimas altas</p>
+                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Socios que se sumaron recientemente</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {recientes.length > 0 ? recientes.slice(0, 5).map((r, i) => (
+                <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 12, background: AVATAR_COLORS[i % AVATAR_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ font: `700 0.68rem/1 ${fd}`, color: "white" }}>{initials(r.full_name)}</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ font: `600 0.8rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.full_name}</p>
+                  </div>
+                  <span style={{ font: `500 0.68rem/1 ${fb}`, color: t3, flexShrink: 0 }}>{relDate(r.created_at)}</span>
+                </div>
+              )) : (
+                <p style={{ font: `500 0.74rem/1.5 ${fb}`, color: t3 }}>Todavía no hay socios registrados.</p>
+              )}
+            </div>
           </div>
+
+          {/* Vencimientos próximos */}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 12, background: "rgba(239,68,68,0.08)", color: statusNegative, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Clock size={15} />
+              </div>
+              <div>
+                <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Vencimientos próximos</p>
+                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Avisales antes de que pierdan su lugar</p>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {alerts.upcomingExpirations.length > 0 ? alerts.upcomingExpirations.map((row) => {
+                const days = daysUntil(row.next_expiration_date);
+                const urgent = days !== null && days <= 1;
+                return (
+                  <div key={row.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 12, background: urgent ? "rgba(239,68,68,0.08)" : "rgba(245,158,11,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ font: `800 0.68rem/1 ${fd}`, color: urgent ? statusNegative : "#D97706" }}>{days === 0 ? "Hoy" : `${days}d`}</span>
+                    </div>
+                    <p style={{ font: `600 0.8rem/1 ${fd}`, color: t1, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.full_name}</p>
+                    <span style={{ font: `500 0.68rem/1 ${fb}`, color: t3, flexShrink: 0 }}>{row.next_expiration_date ?? "—"}</span>
+                  </div>
+                );
+              }) : (
+                <div style={{ padding: "14px 14px", borderRadius: 16, background: "#F0FDF4", border: "1px solid rgba(16,185,129,0.15)", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: "1.1rem" }}>✅</span>
+                  <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: "#166534" }}>Sin vencimientos en los próximos días.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
-      </div>
-    </section>
-  );
+      </section>
+    );
+  };
 
   /* ─────────── MOBILE LAYOUT ─────────── */
   if (isMobile) return (
@@ -828,7 +866,7 @@ export default function DashboardPage() {
         {renderMetricSection("Fidelización", true)}
         {renderMetricSection("Eficiencia", true)}
       </div>
-      {renderAlertsPanel()}
+      {renderPulsoPanel()}
 
       <div className="dash-card" style={{ ...cardBase, padding: "20px 18px", background: whitePanel }} {...cardHover}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
@@ -1244,7 +1282,7 @@ export default function DashboardPage() {
         {renderMetricSection("Fidelización", true)}
         {renderMetricSection("Eficiencia", true)}
       </div>
-      {renderAlertsPanel()}
+      {renderPulsoPanel()}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)", gap: 20 }}>
         <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }} {...cardHover}>
