@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { Activity, Heart, LogOut, Shield, Users } from "lucide-react";
+import { Activity, CreditCard, Heart, LogOut, Shield, Users } from "lucide-react";
 
 export default function PlatformHeader() {
   const router = useRouter();
@@ -69,6 +69,20 @@ export default function PlatformHeader() {
         >
           <Users size={13} />
           Resellers
+        </Link>
+        <Link
+          href="/platform/pagos"
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            font: "600 0.75rem/1 'Inter', sans-serif",
+            color: pathname === "/platform/pagos" ? "#6366f1" : "#6b7280",
+            textDecoration: "none",
+            padding: "4px 8px", borderRadius: 6,
+            background: pathname === "/platform/pagos" ? "rgba(99,102,241,0.08)" : "transparent",
+          }}
+        >
+          <CreditCard size={13} />
+          Pagos
         </Link>
         <Link
           href="/platform/radar"
