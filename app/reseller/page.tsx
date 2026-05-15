@@ -1,65 +1,90 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
 
-const fd = "'Inter', system-ui, sans-serif";
 const ORANGE = "#F97316";
+const FM = "'JetBrains Mono', 'Fira Mono', monospace";
+const FS = "'Inter', system-ui, sans-serif";
 
 const TIERS = [
-  { label: "Standard", minGyms: 1,  maxGyms: 9,  pct: 20, color: "#9CA3AF" },
-  { label: "Premium",  minGyms: 10, maxGyms: 24, pct: 25, color: "#818CF8" },
-  { label: "Franchise",minGyms: 25, maxGyms: 99, pct: 30, color: "#F59E0B" },
+  { label: "Standard",  minGyms: 1,  maxGyms: 9,  pct: 20, color: "#9CA3AF" },
+  { label: "Premium",   minGyms: 10, maxGyms: 24, pct: 25, color: "#818CF8" },
+  { label: "Franchise", minGyms: 25, maxGyms: 99, pct: 30, color: "#F59E0B" },
 ];
 
 function calcTier(gyms: number) {
   return [...TIERS].reverse().find(t => gyms >= t.minGyms) ?? TIERS[0];
 }
 
-function fmt(n: number) { return n.toLocaleString("es-AR", { maximumFractionDigits: 0 }); }
+function fmtARS(n: number) { return n.toLocaleString("es-AR", { maximumFractionDigits: 0 }); }
+
+/* ── Count-up hook ── */
+function useCountUp(target: number, duration = 1400) {
+  const [val, setVal] = useState(0);
+  const fired = useRef(false);
+  const elRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || fired.current) return;
+      fired.current = true;
+      const t0 = performance.now();
+      const tick = (now: number) => {
+        const p = Math.min((now - t0) / duration, 1);
+        const eased = 1 - Math.pow(1 - p, 4);
+        setVal(Math.round(eased * target));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, { threshold: 0.4 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [target, duration]);
+  return { val, elRef };
+}
+
+function CountNum({ value, prefix = "", suffix = "", size = "4rem" }: {
+  value: number; prefix?: string; suffix?: string; size?: string;
+}) {
+  const { val, elRef } = useCountUp(value);
+  return (
+    <div ref={elRef} style={{ font: `100 ${size}/1 ${FM}`, letterSpacing: "-0.06em", color: "#FFFFFF", lineHeight: 1 }}>
+      {prefix}{val}{suffix}
+    </div>
+  );
+}
 
 const STEPS = [
-  {
-    num: "01",
-    icon: "🔗",
-    title: "Compartís tu link",
-    desc: "Te damos un link único. Cada colega que se registre por ahí queda vinculado a tu cuenta para siempre.",
-  },
-  {
-    num: "02",
-    icon: "🚀",
-    title: "Tu colega deja el cuaderno",
-    desc: "Se registra, conecta su WhatsApp y empieza a cobrar y gestionar su gym en minutos. Vos no hacés nada más.",
-  },
-  {
-    num: "03",
-    icon: "💸",
-    title: "Cobrás todos los meses",
-    desc: "Cada vez que tu colega paga su suscripción, vos recibís tu comisión. Recurrente. De por vida.",
-  },
+  { num: "01", icon: "🔗", title: "Compartís tu link", desc: "Te damos un link único. Cada colega que se registre por ahí queda vinculado a tu cuenta para siempre." },
+  { num: "02", icon: "🚀", title: "Tu colega deja el cuaderno", desc: "Se registra, conecta su WhatsApp y empieza a cobrar y gestionar su gym en minutos. Vos no hacés nada más." },
+  { num: "03", icon: "💸", title: "Cobrás todos los meses", desc: "Cada vez que tu colega paga su suscripción, vos recibís tu comisión. Recurrente. De por vida." },
 ];
 
 const PROOF = [
-  { stat: "20%", label: "Comisión mensual base" },
-  { stat: "30%", label: "Comisión tier Franquicia" },
-  { stat: "De por vida", label: "Mientras el gym use FitGrowX" },
-  { stat: "$0", label: "Para empezar" },
+  { value: 20,  suffix: "%", label: "Comisión mensual base" },
+  { value: 30,  suffix: "%", label: "Comisión tier Franquicia" },
+  { value: 0,   suffix: "$", label: "Para empezar", prefix: "$" },
+  { value: 100, suffix: "%", label: "Recurrente de por vida" },
 ];
 
 const EMPTY = { name: "", email: "", whatsapp: "", colleague_count: "", social_links: "", motivation: "" };
 
 export default function ResellerLanding() {
-  const [gyms,     setGyms]     = useState(10);
-  const [form,     setForm]     = useState(EMPTY);
-  const [sending,  setSending]  = useState(false);
-  const [sent,     setSent]     = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [gyms,    setGyms]    = useState(10);
+  const [form,    setForm]    = useState(EMPTY);
+  const [sending, setSending] = useState(false);
+  const [sent,    setSent]    = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const tier          = calcTier(gyms);
-  const monthly       = Math.round(gyms * 65000 * tier.pct / 100);
-  const annual        = monthly * 12;
-  const nextTier      = TIERS.find(t => t.minGyms > gyms);
-  const gymsToNextTier= nextTier ? nextTier.minGyms - gyms : 0;
+  const tier           = calcTier(gyms);
+  const monthly        = Math.round(gyms * 65000 * tier.pct / 100);
+  const annual         = monthly * 12;
+  const nextTier       = TIERS.find(t => t.minGyms > gyms);
+  const gymsToNextTier = nextTier ? nextTier.minGyms - gyms : 0;
 
   const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -80,91 +105,110 @@ export default function ResellerLanding() {
   };
 
   return (
-    <div style={{ minHeight: "100svh", background: "#080810", color: "#FFFFFF", fontFamily: fd, overflowX: "hidden" }}>
-
+    <div style={{ minHeight: "100svh", background: "#080810", color: "#FFFFFF", fontFamily: FS, overflowX: "hidden" }}>
       <style>{`
-        @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
         @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.4} }
         * { box-sizing: border-box; }
-        input, textarea, select { outline: none; }
-        input::placeholder, textarea::placeholder { color: rgba(255,255,255,0.2); }
+        input,textarea,select { outline:none; }
+        input::placeholder,textarea::placeholder { color:rgba(255,255,255,0.2); }
+        .res-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:0; }
+        .res-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+        .res-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        @media(max-width:640px){
+          .res-grid-4 { grid-template-columns:1fr 1fr; }
+          .res-grid-3 { grid-template-columns:1fr; }
+          .res-grid-2 { grid-template-columns:1fr; gap:14px; }
+          .hero-h1    { font-size:clamp(2rem,8vw,3.4rem) !important; }
+          .hero-btns  { flex-direction:column; }
+          .hero-btns a, .hero-btns button { width:100%; text-align:center; }
+        }
       `}</style>
 
       {/* ── NAV ── */}
-      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(8,8,16,0.85)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 24px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ font: `700 0.9rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
-          FitGrowX <span style={{ color: ORANGE }}>Partners</span>
-        </span>
-        <button onClick={scrollToForm} style={{ padding: "7px 18px", background: ORANGE, color: "white", border: "none", borderRadius: 9999, font: `700 0.75rem/1 ${fd}`, cursor: "pointer" }}>
-          Postularme
-        </button>
+      <nav style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(8,8,16,0.88)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "0 20px", height: 54, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+          <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={120} height={36} style={{ height: 28, width: "auto", objectFit: "contain", opacity: 0.85 }} />
+        </Link>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Link href="/start?login=1" style={{ font: `500 0.78rem/1 ${FS}`, color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>Entrar</Link>
+          <button onClick={scrollToForm} style={{ padding: "8px 20px", background: ORANGE, color: "white", border: "none", borderRadius: 9999, font: `700 0.78rem/1 ${FS}`, cursor: "pointer", letterSpacing: "-0.01em" }}>
+            Postularme
+          </button>
+        </div>
       </nav>
 
       {/* ── HERO ── */}
-      <section style={{ maxWidth: 780, margin: "0 auto", padding: "80px 24px 64px", textAlign: "center", animation: "fadeUp 0.5s ease" }}>
-        {/* Ambient */}
-        <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 600, height: 400, borderRadius: "50%", background: `radial-gradient(circle, ${ORANGE}18 0%, transparent 70%)`, pointerEvents: "none" }} />
+      <section style={{ maxWidth: 820, margin: "0 auto", padding: "80px 24px 60px", textAlign: "center", animation: "fadeUp 0.5s ease", position: "relative" }}>
+        <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 700, height: 450, borderRadius: "50%", background: `radial-gradient(circle, ${ORANGE}14 0%, transparent 65%)`, pointerEvents: "none", zIndex: 0 }} />
 
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 14px", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.25)", borderRadius: 9999, marginBottom: 28 }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: ORANGE, animation: "pulse 2s ease-in-out infinite", display: "inline-block" }} />
-          <span style={{ font: `600 0.72rem/1 ${fd}`, color: ORANGE, letterSpacing: "0.08em", textTransform: "uppercase" }}>Red de Partners</span>
-        </div>
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "5px 14px 5px 10px", background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.22)", borderRadius: 9999, marginBottom: 28 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: ORANGE, animation: "pulse 2s ease-in-out infinite", display: "inline-block" }} />
+            <span style={{ font: `600 0.68rem/1 ${FS}`, color: ORANGE, letterSpacing: "0.14em", textTransform: "uppercase" }}>Red de Partners · Postulaciones abiertas</span>
+          </div>
 
-        <h1 style={{ font: `900 clamp(2rem, 5vw, 3.4rem)/1.05 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.04em", marginBottom: 22, maxWidth: 640, margin: "0 auto 22px" }}>
-          Ayudá a tus colegas a dejar el cuaderno y{" "}
-          <span style={{ color: ORANGE }}>ganá una comisión de por vida</span>
-        </h1>
+          <h1 className="hero-h1" style={{ font: `300 clamp(2.2rem,5.5vw,4rem)/1.06 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.055em", marginBottom: 22, maxWidth: 680, margin: "0 auto 22px" }}>
+            Ayudá a tus colegas a dejar el cuaderno{" "}
+            <span style={{ color: ORANGE, fontWeight: 300 }}>y ganá una comisión de por vida</span>
+          </h1>
 
-        <p style={{ font: `400 1.05rem/1.65 ${fd}`, color: "rgba(255,255,255,0.45)", maxWidth: 520, margin: "0 auto 36px" }}>
-          Recomendás FitGrowX a otros trainers y dueños de gym.
-          Ellos digitalizan su negocio. Vos cobrás cada mes que sigan usando el sistema.
-        </p>
+          <p style={{ font: `300 1.05rem/1.65 ${FS}`, color: "rgba(255,255,255,0.42)", maxWidth: 500, margin: "0 auto 36px", letterSpacing: "-0.01em" }}>
+            Recomendás FitGrowX a otros trainers y dueños de gym.
+            Ellos digitalizan su negocio. Vos cobrás cada mes que sigan.
+          </p>
 
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <button onClick={scrollToForm} style={{ padding: "14px 32px", background: `linear-gradient(135deg, ${ORANGE} 0%, #EA580C 100%)`, color: "white", border: "none", borderRadius: 14, font: `700 1rem/1 ${fd}`, cursor: "pointer", boxShadow: `0 8px 28px ${ORANGE}44` }}>
-            Quiero postularme →
-          </button>
-          <a href="#como-funciona" style={{ padding: "14px 24px", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, font: `500 1rem/1 ${fd}`, textDecoration: "none" }}>
-            Ver cómo funciona
-          </a>
+          <div className="hero-btns" style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={scrollToForm} style={{ padding: "15px 34px", background: `linear-gradient(135deg, ${ORANGE} 0%, #EA580C 100%)`, color: "white", border: "none", borderRadius: 14, font: `600 0.95rem/1 ${FS}`, cursor: "pointer", boxShadow: `0 8px 32px ${ORANGE}40`, letterSpacing: "-0.01em" }}>
+              Quiero postularme →
+            </button>
+            <a href="#como-funciona" style={{ padding: "15px 26px", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.62)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14, font: `400 0.95rem/1 ${FS}`, textDecoration: "none", letterSpacing: "-0.01em" }}>
+              Ver cómo funciona
+            </a>
+          </div>
         </div>
       </section>
 
       {/* ── PROOF BAR ── */}
-      <section style={{ borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "20px 24px" }}>
-        <div style={{ maxWidth: 780, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-          {PROOF.map(p => (
-            <div key={p.label} style={{ textAlign: "center" }}>
-              <p style={{ font: `800 1.4rem/1 ${fd}`, color: ORANGE, letterSpacing: "-0.03em", marginBottom: 4 }}>{p.stat}</p>
-              <p style={{ font: `400 0.7rem/1.3 ${fd}`, color: "rgba(255,255,255,0.3)" }}>{p.label}</p>
+      <section style={{ borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <div className="res-grid-4" style={{ maxWidth: 820, margin: "0 auto" }}>
+          {PROOF.map((p, i) => (
+            <div key={p.label} style={{ padding: "28px 20px", textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.05)" : undefined }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+                {p.label === "Para empezar" ? (
+                  <div style={{ font: `100 clamp(2.4rem,6vw,3.4rem)/1 ${FM}`, letterSpacing: "-0.06em", color: ORANGE }}>$0</div>
+                ) : (
+                  <CountNum value={p.value} suffix={p.suffix} size="clamp(2.4rem,6vw,3.4rem)" />
+                )}
+              </div>
+              <p style={{ font: `400 0.68rem/1.35 ${FS}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.02em" }}>{p.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* ── 3 PASOS ── */}
-      <section id="como-funciona" style={{ maxWidth: 780, margin: "0 auto", padding: "72px 24px 64px" }}>
-        <p style={{ font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.2em", textTransform: "uppercase", textAlign: "center", marginBottom: 12 }}>Cómo funciona</p>
-        <h2 style={{ font: `800 2rem/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", textAlign: "center", marginBottom: 48 }}>
+      <section id="como-funciona" style={{ maxWidth: 720, margin: "0 auto", padding: "72px 20px 64px" }}>
+        <p style={{ font: `500 0.66rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.22em", textTransform: "uppercase", textAlign: "center", marginBottom: 12 }}>Cómo funciona</p>
+        <h2 style={{ font: `300 clamp(1.8rem,4vw,2.8rem)/1.1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.05em", textAlign: "center", marginBottom: 48 }}>
           Tres pasos, cero fricción
         </h2>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {STEPS.map((step, i) => (
-            <div key={step.num} style={{ display: "flex", gap: 24, alignItems: "flex-start", padding: "28px 28px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 20, position: "relative" }}>
-              {/* Connector line */}
+            <div key={step.num} style={{ display: "flex", gap: 20, alignItems: "flex-start", padding: "24px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 20, position: "relative" }}>
               {i < STEPS.length - 1 && (
-                <div style={{ position: "absolute", left: 52, bottom: -18, width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
+                <div style={{ position: "absolute", left: 44, bottom: -16, width: 1, height: 16, background: "rgba(255,255,255,0.07)" }} />
               )}
-              <div style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 14, background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
+              <div style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 13, background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
                 {step.icon}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ font: `700 0.62rem/1 ${fd}`, color: ORANGE, letterSpacing: "0.15em" }}>{step.num}</span>
-                  <h3 style={{ font: `700 1.05rem/1 ${fd}`, color: "#FFFFFF" }}>{step.title}</h3>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
+                  <span style={{ font: `600 0.58rem/1 ${FS}`, color: ORANGE, letterSpacing: "0.15em" }}>{step.num}</span>
+                  <h3 style={{ font: `500 0.95rem/1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.02em" }}>{step.title}</h3>
                 </div>
-                <p style={{ font: `400 0.88rem/1.6 ${fd}`, color: "rgba(255,255,255,0.4)" }}>{step.desc}</p>
+                <p style={{ font: `300 0.85rem/1.6 ${FS}`, color: "rgba(255,255,255,0.38)", letterSpacing: "-0.01em" }}>{step.desc}</p>
               </div>
             </div>
           ))}
@@ -172,93 +216,95 @@ export default function ResellerLanding() {
       </section>
 
       {/* ── CALCULADORA ── */}
-      <section style={{ background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "72px 24px 64px" }}>
-        <div style={{ maxWidth: 640, margin: "0 auto" }}>
-          <p style={{ font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.2em", textTransform: "uppercase", textAlign: "center", marginBottom: 12 }}>Calculá tu ingreso</p>
-          <h2 style={{ font: `800 2rem/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", textAlign: "center", marginBottom: 48 }}>
+      <section style={{ background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "72px 20px 64px" }}>
+        <div style={{ maxWidth: 600, margin: "0 auto" }}>
+          <p style={{ font: `500 0.66rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.22em", textTransform: "uppercase", textAlign: "center", marginBottom: 12 }}>Calculá tu ingreso</p>
+          <h2 style={{ font: `300 clamp(1.8rem,4vw,2.8rem)/1.1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.05em", textAlign: "center", marginBottom: 44 }}>
             ¿Cuántos colegas tenés?
           </h2>
 
           {/* Slider */}
           <div style={{ marginBottom: 36 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 10 }}>
-              <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>1 gym</span>
-              <span style={{ font: `800 2rem/1 ${fd}`, color: ORANGE, letterSpacing: "-0.03em" }}>{gyms} gyms</span>
-              <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>30 gyms</span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 }}>
+              <span style={{ font: `300 0.72rem/1 ${FS}`, color: "rgba(255,255,255,0.25)" }}>1 gym</span>
+              <span style={{ font: `100 2.6rem/1 ${FM}`, color: ORANGE, letterSpacing: "-0.06em" }}>{gyms} gyms</span>
+              <span style={{ font: `300 0.72rem/1 ${FS}`, color: "rgba(255,255,255,0.25)" }}>30 gyms</span>
             </div>
             <input
               type="range" min={1} max={30} value={gyms}
               onChange={e => setGyms(Number(e.target.value))}
               style={{ width: "100%", accentColor: ORANGE, height: 4, cursor: "pointer" }}
             />
-            <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 16, justifyContent: "center", flexWrap: "wrap" }}>
               {[5, 10, 20, 30].map(n => (
-                <button key={n} onClick={() => setGyms(n)} style={{ padding: "6px 16px", background: gyms === n ? ORANGE : "rgba(255,255,255,0.06)", border: `1px solid ${gyms === n ? ORANGE : "rgba(255,255,255,0.1)"}`, borderRadius: 9999, font: `600 0.75rem/1 ${fd}`, color: gyms === n ? "white" : "rgba(255,255,255,0.4)", cursor: "pointer", transition: "all 0.15s" }}>
+                <button key={n} onClick={() => setGyms(n)} style={{ padding: "7px 18px", background: gyms === n ? ORANGE : "rgba(255,255,255,0.05)", border: `1px solid ${gyms === n ? ORANGE : "rgba(255,255,255,0.08)"}`, borderRadius: 9999, font: `500 0.75rem/1 ${FS}`, color: gyms === n ? "white" : "rgba(255,255,255,0.38)", cursor: "pointer", transition: "all 0.15s" }}>
                   {n}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Result */}
-          <div style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.2)", borderRadius: 22, padding: "28px 28px 24px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+          {/* Result card */}
+          <div style={{ background: "rgba(249,115,22,0.05)", border: "1px solid rgba(249,115,22,0.18)", borderRadius: 22, padding: "28px 24px 22px", overflow: "hidden" }}>
+            <div className="res-grid-2" style={{ marginBottom: 20 }}>
               <div>
-                <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Por mes</p>
-                <p style={{ font: `900 2.2rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.04em" }}>${fmt(monthly)}</p>
-                <p style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>ARS / mes</p>
+                <p style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.28)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Por mes</p>
+                <div style={{ font: `100 clamp(2.2rem,8vw,3.2rem)/1 ${FM}`, letterSpacing: "-0.06em", color: "#FFFFFF" }}>${fmtARS(monthly)}</div>
+                <p style={{ font: `300 0.65rem/1 ${FS}`, color: "rgba(255,255,255,0.22)", marginTop: 6 }}>ARS / mes</p>
               </div>
               <div>
-                <p style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Por año</p>
-                <p style={{ font: `900 2.2rem/1 ${fd}`, color: ORANGE, letterSpacing: "-0.04em" }}>${fmt(annual)}</p>
-                <p style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>ARS / año</p>
+                <p style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.28)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>Por año</p>
+                <div style={{ font: `100 clamp(2.2rem,8vw,3.2rem)/1 ${FM}`, letterSpacing: "-0.06em", color: ORANGE }}>${fmtARS(annual)}</div>
+                <p style={{ font: `300 0.65rem/1 ${FS}`, color: "rgba(255,255,255,0.22)", marginTop: 6 }}>ARS / año</p>
               </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "12px 14px", background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.05)" }}>
               <div>
-                <p style={{ font: `600 0.78rem/1 ${fd}`, color: "rgba(255,255,255,0.7)" }}>
-                  Tier actual: <span style={{ color: tier.color }}>{tier.label}</span> · {tier.pct}% comisión
+                <p style={{ font: `500 0.75rem/1 ${FS}`, color: "rgba(255,255,255,0.65)", letterSpacing: "-0.01em" }}>
+                  Tier: <span style={{ color: tier.color }}>{tier.label}</span> · {tier.pct}% comisión
                 </p>
                 {nextTier && (
-                  <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 3 }}>
+                  <p style={{ font: `300 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.22)", marginTop: 4 }}>
                     {gymsToNextTier} gym{gymsToNextTier !== 1 ? "s" : ""} más para pasar a {nextTier.label} ({nextTier.pct}%)
                   </p>
                 )}
               </div>
               {nextTier && (
-                <span style={{ font: `700 0.7rem/1 ${fd}`, color: "#34D399", background: "rgba(52,211,153,0.08)", padding: "4px 10px", borderRadius: 9999 }}>
-                  +${fmt(Math.round(gyms * 65000 * (nextTier.pct - tier.pct) / 100))}/mes en {nextTier.label}
+                <span style={{ font: `600 0.68rem/1 ${FS}`, color: "#34D399", background: "rgba(52,211,153,0.08)", padding: "5px 11px", borderRadius: 9999, whiteSpace: "nowrap" }}>
+                  +${fmtARS(Math.round(gyms * 65000 * (nextTier.pct - tier.pct) / 100))}/mes en {nextTier.label}
                 </span>
               )}
             </div>
           </div>
 
-          <p style={{ font: `400 0.68rem/1.5 ${fd}`, color: "rgba(255,255,255,0.2)", textAlign: "center", marginTop: 14 }}>
+          <p style={{ font: `300 0.65rem/1.5 ${FS}`, color: "rgba(255,255,255,0.18)", textAlign: "center", marginTop: 14, letterSpacing: "-0.01em" }}>
             Calculado sobre $65.000 ARS/mes por gym. La comisión es recurrente mientras el gym esté activo.
           </p>
         </div>
       </section>
 
       {/* ── TIERS ── */}
-      <section style={{ maxWidth: 780, margin: "0 auto", padding: "72px 24px 64px" }}>
-        <h2 style={{ font: `800 1.8rem/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", textAlign: "center", marginBottom: 12 }}>
+      <section style={{ maxWidth: 760, margin: "0 auto", padding: "72px 20px 64px" }}>
+        <h2 style={{ font: `300 clamp(1.8rem,4vw,2.6rem)/1.1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.05em", textAlign: "center", marginBottom: 10 }}>
           Más gyms, más comisión
         </h2>
-        <p style={{ font: `400 0.88rem/1.5 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "center", maxWidth: 420, margin: "0 auto 40px" }}>
-          Tu comisión sube automáticamente cuando crece tu red. Sin trámites, sin pedidos.
+        <p style={{ font: `300 0.88rem/1.55 ${FS}`, color: "rgba(255,255,255,0.32)", textAlign: "center", maxWidth: 400, margin: "0 auto 40px", letterSpacing: "-0.01em" }}>
+          Tu comisión sube automáticamente cuando crece tu red.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+        <div className="res-grid-3">
           {TIERS.map(t => (
-            <div key={t.label} style={{ background: "rgba(255,255,255,0.03)", border: `1px solid ${t.color}30`, borderRadius: 20, padding: "24px 20px", textAlign: "center" }}>
-              <p style={{ font: `800 2.4rem/1 ${fd}`, color: t.color, letterSpacing: "-0.04em", marginBottom: 6 }}>{t.pct}%</p>
-              <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 6 }}>{t.label}</p>
-              <p style={{ font: `400 0.7rem/1.4 ${fd}`, color: "rgba(255,255,255,0.3)" }}>
+            <div key={t.label} style={{ background: "rgba(255,255,255,0.025)", border: `1px solid ${t.color}28`, borderRadius: 20, padding: "28px 20px", textAlign: "center" }}>
+              <CountNum value={t.pct} suffix="%" size="clamp(3rem,8vw,4rem)" />
+              <div style={{ marginTop: 8, marginBottom: 4 }}>
+                <span style={{ font: `500 0.8rem/1 ${FS}`, color: t.color, letterSpacing: "-0.01em" }}>{t.label}</span>
+              </div>
+              <p style={{ font: `300 0.68rem/1.4 ${FS}`, color: "rgba(255,255,255,0.28)", marginBottom: 14 }}>
                 {t.minGyms === 1 ? `1 a ${t.maxGyms} gyms` : t.maxGyms === 99 ? `${t.minGyms}+ gyms` : `${t.minGyms} a ${t.maxGyms} gyms`}
               </p>
-              <div style={{ marginTop: 14, padding: "8px 0", background: `${t.color}10`, borderRadius: 10 }}>
-                <p style={{ font: `600 0.72rem/1 ${fd}`, color: t.color }}>
-                  ${fmt(Math.round(t.minGyms * 65000 * t.pct / 100))}/mes con {t.minGyms} gym{t.minGyms !== 1 ? "s" : ""}
+              <div style={{ padding: "9px 0", background: `${t.color}0d`, borderRadius: 10 }}>
+                <p style={{ font: `500 0.7rem/1 ${FS}`, color: t.color, letterSpacing: "-0.01em" }}>
+                  ${fmtARS(Math.round(t.minGyms * 65000 * t.pct / 100))}/mes con {t.minGyms} gym{t.minGyms !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
@@ -267,54 +313,50 @@ export default function ResellerLanding() {
       </section>
 
       {/* ── FORMULARIO ── */}
-      <section ref={formRef} style={{ background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.05)", padding: "72px 24px 80px" }}>
-        <div style={{ maxWidth: 520, margin: "0 auto" }}>
-          <p style={{ font: `500 0.7rem/1 ${fd}`, color: ORANGE, letterSpacing: "0.2em", textTransform: "uppercase", textAlign: "center", marginBottom: 12 }}>Postulaciones abiertas</p>
-          <h2 style={{ font: `800 2rem/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", textAlign: "center", marginBottom: 10 }}>
+      <section ref={formRef} style={{ background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)", padding: "72px 20px 80px" }}>
+        <div style={{ maxWidth: 500, margin: "0 auto" }}>
+          <p style={{ font: `500 0.66rem/1 ${FS}`, color: ORANGE, letterSpacing: "0.22em", textTransform: "uppercase", textAlign: "center", marginBottom: 12 }}>Postulaciones abiertas</p>
+          <h2 style={{ font: `300 clamp(1.8rem,4vw,2.6rem)/1.1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.05em", textAlign: "center", marginBottom: 10 }}>
             Quiero ser partner
           </h2>
-          <p style={{ font: `400 0.88rem/1.5 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "center", maxWidth: 380, margin: "0 auto 36px" }}>
+          <p style={{ font: `300 0.88rem/1.55 ${FS}`, color: "rgba(255,255,255,0.32)", textAlign: "center", maxWidth: 380, margin: "0 auto 36px", letterSpacing: "-0.01em" }}>
             No aceptamos a cualquiera — queremos resellers que realmente conozcan el mundo fitness. Contanos quién sos.
           </p>
 
           {sent ? (
-            <div style={{ textAlign: "center", padding: "40px 24px", background: "rgba(52,211,153,0.06)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 20 }}>
-              <p style={{ fontSize: 48, marginBottom: 16 }}>🙌</p>
-              <p style={{ font: `700 1.2rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 8 }}>¡Postulación recibida!</p>
-              <p style={{ font: `400 0.85rem/1.6 ${fd}`, color: "rgba(255,255,255,0.4)" }}>
+            <div style={{ textAlign: "center", padding: "40px 24px", background: "rgba(52,211,153,0.05)", border: "1px solid rgba(52,211,153,0.18)", borderRadius: 20 }}>
+              <p style={{ fontSize: 44, marginBottom: 16 }}>🙌</p>
+              <p style={{ font: `500 1.15rem/1.3 ${FS}`, color: "#FFFFFF", marginBottom: 8, letterSpacing: "-0.03em" }}>¡Postulación recibida!</p>
+              <p style={{ font: `300 0.85rem/1.6 ${FS}`, color: "rgba(255,255,255,0.38)", letterSpacing: "-0.01em" }}>
                 Revisamos tu perfil y te contactamos por WhatsApp en las próximas 48 hs.
               </p>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
-                { label: "Nombre completo *", key: "name", placeholder: "Ej: Martín Rodríguez", type: "text" },
-                { label: "Email *",            key: "email", placeholder: "Ej: martin@gmail.com", type: "email" },
-                { label: "WhatsApp *",         key: "whatsapp", placeholder: "Ej: 5491112345678", type: "tel" },
-                { label: "Instagram / TikTok / comunidad", key: "social_links", placeholder: "@tuusuario o nombre de tu comunidad", type: "text" },
+                { label: "Nombre completo *",                     key: "name",         placeholder: "Ej: Martín Rodríguez",           type: "text" },
+                { label: "Email *",                               key: "email",        placeholder: "Ej: martin@gmail.com",           type: "email" },
+                { label: "WhatsApp *",                            key: "whatsapp",     placeholder: "Ej: 5491112345678",             type: "tel" },
+                { label: "Instagram / TikTok / comunidad",        key: "social_links", placeholder: "@tuusuario o nombre de tu comunidad", type: "text" },
               ].map(f => (
                 <div key={f.key}>
-                  <label style={{ font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>{f.label}</label>
+                  <label style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 7 }}>{f.label}</label>
                   <input
                     type={f.type}
                     value={form[f.key as keyof typeof form]}
                     onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                     placeholder={f.placeholder}
-                    style={{ width: "100%", padding: "13px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, font: `400 0.9rem/1 ${fd}`, color: "#FFFFFF" }}
+                    style={{ width: "100%", padding: "13px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 12, font: `300 0.92rem/1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.01em" }}
                   />
                 </div>
               ))}
 
               <div>
-                <label style={{ font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>¿A cuántos colegas podrías recomendar?</label>
+                <label style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 9 }}>¿A cuántos colegas podrías recomendar?</label>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {["1-5", "5-10", "10-20", "20+"].map(opt => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setForm(p => ({ ...p, colleague_count: opt }))}
-                      style={{ padding: "9px 18px", background: form.colleague_count === opt ? ORANGE : "rgba(255,255,255,0.05)", border: `1px solid ${form.colleague_count === opt ? ORANGE : "rgba(255,255,255,0.1)"}`, borderRadius: 9999, font: `600 0.78rem/1 ${fd}`, color: form.colleague_count === opt ? "white" : "rgba(255,255,255,0.4)", cursor: "pointer", transition: "all 0.15s" }}
-                    >
+                    <button key={opt} type="button" onClick={() => setForm(p => ({ ...p, colleague_count: opt }))}
+                      style={{ padding: "9px 20px", background: form.colleague_count === opt ? ORANGE : "rgba(255,255,255,0.04)", border: `1px solid ${form.colleague_count === opt ? ORANGE : "rgba(255,255,255,0.08)"}`, borderRadius: 9999, font: `500 0.78rem/1 ${FS}`, color: form.colleague_count === opt ? "white" : "rgba(255,255,255,0.38)", cursor: "pointer", transition: "all 0.15s" }}>
                       {opt}
                     </button>
                   ))}
@@ -322,29 +364,26 @@ export default function ResellerLanding() {
               </div>
 
               <div>
-                <label style={{ font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: "0.08em", display: "block", marginBottom: 6 }}>¿Por qué querés ser partner? (opcional)</label>
+                <label style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 7 }}>¿Por qué querés ser partner? (opcional)</label>
                 <textarea
                   value={form.motivation}
                   onChange={e => setForm(p => ({ ...p, motivation: e.target.value }))}
                   placeholder="Contanos brevemente quién sos y por qué encajás en la red..."
                   rows={3}
-                  style={{ width: "100%", padding: "13px 16px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, font: `400 0.88rem/1.6 ${fd}`, color: "#FFFFFF", resize: "none" }}
+                  style={{ width: "100%", padding: "13px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 12, font: `300 0.88rem/1.6 ${FS}`, color: "#FFFFFF", resize: "none", letterSpacing: "-0.01em" }}
                 />
               </div>
 
               {error && (
-                <p style={{ font: `500 0.78rem/1 ${fd}`, color: "#F87171", background: "rgba(248,113,113,0.08)", padding: "10px 14px", borderRadius: 10 }}>{error}</p>
+                <p style={{ font: `500 0.78rem/1 ${FS}`, color: "#F87171", background: "rgba(248,113,113,0.07)", padding: "10px 14px", borderRadius: 10 }}>{error}</p>
               )}
 
-              <button
-                onClick={handleSubmit}
-                disabled={sending}
-                style={{ width: "100%", padding: "16px 0", background: sending ? "rgba(249,115,22,0.5)" : `linear-gradient(135deg, ${ORANGE} 0%, #EA580C 100%)`, border: "none", borderRadius: 14, font: `700 1rem/1 ${fd}`, color: "#FFFFFF", cursor: sending ? "not-allowed" : "pointer", boxShadow: `0 8px 28px ${ORANGE}33`, marginTop: 4 }}
-              >
+              <button onClick={handleSubmit} disabled={sending}
+                style={{ width: "100%", padding: "17px 0", background: sending ? "rgba(249,115,22,0.45)" : `linear-gradient(135deg, ${ORANGE} 0%, #EA580C 100%)`, border: "none", borderRadius: 14, font: `600 0.95rem/1 ${FS}`, color: "#FFFFFF", cursor: sending ? "not-allowed" : "pointer", boxShadow: sending ? "none" : `0 8px 28px ${ORANGE}30`, marginTop: 4, letterSpacing: "-0.01em" }}>
                 {sending ? "Enviando..." : "Enviar postulación →"}
               </button>
 
-              <p style={{ font: `400 0.68rem/1.5 ${fd}`, color: "rgba(255,255,255,0.18)", textAlign: "center" }}>
+              <p style={{ font: `300 0.65rem/1.5 ${FS}`, color: "rgba(255,255,255,0.16)", textAlign: "center", letterSpacing: "-0.01em" }}>
                 Revisamos cada postulación manualmente. Solo aceptamos partners que genuinamente pueden ayudar a crecer la red.
               </p>
             </div>
@@ -353,12 +392,12 @@ export default function ResellerLanding() {
       </section>
 
       {/* ── FOOTER ── */}
-      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "24px", textAlign: "center" }}>
-        <p style={{ font: `400 0.68rem/1.5 ${fd}`, color: "rgba(255,255,255,0.15)" }}>
-          © FitGrowX · <a href="https://fitgrowx.com" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>fitgrowx.com</a>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "24px 20px", textAlign: "center", display: "flex", gap: 16, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+        <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={100} height={30} style={{ height: 22, width: "auto", opacity: 0.25 }} />
+        <p style={{ font: `300 0.65rem/1.5 ${FS}`, color: "rgba(255,255,255,0.15)" }}>
+          © {new Date().getFullYear()} FitGrowX · <a href="/terminos" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>Términos</a> · <a href="/privacidad" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>Privacidad</a>
         </p>
       </div>
-
     </div>
   );
 }
