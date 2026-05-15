@@ -18,13 +18,13 @@ type AlumnoCheckinRow = {
 export async function POST(req: NextRequest) {
   const supabaseAdmin = getSupabaseAdminClient();
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return NextResponse.json({ ok: false }, { status: 401 });
 
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("role, gym_id")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .maybeSingle<AdminProfile>();
 
   const profileRow = profile as AdminProfile | null;

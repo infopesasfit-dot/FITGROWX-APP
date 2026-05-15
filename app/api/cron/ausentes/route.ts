@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
+import { enqueueWABulk } from "@/lib/wa-queue";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -77,15 +78,11 @@ export async function GET(req: NextRequest) {
             .replace(/\{nombre\}/g, alumno.full_name).replace(/\[Nombre\]/g, alumno.full_name)
             .replace(/\{gym\}/g, gymName).replace(/\[Gym\]/g, gymName)
             .replace(/\{dias\}/g, String(step1Days)).replace(/\[Dias\]/g, String(step1Days));
-          try {
-            await sendWA(gym.gym_id, phone, msg);
-            await supabase.from("alumnos").update({ ultima_notif_inactividad: today.toISOString() }).eq("id", alumno.id);
-            logWASend(supabase, gym.gym_id, "inactivo");
-            totalEnviados++;
-            log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 1 (día ${diffDays})`);
-          } catch (e) {
-            log.push(`✗ ${alumno.full_name} — ${e instanceof Error ? e.message : "error"}`);
-          }
+          await supabase.from("alumnos").update({ ultima_notif_inactividad: today.toISOString() }).eq("id", alumno.id);
+          await enqueueWABulk([{ gymId: gym.gym_id, phone, message: msg, dedupKey: `inactivo1:${alumno.id}:${today.toISOString().slice(0,10)}` }]);
+          logWASend(supabase, gym.gym_id, "inactivo");
+          totalEnviados++;
+          log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 1 encolado (día ${diffDays})`);
         }
       }
 
@@ -98,15 +95,11 @@ export async function GET(req: NextRequest) {
             .replace(/\{nombre\}/g, alumno.full_name).replace(/\[Nombre\]/g, alumno.full_name)
             .replace(/\{gym\}/g, gymName).replace(/\[Gym\]/g, gymName)
             .replace(/\{dias\}/g, "30").replace(/\[Dias\]/g, "30");
-          try {
-            await sendWA(gym.gym_id, phone, msg);
-            await supabase.from("alumnos").update({ ultima_notif_inactividad_3: today.toISOString() }).eq("id", alumno.id);
-            logWASend(supabase, gym.gym_id, "inactivo");
-            totalEnviados++;
-            log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 3 (día ${diffDays})`);
-          } catch (e) {
-            log.push(`✗ ${alumno.full_name} — paso 3 ${e instanceof Error ? e.message : "error"}`);
-          }
+          await supabase.from("alumnos").update({ ultima_notif_inactividad_3: today.toISOString() }).eq("id", alumno.id);
+          await enqueueWABulk([{ gymId: gym.gym_id, phone, message: msg, dedupKey: `inactivo3:${alumno.id}:${today.toISOString().slice(0,10)}` }]);
+          logWASend(supabase, gym.gym_id, "inactivo");
+          totalEnviados++;
+          log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 3 encolado (día ${diffDays})`);
         }
       }
     }

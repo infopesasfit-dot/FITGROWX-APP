@@ -18,9 +18,9 @@ type BillingStatus = {
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (!user) {
+  if (!session?.user) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
   }
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await admin
     .from("profiles")
     .select("id, gym_id, role")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile || !profile.gym_id || !["admin", "platform_owner"].includes(profile.role ?? "")) {

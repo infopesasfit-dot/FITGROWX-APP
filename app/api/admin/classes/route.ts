@@ -18,13 +18,13 @@ const admin = getSupabaseAdminClient();
 
 async function getAuthorizedProfile(): Promise<AuthorizedGymProfile | null> {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
 
   const { data: profile } = await admin
     .from("profiles")
     .select("id, gym_id, role, full_name, email")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile || !profile.gym_id || !["admin", "staff", "platform_owner"].includes(profile.role ?? "")) {

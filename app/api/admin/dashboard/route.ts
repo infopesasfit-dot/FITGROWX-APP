@@ -82,8 +82,8 @@ function averageMonthsFromCreated(rows: AlumnoMetricRow[]) {
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const admin = getSupabaseAdminClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
     return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
   }
 
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role, full_name")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile?.gym_id || !["admin", "staff", "platform_owner"].includes(profile.role ?? "")) {

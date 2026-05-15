@@ -917,16 +917,23 @@ function AjustesContent() {
               </p>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap" as const }}>
                 <a
-                  href="/api/user/export-alumnos-csv"
+                  href="/api/user/export-data?format=xlsx"
                   download
                   style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: `1px solid ${ACCENT}22`, background: ACCENT_SOFT, color: ACCENT, font: `700 0.8rem/1 ${fd}`, textDecoration: "none", whiteSpace: "nowrap" as const }}
+                >
+                  Exportar Todo (Excel)
+                </a>
+                <a
+                  href="/api/user/export-alumnos-csv"
+                  download
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "white", color: t2, font: `600 0.8rem/1 ${fd}`, textDecoration: "none", whiteSpace: "nowrap" as const }}
                 >
                   Alumnos (CSV)
                 </a>
                 <a
                   href="/api/user/export-data"
                   download
-                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "white", color: t2, font: `600 0.8rem/1 ${fd}`, textDecoration: "none", whiteSpace: "nowrap" as const }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.10)", background: "white", color: t3, font: `500 0.78rem/1 ${fd}`, textDecoration: "none", whiteSpace: "nowrap" as const }}
                 >
                   Todo (JSON)
                 </a>
@@ -1817,15 +1824,15 @@ function AjustesContent() {
                     <span style={{ font: `700 0.75rem/1 ${fd}`, color: "#4f46e5", padding: "6px 10px", borderRadius: 8, background: "rgba(99,102,241,0.1)" }}>CSV</span>
                   </a>
                   <a
-                    href="/api/user/export-data"
+                    href="/api/user/export-data?format=xlsx"
                     download
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "#fafbfc", textDecoration: "none" }}
                   >
                     <div>
-                      <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, margin: "0 0 3px" }}>Copia completa de todos los datos</p>
-                      <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, margin: 0 }}>Alumnos, pagos, egresos, prospectos</p>
+                      <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, margin: "0 0 3px" }}>Copia completa (Excel)</p>
+                      <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, margin: 0 }}>Alumnos, pagos, asistencias, rutinas, egresos, prospectos</p>
                     </div>
-                    <span style={{ font: `700 0.75rem/1 ${fd}`, color: t2, padding: "6px 10px", borderRadius: 8, background: "rgba(15,23,42,0.05)" }}>JSON</span>
+                    <span style={{ font: `700 0.75rem/1 ${fd}`, color: t2, padding: "6px 10px", borderRadius: 8, background: "rgba(15,23,42,0.05)" }}>XLSX</span>
                   </a>
                 </div>
                 <div style={{ display: "flex", gap: 10 }}>

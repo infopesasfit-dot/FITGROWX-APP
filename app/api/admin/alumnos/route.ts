@@ -16,15 +16,15 @@ const admin = getSupabaseAdminClient();
 
 export async function GET() {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) {
     return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
   }
 
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile?.gym_id || !["admin", "staff", "platform_owner"].includes(profile.role ?? "")) {
@@ -39,7 +39,7 @@ export async function GET() {
     await Promise.all([
       admin
         .from("alumnos")
-        .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
+        .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, frozen_since, pausa_hasta, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
         .eq("gym_id", gymId)
         .is("deleted_at", null)
         .order("full_name"),
@@ -101,13 +101,13 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
 
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", user.id)
+    .eq("id", session.user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? "")) {

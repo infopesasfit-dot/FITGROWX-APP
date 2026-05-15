@@ -3,6 +3,9 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
+// Initialize at module level so the HTTP connection pool warms up on first load
+const _admin = getSupabaseAdminClient();
+
 export async function GET() {
   const waMotorUrl = process.env.WA_MOTOR_URL;
 
@@ -10,8 +13,7 @@ export async function GET() {
     (async () => {
       const t = Date.now();
       try {
-        const supabase = getSupabaseAdminClient();
-        const { error } = await supabase.from("profiles").select("id").limit(1).maybeSingle();
+        const { error } = await _admin.from("profiles").select("id").limit(1).maybeSingle();
         return { status: (error ? "error" : "ok") as "ok" | "error", latency_ms: Date.now() - t };
       } catch {
         return { status: "error" as const, latency_ms: Date.now() - t };

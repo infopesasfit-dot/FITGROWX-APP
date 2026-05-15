@@ -1178,11 +1178,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   Alumnos CSV
                 </a>
                 <a
-                  href="/api/user/export-data"
+                  href="/api/user/export-data?format=xlsx"
                   download
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, background: "rgba(15,23,42,0.05)", color: "#6b7280", font: `600 0.75rem/1 ${fd}`, textDecoration: "none" }}
                 >
-                  Todo JSON
+                  Todo Excel
                 </a>
               </div>
             </div>

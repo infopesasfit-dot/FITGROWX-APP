@@ -6,9 +6,9 @@ const sb = getSupabaseAdminClient();
 
 async function getGymId(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data: profile } = await sb.from("profiles").select("gym_id").eq("id", user.id).maybeSingle();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+  const { data: profile } = await sb.from("profiles").select("gym_id").eq("id", session.user.id).maybeSingle();
   return profile?.gym_id ?? null;
 }
 

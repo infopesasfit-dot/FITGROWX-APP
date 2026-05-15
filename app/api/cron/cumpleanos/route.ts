@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
+import { enqueueWABulk } from "@/lib/wa-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -72,14 +73,10 @@ export async function GET(req: NextRequest) {
         .replace(/\{gym\}/gi, gymName)
         .replace(/\[Gym\]/g, gymName);
 
-      const ok = await sendWA(gym.gym_id, phone, msg);
-      if (ok) {
-        await supabase.from("alumnos").update({ notif_cumple_year: thisYear }).eq("id", alumno.id);
-        logWASend(supabase, gym.gym_id, "cumple");
-        log.push(`🎂 ${alumno.full_name} (${gymName})`);
-      } else {
-        log.push(`✗ ${alumno.full_name} (${gymName}) — fallo WA`);
-      }
+      await supabase.from("alumnos").update({ notif_cumple_year: thisYear }).eq("id", alumno.id);
+      await enqueueWABulk([{ gymId: gym.gym_id, phone, message: msg, dedupKey: `cumple:${alumno.id}:${thisYear}` }]);
+      logWASend(supabase, gym.gym_id, "cumple");
+      log.push(`🎂 ${alumno.full_name} (${gymName}) — encolado`);
     }
   }
 

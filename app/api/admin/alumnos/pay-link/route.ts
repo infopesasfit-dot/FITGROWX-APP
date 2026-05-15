@@ -8,10 +8,10 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").
 
 export async function POST(req: NextRequest) {
   const sbUser = await createSupabaseServerClient();
-  const { data: { user } } = await sbUser.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data: { session } } = await sbUser.auth.getSession();
+  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: profile } = await sb.from("profiles").select("gym_id, role").eq("id", user.id).maybeSingle();
+  const { data: profile } = await sb.from("profiles").select("gym_id, role").eq("id", session.user.id).maybeSingle();
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? ""))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
