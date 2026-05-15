@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
-  Users, CreditCard,
+  Users, CreditCard, Zap,
   ArrowUpRight, ArrowDownRight, Send, Target, CircleHelp, BadgeAlert, Activity, UserMinus,
 } from "lucide-react";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -49,6 +49,7 @@ interface DashboardSnapshot {
   ingresoProyectado: number;
   proyeccionProximoMes: number;
   renovacionesPendientes: number;
+  mensajesAutoEnviados: number;
   gastosTotal: number;
   recientes: RecenteAlumno[];
   captacion5: number[];
@@ -164,7 +165,7 @@ function buildDemoSnapshot(): DashboardSnapshot {
     return 0;
   });
   return {
-    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, gastosTotal: 210_000,
+    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, mensajesAutoEnviados: 47, gastosTotal: 210_000,
     recientes: [
       { id: "d1", full_name: "Valentina Ríos",    created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
       { id: "d2", full_name: "Matías Fernández",  created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -228,6 +229,7 @@ export default function DashboardPage() {
   const [ingresoProyectado,     setIngresoProyectado]     = useState(0);
   const [proyeccionProximoMes,  setProyeccionProximoMes]  = useState(0);
   const [renovacionesPendientes,setRenovacionesPendientes]= useState(0);
+  const [mensajesAutoEnviados,  setMensajesAutoEnviados]  = useState(0);
   const [gastosTotal,           setGastosTotal]           = useState(0);
   const [recientes,         setRecientes]         = useState<RecenteAlumno[]>([]);
   const [captacion5,        setCaptacion5]        = useState<number[]>([0, 0, 0, 0, 0]);
@@ -251,6 +253,7 @@ export default function DashboardPage() {
     setIngresoProyectado(snapshot.ingresoProyectado);
     setProyeccionProximoMes(snapshot.proyeccionProximoMes);
     setRenovacionesPendientes(snapshot.renovacionesPendientes);
+    setMensajesAutoEnviados(snapshot.mensajesAutoEnviados);
     setGastosTotal(snapshot.gastosTotal);
     setRecientes(snapshot.recientes);
     setCaptacion5(snapshot.captacion5);
@@ -264,7 +267,7 @@ export default function DashboardPage() {
   }, []);
 
   const enterDemo = useCallback(() => {
-    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
+    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, mensajesAutoEnviados, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
     applySnapshot(buildDemoSnapshot());
     setDemoMode(true);
   }, [activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts, applySnapshot]);
@@ -744,9 +747,9 @@ export default function DashboardPage() {
               )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[
-                  { label: "Con membresía", value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(activosCount) },
-                  { label: "Fueron hoy",    value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(asistHoy) },
-                  { label: "Vencen pronto", value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+                  { label: "Con membresía",  value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(activosCount) },
+                  { label: "Mensajes auto",  value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(mensajesAutoEnviados) },
+                  { label: "Vencen pronto",  value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
                 ].map((item) => (
                   <a
                     key={item.label}
@@ -1124,6 +1127,9 @@ export default function DashboardPage() {
           {renderKpiCard("Fueron hoy",            loading ? <Skel w={52} h={38} r={9} /> : String(asistHoy),                       "Personas que entrenaron hoy",           <Activity size={17} color={accentDeep} />, "orange", undefined)}
           {renderKpiCard("Sin venir en 7 días",   loading ? <Skel w={52} h={38} r={9} /> : String(alerts.inactiveCount),           "Todavía tienen membresía activa",       <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
           {renderKpiCard("Membresías por vencer", loading ? <Skel w={52} h={38} r={9} /> : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan",      <BadgeAlert size={17} color="#fff" />,  "ink",    "#dashboard-alertas")}
+          <div style={{ gridColumn: "1 / -1" }}>
+            {renderKpiCard("Mensajes automáticos", loading ? <Skel w={52} h={38} r={9} /> : String(mensajesAutoEnviados), "Enviados por el sistema este mes", <Zap size={17} color={accentDeep} />, "soft", undefined)}
+          </div>
         </div>
       </div>
 

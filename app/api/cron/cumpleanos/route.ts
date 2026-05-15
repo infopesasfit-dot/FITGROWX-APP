@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { logWASend } from "@/lib/wa-log";
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
       const ok = await sendWA(gym.gym_id, phone, msg);
       if (ok) {
         await supabase.from("alumnos").update({ notif_cumple_year: thisYear }).eq("id", alumno.id);
+        logWASend(supabase, gym.gym_id, "cumple");
         log.push(`🎂 ${alumno.full_name} (${gymName})`);
       } else {
         log.push(`✗ ${alumno.full_name} (${gymName}) — fallo WA`);

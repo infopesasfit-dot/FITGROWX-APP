@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { logWASend } from "@/lib/wa-log";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,6 +76,7 @@ export async function GET(req: NextRequest) {
           });
           if (res.ok) {
             await supabase.from("prospectos").update({ followup_step: -1 }).eq("id", p.id);
+            logWASend(supabase, gym.gym_id, "clase_gratis");
             totalEnviados++;
             log.push(`🔔 ${p.full_name} (${gymName}) — recordatorio día anterior`);
           } else {
@@ -148,6 +150,7 @@ export async function GET(req: NextRequest) {
           const updates: Record<string, unknown> = { followup_step: nextStep };
           if (nextStep === 3) updates.clase_gratis_status = "perdido";
           await supabase.from("prospectos").update(updates).eq("id", p.id);
+          logWASend(supabase, gym.gym_id, "clase_gratis");
           totalEnviados++;
           log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} [${p.clase_gratis_status}] (día ${diffDays})`);
         } else {

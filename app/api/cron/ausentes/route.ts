@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { logWASend } from "@/lib/wa-log";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,6 +79,7 @@ export async function GET(req: NextRequest) {
           try {
             await sendWA(gym.gym_id, phone, msg);
             await supabase.from("alumnos").update({ ultima_notif_inactividad: today.toISOString() }).eq("id", alumno.id);
+            logWASend(supabase, gym.gym_id, "inactivo");
             totalEnviados++;
             log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 1 (día ${diffDays})`);
           } catch (e) {
@@ -98,6 +100,7 @@ export async function GET(req: NextRequest) {
           try {
             await sendWA(gym.gym_id, phone, msg);
             await supabase.from("alumnos").update({ ultima_notif_inactividad_3: today.toISOString() }).eq("id", alumno.id);
+            logWASend(supabase, gym.gym_id, "inactivo");
             totalEnviados++;
             log.push(`✓ ${alumno.full_name} (${gym.gym_name}) — paso 3 (día ${diffDays})`);
           } catch (e) {

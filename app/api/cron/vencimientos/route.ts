@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { logWASend } from "@/lib/wa-log";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -339,6 +340,7 @@ async function enviarFollowupsPostVencimiento(
             .update({ [columna]: alumno.next_expiration_date })
             .eq("id", alumno.id);
           if (upErr) console.error(`[vencimientos] followup ${step} alumno=${alumno.id}:`, upErr.message);
+          logWASend(supabase, gym.gym_id, "vencimiento");
           enviados++;
           log.push(`✓ ${alumno.full_name} (${gymName}) — follow-up ${step} (día ${diasVencido})`);
         } else {
@@ -397,6 +399,7 @@ async function enviarNotificacionesVenceHoy(
           .update({ notif_vence_hoy_para: todayStr })
           .eq("id", alumno.id);
         if (upErr) console.error(`[vencimientos] vence-hoy alumno=${alumno.id}:`, upErr.message);
+        logWASend(supabase, gym.gym_id, "vencimiento");
         enviados++;
         log.push(`🔔 ${alumno.full_name} (${gymName}) — vence hoy`);
       }
@@ -479,6 +482,7 @@ async function enviarRecordatoriosProximos(
       for (let j = 0; j < resultados.length; j++) {
         const alumno = chunk[j];
         if (resultados[j].status === "fulfilled") {
+          logWASend(supabase, gym.gym_id, "vencimiento");
           enviados++;
           log.push(`✓ ${alumno.full_name} (${gymName}) — vence ${alumno.next_expiration_date}`);
         } else {

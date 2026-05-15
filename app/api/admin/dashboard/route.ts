@@ -154,6 +154,7 @@ export async function GET(req: NextRequest) {
     { data: recentAssistRows, error: recentAssistError },
     { data: gymClassesMetricRows, error: classesError },
     { data: proximoMesRows, error: proximoMesError },
+    { count: mensajesAutoCount, error: mensajesAutoError },
   ] = await Promise.all([
     admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).is("deleted_at", null),
     admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
@@ -174,12 +175,13 @@ export async function GET(req: NextRequest) {
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("id, day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
     admin.from("alumnos").select("next_expiration_date, planes!plan_id(precio)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null).gte("next_expiration_date", nextMonthFrom).lte("next_expiration_date", nextMonthTo),
+    admin.from("wa_mensajes_log").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("sent_at", `${thisMonthFrom}T00:00:00Z`).lte("sent_at", `${thisMonthTo}T23:59:59Z`),
   ]);
 
   const anyError =
     createdError || egresosError || recientesError || activosPlanError || activosPlanNombreError || prospectosCountError ||
     settingsError || gymError || prospectRowsError || pagosError || egresosMetricError || alumnosError || reservasError ||
-    monthlyAssistError || recentAssistError || classesError || proximoMesError;
+    monthlyAssistError || recentAssistError || classesError || proximoMesError || mensajesAutoError;
 
   if (anyError) {
     return NextResponse.json({
@@ -373,6 +375,7 @@ export async function GET(req: NextRequest) {
       ingresoProyectado: proyectado,
       proyeccionProximoMes,
       renovacionesPendientes,
+      mensajesAutoEnviados: mensajesAutoCount ?? 0,
       gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
       recientes: recientesData ?? [],
       captacion5,
