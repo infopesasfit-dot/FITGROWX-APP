@@ -167,8 +167,8 @@ export default function RadarPage() {
             const waMs = health.latency_detail?.wa_motor_ms;
             const dbColor = dbMs < 300 ? "#10b981" : dbMs < 800 ? "#f59e0b" : "#ef4444";
             const dbLabel = dbMs < 300 ? "Normal" : dbMs < 800 ? "Lento" : "Crítico";
-            const waColor = waMs == null ? "#9ca3af" : waMs < 500 ? "#10b981" : waMs < 1500 ? "#f59e0b" : "#ef4444";
-            const waLabel = waMs == null ? "—" : waMs < 500 ? "Normal" : waMs < 1500 ? "Lento" : "Crítico";
+            const waColor = waMs == null ? "#9ca3af" : waMs < 800 ? "#10b981" : waMs < 2000 ? "#f59e0b" : "#ef4444";
+            const waLabel = waMs == null ? "—" : waMs < 800 ? "Normal" : waMs < 2000 ? "Lento" : "Crítico";
             return (
               <div style={{
                 background: "#fff", borderRadius: 12,
@@ -195,7 +195,7 @@ export default function RadarPage() {
                   </div>
                   <p style={{ font: "400 0.62rem/1.5 'Inter', sans-serif", color: "#9ca3af", marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 7 }}>
                     DB: &lt;300ms normal · 300–800ms lento · &gt;800ms crítico
-                    {waMs != null && <><br />WA: &lt;500ms normal · 500–1500ms lento · &gt;1500ms crítico</>}
+                    {waMs != null && <><br />WA: &lt;800ms normal · 800–2000ms lento · &gt;2000ms crítico (cross-region us↔sa)</>}
                   </p>
                 </div>
               </div>

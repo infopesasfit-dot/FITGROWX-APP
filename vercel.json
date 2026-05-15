@@ -29,6 +29,14 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/wa-keepalive",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/wa-keepalive",
+      "schedule": "0 20 * * *"
+    },
+    {
       "path": "/api/cron/platform-notifs",
       "schedule": "0 9 * * *"
     },
