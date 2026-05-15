@@ -541,16 +541,16 @@ export default function DashboardPage() {
         style={{ ...cardBase, padding: isMobile ? "18px 16px" : "20px 18px", background: whitePanel, cursor: href ? "pointer" : "default", display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}
         {...cardHover}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 18 }}>
-          <span style={{ font: `500 0.73rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em" }}>{label}</span>
-          <div style={{ width: 38, height: 38, borderRadius: 14, background: iconBg, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: tone === "orange" ? "inset 0 1px 0 rgba(255,255,255,0.35)" : "none" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+          <span style={{ font: `600 0.615rem/1 ${fm}`, color: t3, textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</span>
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: iconBg, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {icon}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 8 }}>
-          <span style={{ font: `800 ${isMobile ? "1.65rem" : "2rem"}/0.95 ${fd}`, color: t1, letterSpacing: "-0.05em" }}>{value}</span>
+          <span style={{ font: `600 ${isMobile ? "1.55rem" : "1.875rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.025em" }}>{value}</span>
         </div>
-        <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t2 }}>{hint}</p>
+        <p style={{ font: `400 0.72rem/1.4 ${fb}`, color: t2, marginTop: "auto" }}>{hint}</p>
       </a>
     );
   };
@@ -1223,72 +1223,35 @@ export default function DashboardPage() {
 
       {renderQuickActions()}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20, alignItems: "stretch" }}>
-        <div style={{ ...cardBase, background: "linear-gradient(135deg, #1A1D24 0%, #0E0F12 100%)", border: "1px solid rgba(255,255,255,0.06)", padding: "24px", display: "flex", flexDirection: "column", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 12, alignItems: "stretch" }}>
+        {/* A cobrar — feature card */}
+        <div style={{ background: "linear-gradient(135deg, #1A1D24 0%, #0E0F12 100%)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.06)", padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 140, position: "relative", overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <p style={{ font: `600 0.615rem/1 ${fm}`, color: "#B2B5BB", textTransform: "uppercase", letterSpacing: "0.12em" }}>A cobrar este mes</p>
+            <div style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <CreditCard size={14} color="rgba(255,255,255,0.80)" />
+            </div>
+          </div>
           <div>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
-              <div style={{ flex: 1 }}>
-                <p style={{ font: `500 0.62rem/1 ${fm}`, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.11em", marginBottom: 14 }}>A cobrar este mes</p>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                  {loading
-                    ? <SkelLight w={200} h={48} r={10} />
-                    : <span style={{ font: `600 2.8rem/0.9 ${fd}`, color: "#F9FAFB", letterSpacing: "-0.05em" }}>{fmt(ingresoProyectado)}</span>}
-                  {!loading && <span style={{ font: `400 0.84rem/1 ${fb}`, color: "rgba(255,255,255,0.38)" }}>/ mes</span>}
-                </div>
-              </div>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <CreditCard size={17} color="rgba(255,255,255,0.70)" />
-              </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
+              {loading
+                ? <SkelLight w={120} h={34} r={8} />
+                : <span style={{ font: `600 1.875rem/1 ${fd}`, color: "#F9FAFB", letterSpacing: "-0.025em" }}>{fmt(ingresoProyectado)}</span>}
+              {!loading && <span style={{ font: `500 0.875rem/1 ${fb}`, color: "#8A8E97" }}>/ mes</span>}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <ArrowUpRight size={11} color="rgba(255,255,255,0.60)" />
-                <span style={{ font: `500 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.60)" }}>Socios activos</span>
-              </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#8A8E97" }}>Proyección sobre planes activos</span>
               {!loading && recaudadoEsteMes > 0 && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <span style={{ font: `400 0.64rem/1 ${fb}`, color: "rgba(255,255,255,0.42)" }}>Cobrado</span>
-                  <span style={{ font: `600 0.68rem/1 ${fm}`, color: "rgba(255,255,255,0.78)" }}>{fmt(recaudadoEsteMes)}</span>
-                </div>
-              )}
-              {!loading && proyeccionProximoMes > 0 && (
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <span style={{ font: `400 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.36)" }}>Próx. mes · {renovacionesPendientes} renov.</span>
-                  <span style={{ font: `600 0.66rem/1 ${fm}`, color: "rgba(255,255,255,0.60)" }}>{fmt(proyeccionProximoMes)}</span>
-                </div>
+                <span style={{ font: `600 0.68rem/1 ${fm}`, color: "#5EE9A4", background: "rgba(22,163,74,0.18)", borderRadius: 5, padding: "2px 7px" }}>{fmt(recaudadoEsteMes)} cobrado</span>
               )}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, height: "100%", gridTemplateRows: "1fr 1fr", alignContent: "stretch" }}>
-          {renderKpiCard("Tus socios",           loading ? <Skel w={52} h={38} r={9} /> : String(activosCount),                    `${totalCount} en total`,                <Users size={17} color="#fff" />,       "ink",    undefined)}
-          {renderKpiCard("Fueron hoy",            loading ? <Skel w={52} h={38} r={9} /> : String(asistHoy),                       "Entrenaron hoy",                        <Activity size={17} color={accentDeep} />, "orange", undefined)}
-          {renderKpiCard("Sin venir en 7 días",   loading ? <Skel w={52} h={38} r={9} /> : String(alerts.inactiveCount),           "Siguen pagando pero no vienen",         <UserMinus size={17} color={accentDeep} />, "soft", "/dashboard/alumnos")}
-          {renderKpiCard("Membresías por vencer", loading ? <Skel w={52} h={38} r={9} /> : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan",      <BadgeAlert size={17} color="#fff" />,  "ink",    "/dashboard/alumnos")}
-        </div>
+        {renderKpiCard("Socios activos",         loading ? <Skel w={52} h={34} r={8} /> : String(activosCount),                       "vs. mes anterior",               <Users size={16} color="#fff" />,          "ink",    undefined)}
+        {renderKpiCard("Asistencias hoy",         loading ? <Skel w={52} h={34} r={8} /> : String(asistHoy),                          "Ocupación del día",              <Activity size={16} color={accentDeep} />, "orange", undefined)}
+        {renderKpiCard("Cuotas impagas",          loading ? <Skel w={52} h={34} r={8} /> : String(morososCount),                      morososCount > 0 ? `${fmt(deudaTotal)} por cobrar` : "Todos los socios al día", <BadgeAlert size={16} color="#fff" />, "ink", "/dashboard/alumnos")}
       </div>
-
-      {!loading && (
-        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "20px 22px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 16, background: morososCount > 0 ? "rgba(234,88,12,0.12)" : "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <CreditCard size={20} color={morososCount > 0 ? "#EA580C" : "#15803D"} />
-              </div>
-              <div>
-                <p style={{ font: `700 0.7rem/1 ${fb}`, color: morososCount > 0 ? "#EA580C" : "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Cuotas impagas</p>
-                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: morososCount > 0 ? "#7C2D12" : "#14532D", letterSpacing: "-0.03em" }}>
-                  {morososCount > 0 ? `${morososCount} ${morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · ${fmt(deudaTotal)} por cobrar` : "Sin deuda pendiente — todo al día ✅"}
-                </p>
-              </div>
-            </div>
-            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: morososCount > 0 ? "#9A3412" : "#166534", maxWidth: 340 }}>
-              {morososCount > 0 ? "Todavía no cobraste. Hacé clic para ver quiénes son." : "Todos los socios están al día. 🟢"}
-            </p>
-          </div>
-        </a>
-      )}
 
       {renderPulsoPanel()}
 
