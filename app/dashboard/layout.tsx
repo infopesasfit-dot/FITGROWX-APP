@@ -45,19 +45,24 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
     ],
   },
   {
-    section: "CRECIMIENTO",
+    section: "CAPTACIÓN",
     items: [
       {
         href: "/dashboard/prospectos",
         label: "Atraer Clientes",
         icon: Megaphone,
         sub: [
-          { href: "/dashboard/prospectos",          label: "Prospectos" },
-          { href: "/dashboard/landing",           label: "Mi Web / Landing" },
+          { href: "/dashboard/prospectos", label: "Prospectos" },
+          { href: "/dashboard/landing",    label: "Mi Web / Landing" },
         ],
       },
-      { href: "/dashboard/automatizaciones", label: "Automatizaciones",     icon: Zap },
-      { href: "/dashboard/boveda",           label: "Bóveda",               icon: FolderOpen },
+    ],
+  },
+  {
+    section: "RETENCIÓN",
+    items: [
+      { href: "/dashboard/automatizaciones", label: "Automatizaciones", icon: Zap },
+      { href: "/dashboard/boveda",           label: "Bóveda",           icon: FolderOpen },
     ],
   },
   {
