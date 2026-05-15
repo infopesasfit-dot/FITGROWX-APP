@@ -381,6 +381,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     transition: "all 0.14s",
     textDecoration: "none",
     fontFamily: fb,
+    position: "relative",
     background: isActive(href) ? "rgba(255,255,255,0.10)" : "transparent",
     color: isActive(href) ? "#FFFFFF" : "rgba(255,255,255,0.50)",
     overflow: "hidden",
@@ -497,6 +498,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .sb-nav::-webkit-scrollbar-track { background: transparent; }
           .sb-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
           .sb-nav { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+          .sb-nav-active::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 18%; bottom: 18%;
+            width: 3px;
+            border-radius: 0 2px 2px 0;
+            background: #FF7A18;
+          }
         `}</style>
         <nav className="sb-nav" style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {(role === "staff" ? NAV_SECTIONS_STAFF : NAV_SECTIONS_ADMIN).map(({ section, items }) => (
@@ -521,7 +530,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                   if (!isMobile && collapsed) {
                     return (
-                      <Link key={item.href} href={item.href} style={navItemStyle(item.href)} title={item.label}>
+                      <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={isActive(item.href) ? "sb-nav-active" : ""} title={item.label}>
                         <Icon size={16} style={{ opacity: anyActive ? 1 : 0.65, flexShrink: 0 }} />
                       </Link>
                     );
@@ -581,7 +590,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 /* ── Regular item ── */
                 return (
-                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} title={(!isMobile && collapsed) ? item.label : undefined} onMouseEnter={() => prefetchRoute(item.href)}>
+                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={isActive(item.href) ? "sb-nav-active" : ""} title={(!isMobile && collapsed) ? item.label : undefined} onMouseEnter={() => prefetchRoute(item.href)}>
                     <Icon size={16} style={{ opacity: isActive(item.href) ? 1 : 0.65, flexShrink: 0 }} />
                     {(isMobile || !collapsed) && <span style={{ flex: 1 }}>{item.label}</span>}
                   </Link>
