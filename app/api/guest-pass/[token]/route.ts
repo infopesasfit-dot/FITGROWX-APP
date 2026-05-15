@@ -21,25 +21,29 @@ export async function GET(
 
   const [{ data: alumno }, { data: settings }] = await Promise.all([
     sb.from("alumnos").select("full_name").eq("id", pass.alumno_id).maybeSingle(),
-    sb.from("gym_settings").select("gym_name, accent_color").eq("gym_id", pass.gym_id).maybeSingle(),
+    sb.from("gym_settings").select("gym_name, accent_color, whatsapp").eq("gym_id", pass.gym_id).maybeSingle(),
   ]);
 
   // If already claimed, return success state directly (same browser re-open)
+  const gymWhatsapp = (settings as { whatsapp?: string | null } | null)?.whatsapp ?? null;
+
   if (pass.status === "claimed") {
     return NextResponse.json({
-      status:      "claimed",
-      code:        pass.code,
-      gymName:     settings?.gym_name ?? "el gym",
-      accentColor: settings?.accent_color ?? "#F97316",
-      expiresAt:   pass.expires_at,
+      status:       "claimed",
+      code:         pass.code,
+      gymName:      settings?.gym_name ?? "el gym",
+      accentColor:  settings?.accent_color ?? "#F97316",
+      expiresAt:    pass.expires_at,
+      gymWhatsapp,
     });
   }
 
   return NextResponse.json({
-    status:      "pending",
-    gymName:     settings?.gym_name ?? "el gym",
-    alumnoName:  (alumno?.full_name ?? "Tu amigo").split(" ")[0],
-    accentColor: settings?.accent_color ?? "#F97316",
-    expiresAt:   pass.expires_at,
+    status:       "pending",
+    gymName:      settings?.gym_name ?? "el gym",
+    alumnoName:   (alumno?.full_name ?? "Tu amigo").split(" ")[0],
+    accentColor:  settings?.accent_color ?? "#F97316",
+    expiresAt:    pass.expires_at,
+    gymWhatsapp,
   });
 }

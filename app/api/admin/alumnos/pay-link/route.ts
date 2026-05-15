@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   if (!alumno) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
   if (!alumno.phone) return NextResponse.json({ error: "El alumno no tiene teléfono" }, { status: 400 });
 
-  const plan = alumno.planes as { nombre: string; precio: number } | null;
+  const plan = alumno.planes as unknown as { nombre: string; precio: number } | null;
   if (!plan?.precio) return NextResponse.json({ error: "El alumno no tiene plan con precio asignado" }, { status: 400 });
 
   // Reusar token vigente o crear uno nuevo
@@ -55,15 +55,16 @@ export async function POST(req: NextRequest) {
 
   const { data: settings } = await sb
     .from("gym_settings")
-    .select("gym_name, mp_access_token, payment_info")
+    .select("gym_name, mp_access_token, payment_info, slug")
     .eq("gym_id", profile.gym_id)
     .maybeSingle();
 
   const gymName = settings?.gym_name ?? "el gym";
   const hasMP = !!settings?.mp_access_token;
+  const gymParam = settings?.slug ? `&gym=${settings.slug}` : "";
   const link = hasMP
     ? `${APP_URL}/api/alumno/pagar-link?token=${token}`
-    : `${APP_URL}/alumno/auth?token=${token}`;
+    : `${APP_URL}/alumno/auth?token=${token}${gymParam}`;
 
   const precio = plan.precio.toLocaleString("es-AR");
   const msg = hasMP

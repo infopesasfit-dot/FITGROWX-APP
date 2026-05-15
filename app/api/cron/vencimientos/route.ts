@@ -354,6 +354,58 @@ async function enviarFollowupsPostVencimiento(
   return enviados;
 }
 
+// ── Bloque 5b: Notificación día exacto de vencimiento ────────────────────────
+
+const MSG_VENCE_HOY = `¡Hola [Nombre]! 🔔 Tu membresía en *[Gym]* vence *hoy*. Renovála para no perder tu acceso. 💪`;
+
+async function enviarNotificacionesVenceHoy(
+  gyms: GymSettings[],
+  todayStr: string,
+  log: string[],
+): Promise<number> {
+  let enviados = 0;
+
+  for (const gym of gyms) {
+    const { data: alumnos, error } = await supabase
+      .from("alumnos")
+      .select("id, full_name, phone, next_expiration_date")
+      .eq("gym_id", gym.gym_id)
+      .eq("status", "activo")
+      .eq("next_expiration_date", todayStr)
+      .not("phone", "is", null)
+      .or(`notif_vence_hoy_para.is.null,notif_vence_hoy_para.neq.${todayStr}`);
+
+    if (error) { console.error(`[vencimientos] vence-hoy gym=${gym.gym_id}:`, error.message); continue; }
+    if (!alumnos?.length) continue;
+
+    const tokenMap = await obtenerTokensExistentes(alumnos.map(a => a.id));
+    await crearTokensFaltantes(alumnos, gym.gym_id, tokenMap);
+
+    const gymName       = gym.gym_name ?? "el gym";
+    const paymentSuffix = buildPaymentSuffix(Boolean(gym.mp_access_token), gym.payment_info);
+
+    for (const alumno of alumnos) {
+      const link    = buildPaymentLink(tokenMap[alumno.id], Boolean(gym.mp_access_token));
+      const mensaje = fillTemplate(MSG_VENCE_HOY + (link ? `\n\n👉 ${link}` : "") + paymentSuffix, {
+        Nombre: alumno.full_name,
+        Gym:    gymName,
+        Link:   link,
+      });
+      const ok = await enviarMensajeWA(gym.gym_id, alumno.phone!, mensaje);
+      if (ok) {
+        const { error: upErr } = await supabase.from("alumnos")
+          .update({ notif_vence_hoy_para: todayStr })
+          .eq("id", alumno.id);
+        if (upErr) console.error(`[vencimientos] vence-hoy alumno=${alumno.id}:`, upErr.message);
+        enviados++;
+        log.push(`🔔 ${alumno.full_name} (${gymName}) — vence hoy`);
+      }
+    }
+  }
+
+  return enviados;
+}
+
 // ── Bloque 5: Recordatorios pre-vencimiento ───────────────────────────────────
 
 const MSG_DEFAULT_VENCIMIENTO = `¡Hola [Nombre]! 👋 Tu membresía en *[Gym]* vence el *[Fecha]*. Renovála para seguir entrenando sin interrupciones. 💪`;
@@ -463,8 +515,9 @@ export async function GET(req: NextRequest) {
   if (gymsErr) console.error("[vencimientos] cargar gyms:", gymsErr.message);
   if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log });
 
-  const followups   = await enviarFollowupsPostVencimiento(gyms, todayStr, log);
+  const venceHoy      = await enviarNotificacionesVenceHoy(gyms, todayStr, log);
+  const followups     = await enviarFollowupsPostVencimiento(gyms, todayStr, log);
   const recordatorios = await enviarRecordatoriosProximos(gyms, todayStr, log);
 
-  return NextResponse.json({ ok: true, enviados: followups + recordatorios, log });
+  return NextResponse.json({ ok: true, enviados: venceHoy + followups + recordatorios, log });
 }

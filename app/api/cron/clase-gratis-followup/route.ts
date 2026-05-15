@@ -20,6 +20,7 @@ function fillTemplate(template: string, nombre: string, gym: string, link = ""):
     .replace(/\[Link\]/g,    link);
 }
 
+const DEFAULT_MSG_REMINDER = `¡Hola {nombre}! 👋 Te recordamos que *mañana* es tu clase de prueba en *{gym}*. ¡Te esperamos! 💪\n\n📍 Si no podés venir, avisanos para reagendar.`;
 const DEFAULT_MSG_0 = `¡Hola {nombre}! 💪 ¿Cómo te fue en la clase de hoy en *{gym}*? ¡Esperamos que la hayas disfrutado! Cualquier pregunta, escribinos.`;
 const DEFAULT_MSG_2 = `¡Hola {nombre}! 👋 Ya pasaron un par de días desde tu clase de prueba en *{gym}*. ¿Qué te pareció? Si querés arrancar, te dejamos la info acá 👇\n\n{link}`;
 const DEFAULT_MSG_5 = `{nombre}, ¡tu clase de prueba en *{gym}* fue hace 5 días! 🎯 Este es el momento. Arrancá acá 👇\n\n{link}`;
@@ -62,6 +63,29 @@ export async function GET(req: NextRequest) {
       const diffDays = Math.floor((today.getTime() - classDate.getTime()) / 86_400_000);
       const gymName = gym.gym_name ?? "el gym";
 
+      // Day-before reminder: class is tomorrow, not yet reminded (step === 0)
+      if (p.clase_gratis_status === "registrado" && diffDays === -1 && p.followup_step === 0) {
+        const msgTemplate = fillTemplate(DEFAULT_MSG_REMINDER, p.full_name, gymName);
+        try {
+          const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
+            body: JSON.stringify({ phone: normalizePhone(p.phone!), message: msgTemplate }),
+            signal: AbortSignal.timeout(8000),
+          });
+          if (res.ok) {
+            await supabase.from("prospectos").update({ followup_step: -1 }).eq("id", p.id);
+            totalEnviados++;
+            log.push(`🔔 ${p.full_name} (${gymName}) — recordatorio día anterior`);
+          } else {
+            log.push(`✗ ${p.full_name} — recordatorio HTTP ${res.status}`);
+          }
+        } catch (e) {
+          log.push(`✗ ${p.full_name} — recordatorio ${e instanceof Error ? e.message : "error"}`);
+        }
+        continue;
+      }
+
       // Auto no-show: class passed and staff never marked attendance
       if (p.clase_gratis_status === "registrado" && diffDays >= 1) {
         await supabase.from("prospectos").update({ clase_gratis_status: "no_show" }).eq("id", p.id);
@@ -73,7 +97,8 @@ export async function GET(req: NextRequest) {
       let nextStep: number | null = null;
 
       if (p.clase_gratis_status === "asistio") {
-        if (p.followup_step === 0 && diffDays >= 0) {
+        // step <= 0 covers both: reminder sent (-1) and no reminder sent (0)
+        if (p.followup_step <= 0 && diffDays >= 0) {
           msgTemplate = gym.clase_gratis_msg_0 === "" ? null : (gym.clase_gratis_msg_0?.trim() || DEFAULT_MSG_0);
           nextStep = 1;
         } else if (p.followup_step === 1 && diffDays >= 2) {
@@ -84,7 +109,7 @@ export async function GET(req: NextRequest) {
           nextStep = 3;
         }
       } else if (p.clase_gratis_status === "no_show") {
-        if (p.followup_step === 0 && diffDays >= 1) {
+        if (p.followup_step <= 0 && diffDays >= 1) {
           msgTemplate = gym.clase_gratis_msg_noshow === "" ? null : (gym.clase_gratis_msg_noshow?.trim() || DEFAULT_MSG_NOSHOW);
           nextStep = 3;
         }

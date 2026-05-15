@@ -47,6 +47,7 @@ export default function ReservarPage() {
 
   const [step,      setStep]      = useState<"phone" | "slots" | "confirm" | "done">("phone");
   const [phone,     setPhone]     = useState("");
+  const [inputName, setInputName] = useState("");
   const [nombre,    setNombre]    = useState("");
   const [selected,  setSelected]  = useState<Selection | null>(null);
   const [saving,    setSaving]    = useState(false);
@@ -94,7 +95,7 @@ export default function ReservarPage() {
     const res  = await fetch("/api/gym/reservar-clase-gratis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gym_id: gym.gym_id, phone: phone.trim() }),
+      body: JSON.stringify({ gym_id: gym.gym_id, phone: phone.trim(), name: inputName.trim() || undefined }),
     });
     const data = await res.json();
     setLookingUp(false);
@@ -169,6 +170,18 @@ export default function ReservarPage() {
         {/* Step: phone */}
         {step === "phone" && (
           <form onSubmit={handlePhoneSubmit} style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 20, padding: "28px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div>
+              <label style={{ display: "block", font: `600 0.7rem/1 ${fd}`, color: "rgba(255,255,255,.4)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
+                Tu nombre
+              </label>
+              <input
+                type="text"
+                value={inputName}
+                onChange={e => setInputName(e.target.value)}
+                placeholder="Nombre y apellido"
+                style={{ width: "100%", padding: "13px 16px", borderRadius: 12, background: "rgba(255,255,255,.07)", border: "1px solid rgba(255,255,255,.12)", color: "#FFFFFF", font: `400 0.9rem/1 ${fd}`, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
             <div>
               <label style={{ display: "block", font: `600 0.7rem/1 ${fd}`, color: "rgba(255,255,255,.4)", textTransform: "uppercase", letterSpacing: ".07em", marginBottom: 8 }}>
                 Tu WhatsApp *

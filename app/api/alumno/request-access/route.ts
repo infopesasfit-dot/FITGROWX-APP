@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   // Obtener nombre del gym y plantilla personalizada (en paralelo)
   const [{ data: settings }, { data: gym }] = await Promise.all([
-    supabase.from("gym_settings").select("gym_name, magiclink_msg").eq("gym_id", alumno.gym_id).maybeSingle(),
+    supabase.from("gym_settings").select("gym_name, magiclink_msg, slug").eq("gym_id", alumno.gym_id).maybeSingle(),
     supabase.from("gyms").select("name").eq("id", alumno.gym_id).maybeSingle(),
   ]);
 
@@ -85,7 +85,8 @@ export async function POST(req: NextRequest) {
     const proto = host.startsWith("localhost") ? "http" : "https";
     return `${proto}://${host}`;
   })()).replace(/\/$/, "");
-  const link = `${baseUrl}/alumno/auth?token=${token}`;
+  const gymParam = settings?.slug ? `&gym=${settings.slug}` : "";
+  const link = `${baseUrl}/alumno/auth?token=${token}${gymParam}`;
 
   const DEFAULT_MSG = `¡Hola [Nombre]! 👋\nIngresá a tu panel de *[Gym]* desde acá 👇\n\n[Link]\n\n_El acceso dura 30 días._`;
   const template = settings?.magiclink_msg?.trim() || DEFAULT_MSG;

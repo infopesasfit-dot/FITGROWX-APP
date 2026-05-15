@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
   Users, CreditCard,
   ArrowUpRight, ArrowDownRight, Send, Target, CircleHelp, BadgeAlert, Activity, UserMinus,
@@ -131,6 +131,19 @@ function buildDonutSegments(slices: { value: number; color: string }[]) {
     return { dasharray, dashoffset, color: d.color, pct: Math.round(fraction * 100) };
   });
 }
+
+// ─── Skeleton components ──────────────────────────────────────────────────────
+function Skel({ w, h, r = 7 }: { w?: number | string; h: number; r?: number }) {
+  return (
+    <div style={{ width: w ?? "100%", height: h, borderRadius: r, flexShrink: 0, background: "linear-gradient(90deg,#ECEEF2 25%,#E4E6EB 50%,#ECEEF2 75%)", backgroundSize: "400% 100%", animation: "skelShimmer 1.6s ease infinite" }} />
+  );
+}
+function SkelLight({ w, h, r = 7 }: { w?: number | string; h: number; r?: number }) {
+  return (
+    <div style={{ width: w ?? "100%", height: h, borderRadius: r, flexShrink: 0, background: "linear-gradient(90deg,rgba(255,255,255,0.15) 25%,rgba(255,255,255,0.30) 50%,rgba(255,255,255,0.15) 75%)", backgroundSize: "400% 100%", animation: "skelShimmer 1.6s ease infinite" }} />
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 // ─── datos de demo ────────────────────────────────────────────────────────────
 function buildDemoSnapshot(): DashboardSnapshot {
@@ -345,6 +358,55 @@ export default function DashboardPage() {
   const sinEgresos  = gastosTotal === 0;
   const balanceNeto = sinEgresos ? ingresoProyectado : ingresoProyectado - gastosTotal;
   const hasCapt     = captacion5.some(v => v > 0);
+
+  const hour = useMemo(() => new Date().getHours(), []);
+
+  const quickActions = useMemo(() => {
+    if (hour >= 6 && hour < 10) return [
+      { emoji: "✅", label: "Asistencia de hoy", hint: asistHoy > 0 ? `${asistHoy} registradas` : "Sin registros aún", href: "/dashboard/asistencias" },
+      { emoji: "📋", label: "Tomar asistencia", hint: "Manual o QR", href: "/dashboard/scanner" },
+      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} socios por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Avisales antes de que venza" : "Todo al día", href: "#dashboard-alertas" },
+    ];
+    if (hour >= 10 && hour < 14) return [
+      { emoji: "💳", label: "Registrar un pago", hint: "Marcar cobro de membresía", href: "/dashboard/pagos" },
+      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Contactar para que renueven" : "Todo al día", href: "#dashboard-alertas" },
+      { emoji: "👤", label: "Agregar alumno", hint: "Registrar uno nuevo", href: "/dashboard/alumnos" },
+    ];
+    if (hour >= 14 && hour < 19) return [
+      { emoji: "🎯", label: prospectos > 0 ? `${prospectos} prospectos` : "Ver prospectos", hint: prospectos > 0 ? "Pendientes de contacto" : "Sin prospectos nuevos", href: "/dashboard/prospectos" },
+      { emoji: "👤", label: "Agregar alumno", hint: "Nuevo registro", href: "/dashboard/alumnos" },
+      { emoji: "💳", label: "Registrar un pago", hint: "Marcar cobro de membresía", href: "/dashboard/pagos" },
+    ];
+    return [
+      { emoji: "📊", label: `${asistHoy} asistencias hoy`, hint: "Resumen del día", href: "#dashboard-alertas" },
+      { emoji: "📝", label: "Cargar egreso", hint: "Registrar gasto del día", href: "/dashboard/egresos" },
+      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} vencen pronto` : "Sin vencimientos pronto", hint: alerts.upcomingExpirations.length > 0 ? "Para mañana: contactar" : "Todo al día", href: "#dashboard-alertas" },
+    ];
+  }, [hour, asistHoy, alerts.upcomingExpirations.length, prospectos]);
+
+  const renderQuickActions = () => {
+    const timeLabel = hour >= 6 && hour < 10 ? "Mañana" : hour >= 10 && hour < 14 ? "Mediodía" : hour >= 14 && hour < 19 ? "Tarde" : "Noche";
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <p style={{ font: `600 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          Acciones rápidas · {timeLabel}
+        </p>
+        <div className="stat-scroll" style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
+          {quickActions.map((a) => (
+            <a
+              key={a.label}
+              href={a.href}
+              style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 14px", borderRadius: 16, background: "#FFFFFF", border: "1px solid rgba(17,24,39,0.07)", boxShadow: "0 2px 8px rgba(15,23,42,0.05)", textDecoration: "none", color: "inherit", minWidth: 140, flexShrink: 0, cursor: "pointer" }}
+            >
+              <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>{a.emoji}</span>
+              <p style={{ font: `700 0.76rem/1.2 ${fd}`, color: t1, margin: 0 }}>{a.label}</p>
+              <p style={{ font: `400 0.66rem/1.3 ${fb}`, color: t3, margin: 0 }}>{a.hint}</p>
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  };
   const { line: captLine, area: captArea } = captacionPath(captacion5);
 
   const donutSlices    = planDist.map((p, i) => ({ value: p.count, color: PLAN_COLORS[i % PLAN_COLORS.length] }));
@@ -405,7 +467,7 @@ export default function DashboardPage() {
 
   const renderKpiCard = (
     label: string,
-    value: string,
+    value: React.ReactNode,
     hint: string,
     icon: React.ReactNode,
     tone: "orange" | "ink" | "soft" = "soft",
@@ -496,6 +558,19 @@ export default function DashboardPage() {
 
   const renderMetricSection = (section: DashboardMetric["section"], boxed = false) => {
     const sectionMetrics = metrics.filter((metric) => metric.section === section);
+    const skelCount = section === "Embudo" ? 4 : section === "Fidelización" ? 4 : 2;
+    const skelCard = (
+      <div style={{ ...cardBase, padding: isMobile ? "16px 14px" : "17px 16px", background: "#FFFFFF", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Skel w="65%" h={11} r={5} />
+          <Skel w="42%" h={32} r={9} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <Skel w={72} h={26} r={9999} />
+          <Skel w={88} h={10} r={5} />
+        </div>
+      </div>
+    );
     const content = (
       <>
         <div>
@@ -519,7 +594,9 @@ export default function DashboardPage() {
             gap: 12,
           }}
         >
-          {sectionMetrics.map(renderMetricCard)}
+          {loading && sectionMetrics.length === 0
+            ? Array(boxed ? 1 : skelCount).fill(null).map((_, i) => <React.Fragment key={i}>{skelCard}</React.Fragment>)
+            : sectionMetrics.map(renderMetricCard)}
         </div>
       </>
     );
@@ -611,6 +688,10 @@ export default function DashboardPage() {
         .dash-card:nth-child(5) { animation-delay: 0.20s; }
         .stat-scroll::-webkit-scrollbar { display: none; }
         .stat-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes skelShimmer {
+          0%   { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
+        }
         .dashboard-grain::before {
           content: "";
           position: absolute;
@@ -643,14 +724,16 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 14 }}>
-                <span style={{ font: `800 2rem/0.95 ${fd}`, letterSpacing: "-0.06em" }}>{loading ? "—" : fmt(ingresoProyectado)}</span>
-                <span style={{ font: `500 0.74rem/1 ${fb}`, color: "rgba(255,255,255,0.72)" }}>/ mes</span>
+                {loading
+                  ? <SkelLight w={140} h={36} r={10} />
+                  : <span style={{ font: `800 2rem/0.95 ${fd}`, letterSpacing: "-0.06em" }}>{fmt(ingresoProyectado)}</span>}
+                {!loading && <span style={{ font: `500 0.74rem/1 ${fb}`, color: "rgba(255,255,255,0.72)" }}>/ mes</span>}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[
-                  { label: "Con membresía", value: loading ? "—" : String(activosCount) },
-                  { label: "Fueron hoy", value: loading ? "—" : String(asistHoy) },
-                  { label: "Vencen pronto", value: loading ? "—" : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+                  { label: "Con membresía", value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(activosCount) },
+                  { label: "Fueron hoy",    value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(asistHoy) },
+                  { label: "Vencen pronto", value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
                 ].map((item) => (
                   <a
                     key={item.label}
@@ -667,6 +750,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {renderQuickActions()}
       {renderMetricSection("Embudo")}
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
         {renderMetricSection("Fidelización", true)}
@@ -822,6 +906,12 @@ export default function DashboardPage() {
         }
         .greet-exit    { animation: greetExit  0.5s cubic-bezier(0.4,0,1,1) forwards; }
         .greet-welcome { animation: greetEnter 0.6s cubic-bezier(0.16,1,0.3,1) both; }
+        .stat-scroll::-webkit-scrollbar { display: none; }
+        .stat-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes skelShimmer {
+          0%   { background-position: 100% 0; }
+          100% { background-position: -100% 0; }
+        }
         .dashboard-grain::before {
           content: "";
           position: absolute;
@@ -969,6 +1059,8 @@ export default function DashboardPage() {
         </a>
       )}
 
+      {renderQuickActions()}
+
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20 }}>
         <div className="dashboard-grain" style={{ borderRadius: 30, background: orangeGlow, padding: "22px 22px 20px", position: "relative", overflow: "hidden", boxShadow: "0 22px 54px rgba(255,122,24,0.24)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.26), transparent 28%), radial-gradient(circle at bottom left, rgba(255,210,170,0.25), transparent 24%)", pointerEvents: "none" }} />
@@ -977,8 +1069,10 @@ export default function DashboardPage() {
               <div>
                 <p style={{ font: `700 0.72rem/1 ${fb}`, color: "rgba(255,255,255,0.82)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Lo que vas a cobrar este mes</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                  <span style={{ font: `800 3rem/0.92 ${fd}`, color: "white", letterSpacing: "-0.08em" }}>{loading ? "—" : fmt(ingresoProyectado)}</span>
-                  <span style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.78)" }}>/ mes</span>
+                  {loading
+                    ? <SkelLight w={200} h={50} r={12} />
+                    : <span style={{ font: `800 3rem/0.92 ${fd}`, color: "white", letterSpacing: "-0.08em" }}>{fmt(ingresoProyectado)}</span>}
+                  {!loading && <span style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.78)" }}>/ mes</span>}
                 </div>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.18)" }}>
                   <ArrowUpRight size={14} color="white" />
@@ -991,9 +1085,9 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                 {[
-                  { label: "Con membresía", value: loading ? "—" : String(activosCount) },
-                  { label: "Fueron hoy", value: loading ? "—" : String(asistHoy) },
-                  { label: "Vencen pronto", value: loading ? "—" : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+                  { label: "Con membresía", value: loading ? <SkelLight w={36} h={22} r={5} /> : String(activosCount) },
+                  { label: "Fueron hoy",    value: loading ? <SkelLight w={36} h={22} r={5} /> : String(asistHoy) },
+                  { label: "Vencen pronto", value: loading ? <SkelLight w={36} h={22} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
                 ].map((item) => (
                 <a key={item.label} href={item.href} style={{ padding: "12px 12px 11px", borderRadius: 18, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.16)", cursor: item.href ? "pointer" : "default", textAlign: "left", textDecoration: "none", color: "inherit" }}>
                   <p style={{ font: `800 1.1rem/1 ${fd}`, color: "white", marginBottom: 5 }}>{item.value}</p>
@@ -1005,10 +1099,10 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
-          {renderKpiCard("Tus socios", loading ? "—" : String(activosCount), `${totalCount} en total`, <Users size={17} color="#fff" />, "ink")}
-          {renderKpiCard("Fueron hoy", loading ? "—" : String(asistHoy), "Personas que entrenaron hoy", <Activity size={17} color={accentDeep} />, "orange")}
-          {renderKpiCard("Sin venir en 7 días", loading ? "—" : String(alerts.inactiveCount), "Todavía tienen membresía activa", <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
-          {renderKpiCard("Membresías por vencer", loading ? "—" : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan", <BadgeAlert size={17} color="#fff" />, "ink", "#dashboard-alertas")}
+          {renderKpiCard("Tus socios",           loading ? <Skel w={52} h={38} r={9} /> : String(activosCount),                    `${totalCount} en total`,                <Users size={17} color="#fff" />,       "ink",    undefined)}
+          {renderKpiCard("Fueron hoy",            loading ? <Skel w={52} h={38} r={9} /> : String(asistHoy),                       "Personas que entrenaron hoy",           <Activity size={17} color={accentDeep} />, "orange", undefined)}
+          {renderKpiCard("Sin venir en 7 días",   loading ? <Skel w={52} h={38} r={9} /> : String(alerts.inactiveCount),           "Todavía tienen membresía activa",       <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
+          {renderKpiCard("Membresías por vencer", loading ? <Skel w={52} h={38} r={9} /> : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan",      <BadgeAlert size={17} color="#fff" />,  "ink",    "#dashboard-alertas")}
         </div>
       </div>
 
@@ -1075,7 +1169,9 @@ export default function DashboardPage() {
                   {balanceNeto >= 0 ? <ArrowUpRight size={15} color={statusPositive} /> : <ArrowDownRight size={15} color={statusNegative} />}
                   <span style={{ font: `700 0.75rem/1 ${fb}`, color: balanceNeto >= 0 ? statusPositive : statusNegative }}>{balanceNeto >= 0 ? "Superávit" : "Déficit"}</span>
                 </div>
-                <p style={{ font: `800 2.8rem/0.94 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 20 }}>{loading ? "—" : fmt(Math.abs(balanceNeto))}</p>
+                {loading
+                  ? <div style={{ marginBottom: 20 }}><Skel w={160} h={52} r={12} /></div>
+                  : <p style={{ font: `800 2.8rem/0.94 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 20 }}>{fmt(Math.abs(balanceNeto))}</p>}
                 <div style={{ display: "grid", gap: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "14px 14px", borderRadius: 18, background: "#F7FAF9" }}>
                     <span style={{ font: `600 0.72rem/1 ${fb}`, color: t2 }}>Ingresos</span>
@@ -1091,6 +1187,38 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {loading && asistDiarias.length === 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 1fr)", gap: 20 }}>
+          <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}><Skel w={160} h={16} r={6} /><Skel w={200} h={12} r={5} /></div>
+              <Skel w={72} h={30} r={9999} />
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
+              {[55,70,38,85,47,65,90,42,78,60,35,82,50,68].map((h, i) => (
+                <div key={i} style={{ flex: 1, display: "flex", alignItems: "flex-end", height: "100%" }}>
+                  <Skel h={h} r={3} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}><Skel w={140} h={16} r={6} /><Skel w={180} h={12} r={5} /></div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[45,70,90,60,30,85,55,75,40,65,50].map((pct, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Skel w={28} h={10} r={4} />
+                  <div style={{ flex: 1, height: 8, borderRadius: 9999, background: "#EDF1F5", overflow: "hidden" }}>
+                    <div style={{ width: `${pct}%`, height: "100%", background: "#E4E6EB", borderRadius: 9999 }} />
+                  </div>
+                  <Skel w={18} h={10} r={4} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {asistDiarias.length > 0 && (() => {
         const maxA = Math.max(...asistDiarias.map((d) => d.count), 1);

@@ -28,15 +28,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Demasiados intentos. Probá de nuevo en unos minutos." }, { status: 429 });
   }
 
-  const { gym_id, phone, clase_id, fecha, hora, clase_nombre } = await req.json();
+  const { gym_id, phone, name, clase_id, fecha, hora, clase_nombre } = await req.json();
   if (!gym_id || !phone) {
     return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
   }
 
   const phoneNorm = normalizePhone(phone);
-  const prospecto = await findProspecto(gym_id, phoneNorm);
+  let prospecto = await findProspecto(gym_id, phoneNorm);
+
+  // Auto-create prospecto if not found and name provided (self-service "Soy nuevo" flow)
   if (!prospecto) {
-    return NextResponse.json({ error: "No encontramos tu registro. Completá el formulario de inscripción primero." }, { status: 404 });
+    if (!name?.trim()) {
+      return NextResponse.json({ error: "No encontramos tu registro. Ingresá tu nombre para continuar." }, { status: 404 });
+    }
+    const { data: created } = await supabase
+      .from("prospectos")
+      .insert({ gym_id, full_name: name.trim(), phone, status: "pendiente", contactos_step: 0 })
+      .select("id, full_name, phone, clase_gratis_date, clase_gratis_status")
+      .single();
+    if (!created) return NextResponse.json({ error: "No se pudo registrar. Intentá de nuevo." }, { status: 500 });
+    prospecto = created;
+    // In-app notification for gym
+    void supabase.from("notifications").insert({
+      gym_id,
+      type: "new_prospecto",
+      title: `Nuevo prospecto: ${name.trim()}`,
+      body: phone,
+    });
   }
 
   // Lookup only — no fecha provided

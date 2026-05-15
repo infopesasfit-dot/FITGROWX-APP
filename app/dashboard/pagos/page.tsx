@@ -9,7 +9,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { getPagoAlumnoSummary, getPlanDurationDays, getPlanPeriodo } from "@/lib/supabase-relations";
 import { addMonths } from "@/lib/date-utils";
-import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
+import { getCachedProfile, getPageCache, setPageCache, invalidateDashboardCache } from "@/lib/gym-cache";
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -494,6 +494,7 @@ export default function PagosPage() {
       if (insertedPago) {
         updatePagosCache(prev => [mapPagoRow(insertedPago as PagoRow), ...prev].slice(0, 100));
       }
+      invalidateDashboardCache();
       showToast(needsValidation ? "Comprobante enviado. Esperá la validación ✓" : "Pago registrado ✓", "ok");
       closePagoModal();
     } finally { setUploading(false); }

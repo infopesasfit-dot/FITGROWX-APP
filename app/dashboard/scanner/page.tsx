@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { QrCode, CheckCircle, XCircle, RefreshCw, Scan, Copy, Download, ChevronDown } from "lucide-react";
-import { getCachedProfile } from "@/lib/gym-cache";
+import { getCachedProfile, invalidateDashboardCache, invalidateAsistenciasCache } from "@/lib/gym-cache";
 
 type DetectedBarcode = {
   rawValue?: string;
@@ -99,6 +99,10 @@ export default function ScannerPage() {
     });
     const data: CheckinResult = await res.json();
     setResult(data);
+    if (data.ok) {
+      invalidateAsistenciasCache();
+      invalidateDashboardCache();
+    }
     setLoading(false);
 
     // Reset cooldown after 3s so the same QR can be re-scanned

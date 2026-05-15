@@ -135,8 +135,13 @@ function AlumnoPanelInner() {
     fetch(`/api/alumno/me?alumno_id=${parsed.alumno_id}`, {
       headers: { Authorization: `Bearer ${parsed.token}` },
     })
-      .then(r => r.json())
-      .then(d => {
+      .then(async r => {
+        if (r.status === 401) {
+          localStorage.removeItem("fitgrowx_alumno");
+          router.replace("/alumno/login");
+          return;
+        }
+        const d = await r.json();
         if (d.error) return;
         const fresh: Session = { alumno_id: d.alumno_id, gym_id: d.gym_id, full_name: d.full_name, status: d.status, plan: d.plan, expiration: d.expiration, dni: d.dni ?? null, token: parsed.token };
         localStorage.setItem("fitgrowx_alumno", JSON.stringify(fresh));
@@ -161,6 +166,11 @@ function AlumnoPanelInner() {
     const r = await fetch(`/api/alumno/bootstrap?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}${suffix}`, {
       headers: { Authorization: `Bearer ${s.token}` },
     });
+    if (r.status === 401) {
+      localStorage.removeItem("fitgrowx_alumno");
+      router.replace("/alumno/login");
+      return;
+    }
     const d = await r.json();
     if (d.clases) setClases(d.clases);
     if (d.reservas) setReservas(d.reservas);

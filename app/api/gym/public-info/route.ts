@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-type GymSettingsRow = { gym_name: string | null; logo_url: string | null };
+type GymSettingsRow = { gym_name: string | null; logo_url: string | null; whatsapp: string | null };
 
 export async function GET(req: NextRequest) {
   const gym_id = new URL(req.url).searchParams.get("gym_id");
@@ -10,14 +10,14 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdminClient();
   const { data } = await supabase
     .from("gym_settings")
-    .select("gym_name, logo_url")
+    .select("gym_name, logo_url, whatsapp")
     .eq("gym_id", gym_id)
     .maybeSingle<GymSettingsRow>();
 
   if (!data) return NextResponse.json({ error: "Gimnasio no encontrado." }, { status: 404 });
 
   return NextResponse.json(
-    { gym_name: data.gym_name ?? null, logo_url: data.logo_url ?? null },
+    { gym_name: data.gym_name ?? null, logo_url: data.logo_url ?? null, whatsapp: data.whatsapp ?? null },
     { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } },
   );
 }

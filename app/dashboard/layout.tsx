@@ -13,8 +13,9 @@ import {
   CheckCircle,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
+import { DinoChatWidget } from "./components/DinoChatWidget";
 import { getGymSummary } from "@/lib/supabase-relations";
-import { getCachedProfile, getImpersonatedGym, clearImpersonation, type ImpersonatedGym } from "@/lib/gym-cache";
+import { getCachedProfile, getImpersonatedGym, clearImpersonation, prefetchDashboard, prefetchRoute, type ImpersonatedGym } from "@/lib/gym-cache";
 import { useNotificationPolling, type Notif } from "@/hooks/useNotificationPolling";
 
 type NavItem = {
@@ -51,7 +52,6 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
         icon: Megaphone,
         sub: [
           { href: "/dashboard/prospectos",          label: "Prospectos" },
-          { href: "/dashboard/publicidad",          label: "Campañas" },
           { href: "/dashboard/landing",           label: "Mi Web / Landing" },
         ],
       },
@@ -95,7 +95,7 @@ const NAV_SECTIONS_STAFF: NavSection[] = [
   },
 ];
 
-const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/publicidad", "/dashboard/landing"];
+const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/landing"];
 const STAFF_ALLOWED_ROUTES = ["/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
 
 const BOTTOM_NAV_ADMIN = [
@@ -170,8 +170,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showTrialModal,   setShowTrialModal]   = useState(false);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
-  const [waDisconnected,   setWaDisconnected]   = useState(false);
+  const [waDisconnected,    setWaDisconnected]    = useState(false);
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
+  const [hasSlug,           setHasSlug]           = useState(true);
+  const [slugBannerDismissed, setSlugBannerDismissed] = useState(false);
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
@@ -207,6 +209,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return () => window.clearTimeout(timeoutId);
   }, [pathname]);
+
+  // Warm dashboard cache in background 1.5 s after layout mounts
+  useEffect(() => {
+    const t = window.setTimeout(() => void prefetchDashboard(), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Staff route protection — only runs after role is confirmed from DB
   useEffect(() => {
@@ -251,7 +259,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const [{ count }, { data: profile }, { data: settings }] = await Promise.all([
         supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", gymIdVal).eq("status", "pendiente"),
         supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status, subscription_type)").eq("id", userIdVal).maybeSingle(),
-        supabase.from("gym_settings").select("logo_url, gym_name, owner_name, wa_status").eq("gym_id", gymIdVal).maybeSingle(),
+        supabase.from("gym_settings").select("logo_url, gym_name, owner_name, wa_status, slug").eq("gym_id", gymIdVal).maybeSingle(),
       ]);
 
       setProspectBadge(count ?? 0);
@@ -260,6 +268,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (["needs_reauth", "disconnected"].includes(settings?.wa_status ?? "")) {
         setWaDisconnected(true);
       }
+      setHasSlug(!!settings?.slug);
       const displayName = settings?.owner_name?.trim() || user?.email?.split("@")[0] || "Admin";
       setUserName(displayName);
       setUserInitials(displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase());
@@ -569,7 +578,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 /* ── Regular item ── */
                 return (
-                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} title={(!isMobile && collapsed) ? item.label : undefined}>
+                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} title={(!isMobile && collapsed) ? item.label : undefined} onMouseEnter={() => prefetchRoute(item.href)}>
                     <Icon size={16} style={{ opacity: isActive(item.href) ? 1 : 0.65, flexShrink: 0 }} />
                     {(isMobile || !collapsed) && <span style={{ flex: 1 }}>{item.label}</span>}
                   </Link>
@@ -579,7 +588,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
-        <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 6, position: "relative", zIndex: 1 }}>
+        <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+          {role === "admin" && (
+            <DinoChatWidget collapsed={collapsed} isMobile={isMobile} sidebarWidth={w + 24} />
+          )}
           <button onClick={handleSignOut} style={logoutStyle} title={(!isMobile && collapsed) ? "Cerrar sesión" : undefined}>
             <LogOut size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
             {(isMobile || !collapsed) && <span>Cerrar sesión</span>}
@@ -838,6 +850,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
 
+        {/* ── Slug missing banner ── */}
+        {role === "admin" && !hasSlug && !slugBannerDismissed && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: "rgba(217,119,6,0.06)",
+            borderBottom: "1px solid rgba(217,119,6,0.16)",
+            flexShrink: 0,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={13} color="#D97706" />
+              <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#D97706" }}>
+                {isMobile ? "URL de landing sin configurar — links automáticos rotos." : "Tu landing no tiene URL configurada — los links de reserva en los mensajes automáticos no funcionan."}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href="/dashboard/landing" style={{
+                font: `700 0.72rem/1 ${fd}`, color: "white",
+                background: "#D97706",
+                padding: "5px 12px", borderRadius: 9999, textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>Configurar</Link>
+              <button onClick={() => setSlugBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "#D97706", display: "flex", padding: 2 }}>
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── Trial countdown banner (day 10+) ── */}
         {role === "admin" && showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
           <div style={{
@@ -906,7 +947,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: -4 }}>
               {[
                 { href: "/dashboard/prospectos", label: "Prospectos" },
-                { href: "/dashboard/publicidad", label: "Campañas"   },
                 { href: "/dashboard/landing",    label: "Mi Web"     },
               ].map(s => {
                 const active = pathname.startsWith(s.href);
@@ -963,7 +1003,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {(role === "staff" ? BOTTOM_NAV_STAFF : BOTTOM_NAV_ADMIN).map(({ href, label, icon: Icon }) => {
             const active = isActive(href);
             return (
-              <Link key={href} href={href} style={{
+              <Link key={href} href={href} onMouseEnter={() => prefetchRoute(href)} style={{
                 flex: 1, minHeight: 56, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                 gap: 5, padding: "10px 4px 8px", textDecoration: "none",
                 color: active ? "#FFFFFF" : "rgba(255,255,255,0.38)",

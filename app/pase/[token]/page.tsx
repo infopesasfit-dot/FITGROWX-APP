@@ -7,9 +7,9 @@ const fd = "'Inter', system-ui, sans-serif";
 
 type PassState =
   | { phase: "loading" }
-  | { phase: "claim"; gymName: string; alumnoName: string; accentColor: string; expiresAt: string }
-  | { phase: "success"; code: string; gymName: string; expiresAt: string; accentColor: string }
-  | { phase: "error"; message: string };
+  | { phase: "claim"; gymName: string; alumnoName: string; accentColor: string; expiresAt: string; gymWhatsapp: string | null }
+  | { phase: "success"; code: string; gymName: string; expiresAt: string; accentColor: string; gymWhatsapp: string | null }
+  | { phase: "error"; message: string; gymWhatsapp?: string | null };
 
 export default function GuestPassPage() {
   const { token } = useParams<{ token: string }>();
@@ -24,15 +24,16 @@ export default function GuestPassPage() {
       .then(d => {
         if (d.error) { setState({ phase: "error", message: d.error }); return; }
         if (d.status === "claimed") {
-          setState({ phase: "success", code: d.code, gymName: d.gymName, expiresAt: d.expiresAt, accentColor: d.accentColor ?? "#F97316" });
+          setState({ phase: "success", code: d.code, gymName: d.gymName, expiresAt: d.expiresAt, accentColor: d.accentColor ?? "#F97316", gymWhatsapp: d.gymWhatsapp ?? null });
           return;
         }
         setState({
-          phase:       "claim",
-          gymName:     d.gymName,
-          alumnoName:  d.alumnoName,
-          accentColor: d.accentColor ?? "#F97316",
-          expiresAt:   d.expiresAt,
+          phase:        "claim",
+          gymName:      d.gymName,
+          alumnoName:   d.alumnoName,
+          accentColor:  d.accentColor ?? "#F97316",
+          expiresAt:    d.expiresAt,
+          gymWhatsapp:  d.gymWhatsapp ?? null,
         });
       })
       .catch(() => setState({ phase: "error", message: "No se pudo cargar el pase" }));
@@ -50,11 +51,12 @@ export default function GuestPassPage() {
     setSubmitting(false);
     if (!r.ok) { setState({ phase: "error", message: d.error ?? "Error al reclamar el pase" }); return; }
     setState({
-      phase:       "success",
-      code:        d.code,
-      gymName:     d.gymName,
-      expiresAt:   d.expiresAt,
-      accentColor: (state as { accentColor?: string }).accentColor ?? "#F97316",
+      phase:        "success",
+      code:         d.code,
+      gymName:      d.gymName,
+      expiresAt:    d.expiresAt,
+      accentColor:  (state as { accentColor?: string }).accentColor ?? "#F97316",
+      gymWhatsapp:  (state as { gymWhatsapp?: string | null }).gymWhatsapp ?? null,
     });
   };
 
@@ -80,10 +82,21 @@ export default function GuestPassPage() {
         )}
 
         {state.phase === "error" && (
-          <div style={{ textAlign: "center" }}>
-            <p style={{ fontSize: 48, marginBottom: 16 }}>😕</p>
-            <p style={{ font: `700 1.2rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 8 }}>Pase no disponible</p>
-            <p style={{ font: `400 0.85rem/1.5 ${fd}`, color: "rgba(255,255,255,0.4)" }}>{state.message}</p>
+          <div style={{ textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+            <p style={{ fontSize: 48, marginBottom: 0 }}>😕</p>
+            <div>
+              <p style={{ font: `700 1.2rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 8 }}>Pase no disponible</p>
+              <p style={{ font: `400 0.85rem/1.5 ${fd}`, color: "rgba(255,255,255,0.4)" }}>{state.message}</p>
+            </div>
+            {state.gymWhatsapp && (
+              <a
+                href={`https://wa.me/${state.gymWhatsapp.replace(/\D/g, "")}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.25)", font: `600 0.82rem/1 ${fd}`, color: "#25D366", textDecoration: "none" }}
+              >
+                <span style={{ fontSize: 15 }}>💬</span> Contactar al gym
+              </a>
+            )}
           </div>
         )}
 
@@ -124,7 +137,7 @@ export default function GuestPassPage() {
                 style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: "13px 16px", font: `400 0.9rem/1 ${fd}`, color: "#FFFFFF", outline: "none", width: "100%", boxSizing: "border-box" }}
               />
               <p style={{ font: `400 0.65rem/1.4 ${fd}`, color: "rgba(255,255,255,0.2)", textAlign: "center", margin: 0 }}>
-                Te mandamos el código por WhatsApp para presentar a la entrada.
+                El código aparece en pantalla al confirmar. También intentamos enviártelo por WhatsApp.
               </p>
             </div>
 
@@ -166,9 +179,20 @@ export default function GuestPassPage() {
               </p>
             </div>
 
-            <p style={{ font: `400 0.75rem/1.5 ${fd}`, color: "rgba(255,255,255,0.35)" }}>
-              También te enviamos el código por WhatsApp 📱
+            <p style={{ font: `400 0.75rem/1.5 ${fd}`, color: "rgba(255,255,255,0.4)", textAlign: "center" }}>
+              Guardá este código o tomá captura de pantalla.<br/>
+              <span style={{ color: "rgba(255,255,255,0.25)", fontSize: "0.7rem" }}>También intentamos enviártelo por WhatsApp.</span>
             </p>
+
+            {state.gymWhatsapp && (
+              <a
+                href={`https://wa.me/${state.gymWhatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola! Tengo el pase libre con código ${state.code}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, background: "rgba(37,211,102,0.10)", border: "1px solid rgba(37,211,102,0.22)", font: `600 0.82rem/1 ${fd}`, color: "#25D366", textDecoration: "none" }}
+              >
+                <span style={{ fontSize: 15 }}>💬</span> Avisar al gym que voy
+              </a>
+            )}
 
             <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.12)", letterSpacing: "0.08em" }}>
               POWERED BY FITGROWX

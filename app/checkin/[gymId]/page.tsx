@@ -6,7 +6,7 @@ import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 const fd = "'Inter', sans-serif";
 
-interface GymInfo    { gym_name: string | null; logo_url: string | null }
+interface GymInfo    { gym_name: string | null; logo_url: string | null; whatsapp: string | null }
 interface CheckinResult {
   ok: boolean;
   already?: boolean;
@@ -192,6 +192,15 @@ export default function CheckinPublicoPage({ params }: { params: Promise<{ gymId
                   <p style={{ font: `400 0.82rem/1.5 ${fd}`, color: "rgba(255,255,255,0.4)", marginTop: 4 }}>
                     {result.error}
                   </p>
+                )}
+                {isMembership && gymInfo?.whatsapp && (
+                  <a
+                    href={`https://wa.me/${gymInfo.whatsapp.replace(/\D/g, "")}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 7, marginTop: 8, padding: "9px 16px", borderRadius: 10, background: "rgba(37,211,102,0.10)", border: "1px solid rgba(37,211,102,0.22)", font: `600 0.78rem/1 ${fd}`, color: "#25D366", textDecoration: "none" }}
+                  >
+                    <span style={{ fontSize: 14 }}>💬</span> Contactar al gym para renovar
+                  </a>
                 )}
               </div>
             </div>

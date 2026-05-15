@@ -499,6 +499,19 @@ export default function FlujosPage() {
   }
 
   const totalActive = Object.values(activeMap).filter(Boolean).length;
+  const [activatingAll, setActivatingAll] = useState(false);
+
+  async function activateAll() {
+    if (!gymId || activatingAll) return;
+    setActivatingAll(true);
+    const allOn = Object.fromEntries(Object.keys(COL_PAL).map(k => [k, true]));
+    setActiveMap(allOn);
+    const dbUpdate = Object.fromEntries(
+      Object.entries(COL_PAL).map(([, v]) => [v.dbKey, true])
+    );
+    await supabase.from("gym_settings").update(dbUpdate).eq("gym_id", gymId);
+    setActivatingAll(false);
+  }
 
   return (
     <>
@@ -532,6 +545,24 @@ export default function FlujosPage() {
           </div>
           <span style={{ fontSize: 11, color: "#FCA5A5", fontWeight: 600, whiteSpace: "nowrap" }}>Reconectar →</span>
         </Link>
+      )}
+
+      {/* All-off banner */}
+      {!loading && totalActive === 0 && waStatus === "active" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: 12, background: "rgba(99,102,241,0.10)", border: "1px solid rgba(99,102,241,0.30)", flexShrink: 0 }}>
+          <span style={{ fontSize: 16 }}>💤</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#A5B4FC", display: "block" }}>Ningún flujo está activo — tus socios no reciben mensajes automáticos</span>
+            <span style={{ fontSize: 11, color: "rgba(165,180,252,0.65)" }}>Activá todos los flujos de una para empezar a usar las automatizaciones.</span>
+          </div>
+          <button
+            onClick={activateAll}
+            disabled={activatingAll}
+            style={{ fontSize: 11, color: "#fff", fontWeight: 700, background: "#6366F1", border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer", whiteSpace: "nowrap", opacity: activatingAll ? 0.6 : 1 }}
+          >
+            {activatingAll ? "Activando…" : "Activar todo"}
+          </button>
+        </div>
       )}
 
       {/* Cards */}

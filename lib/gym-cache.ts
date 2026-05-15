@@ -1,7 +1,9 @@
 import { supabase } from "@/lib/supabase";
 
-const PROFILE_TTL = 5 * 60 * 1000;  // 5 min
-const DATA_TTL    = 2 * 60 * 1000;  // 2 min
+const PROFILE_TTL = 5 * 60 * 1000;
+const DATA_TTL    = 2 * 60 * 1000;   // revalidation threshold
+const LS_TTL      = 5 * 60 * 1000;   // show stale data up to 5 min
+const LS_PFX      = "fgx_";
 
 export interface GymProfile {
   gymId:  string;
@@ -68,16 +70,85 @@ export function invalidateProfile() {
   profileEntry = null;
 }
 
+// L1 = in-memory (fast, lost on refresh)
+// L2 = localStorage (persists across refreshes, up to 5 min stale)
 export function getPageCache<T>(key: string): T | null {
-  const entry = pageCache.get(key) as CacheEntry<T> | undefined;
-  if (!entry || Date.now() - entry.ts > DATA_TTL) return null;
-  return entry.data;
+  // L1: in-memory within revalidation window
+  const mem = pageCache.get(key) as CacheEntry<T> | undefined;
+  if (mem && Date.now() - mem.ts <= DATA_TTL) return mem.data;
+
+  // L2: localStorage — stale-while-revalidate
+  try {
+    const raw = localStorage.getItem(LS_PFX + key);
+    if (!raw) return null;
+    const ls = JSON.parse(raw) as CacheEntry<T>;
+    if (Date.now() - ls.ts > LS_TTL) {
+      localStorage.removeItem(LS_PFX + key);
+      return null;
+    }
+    pageCache.set(key, ls); // promote to L1
+    return ls.data;
+  } catch { return null; }
 }
 
 export function setPageCache<T>(key: string, data: T): void {
-  pageCache.set(key, { data, ts: Date.now() });
+  const entry: CacheEntry<T> = { data, ts: Date.now() };
+  pageCache.set(key, entry);
+  try {
+    localStorage.setItem(LS_PFX + key, JSON.stringify(entry));
+  } catch { /* storage full / private mode — silent */ }
 }
 
 export function invalidatePageCache(key: string): void {
   pageCache.delete(key);
+  try { localStorage.removeItem(LS_PFX + key); } catch { /* */ }
+}
+
+export function invalidateDashboardCache(): void {
+  for (const key of pageCache.keys()) {
+    if (key.startsWith("dashboard_")) pageCache.delete(key);
+  }
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(LS_PFX + "dashboard_"))
+      .forEach(k => localStorage.removeItem(k));
+  } catch { /* */ }
+}
+
+export function invalidateAsistenciasCache(): void {
+  for (const key of pageCache.keys()) {
+    if (key.startsWith("asistencias_")) pageCache.delete(key);
+  }
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith(LS_PFX + "asistencias_"))
+      .forEach(k => localStorage.removeItem(k));
+  } catch { /* */ }
+}
+
+// ─── Route prefetching ────────────────────────────────────────────────────────
+
+export async function prefetchDashboard(): Promise<void> {
+  const profile = await getCachedProfile();
+  if (!profile) return;
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const to   = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const key  = `dashboard_${profile.gymId}_${from}`;
+  if (getPageCache(key)) return; // still fresh, skip
+  const res = await fetch(`/api/admin/dashboard?from=${from}&to=${to}`, { cache: "no-store" }).catch(() => null);
+  if (!res?.ok) return;
+  const payload = await res.json().catch(() => null);
+  if (payload?.ok && payload.snapshot) setPageCache(key, payload.snapshot);
+}
+
+const ROUTE_PREFETCH: Partial<Record<string, () => Promise<void>>> = {
+  "/dashboard": prefetchDashboard,
+};
+
+export function prefetchRoute(href: string): void {
+  const fn = ROUTE_PREFETCH[href];
+  if (fn) void fn();
 }

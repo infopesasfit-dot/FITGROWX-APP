@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Search, Plus, Users, UserCheck, UserX, TrendingUp, DollarSign, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
 import { supabase } from "@/lib/supabase";
-import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
+import { getCachedProfile, getPageCache, setPageCache, invalidateDashboardCache } from "@/lib/gym-cache";
 import { CsvAlumnosImportContent } from "@/app/dashboard/components/CsvAlumnosImportContent";
 import SensitiveConfirm from "@/app/dashboard/components/SensitiveConfirm";
 import { EJERCICIOS } from "@/lib/ejercicios";
@@ -341,6 +341,7 @@ export default function AlumnosPage() {
     }
 
     const newAlumno = result.alumno;
+    invalidateDashboardCache();
 
     // Notificación: nuevo alumno registrado
     fetch("/api/notifications", {

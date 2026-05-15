@@ -11,6 +11,7 @@ function AuthInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const token        = searchParams.get("token");
+  const gymSlug      = searchParams.get("gym");
 
   const [status, setStatus] = useState<"verifying" | "error">(token ? "verifying" : "error");
   const [error,  setError]  = useState<string | null>(token ? null : "Token no encontrado.");
@@ -55,7 +56,7 @@ function AuthInner() {
             <div style={{ fontSize: 40, marginBottom: 16 }}>❌</div>
             <h2 style={{ font: `700 1.2rem/1.3 ${fd}`, color: "#FFFFFF", marginBottom: 8 }}>Enlace inválido</h2>
             <p style={{ font: `400 0.875rem/1.5 ${fd}`, color: "#6B7280", marginBottom: 24 }}>{error}</p>
-            <a href="/alumno/login" style={{ display: "inline-block", padding: "11px 24px", background: "#F97316", color: "white", borderRadius: 10, font: `600 0.875rem/1 ${fd}`, textDecoration: "none" }}>
+            <a href={`/alumno/login${gymSlug ? `?gym=${gymSlug}` : ""}`} style={{ display: "inline-block", padding: "11px 24px", background: "#F97316", color: "white", borderRadius: 10, font: `600 0.875rem/1 ${fd}`, textDecoration: "none" }}>
               Solicitar nuevo enlace
             </a>
           </>

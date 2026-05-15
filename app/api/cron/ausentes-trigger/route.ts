@@ -75,8 +75,12 @@ export async function POST(req: NextRequest) {
       if (res.ok) {
         await supabase.from("alumnos").update({ ultima_notif_inactividad: new Date().toISOString() }).eq("id", alumno.id);
         enviados++;
+      } else {
+        console.error(`[ausentes-trigger] WA send failed gym=${gym_id} alumno=${alumno.id} status=${res.status}`);
       }
-    } catch { /* continue to next */ }
+    } catch (err) {
+      console.error(`[ausentes-trigger] WA send error gym=${gym_id} alumno=${alumno.id}:`, err instanceof Error ? err.message : err);
+    }
   }
 
   return NextResponse.json({ ok: true, enviados });

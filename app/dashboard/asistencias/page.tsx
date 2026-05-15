@@ -6,7 +6,7 @@ import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight,
 import Link from "next/link";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
-import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
+import { getCachedProfile, getPageCache, setPageCache, invalidateDashboardCache, invalidateAsistenciasCache } from "@/lib/gym-cache";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -74,6 +74,8 @@ export default function AsistenciasPage() {
   const [converting, setConverting] = useState<string | null>(null);
   const [convertModal, setConvertModal] = useState<ClasePrueba | null>(null);
   const [convertDni, setConvertDni] = useState("");
+  const [checkingIn, setCheckingIn] = useState<Set<string>>(new Set());
+  const [checkinError, setCheckinError] = useState<string | null>(null);
   const router = useRouter();
   const [ausentesLoading, setAusentesLoading] = useState(false);
   const [ausentesLoaded, setAusentesLoaded] = useState(false);
@@ -219,6 +221,45 @@ export default function AsistenciasPage() {
     await supabase.from("prospectos").update({ clase_gratis_status: status }).eq("id", id);
   }, []);
 
+  const markPresente = useCallback(async (ausente: Ausente) => {
+    if (checkingIn.has(ausente.id)) return;
+
+    // — Optimistic update —
+    const hora = new Date().toTimeString().slice(0, 8);
+    const optimistic: Presente = {
+      alumno_id: ausente.id,
+      hora,
+      alumnos: { full_name: ausente.full_name, planes: ausente.planes as { nombre: string; accent_color: string | null } | null },
+    };
+    setCheckingIn(prev => new Set(prev).add(ausente.id));
+    setAusentes(prev => prev.filter(a => a.id !== ausente.id));
+    setPresentes(prev => [optimistic, ...prev]);
+    setTodayCount(prev => prev + 1);
+    setCheckinError(null);
+
+    // — API call in background —
+    const res = await fetch("/api/admin/checkin-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumno_id: ausente.id }),
+    }).catch(() => null);
+
+    setCheckingIn(prev => { const s = new Set(prev); s.delete(ausente.id); return s; });
+
+    if (!res?.ok) {
+      // — Revert on failure —
+      setPresentes(prev => prev.filter(p => p.alumno_id !== ausente.id));
+      setAusentes(prev => [ausente, ...prev]);
+      setTodayCount(prev => prev - 1);
+      const data = await res?.json().catch(() => null) as { error?: string } | null;
+      setCheckinError(data?.error ?? "No se pudo registrar la asistencia.");
+      window.setTimeout(() => setCheckinError(null), 4000);
+    } else {
+      invalidateAsistenciasCache();
+      invalidateDashboardCache();
+    }
+  }, [checkingIn]);
+
   const convertirProspecto = useCallback(async (p: ClasePrueba, dni: string) => {
     if (!gymId || converting) return;
     setConverting(p.id);
@@ -286,6 +327,7 @@ export default function AsistenciasPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
@@ -564,6 +606,12 @@ export default function AsistenciasPage() {
           ))}
         </div>
 
+        {checkinError && (
+          <div style={{ margin: "10px 16px 0", padding: "9px 13px", borderRadius: 10, background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.18)", font: `500 0.78rem/1.4 ${fb}`, color: "#DC2626" }}>
+            {checkinError}
+          </div>
+        )}
+
         <div style={{ maxHeight: 480, overflowY: "auto" }}>
           {loading ? (
             <p style={{ textAlign: "center", padding: "32px 0", font: `400 0.8rem/1 ${fb}`, color: t3 }}>Cargando...</p>
@@ -625,14 +673,28 @@ export default function AsistenciasPage() {
               <div>
                 {ausentes.map((a, i) => {
                   const plan = (a.planes as { nombre?: string } | null)?.nombre ?? null;
+                  const busy = checkingIn.has(a.id);
                   return (
-                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: i < ausentes.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: i < ausentes.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", transition: "opacity 0.15s", opacity: busy ? 0.5 : 1 }}>
                       <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#F1F2F6", color: t2, display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, flexShrink: 0 }}>{initials(a.full_name)}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.full_name}</p>
                         {plan && <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3, marginTop: 2 }}>{plan}</p>}
                       </div>
-                      <ChevronRight size={15} color={t3} />
+                      <button
+                        onClick={() => void markPresente(a)}
+                        disabled={busy}
+                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 9, border: "1px solid rgba(52,211,153,0.3)", background: "rgba(52,211,153,0.07)", color: "#10B981", font: `700 0.72rem/1 ${fd}`, cursor: busy ? "not-allowed" : "pointer", flexShrink: 0, transition: "all 0.15s" }}
+                        onMouseEnter={e => { if (!busy) { e.currentTarget.style.background = "rgba(52,211,153,0.14)"; e.currentTarget.style.borderColor = "rgba(52,211,153,0.5)"; } }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "rgba(52,211,153,0.07)"; e.currentTarget.style.borderColor = "rgba(52,211,153,0.3)"; }}
+                      >
+                        {busy ? (
+                          <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", border: "1.5px solid rgba(16,185,129,0.3)", borderTopColor: "#10B981", animation: "spin 0.7s linear infinite" }} />
+                        ) : (
+                          <CheckCircle size={12} />
+                        )}
+                        {busy ? "..." : "Marcar"}
+                      </button>
                     </div>
                   );
                 })}
