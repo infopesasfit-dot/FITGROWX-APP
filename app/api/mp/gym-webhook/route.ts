@@ -214,6 +214,26 @@ async function notificarDueno(
   await enviarMensajeWA(gymId, ownerPhone, mensaje);
 }
 
+// ── Log de webhook ────────────────────────────────────────────────────────────
+
+function logWebhook(
+  gymId: string | null,
+  paymentId: string | null,
+  status: "received" | "processed" | "duplicate" | "error" | "ignored",
+  opts?: { amount?: number; alumnoId?: string; errorMsg?: string },
+) {
+  void supabase.from("mp_webhook_log").insert({
+    source:     "gym",
+    gym_id:     gymId,
+    payment_id: paymentId,
+    event_type: "payment",
+    status,
+    amount:     opts?.amount ?? null,
+    alumno_id:  opts?.alumnoId ?? null,
+    error_msg:  opts?.errorMsg ?? null,
+  });
+}
+
 // ── Handler principal ─────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
@@ -232,6 +252,8 @@ export async function POST(req: NextRequest) {
 
   const paymentId = String((body.data as Record<string, unknown>)?.id ?? body.id ?? "");
   if (!paymentId) return NextResponse.json({ ok: true });
+
+  logWebhook(gymId, paymentId, "received");
 
   // Cargar credenciales del gym
   const { data: gymData } = await supabase
@@ -270,12 +292,20 @@ export async function POST(req: NextRequest) {
   // ── Gate de idempotencia: insertamos el pago primero ─────────────────────────
   const resultadoPago = await registrarPago(gymId, alumnoId, payment.transaction_amount, paymentId, planNombre, today);
 
-  if (resultadoPago === "error") return NextResponse.json({ error: "db_error" }, { status: 500 });
+  if (resultadoPago === "error") {
+    logWebhook(gymId, paymentId, "error", { amount: payment.transaction_amount, alumnoId, errorMsg: "registrarPago failed" });
+    return NextResponse.json({ error: "db_error" }, { status: 500 });
+  }
 
   // Si era duplicado: igual extendemos membresía (recovery ante crash entre insert y update)
   await extenderMembresia(alumnoId, today, nuevoVencimiento);
-  if (resultadoPago === "duplicado") return NextResponse.json({ ok: true });
+  if (resultadoPago === "duplicado") {
+    logWebhook(gymId, paymentId, "duplicate", { amount: payment.transaction_amount, alumnoId });
+    return NextResponse.json({ ok: true });
+  }
   // ─────────────────────────────────────────────────────────────────────────────
+
+  logWebhook(gymId, paymentId, "processed", { amount: payment.transaction_amount, alumnoId });
 
   // Acciones post-pago (non-blocking: errores no deben bloquear la respuesta a MP)
   await Promise.allSettled([

@@ -11,6 +11,23 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+function logWebhookPlatform(
+  gymId: string | null,
+  paymentId: string | null,
+  eventType: string,
+  status: "received" | "processed" | "duplicate" | "error" | "ignored",
+  errorMsg?: string,
+) {
+  void supabaseAdmin.from("mp_webhook_log").insert({
+    source:     "platform",
+    gym_id:     gymId,
+    payment_id: paymentId,
+    event_type: eventType,
+    status,
+    error_msg:  errorMsg ?? null,
+  });
+}
+
 async function createResellerCommission(gymId: string, paymentAmount: number, paymentRef: string, paymentType: "monthly" | "annual") {
   const { data: gym } = await supabaseAdmin
     .from("gyms")
@@ -76,6 +93,7 @@ export async function POST(req: NextRequest) {
 
   // ── Pago único anual ──────────────────────────────────────────────────────
   if (type === "payment" && data?.id) {
+    logWebhookPlatform(null, String(data.id), "payment", "received");
     const payRes = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
       headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
     });
@@ -118,6 +136,7 @@ export async function POST(req: NextRequest) {
       .eq("id", gymId);
 
     console.log(`MP webhook: gym ${gymId} → annual payment ${paymentId} → activo hasta ${annualExpiry.toISOString().slice(0, 10)}`);
+    logWebhookPlatform(gymId, String(paymentId), "payment", "processed");
 
     createResellerCommission(gymId, payment.transaction_amount ?? 0, String(paymentId), "annual").catch(() => {});
 
@@ -149,6 +168,7 @@ export async function POST(req: NextRequest) {
   // ─────────────────────────────────────────────────────────────────────────
 
   if (type !== "preapproval" || !data?.id) return NextResponse.json({ ok: true });
+  logWebhookPlatform(null, String(data.id), "preapproval", "received");
 
   // Fetch current preapproval state from MP
   const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${data.id}`, {
@@ -211,11 +231,12 @@ export async function POST(req: NextRequest) {
 
   if (dbErr) {
     console.error(`MP webhook: DB update failed para gym ${gymId}:`, dbErr.message);
-    // 500 → MP will retry. Do NOT return 200 and silently drop the subscription update.
+    logWebhookPlatform(gymId, id, "preapproval", "error", dbErr.message);
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
   console.log(`MP webhook: gym ${gymId} → preapproval ${id} → ${status}`);
+  logWebhookPlatform(gymId, id, "preapproval", "processed");
 
   if (isActive) {
     createResellerCommission(gymId, preapproval.auto_recurring?.transaction_amount ?? 0, id, "monthly").catch(() => {});
