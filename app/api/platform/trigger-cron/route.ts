@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
-const OWNER_EMAIL = "elianafrancoanahi@gmail.com";
+const OWNER_EMAIL = process.env.FITGROWX_OWNER_EMAIL ?? "elianafrancoanahi@gmail.com";
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient();

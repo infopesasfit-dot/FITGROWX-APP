@@ -101,6 +101,32 @@ const statusFromDate = (dateStr: string | null): Status => {
   return new Date(dateStr) < new Date(new Date().toISOString().slice(0, 10)) ? "vencido" : "activo";
 };
 
+// ── Search helpers ────────────────────────────────────────────────
+function norm(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+function lev(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const row = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let prev = i - 1; row[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = row[j];
+      row[j] = a[i-1] === b[j-1] ? prev : 1 + Math.min(prev, row[j], row[j-1]);
+      prev = tmp;
+    }
+  }
+  return row[n];
+}
+// Matches if query is a substring of target OR each query word fuzzy-matches a word in target
+function fuzzyMatch(query: string, target: string): boolean {
+  const q = norm(query), t = norm(target);
+  if (t.includes(q)) return true;
+  if (q.length < 3) return false;
+  const tol = q.length <= 5 ? 1 : 2;
+  return q.split(/\s+/).every(qw => t.split(/\s+/).some(tw => lev(qw, tw) <= tol));
+}
+
 const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry(), fecha_nacimiento: "", wa_consent: false };
 
 export default function AlumnosPage() {
@@ -116,6 +142,7 @@ export default function AlumnosPage() {
   const [form,            setForm]            = useState(EMPTY_FORM);
   const [saving,          setSaving]          = useState(false);
   const [formError,       setFormError]       = useState<string | null>(null);
+  const [showDetails,     setShowDetails]     = useState(false);
   const [planes,          setPlanes]          = useState<PlanOption[]>([]);
   const [promos,          setPromos]          = useState<PromoOption[]>([]);
   const [planesLoading,   setPlanesLoading]   = useState(false);
@@ -123,9 +150,11 @@ export default function AlumnosPage() {
   const [menuOpenId,      setMenuOpenId]      = useState<string | null>(null);
   const [menuPos,         setMenuPos]         = useState<{ top: number; right: number; openUp?: boolean } | null>(null);
   const [editModalOpen,   setEditModalOpen]   = useState(false);
-  const [editForm,        setEditForm]        = useState({ id: "", full_name: "", phone: "", plan_id: "", next_expiration_date: "" });
-  const [editSaving,      setEditSaving]      = useState(false);
-  const [editError,       setEditError]       = useState<string | null>(null);
+  const [editForm,           setEditForm]           = useState({ id: "", full_name: "", phone: "", plan_id: "", next_expiration_date: "" });
+  const [editSaving,         setEditSaving]         = useState(false);
+  const [editError,          setEditError]          = useState<string | null>(null);
+  const [editOriginalPlanId, setEditOriginalPlanId] = useState<string>("");
+  const [planChangePolicy,   setPlanChangePolicy]   = useState<"now" | "at_expiry">("at_expiry");
   const [toast, setToast] = useState<string | null>(null);
   const [freezeTarget,    setFreezeTarget]    = useState<Alumno | null>(null);
   const [freezeDias,      setFreezeDias]      = useState("15");
@@ -152,6 +181,7 @@ export default function AlumnosPage() {
   const [reactivarSaldarDeuda, setReactivarSaldarDeuda] = useState(false);
   const [reactivarSaving,   setReactivarSaving]   = useState(false);
   const [reactivarError,    setReactivarError]    = useState<string | null>(null);
+  const [dupTarget,           setDupTarget]           = useState<{ id: string; full_name: string; phone: string | null; status: string; next_expiration_date: string | null; planes: { nombre: string; accent_color: string | null } | null; matchedBy: "phone" | "dni" } | null>(null);
   const [fichaTarget,         setFichaTarget]         = useState<Alumno | null>(null);
   const [fichaLogs,           setFichaLogs]           = useState<ActivityLog[]>([]);
   const [fichaLoading,        setFichaLoading]        = useState(false);
@@ -305,14 +335,11 @@ export default function AlumnosPage() {
   const openModal = async () => {
     setForm({ ...EMPTY_FORM, fecha_inicio: defaultExpiry() });
     setFormError(null);
+    setShowDetails(false);
     setModalOpen(true);
 
     if (!gymId) { setPlanesLoading(false); return; }
-    const list = await loadPlanes(gymId);
-
-    if (list.length > 0) {
-      setForm(f => ({ ...f, plan_id: list[0].id }));
-    }
+    await loadPlanes(gymId);
   };
 
   const openImportModal = () => {
@@ -332,9 +359,7 @@ export default function AlumnosPage() {
   // ── Submit new alumno ─────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.dni.trim()) { setFormError("El DNI es obligatorio."); return; }
-    if (!form.email.trim()) { setFormError("El email es obligatorio."); return; }
-    if (!form.phone.trim()) { setFormError("El teléfono es obligatorio."); return; }
+    if (!form.phone.trim()) { setFormError("El teléfono/WhatsApp es obligatorio."); return; }
     setSaving(true);
     setFormError(null);
 
@@ -358,6 +383,11 @@ export default function AlumnosPage() {
     const result = await res.json();
 
     if (!res.ok || !result.ok) {
+      if (result.duplicate && result.existingAlumno) {
+        setDupTarget({ ...result.existingAlumno, matchedBy: result.matchedBy ?? "phone" });
+        setSaving(false);
+        return;
+      }
       setFormError(result.error ?? "No se pudo crear el alumno.");
       setSaving(false);
       return;
@@ -442,18 +472,31 @@ export default function AlumnosPage() {
     if (!checkinTarget) return;
     setCheckinSaving(true);
     setCheckinResult(null);
+
+    // Optimistic: mark attendance before server confirms
+    const prevDate = ultimaMap[checkinTarget.id] ?? null;
+    const targetId = checkinTarget.id;
+    const targetName = checkinTarget.full_name;
+    setUltimaMap(prev => ({ ...prev, [targetId]: checkinDate }));
+
     const res = await fetch("/api/admin/checkin-manual", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ alumno_id: checkinTarget.id, fecha: checkinDate }),
+      body: JSON.stringify({ alumno_id: targetId, fecha: checkinDate }),
     });
     const d = await res.json();
     setCheckinSaving(false);
     if (d.ok) {
-      setUltimaMap(prev => ({ ...prev, [checkinTarget.id]: checkinDate }));
       setCheckinResult("ok");
+      setToast(`✓ Asistencia de ${targetName} — ${checkinDate}`);
       setTimeout(() => { setCheckinTarget(null); setCheckinResult(null); }, 1200);
     } else {
+      // Revert optimistic update
+      setUltimaMap(prev => {
+        const n = { ...prev };
+        if (prevDate === null) delete n[targetId]; else n[targetId] = prevDate;
+        return n;
+      });
       setCheckinResult(d.error ?? "No se pudo registrar la asistencia.");
     }
   };
@@ -717,6 +760,8 @@ export default function AlumnosPage() {
   // ── Editar Alumno ─────────────────────────────────────────────────
   const openEditModal = async (a: Alumno) => {
     setEditForm({ id: a.id, full_name: a.full_name, phone: a.phone ?? "", plan_id: a.plan_id ?? "", next_expiration_date: a.next_expiration_date ?? "" });
+    setEditOriginalPlanId(a.plan_id ?? "");
+    setPlanChangePolicy("at_expiry");
     setEditError(null);
     setEditModalOpen(true);
     if (planes.length === 0 && gymId) await loadPlanes(gymId);
@@ -726,21 +771,35 @@ export default function AlumnosPage() {
     e.preventDefault();
     setEditSaving(true);
     setEditError(null);
+
+    const planChanged = !!editForm.plan_id && editForm.plan_id !== editOriginalPlanId;
+    let finalExpiry = editForm.next_expiration_date || null;
+
+    if (planChanged && planChangePolicy === "now") {
+      const newPlan = planes.find(p => p.id === editForm.plan_id);
+      if (newPlan) {
+        const d = new Date();
+        d.setDate(d.getDate() + newPlan.duracion_dias);
+        finalExpiry = d.toISOString().slice(0, 10);
+      }
+    }
+
     const { error } = await supabase.from("alumnos").update({
       full_name:            editForm.full_name.trim(),
       phone:                normalizePhone(editForm.phone.trim()),
       plan_id:              editForm.plan_id || null,
-      next_expiration_date: editForm.next_expiration_date || null,
-      status:               statusFromDate(editForm.next_expiration_date || null),
+      next_expiration_date: finalExpiry,
+      status:               statusFromDate(finalExpiry),
     }).eq("id", editForm.id);
     if (error) { setEditError(error.message); setEditSaving(false); return; }
     setEditModalOpen(false);
     setEditSaving(false);
     if (gymId) {
       const planNombre = planes.find(p => p.id === editForm.plan_id)?.nombre;
+      const policyNote = planChanged ? (planChangePolicy === "now" ? " · Aplicado ahora" : " · Aplica al vencer") : "";
       supabase.from("alumno_activity_log").insert({
         alumno_id: editForm.id, gym_id: gymId, type: "editado",
-        description: `Datos editados${planNombre ? ` · Plan: ${planNombre}` : ""}`,
+        description: `Datos editados${planNombre ? ` · Plan: ${planNombre}${policyNote}` : ""}`,
         actor: "admin",
       }).then(() => {});
     }
@@ -750,8 +809,8 @@ export default function AlumnosPage() {
       full_name: editForm.full_name.trim(),
       phone: normalizePhone(editForm.phone.trim()),
       plan_id: editForm.plan_id || null,
-      next_expiration_date: editForm.next_expiration_date || null,
-      status: statusFromDate(editForm.next_expiration_date || null),
+      next_expiration_date: finalExpiry,
+      status: statusFromDate(finalExpiry),
       planes: selectedPlan
         ? {
             nombre: selectedPlan.nombre,
@@ -764,12 +823,15 @@ export default function AlumnosPage() {
   };
 
   // ── Derived state ─────────────────────────────────────────────────
-  const q = deferredSearch.toLowerCase();
+  const q = deferredSearch.trim();
+  const qDni = q.replace(/\D/g, ""); // strip dots/dashes for DNI comparison
   const lista = alumnos.filter(a => (
-    (a.full_name.toLowerCase().includes(q) ||
-     (a.planes?.nombre ?? "").toLowerCase().includes(q) ||
-     (a.phone ?? "").toLowerCase().includes(q) ||
-     (a.dni ?? "").toLowerCase().includes(q)) &&
+    (!q ||
+      fuzzyMatch(q, a.full_name) ||
+      (a.planes?.nombre ? fuzzyMatch(q, a.planes.nombre) : false) ||
+      (a.phone ? (a.phone.includes(q)) : false) ||
+      (qDni && a.dni ? a.dni.includes(qDni) : false)
+    ) &&
     (filtro === "todos" || a.status === filtro)
   ));
 
@@ -811,8 +873,8 @@ export default function AlumnosPage() {
           </button>
           {addMenuOpen && (
             <>
-              <div onClick={() => setAddMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 41, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 14, boxShadow: "0 16px 38px rgba(0,0,0,0.14)", minWidth: isMobile ? "100%" : 240, overflow: "hidden" }}>
+              <div onClick={() => setAddMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 200 }} />
+              <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 201, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 14, boxShadow: "0 16px 38px rgba(0,0,0,0.14)", minWidth: isMobile ? "100%" : 240, overflow: "hidden" }}>
                 {[
                   {
                     label: "Manual",
@@ -855,7 +917,7 @@ export default function AlumnosPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div style={{ position: "relative" }}>
           <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: t3 }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar alumno o plan..."
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscá por nombre, plan o DNI..."
             style={{ width: "100%", minHeight: 46, padding: "10px 14px 10px 32px", background: "white", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, font: `400 0.85rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const }} />
         </div>
         <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
@@ -990,7 +1052,7 @@ export default function AlumnosPage() {
                             </Tooltip>
                           );
                         })()}
-                        <Tooltip content="Registrar pago">
+                        <Tooltip content="Cobrar cuota">
                           <button onClick={() => openPagoModal(a)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
                             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
                             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
@@ -1019,8 +1081,8 @@ export default function AlumnosPage() {
               ><Download size={13} /> Exportar</button>
               {exportMenuOpen && (
                 <>
-                  <div onClick={() => setExportMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 900 }} />
-                  <div style={{ position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 901, background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 140, overflow: "hidden" }}>
+                  <div onClick={() => setExportMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 200 }} />
+                  <div style={{ position: "absolute", bottom: "calc(100% + 6px)", right: 0, zIndex: 201, background: "#fff", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 140, overflow: "hidden" }}>
                     {[
                       { label: "Exportar CSV", action: () => { setExportMenuOpen(false); setExportConfirm(() => exportCSV); } },
                       { label: "Exportar PDF", action: () => { setExportMenuOpen(false); setExportConfirm(() => exportPDF); } },
@@ -1121,7 +1183,7 @@ export default function AlumnosPage() {
 
     {/* ── Modal: Check-in manual ── */}
     {checkinTarget && (
-      <div onClick={() => setCheckinTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+      <div onClick={() => setCheckinTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
         <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, padding: "28px 24px", maxWidth: isMobile ? "100%" : 380, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.18)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}><ClipboardCheck size={18} color="#22C55E" /></div>
@@ -1160,7 +1222,7 @@ export default function AlumnosPage() {
       <div
         onClick={() => setModalOpen(false)}
         style={{
-          position: "fixed", inset: 0, zIndex: 100,
+          position: "fixed", inset: 0, zIndex: 9010,
           background: "rgba(0,0,0,0.40)",
           backdropFilter: "blur(6px)",
           WebkitBackdropFilter: "blur(6px)",
@@ -1184,7 +1246,7 @@ export default function AlumnosPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div>
               <h2 style={{ font: `800 1.15rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Nuevo Alumno</h2>
-              <p style={{ font: `400 0.78rem/1 ${fb}`, color: t3, marginTop: 4 }}>Completá los datos para registrar al miembro.</p>
+              <p style={{ font: `400 0.78rem/1 ${fb}`, color: t3, marginTop: 4 }}>Nombre y WhatsApp alcanzan para empezar.</p>
             </div>
             <button
               onClick={() => setModalOpen(false)}
@@ -1199,15 +1261,16 @@ export default function AlumnosPage() {
           <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 24px" }} />
 
           {/* Form */}
-          <form onSubmit={handleSubmit} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <form onSubmit={handleSubmit} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
 
-            {/* Nombre */}
+            {/* ── QUICK ADD: Nombre ── */}
             <div>
               <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Nombre completo *</label>
               <div style={{ position: "relative" }}>
                 <User size={14} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
                 <input
                   required
+                  autoFocus
                   value={form.full_name}
                   onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                   placeholder="Ej: Carlos Mendez"
@@ -1219,43 +1282,7 @@ export default function AlumnosPage() {
               </div>
             </div>
 
-            {/* DNI */}
-            <div>
-              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>DNI *</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  required
-                  value={form.dni}
-                  onChange={e => setForm(f => ({ ...f, dni: e.target.value.replace(/\D/g, "") }))}
-                  placeholder="Ej: 40123456"
-                  maxLength={9}
-                  style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
-                  onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
-                />
-              </div>
-            </div>
-
-            {/* Email */}
-            <div>
-              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Email *</label>
-              <div style={{ position: "relative" }}>
-                <Mail size={14} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
-                <input
-                  required
-                  type="email"
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="carlos@email.com"
-                  maxLength={255}
-                  style={{ width: "100%", padding: "11px 14px 11px 36px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
-                  onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
-                />
-              </div>
-            </div>
-
-            {/* Teléfono */}
+            {/* ── QUICK ADD: Teléfono ── */}
             <div>
               <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>
                 Teléfono <span style={{ color: "#25D366", fontSize: "0.72rem" }}>· WhatsApp</span> *
@@ -1278,10 +1305,9 @@ export default function AlumnosPage() {
                   onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
                 />
               </div>
-              <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 5 }}>Formato internacional sin + ni espacios. n8n lo usará para automatizaciones.</p>
             </div>
 
-            {/* WA consent */}
+            {/* WA consent — aparece al escribir el teléfono */}
             {form.phone.trim() && (
               <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
                 <input
@@ -1290,24 +1316,93 @@ export default function AlumnosPage() {
                   onChange={e => setForm(f => ({ ...f, wa_consent: e.target.checked }))}
                   style={{ marginTop: 2, flexShrink: 0, accentColor: "#25D366", width: 15, height: 15 }}
                 />
-                <span style={{ font: `400 0.78rem/1.45 ${fb}`, color: t2 }}>
-                  El alumno acepta recibir mensajes de WhatsApp del gimnasio (bienvenida, renovaciones y recordatorios).
+                <span style={{ font: `400 0.75rem/1.45 ${fb}`, color: t2 }}>
+                  Acepta recibir mensajes de WhatsApp (bienvenida y recordatorios).
                 </span>
               </label>
             )}
 
-            {/* Fecha de nacimiento */}
+            {/* ── QUICK ADD: Plan ── */}
             <div>
-              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Fecha de nacimiento <span style={{ color: t3, fontWeight: 400 }}>(opcional · para saludo de cumple)</span></label>
-              <input
-                type="date"
-                value={form.fecha_nacimiento}
-                onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
-                style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
-                onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
-              />
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>
+                Plan <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>(opcional — podés asignarlo después)</span>
+              </label>
+              {planesLoading ? (
+                <div style={{ padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t3 }}>
+                  Cargando planes...
+                </div>
+              ) : (
+                <select
+                  value={form.plan_id}
+                  onChange={e => setForm(f => ({ ...f, plan_id: e.target.value }))}
+                  style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: form.plan_id ? t1 : t3, outline: "none", boxSizing: "border-box" as const, cursor: "pointer" }}
+                >
+                  <option value="">Sin plan — asignar después</option>
+                  {planes.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}{p.precio ? ` · $${p.precio.toLocaleString("es-AR")}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
+
+            {/* ── Toggle: Más detalles ── */}
+            <button
+              type="button"
+              onClick={() => setShowDetails(d => !d)}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "2px 0", font: `500 0.78rem/1 ${fb}`, color: t3, textAlign: "left", width: "fit-content" }}
+            >
+              <span style={{ fontSize: "0.65rem", transition: "transform 0.15s", display: "inline-block", transform: showDetails ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
+              {showDetails ? "Menos detalles" : "Más detalles"} — email, DNI, cumpleaños
+            </button>
+
+            {/* ── DETALLES OPCIONALES ── */}
+            {showDetails && (
+              <>
+                <div>
+                  <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Email <span style={{ color: t3, fontWeight: 400 }}>(opcional)</span></label>
+                  <div style={{ position: "relative" }}>
+                    <Mail size={14} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder="carlos@email.com"
+                      maxLength={255}
+                      style={{ width: "100%", padding: "11px 14px 11px 36px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
+                      onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                      onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>DNI <span style={{ color: t3, fontWeight: 400 }}>(opcional)</span></label>
+                  <input
+                    value={form.dni}
+                    onChange={e => setForm(f => ({ ...f, dni: e.target.value.replace(/\D/g, "") }))}
+                    placeholder="Ej: 40123456"
+                    maxLength={9}
+                    style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
+                    onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Fecha de nacimiento <span style={{ color: t3, fontWeight: 400 }}>(opcional · saludo de cumple)</span></label>
+                  <input
+                    type="date"
+                    value={form.fecha_nacimiento}
+                    onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
+                    style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
+                    onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                  />
+                </div>
+              </>
+            )}
 
             {/* Error */}
             {formError && (
@@ -1345,7 +1440,7 @@ export default function AlumnosPage() {
       <div
         onClick={() => setCsvImportOpen(false)}
         style={{
-          position: "fixed", inset: 0, zIndex: 110,
+          position: "fixed", inset: 0, zIndex: 9010,
           background: "rgba(0,0,0,0.40)",
           backdropFilter: "blur(6px)",
           WebkitBackdropFilter: "blur(6px)",
@@ -1427,7 +1522,7 @@ export default function AlumnosPage() {
 
     {/* ── Modal: Editar Alumno ── */}
     {editModalOpen && (
-      <div onClick={() => setEditModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+      <div onClick={() => setEditModalOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
         <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 480, maxHeight: isMobile ? "calc(90vh - 64px)" : undefined, overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div>
@@ -1498,6 +1593,25 @@ export default function AlumnosPage() {
                 </div>
               </div>
             </div>
+            {editForm.plan_id && editForm.plan_id !== editOriginalPlanId && editForm.next_expiration_date && (() => {
+              const newPlan = planes.find(p => p.id === editForm.plan_id);
+              const previewDate = newPlan ? (() => { const d = new Date(); d.setDate(d.getDate() + newPlan.duracion_dias); return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }); })() : "—";
+              return (
+                <div style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.22)", borderRadius: 10, padding: "12px 14px" }}>
+                  <p style={{ font: `600 0.78rem/1 ${fb}`, color: "#92400E", marginBottom: 10 }}>¿Cuándo aplicar el plan nuevo?</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer" }}>
+                      <input type="radio" name="planPolicy" value="at_expiry" checked={planChangePolicy === "at_expiry"} onChange={() => setPlanChangePolicy("at_expiry")} style={{ marginTop: 2, accentColor: "#F97316" }} />
+                      <span style={{ font: `400 0.82rem/1.4 ${fb}`, color: t1 }}>Al vencer — la fecha actual se respeta <span style={{ color: t3 }}>({editForm.next_expiration_date})</span></span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "flex-start", gap: 9, cursor: "pointer" }}>
+                      <input type="radio" name="planPolicy" value="now" checked={planChangePolicy === "now"} onChange={() => setPlanChangePolicy("now")} style={{ marginTop: 2, accentColor: "#F97316" }} />
+                      <span style={{ font: `400 0.82rem/1.4 ${fb}`, color: t1 }}>Ahora — nueva fecha calculada <span style={{ color: t3 }}>({previewDate})</span></span>
+                    </label>
+                  </div>
+                </div>
+              );
+            })()}
             {editError && (
               <div style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9, padding: "10px 14px", font: `400 0.8rem/1.4 ${fb}`, color: "#DC2626" }}>{editError}</div>
             )}
@@ -1512,7 +1626,7 @@ export default function AlumnosPage() {
     )}
     {/* ── Modal: Asignar Membresía ── */}
     {(membresiaTarget || bulkMembresiaOpen) && (
-      <div onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); }} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+      <div onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); }} style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
         <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 420, overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1579,7 +1693,7 @@ export default function AlumnosPage() {
 
     {/* ── Modal: Reactivar Alumno ── */}
     {reactivarTarget && (
-      <div onClick={() => setReactivarTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+      <div onClick={() => setReactivarTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
         <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 420, overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1670,7 +1784,7 @@ export default function AlumnosPage() {
 
     {/* ── Modal: Registrar Pago ── */}
     {pagoModalOpen && pagoTarget && (
-      <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+      <div style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
         <div style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 400, maxHeight: isMobile ? "calc(90vh - 64px)" : undefined, overflowY: "auto" }}>
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
@@ -2493,8 +2607,83 @@ export default function AlumnosPage() {
 
     {/* ── Toast ── */}
     {toast && (
-      <div style={{ position: "fixed", bottom: isMobile ? "calc(72px + env(safe-area-inset-bottom, 0px))" : "28px", left: "50%", transform: "translateX(-50%)", zIndex: 10000, background: "#FF6A00", color: "white", padding: "12px 22px", borderRadius: 12, font: `600 0.875rem/1 ${fb}`, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", pointerEvents: "none", whiteSpace: "nowrap" }}>
+      <div style={{ position: "fixed", bottom: isMobile ? "calc(72px + env(safe-area-inset-bottom, 0px))" : "28px", left: isMobile ? "50%" : "28px", transform: isMobile ? "translateX(-50%)" : "none", zIndex: 9500, background: "#FF6A00", color: "white", padding: "12px 22px", borderRadius: 12, font: `600 0.875rem/1 ${fb}`, boxShadow: "0 8px 24px rgba(0,0,0,0.18)", pointerEvents: "none", whiteSpace: "nowrap" }}>
         {toast}
+      </div>
+    )}
+
+    {/* ── Modal: Alumno duplicado ── */}
+    {dupTarget && (
+      <div
+        onClick={() => setDupTarget(null)}
+        style={{ position: "fixed", inset: 0, zIndex: 9020, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.22)", width: "100%", maxWidth: 420, overflow: "hidden" }}
+        >
+          {/* Header */}
+          <div style={{ background: "#FFF7F0", borderBottom: "1px solid rgba(249,115,22,0.15)", padding: "20px 24px 16px", display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ font: `800 1rem/1 ${fd}`, color: "#1A1D23", margin: 0, letterSpacing: "-0.01em" }}>Alumno ya registrado</h2>
+              <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: "#6B7280", margin: "5px 0 0" }}>
+                {dupTarget.matchedBy === "phone" ? "Ese número de teléfono" : "Ese DNI"} ya está asociado a otro perfil.
+              </p>
+            </div>
+            <button onClick={() => setDupTarget(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", padding: 4, display: "flex", flexShrink: 0 }}><X size={18} /></button>
+          </div>
+
+          {/* Existing alumno info */}
+          <div style={{ padding: "20px 24px" }}>
+            <div style={{ background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 42, height: 42, borderRadius: "50%", background: dupTarget.planes?.accent_color ? `${dupTarget.planes.accent_color}20` : "#F0F2F8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, font: `700 1rem/1 ${fd}`, color: dupTarget.planes?.accent_color ?? "#6B7280" }}>
+                {dupTarget.full_name.charAt(0).toUpperCase()}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#1A1D23", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{dupTarget.full_name}</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 5, flexWrap: "wrap" }}>
+                  {dupTarget.planes && (
+                    <span style={{ font: `600 0.65rem/1 ${fb}`, color: dupTarget.planes.accent_color ?? "#6B7280", background: `${dupTarget.planes.accent_color ?? "#6B7280"}18`, padding: "3px 8px", borderRadius: 9999 }}>{dupTarget.planes.nombre}</span>
+                  )}
+                  <span style={{ font: `500 0.72rem/1 ${fb}`, color: dupTarget.status === "activo" ? "#10B981" : dupTarget.status === "vencido" ? "#EF4444" : "#F59E0B" }}>
+                    {dupTarget.status === "activo" ? "Activo" : dupTarget.status === "vencido" ? "Vencido" : "Pendiente"}
+                    {dupTarget.next_expiration_date ? ` · vence ${new Date(dupTarget.next_expiration_date + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}` : ""}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: "#6B7280", margin: "14px 0 0" }}>
+              {dupTarget.status === "vencido"
+                ? "Su membresía está vencida. Podés ir al perfil para renovarle el plan directamente."
+                : "¿Querés ir al perfil existente en lugar de crear un duplicado?"}
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div style={{ padding: "0 24px 24px", display: "flex", gap: 10 }}>
+            <button
+              onClick={() => {
+                const full = alumnos.find(a => a.id === dupTarget.id);
+                setDupTarget(null);
+                setModalOpen(false);
+                if (full) setFichaTarget(full);
+              }}
+              style={{ flex: 1, padding: "12px", background: "#FF6A00", color: "white", border: "none", borderRadius: 12, font: `700 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 14px rgba(255,106,0,0.25)" }}
+            >
+              Ir al perfil
+            </button>
+            <button
+              onClick={() => setDupTarget(null)}
+              style={{ flex: 1, padding: "12px", background: "#F4F5F9", color: "#374151", border: "none", borderRadius: 12, font: `600 0.875rem/1 ${fd}`, cursor: "pointer" }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
       </div>
     )}
 
@@ -2511,7 +2700,7 @@ export default function AlumnosPage() {
     {freezeTarget && (
       <div
         onClick={() => setFreezeTarget(null)}
-        style={{ position: "fixed", inset: 0, zIndex: 600, background: "rgba(0,0,0,0.48)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+        style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.48)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
       >
         <div
           onClick={e => e.stopPropagation()}

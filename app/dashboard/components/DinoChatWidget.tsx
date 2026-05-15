@@ -154,7 +154,7 @@ export function DinoChatWidget({ collapsed, isMobile, sidebarWidth }: Props) {
           position: "fixed",
           bottom: 90,
           left: isMobile ? 16 : sidebarWidth + 16,
-          zIndex: 9000,
+          zIndex: 8000,
           animation: "bubble-in 0.3s ease both",
         }}>
           <div style={{
@@ -194,7 +194,7 @@ export function DinoChatWidget({ collapsed, isMobile, sidebarWidth }: Props) {
           left: panelLeft,
           width: isMobile ? "100vw" : 340,
           height: isMobile ? "75svh" : 480,
-          zIndex: 9000,
+          zIndex: 8000,
           background: "#111318",
           border: "1px solid rgba(255,255,255,0.09)",
           borderRadius: isMobile ? "20px 20px 0 0" : 18,

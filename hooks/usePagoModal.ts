@@ -115,32 +115,55 @@ export function usePagoModal(
       discountLabel ? `Base: $${montoBase.toLocaleString("es-AR")} · Final: $${montoFinal.toLocaleString("es-AR")}` : null,
     ].filter(Boolean).join(" · ");
 
+    const snapshot = pagoTarget;
+
+    // Optimistic: close modal and update UI before DB confirms
+    if (isCuota) {
+      replaceAlumno(snapshot.id, (c) => ({
+        ...c,
+        status: nextStatus,
+        next_expiration_date: newExpiryStr,
+      }));
+    }
+    setPagoSaving(false);
+    setPagoModalOpen(false);
+    onSuccess(isCuota
+      ? `✓ $${montoFinal.toLocaleString("es-AR")} cobrado a ${snapshot.full_name} · membresía hasta ${newExpiryStr}`
+      : `✓ $${montoFinal.toLocaleString("es-AR")} cobrado a ${snapshot.full_name}`);
+    setPagoTarget(null);
+
+    // Persist in background
     const [{ error: pagoErr }, { error: alumnoErr }] = await Promise.all([
       supabase.from("pagos").insert([{
-        gym_id:    gymId,
-        alumno_id: pagoTarget.id,
-        amount:    montoFinal,
-        date:      paymentDate,
-        notes:     paymentMeta,
-        status:    "validado",
-        method:    pagoMetodo,
+        gym_id:           gymId,
+        alumno_id:        snapshot.id,
+        amount:           montoFinal,
+        date:             paymentDate,
+        notes:            paymentMeta,
+        status:           "validado",
+        method:           pagoMetodo,
+        ...(isCuota ? { resulting_expiry: newExpiryStr } : {}),
       }]),
       isCuota
         ? supabase.from("alumnos").update({
             status:               nextStatus,
             last_payment_date:    paymentDate,
             next_expiration_date: newExpiryStr,
-          }).eq("id", pagoTarget.id)
+          }).eq("id", snapshot.id)
         : Promise.resolve({ error: null }),
     ]);
 
-    if (pagoErr || alumnoErr) { setPagoError((pagoErr ?? alumnoErr)!.message); setPagoSaving(false); return; }
+    if (pagoErr || alumnoErr) {
+      if (isCuota) replaceAlumno(snapshot.id, () => snapshot);
+      onSuccess(`⚠️ Error al guardar el pago — reintentá`);
+      return;
+    }
 
-    if (isCuota && gymId && pagoTarget.phone) {
+    if (isCuota && gymId && snapshot.phone) {
       supabase.from("prospectos")
         .update({ clase_gratis_status: "convertido", status: "contactado" })
         .eq("gym_id", gymId)
-        .eq("phone", pagoTarget.phone)
+        .eq("phone", snapshot.phone)
         .not("clase_gratis_date", "is", null)
         .neq("clase_gratis_status", "convertido")
         .then(() => {});
@@ -152,16 +175,16 @@ export function usePagoModal(
       body: JSON.stringify({
         gym_id: gymId,
         type:   "new_payment",
-        title:  `${isCuota ? "Pago de cuota" : "Cobro registrado"}: ${pagoTarget.full_name}`,
+        title:  `${isCuota ? "Pago de cuota" : "Cobro registrado"}: ${snapshot.full_name}`,
         body:   `$${montoFinal.toLocaleString("es-AR")}${discountLabel ? ` · ${discountLabel}` : ""} · ${paymentNote}`,
       }),
     }).catch(() => {});
 
-    if (isCuota && pagoTarget.phone) {
-      let e164 = pagoTarget.phone.replace(/\D/g, "");
+    if (isCuota && snapshot.phone) {
+      let e164 = snapshot.phone.replace(/\D/g, "");
       if (!e164.startsWith("54"))  e164 = "54"  + e164;
       if (!e164.startsWith("549")) e164 = "549" + e164.slice(2);
-      const msgBody = `¡Hola ${pagoTarget.full_name}! 💪 Confirmamos tu pago de $${montoFinal.toLocaleString("es-AR")}. Tu membresía está al día.`;
+      const msgBody = `¡Hola ${snapshot.full_name}! 💪 Confirmamos tu pago de $${montoFinal.toLocaleString("es-AR")}. Tu membresía está al día.`;
       fetch("/api/whatsapp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,34 +196,21 @@ export function usePagoModal(
       fetch("/api/alumno/send-welcome", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alumno_id: pagoTarget.id, type: "renewal" }),
+        body: JSON.stringify({ alumno_id: snapshot.id, type: "renewal" }),
       }).catch(() => {});
     }
 
-    // Log actividad
     if (gymId) {
-      const planNombre = pagoTarget.planes?.nombre;
+      const planNombre = snapshot.planes?.nombre;
       const desc = isCuota
         ? `Pago $${montoFinal.toLocaleString("es-AR")} · ${planNombre ?? "cuota"}${discountLabel ? ` · ${discountLabel}` : ""} · vence ${newExpiryStr ?? "—"}`
         : `Cobro $${montoFinal.toLocaleString("es-AR")} · ${paymentNote}`;
       supabase.from("alumno_activity_log").insert({
-        alumno_id: pagoTarget.id, gym_id: gymId, type: "pago",
+        alumno_id: snapshot.id, gym_id: gymId, type: "pago",
         description: desc, actor: "admin",
         metadata: { method: pagoMetodo, amount: montoFinal },
       }).then(() => {});
     }
-
-    setPagoSaving(false);
-    setPagoModalOpen(false);
-    onSuccess(isCuota ? "¡Pago de cuota registrado!" : "¡Cobro registrado con éxito!");
-    if (isCuota) {
-      replaceAlumno(pagoTarget.id, (current) => ({
-        ...current,
-        status: nextStatus,
-        next_expiration_date: newExpiryStr,
-      }));
-    }
-    setPagoTarget(null);
   };
 
   return {

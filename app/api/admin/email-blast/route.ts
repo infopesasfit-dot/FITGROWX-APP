@@ -3,7 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
-const ADMIN_EMAIL = "elianafrancoanahi@gmail.com";
+const ADMIN_EMAIL = process.env.FITGROWX_OWNER_EMAIL ?? "elianafrancoanahi@gmail.com";
 
 export async function POST(req: NextRequest) {
   // Authorization: only the platform owner can use this

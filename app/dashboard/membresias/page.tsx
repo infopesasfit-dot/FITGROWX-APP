@@ -823,7 +823,7 @@ export default function MembresiasPage() {
 
         {/* ── Toast ── */}
         {toast && (
-          <div style={{ position: "fixed", bottom: isMobile ? 90 : 28, right: 28, zIndex: 100, display: "flex", alignItems: "center", gap: 10, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", padding: "13px 20px", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", font: `600 0.875rem/1 ${fb}`, minWidth: 260, animation: "slideUp 0.22s ease" }}>
+          <div style={{ position: "fixed", bottom: isMobile ? 90 : 28, right: 28, zIndex: 9500, display: "flex", alignItems: "center", gap: 10, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", padding: "13px 20px", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", font: `600 0.875rem/1 ${fb}`, minWidth: 260, animation: "slideUp 0.22s ease" }}>
             <span style={{ fontSize: "1.1rem" }}>{toast.type === "ok" ? "✓" : "✕"}</span>
             {toast.msg}
           </div>

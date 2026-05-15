@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useDeferredValue, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   TrendingUp, CreditCard, Wallet, CheckCircle, Clock, XCircle,
   Plus, Upload, X, Smartphone, DollarSign, Building2, Settings,
@@ -30,7 +31,7 @@ const GREEN  = "#FF6A00";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Method     = "efectivo" | "transferencia" | "mercadopago" | "debito";
-type PagoStatus = "pendiente" | "validado" | "rechazado";
+type PagoStatus = "pendiente" | "validado" | "rechazado" | "anulado";
 type Concepto   = "membresia" | "clase" | "producto";
 
 interface Pago {
@@ -94,6 +95,7 @@ const STATUS_META: Record<PagoStatus, { label: string; color: string; bg: string
   pendiente: { label: "Pendiente", color: "#D97706", bg: "rgba(217,119,6,0.08)",   icon: <Clock size={11} /> },
   validado:  { label: "Validado",  color: "#FF6A00", bg: "rgba(255,106,0,0.08)",   icon: <CheckCircle size={11} /> },
   rechazado: { label: "Rechazado", color: "#DC2626", bg: "rgba(220,38,38,0.08)",   icon: <XCircle size={11} /> },
+  anulado:   { label: "Anulado",   color: "#6B7280", bg: "rgba(107,114,128,0.08)", icon: <XCircle size={11} /> },
 };
 
 function initials(name: string) {
@@ -148,6 +150,60 @@ function ProgressBar({ pct, color }: { pct: number; color: string }) {
   );
 }
 
+// ── PortalDropdown — escapa overflow:auto de modales, flip si el teclado tapa ─
+function PortalDropdown({ anchorRef, open, maxHeight = 200, children }: {
+  anchorRef: React.RefObject<HTMLDivElement | null>;
+  open: boolean;
+  maxHeight?: number;
+  children: React.ReactNode;
+}) {
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (!open) { setRect(null); return; }
+    const update = () => { if (anchorRef.current) setRect(anchorRef.current.getBoundingClientRect()); };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    // visualViewport.resize dispara cuando el teclado virtual abre/cierra en iOS/Android
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+    };
+  }, [open, anchorRef]);
+  if (!open || !rect || typeof document === "undefined") return null;
+
+  // Altura visible real (excluye teclado virtual en móvil)
+  const vh = window.visualViewport?.height ?? window.innerHeight;
+  const spaceBelow = vh - rect.bottom;
+  const spaceAbove = rect.top;
+  const openUp = spaceBelow < maxHeight && spaceAbove > spaceBelow;
+  const effectiveMax = Math.min(maxHeight, Math.max((openUp ? spaceAbove : spaceBelow) - 8, 80));
+
+  return createPortal(
+    <div style={{
+      position: "fixed",
+      ...(openUp ? { bottom: vh - rect.top + 4 } : { top: rect.bottom + 4 }),
+      left: rect.left,
+      width: rect.width,
+      zIndex: 9500,
+      background: "white",
+      border: "1px solid rgba(0,0,0,0.10)",
+      borderRadius: 12,
+      boxShadow: openUp ? "0 -4px 24px rgba(0,0,0,0.10)" : "0 8px 24px rgba(0,0,0,0.10)",
+      maxHeight: effectiveMax,
+      overflowY: "auto",
+    }}>
+      {children}
+    </div>,
+    document.body,
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function PagosPage() {
   const [isMobile, setIsMobile] = useState(false);
@@ -159,8 +215,10 @@ export default function PagosPage() {
   const [loading,     setLoading]     = useState(true);
   const [tab,         setTab]         = useState<"resumen" | "pendientes" | "historial" | "cuentas">("resumen");
   const [scrollTarget, setScrollTarget] = useState<string | null>(null);
-  const [validating,  setValidating]  = useState<Set<string>>(new Set());
-  const [toast,       setToast]       = useState<{ msg: string; type: "ok" | "err" } | null>(null);
+  const [validating,     setValidating]     = useState<Set<string>>(new Set());
+  const [voiding,        setVoiding]        = useState<Set<string>>(new Set());
+  const [voidConfirmId,  setVoidConfirmId]  = useState<string | null>(null);
+  const [toast,          setToast]          = useState<{ msg: string; type: "ok" | "err" } | null>(null);
 
   // Pago form
   const [newPagoOpen,      setNewPagoOpen]      = useState(false);
@@ -218,14 +276,14 @@ export default function PagosPage() {
   }, [gymId, cuentas, alumnos]);
 
   // ── Renovar membresía del alumno al confirmar pago ────────────────────────
-  const renewMembership = async (alumnoId: string, paymentDate: string) => {
+  const renewMembership = async (alumnoId: string, paymentDate: string): Promise<string | null> => {
     const { data: alumno } = await supabase
       .from("alumnos")
       .select("plan_id, next_expiration_date, planes(periodo, duracion_dias)")
       .eq("id", alumnoId)
       .maybeSingle();
 
-    if (!alumno) return;
+    if (!alumno) return null;
 
     const PERIOD_MONTHS: Record<string, number> = {
       mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12,
@@ -262,6 +320,8 @@ export default function PagosPage() {
       last_payment_date: paymentDate,
       next_expiration_date: newExpiry,
     }).eq("id", alumnoId);
+
+    return newExpiry;
   };
 
   // Marca la membresía pendiente del alumno como pagada
@@ -391,7 +451,10 @@ export default function PagosPage() {
       // Renovar membresía del alumno
       const pago = pagos.find(p => p.id === pagoId);
       if (pago && pago.concepto === "membresia") {
-        await renewMembership(pago.alumno_id, pago.date);
+        const newExpiry = await renewMembership(pago.alumno_id, pago.date);
+        if (newExpiry) {
+          supabase.from("pagos").update({ resulting_expiry: newExpiry }).eq("id", pagoId).then(() => {});
+        }
         fetch("/api/admin/invalidate-tokens", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -419,6 +482,26 @@ export default function PagosPage() {
       showToast("Pago rechazado.", "err");
     } finally {
       setValidating(prev => { const s = new Set(prev); s.delete(pagoId); return s; });
+    }
+  };
+
+  const anularPago = async (pagoId: string) => {
+    setVoiding(prev => new Set(prev).add(pagoId));
+    setVoidConfirmId(null);
+    try {
+      const res = await fetch("/api/admin/pagos/void", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pago_id: pagoId }),
+      });
+      const json = await res.json();
+      if (!json.ok) { showToast(`Error: ${json.error}`, "err"); return; }
+      updatePagosCache(prev => prev.map(p => p.id === pagoId ? { ...p, status: "anulado" as PagoStatus } : p));
+      showToast(json.new_expiry
+        ? `Pago anulado · vencimiento ajustado a ${json.new_expiry}`
+        : "Pago anulado · sin membresía activa", "ok");
+    } finally {
+      setVoiding(prev => { const s = new Set(prev); s.delete(pagoId); return s; });
     }
   };
 
@@ -468,7 +551,14 @@ export default function PagosPage() {
           .select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)");
         if (error) { showToast(`Error: ${error.message}`, "err"); return; }
         if (!needsValidation) {
-          await Promise.allSettled(grupalAlumnos.map(g => renewMembership(g.alumno.id, pagoFecha)));
+          const renewResults = await Promise.allSettled(grupalAlumnos.map(g => renewMembership(g.alumno.id, pagoFecha)));
+          if (insertedPagos?.length) {
+            renewResults.forEach((r, i) => {
+              if (r.status === "fulfilled" && r.value && insertedPagos[i]) {
+                supabase.from("pagos").update({ resulting_expiry: r.value }).eq("id", insertedPagos[i].id).then(() => {});
+              }
+            });
+          }
           Promise.allSettled(grupalAlumnos.map(g =>
             fetch("/api/admin/invalidate-tokens", {
               method: "POST", headers: { "Content-Type": "application/json" },
@@ -574,7 +664,10 @@ export default function PagosPage() {
       if (pagoConcepto === "membresia") {
         await updateMembresiaPagada(alumnoId);
         if (!needsValidation) {
-          await renewMembership(alumnoId, pagoFecha);
+          const newExpiry = await renewMembership(alumnoId, pagoFecha);
+          if (newExpiry && insertedPago) {
+            supabase.from("pagos").update({ resulting_expiry: newExpiry }).eq("id", insertedPago.id).then(() => {});
+          }
           // Invalidar links de pago MP activos para evitar doble acreditación
           fetch("/api/admin/invalidate-tokens", {
             method: "POST",
@@ -587,7 +680,9 @@ export default function PagosPage() {
         updatePagosCache(prev => [mapPagoRow(insertedPago as PagoRow), ...prev].slice(0, 100));
       }
       invalidateDashboardCache();
-      showToast(needsValidation ? "Comprobante enviado. Esperá la validación ✓" : "Pago registrado ✓", "ok");
+      showToast(needsValidation
+        ? `Comprobante de ${selectedAlumno?.full_name ?? "alumno"} enviado — esperando validación`
+        : `✓ $${montoFinal.toLocaleString("es-AR")} cobrado a ${selectedAlumno?.full_name ?? "alumno"}`, "ok");
       closePagoModal();
     } finally { setUploading(false); }
   };
@@ -628,9 +723,6 @@ export default function PagosPage() {
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div>
             <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Ingresos</h1>
-            {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>
-              {isAdmin ? "Gestión completa de ingresos y cuentas del gimnasio." : isStaff ? "Validá transferencias y registrá pagos." : "Registrá tu pago y seguí el estado."}
-            </p>}
           </div>
           {(isAdmin || isStaff) && (
             <button
@@ -686,7 +778,7 @@ export default function PagosPage() {
               onClick={s.action}
               style={{
                 ...card,
-                padding: "16px 18px",
+                padding: "10px 14px",
                 border: `1px solid ${s.warn ? "rgba(217,119,6,0.25)" : "rgba(0,0,0,0.05)"}`,
                 textAlign: "left",
                 cursor: "pointer",
@@ -703,15 +795,15 @@ export default function PagosPage() {
                 event.currentTarget.style.borderColor = s.warn ? "rgba(217,119,6,0.25)" : "rgba(0,0,0,0.05)";
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                 <span style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
-                <div style={{ width: 30, height: 30, borderRadius: 8, background: "#151515", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
+                <div style={{ width: 24, height: 24, borderRadius: 7, background: "#151515", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
               </div>
-              <p style={{ font: `800 ${isMobile ? "1.5rem" : "1.8rem"}/1 ${fd}`, color: s.warn ? "#D97706" : t1, marginBottom: 4 }}>{s.value}</p>
+              <p style={{ font: `800 ${isMobile ? "1.2rem" : "1.3rem"}/1 ${fd}`, color: s.warn ? "#D97706" : t1, marginBottom: 3 }}>{s.value}</p>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                <p style={{ font: `400 0.72rem/1 ${fb}`, color: s.warn ? "#D97706" : t3 }}>{s.sub}</p>
-                <span style={{ font: `700 0.7rem/1 ${fb}`, color: s.warn ? "#B45309" : BLUE, whiteSpace: "nowrap" }}>
-                  Ver detalle
+                <p style={{ font: `400 0.68rem/1 ${fb}`, color: s.warn ? "#D97706" : t3 }}>{s.sub}</p>
+                <span style={{ font: `700 0.68rem/1 ${fb}`, color: s.warn ? "#B45309" : BLUE, whiteSpace: "nowrap" }}>
+                  Ver →
                 </span>
               </div>
             </button>
@@ -758,15 +850,15 @@ export default function PagosPage() {
                 const pct   = Math.round((total / maxMethod) * 100);
                 const count = validados.filter(p => p.method === m).length;
                 return (
-                  <div key={m} style={{ ...card, padding: "18px 20px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: 9, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", color: meta.color }}>
+                  <div key={m} style={{ ...card, padding: "10px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 7, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", color: meta.color }}>
                         {meta.icon}
                       </div>
-                      <span style={{ font: `600 0.82rem/1 ${fd}`, color: t1 }}>{meta.label}</span>
+                      <span style={{ font: `600 0.78rem/1 ${fd}`, color: t1 }}>{meta.label}</span>
                     </div>
-                    <p style={{ font: `800 ${isMobile ? "1.25rem" : "1.6rem"}/1 ${fd}`, color: t1, marginBottom: 3 }}>{fmtARS(total)}</p>
-                    <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{count} pago{count !== 1 ? "s" : ""}</p>
+                    <p style={{ font: `800 ${isMobile ? "1.1rem" : "1.3rem"}/1 ${fd}`, color: t1, marginBottom: 3 }}>{fmtARS(total)}</p>
+                    <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>{count} pago{count !== 1 ? "s" : ""}</p>
                     <ProgressBar pct={pct} color={meta.color} />
                   </div>
                 );
@@ -923,9 +1015,9 @@ export default function PagosPage() {
         {/* ── TAB: HISTORIAL ── */}
         {tab === "historial" && !isMobile && (
           <div id="pagos-historial" style={{ ...card, padding: 0, overflow: "hidden", scrollMarginTop: 110 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "12px 20px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
-              {["Alumno", "Fecha", "Método", "Estado", "Monto"].map(h => (
-                <span key={h} style={{ font: `600 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</span>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto", gap: 12, padding: "12px 20px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+              {["Alumno", "Fecha", "Método", "Estado", "Monto", ""].map((h, i) => (
+                <span key={i} style={{ font: `600 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.07em" }}>{h}</span>
               ))}
             </div>
             {loading ? (
@@ -953,21 +1045,53 @@ export default function PagosPage() {
                 ))}
                 <p style={{ padding: "32px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados.</p>
               </>
-            ) : pagos.map((p, idx) => (
-              <div key={p.id} className="pago-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 12, padding: "11px 20px", borderBottom: idx < pagos.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", transition: "background 0.12s", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
-                    {initials(p.alumnos?.full_name ?? "?")}
+            ) : pagos.map((p, idx) => {
+              const isVoiding = voiding.has(p.id);
+              const confirmingVoid = voidConfirmId === p.id;
+              return (
+                <div key={p.id} className="pago-row" style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto", gap: 12, padding: "11px 20px", borderBottom: idx < pagos.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none", transition: "background 0.12s", alignItems: "center" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                      {initials(p.alumnos?.full_name ?? "?")}
+                    </div>
+                    <span style={{ font: `500 0.8rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</span>
                   </div>
-                  <span style={{ font: `500 0.8rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</span>
+                  <span style={{ font: `400 0.78rem/1 ${fb}`, color: t2 }}>{p.date}</span>
+                  <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
+                  <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
+                  <Chip meta={STATUS_META[p.status ?? "validado"]} />
+                  <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, textAlign: "right" }}>{fmtARS(p.amount)}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                    {isAdmin && p.status === "validado" && !confirmingVoid && (
+                      <button
+                        onClick={() => setVoidConfirmId(p.id)}
+                        disabled={isVoiding}
+                        style={{ padding: "5px 10px", background: "rgba(107,114,128,0.07)", border: "1px solid rgba(107,114,128,0.20)", borderRadius: 7, font: `600 0.7rem/1 ${fb}`, color: t2, cursor: "pointer", whiteSpace: "nowrap" }}
+                      >
+                        Anular
+                      </button>
+                    )}
+                    {isAdmin && p.status === "validado" && confirmingVoid && (
+                      <>
+                        <button
+                          onClick={() => anularPago(p.id)}
+                          disabled={isVoiding}
+                          style={{ padding: "5px 10px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.25)", borderRadius: 7, font: `700 0.7rem/1 ${fb}`, color: "#DC2626", cursor: "pointer", whiteSpace: "nowrap" }}
+                        >
+                          {isVoiding ? "..." : "Confirmar"}
+                        </button>
+                        <button
+                          onClick={() => setVoidConfirmId(null)}
+                          style={{ padding: "5px 8px", background: "none", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 7, font: `600 0.7rem/1 ${fb}`, color: t3, cursor: "pointer" }}
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <span style={{ font: `400 0.78rem/1 ${fb}`, color: t2 }}>{p.date}</span>
-                <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
-                <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
-                <Chip meta={STATUS_META[p.status ?? "validado"]} />
-                <span style={{ font: `700 0.88rem/1 ${fd}`, color: t1, textAlign: "right" }}>{fmtARS(p.amount)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -977,25 +1101,58 @@ export default function PagosPage() {
               <p style={{ padding: "40px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>Cargando...</p>
             ) : pagos.length === 0 ? (
               <p style={{ padding: "48px 20px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" }}>No hay pagos registrados.</p>
-            ) : pagos.map((p, idx) => (
-              <div key={p.id} style={{ ...card, padding: "14px 16px", animation: `fadeUp 0.2s ease ${idx * 30}ms both` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
-                    {initials(p.alumnos?.full_name ?? "?")}
+            ) : pagos.map((p, idx) => {
+              const isVoiding = voiding.has(p.id);
+              const confirmingVoid = voidConfirmId === p.id;
+              return (
+                <div key={p.id} style={{ ...card, padding: "14px 16px", animation: `fadeUp 0.2s ease ${idx * 30}ms both` }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
+                      {initials(p.alumnos?.full_name ?? "?")}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</p>
+                      <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.date}</p>
+                    </div>
+                    <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{fmtARS(p.amount)}</span>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.alumnos?.full_name ?? "—"}</p>
-                    <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 2 }}>{p.date}</p>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
+                    <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
+                    <Chip meta={STATUS_META[p.status ?? "validado"]} />
                   </div>
-                  <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{fmtARS(p.amount)}</span>
+                  {isAdmin && p.status === "validado" && (
+                    <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                      {!confirmingVoid ? (
+                        <button
+                          onClick={() => setVoidConfirmId(p.id)}
+                          disabled={isVoiding}
+                          style={{ padding: "6px 12px", background: "rgba(107,114,128,0.07)", border: "1px solid rgba(107,114,128,0.20)", borderRadius: 8, font: `600 0.72rem/1 ${fb}`, color: t2, cursor: "pointer" }}
+                        >
+                          Anular pago
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => anularPago(p.id)}
+                            disabled={isVoiding}
+                            style={{ flex: 1, padding: "8px 12px", background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.25)", borderRadius: 8, font: `700 0.72rem/1 ${fb}`, color: "#DC2626", cursor: "pointer" }}
+                          >
+                            {isVoiding ? "Anulando..." : "¿Confirmar anulación?"}
+                          </button>
+                          <button
+                            onClick={() => setVoidConfirmId(null)}
+                            style={{ padding: "8px 12px", background: "none", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 8, font: `600 0.72rem/1 ${fb}`, color: t3, cursor: "pointer" }}
+                          >
+                            No
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  <Chip meta={CONCEPTO_META[p.concepto ?? "membresia"]} />
-                  <Chip meta={METHOD_META[p.method ?? "efectivo"]} />
-                  <Chip meta={STATUS_META[p.status ?? "validado"]} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -1164,7 +1321,7 @@ export default function PagosPage() {
                     value={selectedAlumno ? selectedAlumno.full_name : alumnoSearch}
                     onChange={e => { setAlumnoSearch(e.target.value); setSelectedAlumno(null); setShowAlumnoList(true); }}
                     onFocus={() => setShowAlumnoList(true)}
-                    placeholder="Buscar alumno..."
+                    placeholder="Buscá un alumno..."
                     style={{ ...inputStyle, paddingRight: selectedAlumno ? 36 : 14 }}
                   />
                   {selectedAlumno && (
@@ -1173,22 +1330,20 @@ export default function PagosPage() {
                       <X size={14} />
                     </button>
                   )}
-                  {showAlumnoList && !selectedAlumno && (
-                    <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", zIndex: 10, maxHeight: 200, overflowY: "auto" as const }}>
-                      {filteredAlumnos.map(a => (
-                        <button key={a.id}
-                          onMouseDown={() => { setSelectedAlumno(a); setAlumnoSearch(""); setShowAlumnoList(false); if (a.planes?.precio && pagoConcepto === "membresia") setPagoMonto(String(a.planes.precio)); }}
-                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "none")}
-                        >
-                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.58rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>{initials(a.full_name)}</div>
-                          <span style={{ font: `500 0.85rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
-                        </button>
-                      ))}
-                      {filteredAlumnos.length === 0 && <p style={{ padding: "14px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>Sin resultados</p>}
-                    </div>
-                  )}
+                  <PortalDropdown anchorRef={alumnoRef} open={showAlumnoList && !selectedAlumno}>
+                    {filteredAlumnos.map(a => (
+                      <button key={a.id}
+                        onMouseDown={() => { setSelectedAlumno(a); setAlumnoSearch(""); setShowAlumnoList(false); if (a.planes?.precio && pagoConcepto === "membresia") setPagoMonto(String(a.planes.precio)); }}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                      >
+                        <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.58rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>{initials(a.full_name)}</div>
+                        <span style={{ font: `500 0.85rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
+                      </button>
+                    ))}
+                    {filteredAlumnos.length === 0 && <p style={{ padding: "14px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>Sin resultados</p>}
+                  </PortalDropdown>
                 </div>
               )}
 
@@ -1248,29 +1403,27 @@ export default function PagosPage() {
                       value={grupalSearch}
                       onChange={e => { setGrupalSearch(e.target.value); setShowGrupalList(true); }}
                       onFocus={() => setShowGrupalList(true)}
-                      placeholder="Agregar alumno..."
+                      placeholder="Buscá un alumno..."
                       style={{ ...inputStyle }}
                     />
-                    {showGrupalList && (
-                      <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", zIndex: 10, maxHeight: 180, overflowY: "auto" as const }}>
-                        {filteredGrupalAlumnos.map(a => (
-                          <button key={a.id}
-                            onMouseDown={() => {
-                              setGrupalAlumnos(prev => [...prev, { alumno: a, monto: a.planes?.precio ? String(a.planes.precio) : "" }]);
-                              setGrupalSearch("");
-                              setShowGrupalList(false);
-                            }}
-                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const }}
-                            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-                            onMouseLeave={e => (e.currentTarget.style.background = "none")}
-                          >
-                            <div style={{ width: 26, height: 26, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.55rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>{initials(a.full_name)}</div>
-                            <span style={{ font: `500 0.83rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
-                          </button>
-                        ))}
-                        {filteredGrupalAlumnos.length === 0 && <p style={{ padding: "12px", font: `400 0.78rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>{alumnos.length === grupalAlumnos.length ? "Ya están todos." : "Sin resultados"}</p>}
-                      </div>
-                    )}
+                    <PortalDropdown anchorRef={grupalRef} open={showGrupalList} maxHeight={180}>
+                      {filteredGrupalAlumnos.map(a => (
+                        <button key={a.id}
+                          onMouseDown={() => {
+                            setGrupalAlumnos(prev => [...prev, { alumno: a, monto: a.planes?.precio ? String(a.planes.precio) : "" }]);
+                            setGrupalSearch("");
+                            setShowGrupalList(false);
+                          }}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                        >
+                          <div style={{ width: 26, height: 26, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.55rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>{initials(a.full_name)}</div>
+                          <span style={{ font: `500 0.83rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
+                        </button>
+                      ))}
+                      {filteredGrupalAlumnos.length === 0 && <p style={{ padding: "12px", font: `400 0.78rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>{alumnos.length === grupalAlumnos.length ? "Ya están todos." : "Sin resultados"}</p>}
+                    </PortalDropdown>
                   </div>
                 </div>
               )}
@@ -1307,7 +1460,7 @@ export default function PagosPage() {
                   <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 8 }}>Descuento (opcional)</label>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                     {([
-                      { key: "none" as const, label: "Sin desc." },
+                      { key: "none" as const, label: "Sin descuento" },
                       { key: "monto" as const, label: "Por monto" },
                       { key: "porcentaje" as const, label: "Por %" },
                     ]).map((option) => {
@@ -1454,7 +1607,7 @@ export default function PagosPage() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: "fixed", bottom: isMobile ? 90 : 28, right: 28, zIndex: 99, padding: "12px 20px", borderRadius: 12, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", font: `600 0.85rem/1 ${fb}`, boxShadow: "0 8px 28px rgba(0,0,0,0.20)", animation: "fadeUp 0.2s ease both" }}>
+        <div style={{ position: "fixed", bottom: isMobile ? 90 : 28, right: 28, zIndex: 9500, padding: "12px 20px", borderRadius: 12, background: toast.type === "ok" ? "#FF6A00" : "#DC2626", color: "white", font: `600 0.85rem/1 ${fb}`, boxShadow: "0 8px 28px rgba(0,0,0,0.20)", animation: "fadeUp 0.2s ease both" }}>
           {toast.msg}
         </div>
       )}

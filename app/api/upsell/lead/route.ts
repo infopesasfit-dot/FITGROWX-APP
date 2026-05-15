@@ -9,7 +9,12 @@ export async function POST(req: NextRequest) {
   if (!limit.allowed) return NextResponse.json({ error: "Demasiados intentos. Esperá un momento." }, { status: 429 });
 
   try {
-    const { name, email, phone, gym_name, type } = await req.json();
+    const raw = await req.json();
+    const name      = raw.name?.trim()     || null;
+    const gym_name  = raw.gym_name?.trim() || null;
+    const phone     = raw.phone?.trim()    || null;
+    const type      = raw.type;
+    const email     = raw.email;
     if (!email && !phone) return NextResponse.json({ error: "Email o teléfono requerido." }, { status: 400 });
 
     const source = type === "whitelabel" ? "upsell_whitelabel" : "upsell_landing_pro";
@@ -22,18 +27,18 @@ export async function POST(req: NextRequest) {
 
     if (existing?.id) {
       await supabase.from("platform_leads").update({
-        full_name: name || null,
-        business_name: gym_name || null,
-        phone: phone || null,
+        full_name: name,
+        business_name: gym_name,
+        phone,
         source,
         last_contact_at: now,
       }).eq("id", existing.id);
     } else {
       await supabase.from("platform_leads").insert({
-        full_name: name || null,
-        business_name: gym_name || null,
+        full_name: name,
+        business_name: gym_name,
         email: normalizedEmail,
-        phone: phone || null,
+        phone,
         source,
         status: "new",
         last_contact_at: now,

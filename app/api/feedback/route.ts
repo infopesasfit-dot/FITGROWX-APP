@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const { error } = await adminClient.from("platform_feedback").insert([{
     gym_id: user.id,
-    gym_name: gym_name ?? null,
+    gym_name: gym_name?.trim() || null,
     email: user.email ?? null,
     message: message.trim(),
   }]);
