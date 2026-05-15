@@ -438,7 +438,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Sidebar ── */}
       <aside style={{
-        background: "linear-gradient(160deg, #000000 0%, #0e0e0e 35%, #151515 100%)",
+        background: "#0E0F13",
         width: isMobile ? "min(86vw, 320px)" : w,
         height: isMobile ? "100vh" : "calc(100vh - 24px)",
         minHeight: isMobile ? "100vh" : "calc(100vh - 24px)",
