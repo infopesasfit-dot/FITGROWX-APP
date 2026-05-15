@@ -230,10 +230,11 @@ function FlowCard({
 
 /* ─── Side Panel ─── */
 function SidePanel({
-  nodeId, msg, open, onClose, gymId, msgMap, msgActiveMap, onSave, onToggleMsgActive, isMobile,
+  nodeId, msg, open, onClose, gymId, gymName, gymSlug, msgMap, msgActiveMap, onSave, onToggleMsgActive, isMobile,
 }: {
   nodeId: string | null; msg: MsgData | null; open: boolean; onClose: () => void;
-  gymId: string | null; msgMap: Record<string, string>; msgActiveMap: Record<string, boolean>;
+  gymId: string | null; gymName?: string; gymSlug?: string | null;
+  msgMap: Record<string, string>; msgActiveMap: Record<string, boolean>;
   onSave: (id: string, text: string) => void;
   onToggleMsgActive: (msgId: string) => void;
   isMobile?: boolean;
@@ -278,13 +279,17 @@ function SidePanel({
     setTimeout(() => { setSaved(false); onClose(); }, 900);
   }
 
+  const previewGym  = gymName || "Mi Gimnasio";
+  const previewLink = gymSlug
+    ? `https://app.fitgrowx.com/gym/${gymSlug}/reservar`
+    : "https://app.fitgrowx.com/alumno/auth?token=…";
   const preview = (text || "")
     .replace(/{nombre}/g, "Valentina")
     .replace(/{dias}/g, "11")
     .replace(/{fecha}/g, "el lunes")
     .replace(/{clase}/g, "CrossFit")
-    .replace(/{gym}/g, "Mi Gimnasio")
-    .replace(/{link}/g, "https://fitgrowx.com/acceso/demo");
+    .replace(/{gym}/g, previewGym)
+    .replace(/{link}/g, previewLink);
 
   const sec: React.CSSProperties = { borderBottom: "1px solid rgba(255,255,255,0.07)", padding: "13px 20px" };
 
@@ -381,7 +386,9 @@ function SidePanel({
 /* ─── Page ─── */
 export default function FlujosPage() {
   const [gymId, setGymId]       = useState<string | null>(null);
-  const [activeMap, setActiveMap]   = useState<Record<string, boolean>>({ contactos: false, bienvenida: true, diadia: false, vuelvencasa: false, claseGratis: false });
+  const [gymName, setGymName]   = useState<string>("Mi Gimnasio");
+  const [gymSlug, setGymSlug]   = useState<string | null>(null);
+  const [activeMap, setActiveMap]   = useState<Record<string, boolean>>({ contactos: false, bienvenida: true, diadia: true, vuelvencasa: true, claseGratis: false, cumpleanos: true });
   const [channelActive, setChannelActive] = useState<Record<string, boolean>>({ maps: false, ig: false, web: false, ref: false });
   const [waStatus, setWaStatus] = useState<string>("unknown");
   const [waPhone, setWaPhone]   = useState<string | undefined>();
@@ -412,18 +419,36 @@ export default function FlujosPage() {
 
       const { data: s } = await supabase
         .from("gym_settings")
-        .select("lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, clase_gratis_activo, cumple_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, inactividad_msg_3, vencimiento_msg, cumple_msg, magiclink_msg, bienvenida_app_msg, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow, contactos_msg_0, contactos_msg_1, contactos_msg_3, diadia_presente_msg, diadia_post_msg, diadia_recordatorio_msg, diadia_logro_msg, wa_status, wa_phone")
+        .select("gym_name, lead_auto_welcome, bienvenida_activo, vencimiento_activo, inactividad_activo, clase_gratis_activo, cumple_activo, canal_maps_activo, canal_ref_activo, instagram_url, slug, inactividad_msg, inactividad_msg_3, vencimiento_msg, cumple_msg, magiclink_msg, bienvenida_app_msg, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow, contactos_msg_0, contactos_msg_1, contactos_msg_3, diadia_presente_msg, diadia_post_msg, diadia_recordatorio_msg, diadia_logro_msg, wa_status, wa_phone")
         .eq("gym_id", id)
         .maybeSingle();
 
       if (s) {
+        if (s.gym_name) setGymName(s.gym_name);
+        if (s.slug)     setGymSlug(s.slug);
+
+        // Defaults for key flows: true when DB has null (new gym), write to DB once
+        const diadia     = s.vencimiento_activo  ?? true;
+        const vuelvencasa = s.inactividad_activo ?? true;
+        const cumpleanos  = s.cumple_activo       ?? true;
+        const bienvenida  = s.bienvenida_activo   ?? true;
+        const needsWrite  = s.vencimiento_activo === null || s.inactividad_activo === null || s.cumple_activo === null || s.bienvenida_activo === null;
+        if (needsWrite) {
+          void supabase.from("gym_settings").update({
+            ...(s.vencimiento_activo  === null && { vencimiento_activo:  diadia }),
+            ...(s.inactividad_activo  === null && { inactividad_activo:  vuelvencasa }),
+            ...(s.cumple_activo       === null && { cumple_activo:       cumpleanos }),
+            ...(s.bienvenida_activo   === null && { bienvenida_activo:   bienvenida }),
+          }).eq("gym_id", id);
+        }
+
         setActiveMap({
           contactos:   s.lead_auto_welcome   ?? false,
-          bienvenida:  s.bienvenida_activo   ?? true,
+          bienvenida,
           claseGratis: s.clase_gratis_activo ?? false,
-          diadia:      s.vencimiento_activo  ?? false,
-          vuelvencasa: s.inactividad_activo  ?? false,
-          cumpleanos:  s.cumple_activo       ?? false,
+          diadia,
+          vuelvencasa,
+          cumpleanos,
         });
         setChannelActive({
           maps: s.canal_maps_activo ?? false,
@@ -594,6 +619,8 @@ export default function FlujosPage() {
         open={!!selected}
         onClose={() => setSelected(null)}
         gymId={gymId}
+        gymName={gymName}
+        gymSlug={gymSlug}
         msgMap={msgMap}
         msgActiveMap={msgActiveMap}
         onSave={(id, text) => setMsgMap(m => ({ ...m, [id]: text }))}

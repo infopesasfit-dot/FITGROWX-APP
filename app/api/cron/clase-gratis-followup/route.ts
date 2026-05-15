@@ -128,6 +128,10 @@ export async function GET(req: NextRequest) {
       }
 
       const reservarLink = gym.slug ? `${APP_URL}/gym/${gym.slug}/reservar` : "";
+      // Remove {link} placeholder lines when gym has no slug
+      const msgTemplateSanitized = reservarLink
+        ? msgTemplate
+        : msgTemplate.replace(/\n*\{link\}/g, "").replace(/\{link\}\n*/g, "");
       const paymentSuffix = p.clase_gratis_status === "asistio"
         ? gym.payment_info
           ? `\n\n💳 *Precios y planes:*\n${gym.payment_info}`
@@ -135,7 +139,7 @@ export async function GET(req: NextRequest) {
             ? `\n\n💳 Podés pagar online con MercadoPago al inscribirte.`
             : ""
         : "";
-      const message = fillTemplate(msgTemplate + paymentSuffix, p.full_name, gymName, reservarLink);
+      const message = fillTemplate(msgTemplateSanitized + paymentSuffix, p.full_name, gymName, reservarLink);
       const phone = normalizePhone(p.phone);
 
       try {

@@ -61,24 +61,32 @@ function calcularNuevoVencimiento(
   periodo: string,
   duracionDias: number | null,
 ): string {
-  const hoy  = new Date();
-  const base = vencimientoActual && new Date(vencimientoActual) > hoy
-    ? new Date(vencimientoActual)
-    : hoy;
+  // Work with YYYY-MM-DD strings in Argentina time throughout.
+  // Parsing "YYYY-MM-DD" directly avoids UTC-offset surprises.
+  const hoyStr = getTodayDate(); // "YYYY-MM-DD" en ART
+  const baseStr = vencimientoActual && vencimientoActual > hoyStr
+    ? vencimientoActual
+    : hoyStr;
+
+  // Parse as local-noon to prevent DST edge cases when doing day arithmetic.
+  const base = new Date(`${baseStr}T12:00:00`);
 
   if (duracionDias && duracionDias > 0) {
     const d = new Date(base);
     d.setDate(d.getDate() + duracionDias);
-    return d.toISOString().slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   const MESES: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
   const DIAS:  Record<string, number> = { semanal: 7, semana: 7 };
 
-  if (MESES[periodo]) return addMonths(base, MESES[periodo]).toISOString().slice(0, 10);
+  if (MESES[periodo]) {
+    const r = addMonths(base, MESES[periodo]);
+    return `${r.getFullYear()}-${String(r.getMonth() + 1).padStart(2, "0")}-${String(r.getDate()).padStart(2, "0")}`;
+  }
   const d = new Date(base);
   d.setDate(d.getDate() + (DIAS[periodo] ?? 30));
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ── Envío WA ──────────────────────────────────────────────────────────────────
@@ -288,6 +296,26 @@ export async function POST(req: NextRequest) {
   const planNombre     = plan?.nombre ?? "Membresía";
   const nuevoVencimiento = calcularNuevoVencimiento(alumno.next_expiration_date, plan?.periodo ?? "mensual", plan?.duracion_dias ?? null);
   const today          = getTodayDate();
+
+  // ── Guard: período ya cubierto por pago manual ────────────────────────────────
+  // Si la membresía ya vence más allá de la mitad del período del plan,
+  // el alumno pagó manualmente después de generar el link → ignorar el webhook.
+  const PERIODO_DIAS: Record<string, number> = {
+    mes: 30, mensual: 30, trimestral: 90, anual: 365, año: 365, semanal: 7, semana: 7,
+  };
+  const planDays = plan?.duracion_dias ?? (PERIODO_DIAS[plan?.periodo ?? ""] ?? 30);
+  const mitad = new Date();
+  mitad.setDate(mitad.getDate() + Math.floor(planDays / 2));
+  const mitadStr = mitad.toISOString().slice(0, 10);
+  if (alumno.next_expiration_date && alumno.next_expiration_date > mitadStr) {
+    logWebhook(gymId, paymentId, "duplicate", {
+      amount: payment.transaction_amount,
+      alumnoId,
+      errorMsg: `membership active until ${alumno.next_expiration_date} — período ya cubierto`,
+    });
+    return NextResponse.json({ ok: true });
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   // ── Gate de idempotencia ──────────────────────────────────────────────────────
   // registrarPago hace INSERT con mp_payment_id (unique constraint).

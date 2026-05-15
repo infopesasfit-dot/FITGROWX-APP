@@ -368,6 +368,11 @@ export default function PagosPage() {
       const pago = pagos.find(p => p.id === pagoId);
       if (pago) {
         await renewMembership(pago.alumno_id, pago.date);
+        fetch("/api/admin/invalidate-tokens", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ alumno_id: pago.alumno_id }),
+        }).catch(() => {});
         fetch("/api/alumno/send-welcome", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -489,7 +494,15 @@ export default function PagosPage() {
       // Renovar membresía solo si el concepto es membresía
       if (pagoConcepto === "membresia") {
         await updateMembresiaPagada(alumnoId);
-        if (!needsValidation) await renewMembership(alumnoId, pagoFecha);
+        if (!needsValidation) {
+          await renewMembership(alumnoId, pagoFecha);
+          // Invalidar links de pago MP activos para evitar doble acreditación
+          fetch("/api/admin/invalidate-tokens", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ alumno_id: alumnoId }),
+          }).catch(() => {});
+        }
       }
       if (insertedPago) {
         updatePagosCache(prev => [mapPagoRow(insertedPago as PagoRow), ...prev].slice(0, 100));
