@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
@@ -22,7 +21,7 @@ export async function GET() {
       if (!waMotorUrl) return null;
       const t = Date.now();
       try {
-        const res = await fetch(`${waMotorUrl}/health`, { signal: AbortSignal.timeout(3000) });
+        const res = await fetch(`${waMotorUrl}/health`, { signal: AbortSignal.timeout(8000) });
         return { status: (res.ok ? "ok" : "error") as "ok" | "error", latency_ms: Date.now() - t };
       } catch {
         return { status: "error" as const, latency_ms: Date.now() - t };
