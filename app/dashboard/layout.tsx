@@ -383,7 +383,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fontFamily: fb,
     background: isActive(href) ? "rgba(255,255,255,0.10)" : "transparent",
     color: isActive(href) ? "#FFFFFF" : "rgba(255,255,255,0.50)",
-    boxShadow: isActive(href) ? "inset 2px 0 0 #FF7A18" : "none",
     overflow: "hidden",
     whiteSpace: "nowrap",
   });
