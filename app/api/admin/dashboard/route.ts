@@ -12,18 +12,14 @@ type AuthorizedProfile = {
   full_name: string | null;
 };
 
-type CreatedAtRow = { created_at: string };
-type EgresoMontoRow = { monto: number | null };
-type PlanPrecioRow = { planes: unknown };
-type PlanNombreRow = { planes: unknown };
-type AlumnoPlanRow = { id: string; next_expiration_date: string | null; planes: unknown };
 type ProspectoRow = { created_at: string; phone: string | null; clase_gratis_date: string | null };
 type PagoMetricRow = { amount: number; date: string; status: string | null; concepto: string | null; alumno_id: string | null };
 type EgresoMetricRow = { monto: number | null; fecha: string; categoria: string | null };
-type AlumnoMetricRow = { id: string; full_name: string; phone: string | null; status: string | null; created_at: string; next_expiration_date: string | null };
-type ReservaMetricRow = { clase_id: string; fecha: string; estado: string | null };
+// Unified alumno type — includes planes join (replaces AlumnoPlanRow + separate morosos query)
+type AlumnoMetricRow = { id: string; full_name: string; phone: string | null; status: string | null; created_at: string; next_expiration_date: string | null; planes: unknown };
+type ReservaMetricRow = { fecha: string; estado: string | null };
 type AsistenciaMetricRow = { alumno_id: string; fecha: string; hora: string | null };
-type GymClassMetricRow = { id: string; day_of_week: number; max_capacity: number; event_type: "regular" | "especial" | null; event_date: string | null };
+type GymClassMetricRow = { day_of_week: number; max_capacity: number; event_type: "regular" | "especial" | null; event_date: string | null };
 type GymSettingsRow = { gym_name: string | null; owner_name: string | null };
 type GymRow = { name: string | null; owner_name: string | null };
 
@@ -141,8 +137,6 @@ export async function GET(req: NextRequest) {
   const nextMonthTo    = isoDate(endOfMonth(nextMonthDate));
 
   const [
-    { data: egresosData, error: egresosError },
-    { data: activosConPlanFull, error: activosPlanError },
     { count: prospectosPendientes, error: prospectosCountError },
     { data: gymSettings, error: settingsError },
     { data: gymRow, error: gymError },
@@ -154,28 +148,24 @@ export async function GET(req: NextRequest) {
     { data: allAsistRows, error: asistError },
     { data: gymClassesMetricRows, error: classesError },
     { count: mensajesAutoCount, error: mensajesAutoError },
-    { data: morososData, error: morososError },
   ] = await Promise.all([
-    admin.from("egresos").select("monto").eq("gym_id", gymId).gte("fecha", from).lte("fecha", to),
-    admin.from("alumnos").select("id, next_expiration_date, planes!plan_id(precio, nombre)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
     admin.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "pendiente"),
     admin.from("gym_settings").select("gym_name, owner_name").eq("gym_id", gymId).maybeSingle<GymSettingsRow>(),
     admin.from("gyms").select("name, owner_name").eq("id", gymId).maybeSingle<GymRow>(),
     admin.from("prospectos").select("created_at, phone, clase_gratis_date").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", thisMonthTo),
     admin.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", prevMonthFrom).lte("date", thisMonthTo),
     admin.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
-    admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gymId).is("deleted_at", null),
-    admin.from("reservas").select("clase_id, fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
+    admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date, planes!plan_id(precio, nombre)").eq("gym_id", gymId).is("deleted_at", null),
+    admin.from("reservas").select("fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
-    admin.from("gym_classes").select("id, day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
+    admin.from("gym_classes").select("day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
     admin.from("wa_mensajes_log").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("sent_at", `${thisMonthFrom}T00:00:00Z`).lte("sent_at", `${thisMonthTo}T23:59:59Z`),
-    admin.from("alumnos").select("planes!plan_id(precio)").eq("gym_id", gymId).eq("status", "vencido").is("deleted_at", null).not("plan_id", "is", null),
   ]);
 
   const anyError =
-    egresosError || activosPlanError || prospectosCountError || settingsError || gymError ||
+    prospectosCountError || settingsError || gymError ||
     prospectRowsError || pagosError || egresosMetricError || alumnosError || reservasError ||
-    asistError || classesError || mensajesAutoError || morososError;
+    asistError || classesError || mensajesAutoError;
 
   if (anyError) {
     return NextResponse.json({
@@ -198,8 +188,18 @@ export async function GET(req: NextRequest) {
     gymRow?.name?.trim() ||
     "tu gym";
 
-  const activosPlanRows = ((activosConPlanFull ?? []) as AlumnoPlanRow[]).filter(r =>
-    r.next_expiration_date == null || r.next_expiration_date >= todayStr
+  const alumnoRows = (alumnosMetricRows ?? []) as AlumnoMetricRow[];
+  const total = alumnoRows.length;
+  // Conversión real: status activo/vencido + tiene fecha de vencimiento asignada (pagaron al menos una vez)
+  const isPaidMember = (row: AlumnoMetricRow) =>
+    (row.status === "activo" || row.status === "vencido") && row.next_expiration_date != null;
+
+  // Derived from unified alumnos query (replaces activosConPlanFull + morososData queries)
+  const activosPlanRows = alumnoRows.filter(r =>
+    r.status === "activo" && (r.next_expiration_date == null || r.next_expiration_date >= todayStr)
+  );
+  const morososRows = alumnoRows.filter(r =>
+    r.status === "vencido" && getRelationRecord(r.planes) != null
   );
 
   const proyectado = activosPlanRows.reduce((sum, row) => {
@@ -218,11 +218,6 @@ export async function GET(req: NextRequest) {
     return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
   }, 0);
 
-  const alumnoRows = (alumnosMetricRows ?? []) as AlumnoMetricRow[];
-  const total = alumnoRows.length;
-  // Conversión real: status activo/vencido + tiene fecha de vencimiento asignada (pagaron al menos una vez)
-  const isPaidMember = (row: AlumnoMetricRow) =>
-    (row.status === "activo" || row.status === "vencido") && row.next_expiration_date != null;
   const activos = alumnoRows.filter(r =>
     r.status === "activo" &&
     (r.next_expiration_date == null || r.next_expiration_date >= todayStr)
@@ -325,7 +320,6 @@ export async function GET(req: NextRequest) {
   const retentionDenominatorCurrent = renewedMembersCurrent + churnedCurrent;
   const retentionDenominatorPrevious = renewedMembersPrevious + churnedPrevious;
 
-  const morososRows = (morososData ?? []) as PlanPrecioRow[];
   const morososCount = morososRows.length;
   const deudaTotal = morososRows.reduce((sum, row) => {
     const plan = getRelationRecord(row.planes);
@@ -420,7 +414,7 @@ export async function GET(req: NextRequest) {
       recaudadoEsteMes: currentRevenue,
       deudaTotal,
       morososCount,
-      gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
+      gastosTotal: egresoRows.filter(r => r.fecha >= from && r.fecha <= to).reduce((sum, r) => sum + (r.monto ?? 0), 0),
       recientes,
       captacion5,
       planDist,
