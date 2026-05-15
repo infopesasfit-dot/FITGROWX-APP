@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     .select("id, full_name, phone, ultima_notif_inactividad")
     .eq("gym_id", gym_id)
     .eq("status", "activo")
+    .is("deleted_at", null)
     .not("phone", "is", null);
 
   if (!alumnos?.length) return NextResponse.json({ ok: true, enviados: 0 });

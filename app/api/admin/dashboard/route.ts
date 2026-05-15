@@ -149,6 +149,7 @@ export async function GET(req: NextRequest) {
     { data: allAsistRows, error: asistError },
     { data: gymClassesMetricRows, error: classesError },
     { count: mensajesAutoCount, error: mensajesAutoError },
+    { data: morososData, error: morososError },
   ] = await Promise.all([
     admin.from("egresos").select("monto").eq("gym_id", gymId).gte("fecha", from).lte("fecha", to),
     admin.from("alumnos").select("id, next_expiration_date, planes!plan_id(precio, nombre)").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null),
@@ -163,12 +164,13 @@ export async function GET(req: NextRequest) {
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("id, day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
     admin.from("wa_mensajes_log").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("sent_at", `${thisMonthFrom}T00:00:00Z`).lte("sent_at", `${thisMonthTo}T23:59:59Z`),
+    admin.from("alumnos").select("planes!plan_id(precio)").eq("gym_id", gymId).eq("status", "vencido").is("deleted_at", null).not("plan_id", "is", null),
   ]);
 
   const anyError =
     egresosError || activosPlanError || prospectosCountError || settingsError || gymError ||
     prospectRowsError || pagosError || egresosMetricError || alumnosError || reservasError ||
-    asistError || classesError || mensajesAutoError;
+    asistError || classesError || mensajesAutoError || morososError;
 
   if (anyError) {
     return NextResponse.json({
@@ -308,6 +310,13 @@ export async function GET(req: NextRequest) {
   const retentionDenominatorCurrent = renewedMembersCurrent + churnedCurrent;
   const retentionDenominatorPrevious = renewedMembersPrevious + churnedPrevious;
 
+  const morososRows = (morososData ?? []) as PlanPrecioRow[];
+  const morososCount = morososRows.length;
+  const deudaTotal = morososRows.reduce((sum, row) => {
+    const plan = getRelationRecord(row.planes);
+    return sum + (typeof plan?.precio === "number" ? plan.precio : 0);
+  }, 0);
+
   const currentRevenue = pagoRows.filter((row) => isWithin(row.date, thisMonthFrom, thisMonthTo)).reduce((sum, row) => sum + row.amount, 0);
   const previousRevenue = pagoRows.filter((row) => isWithin(row.date, prevMonthFrom, prevMonthTo)).reduce((sum, row) => sum + row.amount, 0);
   const currentActiveCount = activos ?? 0;
@@ -391,6 +400,9 @@ export async function GET(req: NextRequest) {
       mensajesAutoEnviados: mensajesAutoCount ?? 0,
       recuperadosCount,
       recuperadosRevenue,
+      recaudadoEsteMes: currentRevenue,
+      deudaTotal,
+      morososCount,
       gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
       recientes,
       captacion5,

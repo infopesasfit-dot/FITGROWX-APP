@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       .select("id, full_name, phone, ultima_notif_inactividad, ultima_notif_inactividad_3")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
+      .is("deleted_at", null)
       .not("phone", "is", null);
 
     if (!alumnos?.length) continue;

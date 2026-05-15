@@ -208,7 +208,8 @@ export default function AsistenciasPage() {
       .from("alumnos")
       .select("id, full_name, planes!plan_id(nombre, accent_color)")
       .eq("gym_id", gymId)
-      .eq("status", "activo");
+      .eq("status", "activo")
+      .is("deleted_at", null);
     const presenteIds = new Set(presentes.map(p => p.alumno_id));
     const activos = (data ?? []) as unknown as Ausente[];
     setAusentes(activos.filter(a => !presenteIds.has(a.id)));

@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
       { count: clasesCount },
       { count: prospectosCount },
     ] = await Promise.all([
-      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", user.id),
+      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", user.id).is("deleted_at", null),
       supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", user.id),
       supabase.from("gym_classes").select("id", { count: "exact", head: true }).eq("gym_id", user.id),
       supabase.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", user.id),

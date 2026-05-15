@@ -52,6 +52,9 @@ interface DashboardSnapshot {
   mensajesAutoEnviados: number;
   recuperadosCount: number;
   recuperadosRevenue: number;
+  recaudadoEsteMes: number;
+  deudaTotal: number;
+  morososCount: number;
   gastosTotal: number;
   recientes: RecenteAlumno[];
   captacion5: number[];
@@ -167,7 +170,7 @@ function buildDemoSnapshot(): DashboardSnapshot {
     return 0;
   });
   return {
-    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, mensajesAutoEnviados: 47, recuperadosCount: 7, recuperadosRevenue: 126_000, gastosTotal: 210_000,
+    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, mensajesAutoEnviados: 47, recuperadosCount: 7, recuperadosRevenue: 126_000, recaudadoEsteMes: 612_000, deudaTotal: 85_000, morososCount: 6, gastosTotal: 210_000,
     recientes: [
       { id: "d1", full_name: "Valentina Ríos",    created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
       { id: "d2", full_name: "Matías Fernández",  created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -234,6 +237,9 @@ export default function DashboardPage() {
   const [mensajesAutoEnviados,  setMensajesAutoEnviados]  = useState(0);
   const [recuperadosCount,      setRecuperadosCount]      = useState(0);
   const [recuperadosRevenue,    setRecuperadosRevenue]    = useState(0);
+  const [recaudadoEsteMes,      setRecaudadoEsteMes]      = useState(0);
+  const [deudaTotal,            setDeudaTotal]            = useState(0);
+  const [morososCount,          setMorososCount]          = useState(0);
   const [gastosTotal,           setGastosTotal]           = useState(0);
   const [recientes,         setRecientes]         = useState<RecenteAlumno[]>([]);
   const [captacion5,        setCaptacion5]        = useState<number[]>([0, 0, 0, 0, 0]);
@@ -260,6 +266,9 @@ export default function DashboardPage() {
     setMensajesAutoEnviados(snapshot.mensajesAutoEnviados);
     setRecuperadosCount(snapshot.recuperadosCount);
     setRecuperadosRevenue(snapshot.recuperadosRevenue);
+    setRecaudadoEsteMes(snapshot.recaudadoEsteMes ?? 0);
+    setDeudaTotal(snapshot.deudaTotal ?? 0);
+    setMorososCount(snapshot.morososCount ?? 0);
     setGastosTotal(snapshot.gastosTotal);
     setRecientes(snapshot.recientes);
     setCaptacion5(snapshot.captacion5);
@@ -273,7 +282,7 @@ export default function DashboardPage() {
   }, []);
 
   const enterDemo = useCallback(() => {
-    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
+    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
     applySnapshot(buildDemoSnapshot());
     setDemoMode(true);
   }, [activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts, applySnapshot]);
@@ -347,7 +356,7 @@ export default function DashboardPage() {
       if (!profile) return;
       const [settingsRes, alumnosRes, planesRes, profileRes] = await Promise.all([
         supabase.from("gym_settings").select("whatsapp_connected, slug, mp_access_token, payment_info, onboarding_completed").eq("gym_id", profile.gymId).maybeSingle(),
-        supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
+        supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).is("deleted_at", null),
         supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
         supabase.from("profiles").select("phone").eq("id", profile.userId).maybeSingle(),
       ]);
@@ -744,6 +753,12 @@ export default function DashboardPage() {
                   : <span style={{ font: `800 2rem/0.95 ${fd}`, letterSpacing: "-0.06em" }}>{fmt(ingresoProyectado)}</span>}
                 {!loading && <span style={{ font: `500 0.74rem/1 ${fb}`, color: "rgba(255,255,255,0.72)" }}>/ mes</span>}
               </div>
+              {!loading && recaudadoEsteMes > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                  <span style={{ font: `500 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.52)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cobrado este mes</span>
+                  <span style={{ font: `700 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.88)" }}>{fmt(recaudadoEsteMes)}</span>
+                </div>
+              )}
               {!loading && proyeccionProximoMes > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
                   <span style={{ font: `500 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.52)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Próximo mes · {renovacionesPendientes} renovaciones</span>
@@ -773,6 +788,23 @@ export default function DashboardPage() {
       </div>
 
       {renderQuickActions()}
+
+      {!loading && morososCount > 0 && (
+        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)", border: "1px solid rgba(234,88,12,0.20)", textDecoration: "none", display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 14, background: "rgba(234,88,12,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <CreditCard size={17} color="#EA580C" />
+            </div>
+            <div>
+              <p style={{ font: `700 0.65rem/1 ${fb}`, color: "#EA580C", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Cuotas impagas</p>
+              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: "#7C2D12", letterSpacing: "-0.03em" }}>
+                {morososCount} {morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · {fmt(deudaTotal)} por cobrar
+              </p>
+              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: "#9A3412", marginTop: 4 }}>Membresías vencidas sin pago registrado este ciclo.</p>
+            </div>
+          </div>
+        </a>
+      )}
 
       {!loading && recuperadosCount > 0 && (
         <div style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "1px solid rgba(34,197,94,0.18)" }}>
@@ -1119,6 +1151,12 @@ export default function DashboardPage() {
                     <ArrowUpRight size={14} color="white" />
                     <span style={{ font: `700 0.74rem/1 ${fb}`, color: "white" }}>Suma de membresías vigentes</span>
                   </div>
+                  {!loading && recaudadoEsteMes > 0 && (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                      <span style={{ font: `500 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.72)" }}>Cobrado este mes</span>
+                      <span style={{ font: `700 0.74rem/1 ${fd}`, color: "white" }}>{fmt(recaudadoEsteMes)}</span>
+                    </div>
+                  )}
                   {!loading && proyeccionProximoMes > 0 && (
                     <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
                       <span style={{ font: `500 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.62)" }}>Próximo mes · {renovacionesPendientes} renovaciones</span>
@@ -1156,6 +1194,27 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {!loading && morososCount > 0 && (
+        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)", border: "1px solid rgba(234,88,12,0.20)", textDecoration: "none", display: "block" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 16, background: "rgba(234,88,12,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <CreditCard size={20} color="#EA580C" />
+              </div>
+              <div>
+                <p style={{ font: `700 0.7rem/1 ${fb}`, color: "#EA580C", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Cuotas impagas</p>
+                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: "#7C2D12", letterSpacing: "-0.03em" }}>
+                  {morososCount} {morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · {fmt(deudaTotal)} por cobrar
+                </p>
+              </div>
+            </div>
+            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: "#9A3412", maxWidth: 340 }}>
+              Membresías vencidas sin pago registrado. Hacé clic para verlos.
+            </p>
+          </div>
+        </a>
+      )}
 
       {!loading && recuperadosCount > 0 && (
         <div style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "1px solid rgba(34,197,94,0.18)" }}>

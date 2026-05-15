@@ -301,6 +301,7 @@ export default function PagosPage() {
         .from("alumnos")
         .select("id, full_name, planes(precio)")
         .eq("gym_id", profile.gymId)
+        .is("deleted_at", null)
         .order("full_name"),
       supabase
         .from("gym_classes")
@@ -311,7 +312,7 @@ export default function PagosPage() {
 
     const pagos    = (pagosData ?? []).map((row) => mapPagoRow(row));
     const cuentas  = (cuentasData ?? []) as Cuenta[];
-    const alumnos  = (alumnosData ?? []) as AlumnoOption[];
+    const alumnos  = (alumnosData ?? []) as unknown as AlumnoOption[];
     setPagos(pagos);
     setCuentas(cuentas);
     setAlumnos(alumnos);

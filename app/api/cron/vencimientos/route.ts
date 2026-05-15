@@ -193,6 +193,7 @@ async function notificarInasistentes(log: string[], todayStr: string): Promise<v
     .from("alumnos")
     .select("id, gym_id, full_name, phone, notif_inasistencia_sent_at")
     .eq("status", "activo")
+    .is("deleted_at", null)
     .not("phone", "is", null)
     .or(`notif_inasistencia_sent_at.is.null,notif_inasistencia_sent_at.lte.${cutoffNotif7d}`);
 
@@ -263,6 +264,7 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
     .from("alumnos")
     .update({ status: "vencido" })
     .eq("status", "activo")
+    .is("deleted_at", null)
     .not("next_expiration_date", "is", null)
     .lt("next_expiration_date", todayStr)
     .select("id");
@@ -273,6 +275,7 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
     .from("alumnos")
     .update({ status: "activo" })
     .eq("status", "vencido")
+    .is("deleted_at", null)
     .not("next_expiration_date", "is", null)
     .gte("next_expiration_date", todayStr)
     .select("id");
@@ -298,6 +301,7 @@ async function enviarFollowupsPostVencimiento(
       .select("id, full_name, phone, next_expiration_date, notif_vencido_d3_para, notif_vencido_d7_para")
       .eq("gym_id", gym.gym_id)
       .eq("status", "vencido")
+      .is("deleted_at", null)
       .not("phone", "is", null)
       .not("next_expiration_date", "is", null)
       .lte("next_expiration_date", todayStr);
@@ -367,6 +371,7 @@ async function enviarNotificacionesVenceHoy(
       .select("id, full_name, phone, next_expiration_date")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
+      .is("deleted_at", null)
       .eq("next_expiration_date", todayStr)
       .not("phone", "is", null)
       .or(`notif_vence_hoy_para.is.null,notif_vence_hoy_para.neq.${todayStr}`);
@@ -423,6 +428,7 @@ async function enviarRecordatoriosProximos(
       .select("id, full_name, phone, next_expiration_date, notif_vencimiento_para")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
+      .is("deleted_at", null)
       .not("phone", "is", null)
       .not("next_expiration_date", "is", null)
       .lte("next_expiration_date", cutoffStr)
