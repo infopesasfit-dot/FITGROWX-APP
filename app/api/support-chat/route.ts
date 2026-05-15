@@ -251,8 +251,12 @@ export async function POST(req: NextRequest) {
     ],
   });
 
-  const result = await chat.sendMessage(lastMessage?.content ?? "");
-  const reply = result.response.text();
-
-  return NextResponse.json({ reply });
+  try {
+    const result = await chat.sendMessage(lastMessage?.content ?? "");
+    const reply = result.response.text();
+    return NextResponse.json({ reply });
+  } catch (err) {
+    console.error("[support-chat] Gemini error:", err);
+    return NextResponse.json({ reply: "Hubo un problema al procesar tu consulta. Intentá de nuevo en unos segundos." }, { status: 200 });
+  }
 }

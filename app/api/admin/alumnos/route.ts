@@ -142,6 +142,32 @@ export async function POST(req: NextRequest) {
 
   const { full_name, dni, phone, email, plan_id, status, next_expiration_date, last_payment_date } = parsed.data;
 
+  // ── Duplicate check ──────────────────────────────────────────────
+  if (phone || dni) {
+    let dupQuery = admin
+      .from("alumnos")
+      .select("id, full_name, phone, dni, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
+      .eq("gym_id", gymId)
+      .is("deleted_at", null);
+
+    if (phone && dni) {
+      dupQuery = dupQuery.or(`phone.eq.${phone},dni.eq.${dni}`);
+    } else if (phone) {
+      dupQuery = dupQuery.eq("phone", phone);
+    } else if (dni) {
+      dupQuery = dupQuery.eq("dni", dni);
+    }
+
+    const { data: existing } = await dupQuery.limit(1).maybeSingle();
+    if (existing) {
+      const matchedBy = phone && (existing as Record<string, unknown>).phone === phone ? "phone" : "dni";
+      return NextResponse.json(
+        { ok: false, duplicate: true, existingAlumno: existing, matchedBy },
+        { status: 409 },
+      );
+    }
+  }
+
   const { data: newAlumno, error } = await admin
     .from("alumnos")
     .insert([{

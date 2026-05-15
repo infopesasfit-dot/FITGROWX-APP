@@ -186,9 +186,6 @@ export default function ProspectosPage() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
           <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Prospectos</h1>
-          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>
-            Leads que agendaron una clase gratis desde tu landing.
-          </p>}
         </div>
         {pendingCount > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 7, background: "rgba(249,115,22,0.09)", border: "1px solid rgba(249,115,22,0.22)", borderRadius: 9999, padding: "8px 16px" }}>
@@ -211,7 +208,7 @@ export default function ProspectosPage() {
             onClick={item.action}
             style={{
               ...card,
-              padding: "16px 18px",
+              padding: "10px 14px",
               textAlign: "left",
               cursor: "pointer",
               transition: "transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease",
@@ -227,10 +224,10 @@ export default function ProspectosPage() {
               event.currentTarget.style.borderColor = "rgba(0,0,0,0.05)";
             }}
           >
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+            <div style={{ width: 24, height: 24, borderRadius: 8, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
               {item.icon}
             </div>
-            <p style={{ font: `800 1.6rem/1 ${fd}`, color: t1, letterSpacing: "-0.03em", marginBottom: 4 }}>
+            <p style={{ font: `800 1.2rem/1 ${fd}`, color: t1, letterSpacing: "-0.03em", marginBottom: 3 }}>
               {loading ? "—" : item.value}
             </p>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>

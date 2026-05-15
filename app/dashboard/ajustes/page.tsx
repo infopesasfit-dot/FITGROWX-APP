@@ -11,6 +11,7 @@ import {
   CreditCard,
   ImagePlus,
   Camera,
+  Key,
   Loader2,
   Lock,
   Mail,
@@ -224,7 +225,54 @@ function AjustesContent() {
   const [wlPhone,     setWlPhone]     = useState("");
   const [wlLoading,   setWlLoading]   = useState(false);
   const [wlDone,      setWlDone]      = useState(false);
+  const [molineteKeys,       setMolineteKeys]       = useState<{ id: string; label: string; last_used_at: string | null; created_at: string }[]>([]);
+  const [molineteLoading,    setMolineteLoading]    = useState(false);
+  const [molineteGenerating, setMolineteGenerating] = useState(false);
+  const [molineteNewLabel,   setMolineteNewLabel]   = useState("");
+  const [molineteRevealKey,  setMolineteRevealKey]  = useState<string | null>(null);
+  const [molineteKeyCopied,          setMolineteKeyCopied]          = useState(false);
+  const [molineteInstructionsCopied, setMolineteInstructionsCopied] = useState(false);
+  const [molineteRevokingId, setMolineteRevokingId] = useState<string | null>(null);
+  const [molineteLabelModal, setMolineteLabelModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  const loadMolineteKeys = useCallback(async () => {
+    setMolineteLoading(true);
+    const res = await fetch("/api/admin/molinete-key").catch(() => null);
+    if (res?.ok) {
+      const data = await res.json();
+      setMolineteKeys(data.keys ?? []);
+    }
+    setMolineteLoading(false);
+  }, []);
+
+  const handleGenerateKey = async () => {
+    setMolineteGenerating(true);
+    const res = await fetch("/api/admin/molinete-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: molineteNewLabel.trim() || "Molinete" }),
+    }).catch(() => null);
+    setMolineteGenerating(false);
+    if (!res?.ok) return;
+    const data = await res.json();
+    setMolineteKeys(prev => [data.meta, ...prev]);
+    setMolineteRevealKey(data.key);
+    setMolineteKeyCopied(false);
+    setMolineteNewLabel("");
+    setMolineteLabelModal(false);
+  };
+
+  const handleRevokeKey = async (id: string) => {
+    setMolineteRevokingId(id);
+    await fetch("/api/admin/molinete-key", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => null);
+    setMolineteKeys(prev => prev.filter(k => k.id !== id));
+    setMolineteRevokingId(null);
+  };
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -345,6 +393,7 @@ function AjustesContent() {
       if (settings?.payment_info) setPaymentInfo(settings.payment_info);
       setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
       fetch("/api/gym/webhook-url").then(r => r.json()).then(d => { if (d.url) setWebhookUrl(d.url); }).catch(() => {});
+      loadMolineteKeys();
 
       const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
       if (gym) {
@@ -1266,6 +1315,66 @@ function AjustesContent() {
               </div>
             </SectionCard>
 
+            {/* Molinete / Control de acceso */}
+            <SectionCard
+              icon={<Key size={18} color="white" />}
+              title="Molinete / Control de acceso"
+              desc="Generá una API key para conectar tu molinete o lector de QR. El dispositivo la usa para validar membresías y registrar asistencias en tiempo real."
+              actions={
+                <button
+                  onClick={() => setMolineteLabelModal(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, background: ACCENT, color: "white", border: "none", font: `700 0.78rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                >
+                  + Nueva key
+                </button>
+              }
+            >
+              {molineteLoading ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: t3, font: `400 0.82rem/1 ${fb}` }}>
+                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Cargando...
+                </div>
+              ) : molineteKeys.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "24px 0" }}>
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#F1F5F9", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+                    <Key size={20} color={t3} />
+                  </div>
+                  <p style={{ font: `500 0.82rem/1.5 ${fb}`, color: t3, margin: 0 }}>
+                    No hay keys activas.<br />Generá una para conectar tu molinete.
+                  </p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {molineteKeys.map(k => (
+                    <div key={k.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, margin: 0 }}>{k.label}</p>
+                        <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, margin: "4px 0 0" }}>
+                          Creada {new Date(k.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}
+                          {k.last_used_at
+                            ? ` · Último uso ${new Date(k.last_used_at).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}`
+                            : " · Nunca usada"}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRevokeKey(k.id)}
+                        disabled={molineteRevokingId === k.id}
+                        style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(220,38,38,0.07)", color: "#DC2626", border: "none", font: `600 0.72rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", opacity: molineteRevokingId === k.id ? 0.5 : 1 }}
+                      >
+                        {molineteRevokingId === k.id ? "Revocando..." : "Revocar"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ marginTop: 16, padding: "12px 14px", background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10 }}>
+                <MessageCircle size={15} color={t3} style={{ flexShrink: 0 }} />
+                <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, margin: 0 }}>
+                  Al generar una key, el sistema te da un mensaje listo para mandarle a tu técnico con todo lo que necesita para configurar el molinete.
+                </p>
+              </div>
+            </SectionCard>
+
             {/* Link de referidos */}
             <SectionCard
               icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>}
@@ -1554,6 +1663,121 @@ function AjustesContent() {
         </section>
 
       </div>
+
+      {/* ── Modal: Nombre de nueva key de molinete ── */}
+      {molineteLabelModal && (
+        <div onClick={() => setMolineteLabelModal(false)} style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.50)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", width: "100%", maxWidth: 400, padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <h2 style={{ font: `800 1rem/1 ${fd}`, color: t1, margin: 0 }}>Nueva API key</h2>
+              <button onClick={() => setMolineteLabelModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, display: "flex" }}><X size={18} /></button>
+            </div>
+            <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Nombre del dispositivo</label>
+            <input
+              value={molineteNewLabel}
+              onChange={e => setMolineteNewLabel(e.target.value)}
+              placeholder="Ej: Molinete entrada principal"
+              autoFocus
+              style={{ ...inputStyle, marginBottom: 18 }}
+              onKeyDown={e => { if (e.key === "Enter") handleGenerateKey(); }}
+            />
+            <button
+              onClick={handleGenerateKey}
+              disabled={molineteGenerating}
+              style={{ width: "100%", padding: "12px", background: molineteGenerating ? "#9CA3AF" : ACCENT, color: "white", border: "none", borderRadius: 12, font: `700 0.9rem/1 ${fd}`, cursor: molineteGenerating ? "not-allowed" : "pointer" }}
+            >
+              {molineteGenerating ? "Generando..." : "Generar key"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Revelar key generada (solo una vez) ── */}
+      {molineteRevealKey && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9020, background: "rgba(0,0,0,0.60)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.22)", width: "100%", maxWidth: 460, padding: 28 }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                <Key size={22} color="#16A34A" />
+              </div>
+              <h2 style={{ font: `800 1.05rem/1 ${fd}`, color: t1, margin: 0 }}>¡Key generada!</h2>
+              <p style={{ font: `400 0.8rem/1.5 ${fb}`, color: "#DC2626", margin: "8px 0 0" }}>
+                Copiala ahora. No vas a poder verla de nuevo.
+              </p>
+            </div>
+            {/* La key */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.1)", borderRadius: 12, padding: "12px 14px", marginBottom: 16 }}>
+              <code style={{ flex: 1, font: `600 0.72rem/1.4 ${fm}`, color: t1, wordBreak: "break-all", letterSpacing: "0.04em" }}>{molineteRevealKey}</code>
+              <button
+                onClick={() => { navigator.clipboard.writeText(molineteRevealKey!); setMolineteKeyCopied(true); setTimeout(() => setMolineteKeyCopied(false), 2000); }}
+                style={{ flexShrink: 0, padding: "7px 12px", borderRadius: 9, border: "none", background: molineteKeyCopied ? "#DCFCE7" : ACCENT_SOFT, color: molineteKeyCopied ? "#15803D" : ACCENT, font: `700 0.75rem/1 ${fd}`, cursor: "pointer", transition: "all .15s", display: "flex", alignItems: "center", gap: 5 }}
+              >
+                <Copy size={13} />{molineteKeyCopied ? "¡Copiado!" : "Copiar"}
+              </button>
+            </div>
+
+            {/* Botones de instrucciones */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button
+                onClick={() => {
+                  const base = window.location.origin;
+                  const msg = [
+                    "Instrucciones para conectar el molinete con FitGrowX",
+                    "",
+                    `URL: ${base}/api/molinete/access`,
+                    "Método: POST",
+                    `Headers:`,
+                    `  x-api-key: ${molineteRevealKey}`,
+                    `  Content-Type: application/json`,
+                    "",
+                    "Cuando el alumno tipea su DNI:",
+                    '{"qr":"FITGROWX:12345678"}',
+                    "",
+                    "Cuando el alumno muestra el QR del celular:",
+                    '{"qr":"FITGROWX:ID:uuid-del-alumno"}',
+                    "",
+                    "Respuesta exitosa completa:",
+                    '{"access":"allow","alumno":{"full_name":"Juan Pérez"},"hora":"09:32"}',
+                    "",
+                    "Respuesta denegada:",
+                    '{"access":"deny","reason":"Membresía vencida."}',
+                    "",
+                    "Para configurar la condición de apertura en el controlador:",
+                    "  Campo a evaluar: access",
+                    '  Valor que ABRE la tranca: "allow"',
+                    '  Valor que BLOQUEA: "deny"',
+                  ].join("\n");
+                  navigator.clipboard.writeText(msg);
+                  setMolineteInstructionsCopied(true);
+                  setTimeout(() => setMolineteInstructionsCopied(false), 2500);
+                }}
+                style={{ flex: 1, padding: "11px 10px", borderRadius: 11, border: `1.5px solid ${molineteInstructionsCopied ? "#16A34A" : "rgba(15,23,42,0.10)"}`, background: molineteInstructionsCopied ? "#DCFCE7" : "#F8FAFC", color: molineteInstructionsCopied ? "#15803D" : t1, font: `600 0.78rem/1.3 ${fd}`, cursor: "pointer", transition: "all .18s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              >
+                <Copy size={13} />
+                {molineteInstructionsCopied ? "¡Copiadas!" : "Copiar instrucciones"}
+              </button>
+              <button
+                onClick={() => {
+                  const base = window.location.origin;
+                  const msg = `Instrucciones para conectar el molinete con FitGrowX\n\nURL: ${base}/api/molinete/access\nMétodo: POST\nHeaders:\n  x-api-key: ${molineteRevealKey}\n  Content-Type: application/json\n\nCuando el alumno tipea su DNI:\n{"qr":"FITGROWX:12345678"}\n\nCuando muestra el QR del celular:\n{"qr":"FITGROWX:ID:uuid-del-alumno"}\n\nRespuesta exitosa completa:\n{"access":"allow","alumno":{"full_name":"Juan Pérez"},"hora":"09:32"}\n\nRespuesta denegada:\n{"access":"deny","reason":"Membresía vencida."}\n\nPara configurar la condición de apertura en el controlador:\n  Campo a evaluar: access\n  Valor que ABRE la tranca: "allow"\n  Valor que BLOQUEA: "deny"`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+                }}
+                style={{ flex: 1, padding: "11px 10px", borderRadius: 11, border: "1.5px solid rgba(37,211,102,0.3)", background: "rgba(37,211,102,0.06)", color: "#128C7E", font: `600 0.78rem/1.3 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+              >
+                <MessageCircle size={13} />
+                Enviar por WhatsApp
+              </button>
+            </div>
+
+            <button
+              onClick={() => setMolineteRevealKey(null)}
+              style={{ width: "100%", padding: "11px", background: "#F1F5F9", color: t2, border: "none", borderRadius: 12, font: `600 0.85rem/1 ${fd}`, cursor: "pointer" }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal: White-label ── */}
       {showWLModal && (

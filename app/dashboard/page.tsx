@@ -387,7 +387,7 @@ export default function DashboardPage() {
       };
       setSetup(computed);
       const allDone = Object.values(computed).every(Boolean);
-      if (!allDone) setOnboardingOpen(true);
+      if (!allDone && !localStorage.getItem("onboarding_dismissed")) setOnboardingOpen(true);
       if (allDone && !s?.onboarding_completed && profile.gymId) {
         void supabase.from("gym_settings").update({ onboarding_completed: true }).eq("gym_id", profile.gymId);
       }
@@ -408,14 +408,14 @@ export default function DashboardPage() {
       { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} socios por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Avisales antes de que venza" : "Todo al día", href: "#dashboard-alertas" },
     ];
     if (hour >= 10 && hour < 14) return [
-      { emoji: "💳", label: "Registrar un pago", hint: "Marcar cobro de membresía", href: "/dashboard/pagos" },
+      { emoji: "💳", label: "Registrar un pago", hint: "Cobrar la cuota de un socio", href: "/dashboard/pagos" },
       { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Contactar para que renueven" : "Todo al día", href: "#dashboard-alertas" },
-      { emoji: "👤", label: "Agregar alumno", hint: "Registrar uno nuevo", href: "/dashboard/alumnos" },
+      { emoji: "👤", label: "Agregar alumno", hint: "Sumarlo al sistema", href: "/dashboard/alumnos" },
     ];
     if (hour >= 14 && hour < 19) return [
       { emoji: "🎯", label: prospectos > 0 ? `${prospectos} prospectos` : "Ver prospectos", hint: prospectos > 0 ? "Pendientes de contacto" : "Sin prospectos nuevos", href: "/dashboard/prospectos" },
-      { emoji: "👤", label: "Agregar alumno", hint: "Nuevo registro", href: "/dashboard/alumnos" },
-      { emoji: "💳", label: "Registrar un pago", hint: "Marcar cobro de membresía", href: "/dashboard/pagos" },
+      { emoji: "👤", label: "Agregar alumno", hint: "Sumarlo al sistema", href: "/dashboard/alumnos" },
+      { emoji: "💳", label: "Registrar un pago", hint: "Cobrar la cuota de un socio", href: "/dashboard/pagos" },
     ];
     return [
       { emoji: "📊", label: `${asistHoy} asistencias hoy`, hint: "Resumen del día", href: "#dashboard-alertas" },
@@ -499,7 +499,7 @@ export default function DashboardPage() {
   })();
 
   const renderFilters = (compact = false) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
       <div style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F5F7FA", borderRadius: compact ? 14 : 16, padding: 4, border: "1px solid rgba(17,24,39,0.06)" }}>
         <button
           onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
@@ -538,7 +538,7 @@ export default function DashboardPage() {
     return (
       <a
         href={href}
-        style={{ ...cardBase, padding: isMobile ? "18px 16px" : "20px 18px", background: whitePanel, cursor: href ? "pointer" : "default", display: "block", textDecoration: "none", color: "inherit" }}
+        style={{ ...cardBase, padding: isMobile ? "18px 16px" : "20px 18px", background: whitePanel, cursor: href ? "pointer" : "default", display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}
         {...cardHover}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 18 }}>
@@ -601,10 +601,10 @@ export default function DashboardPage() {
           </span>
           <span style={{ font: `500 0.68rem/1 ${fb}`, color: delta == null ? t3 : isPositive ? statusPositive : statusNegative }}>
             {delta == null
-              ? "Sin datos del mes anterior"
+              ? "Sin dato anterior"
               : delta === 0
-                ? "Igual que el mes pasado"
-                : `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}% vs mes pasado`}
+                ? "Sin cambios"
+                : `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}% que el mes pasado`}
           </span>
         </div>
       </div>
@@ -633,9 +633,9 @@ export default function DashboardPage() {
             {section === "Embudo" ? "Captación de socios" : section === "Fidelización" ? "Retención" : "Eficiencia"}
           </p>
           <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t3 }}>
-            {section === "Embudo" && "Cuántas personas nuevas llegaron y cuántas terminaron siendo socios."}
-            {section === "Fidelización" && "Cuántos socios renuevan y cuántos se van cada mes."}
-            {section === "Eficiencia" && "Cuánto genera tu gym por cada socio que tenés."}
+            {section === "Embudo" && "Personas que llegaron y cuántas terminaron pagando."}
+            {section === "Fidelización" && "Quiénes renuevan y quiénes se van."}
+            {section === "Eficiencia" && "Cuánto genera cada socio para tu gym."}
           </p>
         </div>
         <div
@@ -697,7 +697,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Últimas altas</p>
-                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Socios que se sumaron recientemente</p>
+                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Los nuevos del gym</p>
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -724,8 +724,8 @@ export default function DashboardPage() {
                 <Zap size={15} />
               </div>
               <div style={{ flex: 1 }}>
-                <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Monitor de automatización</p>
-                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Actividad del bot hoy</p>
+                <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>Bot de WhatsApp</p>
+                <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>Lo que mandó hoy</p>
               </div>
             </div>
             {/* Stat chips */}
@@ -761,7 +761,7 @@ export default function DashboardPage() {
               }) : (
                 <div style={{ padding: "12px 0" }}>
                   <p style={{ font: `500 0.72rem/1.5 ${fb}`, color: t3 }}>
-                    {botActivity ? "Sin actividad del bot hoy aún." : "Cargando actividad..."}
+                    {botActivity ? "Hoy no mandó nada todavía." : "Cargando..."}
                   </p>
                 </div>
               )}
@@ -860,7 +860,7 @@ export default function DashboardPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 7 }}>
                 {[
                   { label: "Con membresía", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(activosCount) },
-                  { label: "Mensajes auto",  value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(mensajesAutoEnviados) },
+                  { label: "Fueron hoy",    value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(asistHoy) },
                   { label: "Vencen pronto", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
                 ].map((item) => (
                   <a key={item.label} href={item.href} style={{ padding: "10px 10px 9px", borderRadius: 16, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.10)", cursor: item.href ? "pointer" : "default", textDecoration: "none", color: "inherit", display: "block" }}>
@@ -888,12 +888,14 @@ export default function DashboardPage() {
                 {morososCount > 0 ? `${morososCount} ${morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · ${fmt(deudaTotal)} por cobrar` : "Sin deuda pendiente — todo al día ✅"}
               </p>
               <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: morososCount > 0 ? "#9A3412" : "#166534", marginTop: 4 }}>
-                {morososCount > 0 ? "Membresías vencidas sin pago registrado este ciclo." : "Todos los socios tienen su membresía al día."}
+                {morososCount > 0 ? "Todavía no cobraste. Tocá para ver quiénes son." : "Todos los socios están al día. 🟢"}
               </p>
             </div>
           </div>
         </a>
       )}
+
+      {renderPulsoPanel()}
 
       {!loading && (
         <div style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "1px solid rgba(99,102,241,0.18)" }}>
@@ -920,7 +922,6 @@ export default function DashboardPage() {
         {renderMetricSection("Fidelización", true)}
         {renderMetricSection("Eficiencia", true)}
       </div>
-      {renderPulsoPanel()}
 
       <div className="dash-card" style={{ ...cardBase, padding: "20px 18px", background: whitePanel }} {...cardHover}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
@@ -1114,7 +1115,7 @@ export default function DashboardPage() {
           <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.86rem/1.6 ${fb}`, color: t2, maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", minWidth: 240, maxWidth: 300, width: "100%" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
           {renderFilters(false)}
         </div>
       </div>
@@ -1124,7 +1125,7 @@ export default function DashboardPage() {
           { key: "alumnos",  label: "Cargá tu primer alumno", desc: "El sistema cobra vida cuando hay gente adentro",  href: "/dashboard/alumnos", time: "1 min"  },
           { key: "planes",   label: "Creá un plan",           desc: "Definí qué incluye cada membresía y su precio",   href: "/dashboard/membresias",  time: "2 min"  },
           { key: "whatsapp", label: "Conectá WhatsApp",       desc: "Recordatorios y bienvenidas automáticas",         href: "/dashboard/conexiones", time: "2 min"  },
-          { key: "landing",  label: "Publicá tu landing",     desc: "Página pública para captar prospectos",           href: "/dashboard/landing", time: "3 min"  },
+          { key: "landing",  label: "Publicá tu landing",     desc: "Tu página para que te encuentren en el web",      href: "/dashboard/landing", time: "3 min"  },
           { key: "pagos",    label: "Configurá pagos",        desc: "MercadoPago o datos de transferencia",            href: "/dashboard/conexiones", time: "2 min"  },
         ];
         const done      = tasks.filter(t => setup[t.key]).length;
@@ -1225,7 +1226,7 @@ export default function DashboardPage() {
 
       {renderQuickActions()}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20, alignItems: "stretch" }}>
         <div className="dashboard-grain" style={{ borderRadius: 30, background: orangeGlow, padding: "26px 24px 24px", position: "relative", overflow: "hidden", boxShadow: "0 24px 60px rgba(255,100,0,0.28), inset 0 1px 0 rgba(255,255,255,0.22)" }}>
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 90% 10%, rgba(255,255,255,0.32) 0%, transparent 45%), radial-gradient(ellipse at 10% 90%, rgba(180,60,0,0.30) 0%, transparent 45%)", pointerEvents: "none" }} />
           <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -1247,7 +1248,7 @@ export default function DashboardPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 9999, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.12)" }}>
                   <ArrowUpRight size={12} color="rgba(255,255,255,0.85)" />
-                  <span style={{ font: `600 0.70rem/1 ${fb}`, color: "rgba(255,255,255,0.85)" }}>Membresías vigentes</span>
+                  <span style={{ font: `600 0.70rem/1 ${fb}`, color: "rgba(255,255,255,0.85)" }}>Socios activos</span>
                 </div>
                 {!loading && recaudadoEsteMes > 0 && (
                   <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 9999, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.12)" }}>
@@ -1263,29 +1264,14 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-              {[
-                { label: "Con membresía", value: loading ? <SkelLight w={36} h={26} r={5} /> : String(activosCount) },
-                { label: "Fueron hoy",    value: loading ? <SkelLight w={36} h={26} r={5} /> : String(asistHoy) },
-                { label: "Vencen pronto", value: loading ? <SkelLight w={36} h={26} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
-              ].map((item) => (
-                <a key={item.label} href={item.href} style={{ padding: "13px 14px 12px", borderRadius: 18, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.10)", cursor: item.href ? "pointer" : "default", textAlign: "left", textDecoration: "none", color: "inherit", display: "block", backdropFilter: "blur(8px)" }}>
-                  <p style={{ font: `800 1.4rem/1 ${fd}`, color: "white", marginBottom: 6, letterSpacing: "-0.04em" }}>{item.value}</p>
-                  <p style={{ font: `500 0.58rem/1.3 ${fb}`, color: "rgba(255,255,255,0.58)", textTransform: "uppercase", letterSpacing: "0.10em" }}>{item.label}</p>
-                </a>
-              ))}
-            </div>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, height: "100%", gridTemplateRows: "1fr 1fr", alignContent: "stretch" }}>
           {renderKpiCard("Tus socios",           loading ? <Skel w={52} h={38} r={9} /> : String(activosCount),                    `${totalCount} en total`,                <Users size={17} color="#fff" />,       "ink",    undefined)}
-          {renderKpiCard("Fueron hoy",            loading ? <Skel w={52} h={38} r={9} /> : String(asistHoy),                       "Personas que entrenaron hoy",           <Activity size={17} color={accentDeep} />, "orange", undefined)}
-          {renderKpiCard("Sin venir en 7 días",   loading ? <Skel w={52} h={38} r={9} /> : String(alerts.inactiveCount),           "Todavía tienen membresía activa",       <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
+          {renderKpiCard("Fueron hoy",            loading ? <Skel w={52} h={38} r={9} /> : String(asistHoy),                       "Entrenaron hoy",                        <Activity size={17} color={accentDeep} />, "orange", undefined)}
+          {renderKpiCard("Sin venir en 7 días",   loading ? <Skel w={52} h={38} r={9} /> : String(alerts.inactiveCount),           "Siguen pagando pero no vienen",         <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
           {renderKpiCard("Membresías por vencer", loading ? <Skel w={52} h={38} r={9} /> : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan",      <BadgeAlert size={17} color="#fff" />,  "ink",    "#dashboard-alertas")}
-          <div style={{ gridColumn: "1 / -1" }}>
-            {renderKpiCard("Mensajes automáticos", loading ? <Skel w={52} h={38} r={9} /> : String(mensajesAutoEnviados), "Enviados por el sistema este mes", <Zap size={17} color={accentDeep} />, "soft", undefined)}
-          </div>
         </div>
       </div>
 
@@ -1304,11 +1290,13 @@ export default function DashboardPage() {
               </div>
             </div>
             <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: morososCount > 0 ? "#9A3412" : "#166534", maxWidth: 340 }}>
-              {morososCount > 0 ? "Membresías vencidas sin pago registrado. Hacé clic para verlos." : "Todos los socios tienen su membresía al día."}
+              {morososCount > 0 ? "Todavía no cobraste. Hacé clic para ver quiénes son." : "Todos los socios están al día. 🟢"}
             </p>
           </div>
         </a>
       )}
+
+      {renderPulsoPanel()}
 
       {!loading && (
         <div style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "1px solid rgba(99,102,241,0.18)" }}>
@@ -1350,7 +1338,6 @@ export default function DashboardPage() {
         {renderMetricSection("Fidelización", true)}
         {renderMetricSection("Eficiencia", true)}
       </div>
-      {renderPulsoPanel()}
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)", gap: 20 }}>
         <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }} {...cardHover}>
@@ -1470,10 +1457,7 @@ export default function DashboardPage() {
                   <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Asistencia diaria</p>
                   <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Cuánta gente entrenó cada día · prom. <strong>{asistPromedioDiario}/día</strong> (solo días operativos)</p>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ font: `700 0.72rem/1 ${fb}`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "8px 12px" }}>{asistHoy} hoy</span>
-                  <a href="/dashboard/asistencias" style={{ font: `700 0.72rem/1 ${fb}`, color: t2, textDecoration: "none" }}>Ver detalle →</a>
-                </div>
+                <a href="/dashboard/asistencias" style={{ font: `700 0.72rem/1 ${fb}`, color: t2, textDecoration: "none" }}>Ver detalle →</a>
               </div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
                 {asistDiarias.map((d) => {
@@ -1516,7 +1500,7 @@ export default function DashboardPage() {
 
     <OnboardingModal
       open={onboardingOpen}
-      onClose={() => setOnboardingOpen(false)}
+      onClose={() => { localStorage.setItem("onboarding_dismissed", "1"); setOnboardingOpen(false); }}
     />
     </>
   );

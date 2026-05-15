@@ -149,7 +149,6 @@ export default function EgresosPage() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
           <h1 style={{ font: `800 ${isMobile ? "1.5rem" : "2rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Egresos</h1>
-          {!isMobile && <p style={{ font: `400 0.875rem/1.4 ${fm}`, color: t2, marginTop: 4 }}>Registrá y analizá todos los gastos del gym.</p>}
         </div>
         <button
           onClick={() => { setForm(EMPTY_FORM); setFormError(null); setModalOpen(true); }}
@@ -168,15 +167,15 @@ export default function EgresosPage() {
           { label: "Acumulado",       value: totalAcum,  icon: <Receipt      size={16} color="white" />, sub: "total registrado" },
           { label: "Categorías",      value: topCat.length, icon: <Tag       size={16} color="white" />, sub: "tipos de gasto", isCount: true },
         ].map(s => (
-          <div key={s.label} style={{ ...card, padding: "16px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div key={s.label} style={{ ...card, padding: "10px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
               <span style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
+              <div style={{ width: 24, height: 24, borderRadius: 7, background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
             </div>
-            <p style={{ font: `800 ${isMobile ? "1.1rem" : "1.8rem"}/1 ${fd}`, color: t1, marginBottom: 4, wordBreak: "break-all" }}>
+            <p style={{ font: `800 ${isMobile ? "1.05rem" : "1.3rem"}/1 ${fd}`, color: t1, marginBottom: 3, wordBreak: "break-all" }}>
               {loading ? "—" : s.isCount ? s.value : `$${(s.value as number).toLocaleString("es-AR")}`}
             </p>
-            <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{s.sub}</p>
+            <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3 }}>{s.sub}</p>
           </div>
         ))}
       </div>

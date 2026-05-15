@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     access: "allow",
     already: insErr?.code === "23505",
-    alumno: { full_name: alumno.full_name, status: alumno.status },
+    alumno: { full_name: alumno.full_name, status: alumno.status, expires_at: alumno.next_expiration_date },
     hora,
   });
 }
