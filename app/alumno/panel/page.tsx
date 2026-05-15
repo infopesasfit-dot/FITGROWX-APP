@@ -2,21 +2,23 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Calendar, Dumbbell, User, Target } from "lucide-react";
+import { Calendar, Dumbbell, User, Target, Lock, Eye, Bell } from "lucide-react";
+import { useWorkoutSession } from "@/hooks/useWorkoutSession";
 
 const fd = "'Inter', sans-serif";
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const DAYS_FULL = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 interface Session {
-  alumno_id:  string;
-  gym_id:     string;
-  full_name:  string;
-  status:     string;
-  plan:       string | null;
-  expiration: string | null;
-  dni:        string | null;
-  token?:     string | null;
+  alumno_id:       string;
+  gym_id:          string;
+  full_name:       string;
+  status:          string;
+  plan:            string | null;
+  expiration:      string | null;
+  dni:             string | null;
+  deuda_pendiente: number;
+  token?:          string | null;
 }
 
 interface GymClass {
@@ -66,6 +68,125 @@ const gc: React.CSSProperties = {
   borderRadius: 16,
 };
 
+async function fetchAsObjectUrl(url: string): Promise<string> {
+  const r = await fetch(url);
+  const blob = await r.blob();
+  return URL.createObjectURL(blob);
+}
+
+async function loadImgFromUrl(url: string): Promise<HTMLImageElement> {
+  const objUrl = await fetchAsObjectUrl(url);
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload  = () => { URL.revokeObjectURL(objUrl); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); rej(); };
+    img.src = objUrl;
+  });
+}
+
+function drawCropped(ctx: CanvasRenderingContext2D, img: HTMLImageElement, x: number, y: number, w: number, h: number) {
+  const iA = img.width / img.height, cA = w / h;
+  let sx, sy, sw, sh;
+  if (iA > cA) { sh = img.height; sw = sh * cA; sx = (img.width - sw) / 2; sy = 0; }
+  else { sw = img.width; sh = sw / cA; sx = 0; sy = (img.height - sh) / 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
+async function generateComparadorImage(
+  f1: { foto_url: string; fecha: string },
+  f2: { foto_url: string; fecha: string },
+  gymName: string | null,
+  logoUrl: string | null,
+): Promise<string> {
+  const W = 1080, H = 1080, PH = 920, SH = H - PH;
+
+  const [img1, img2] = await Promise.all([loadImgFromUrl(f1.foto_url), loadImgFromUrl(f2.foto_url)]);
+  let logoImg: HTMLImageElement | null = null;
+  if (logoUrl) { try { logoImg = await loadImgFromUrl(logoUrl); } catch {} }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+
+  // Photos (center-crop each half)
+  drawCropped(ctx, img1, 0,     0, W / 2, PH);
+  drawCropped(ctx, img2, W / 2, 0, W / 2, PH);
+
+  // Orange center divider
+  ctx.save();
+  ctx.strokeStyle = "#F97316"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, PH); ctx.stroke();
+  ctx.restore();
+
+  // Date badge helper
+  const dateBadge = (text: string, side: "left" | "right") => {
+    ctx.save();
+    ctx.font = `500 22px ${fd}`;
+    const tw = ctx.measureText(text).width;
+    const bw = tw + 16, bh = 28, by = PH - 38;
+    const bx = side === "left" ? 10 : W - bw - 10;
+    ctx.fillStyle = "rgba(0,0,0,0.58)";
+    ctx.beginPath(); ctx.rect(bx, by, bw, bh); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.88)";
+    ctx.fillText(text, bx + 8, by + 20);
+    ctx.restore();
+  };
+  dateBadge(f1.fecha, "left");
+  dateBadge(f2.fecha, "right");
+
+  // Bottom strip
+  ctx.fillStyle = "#0D0F14";
+  ctx.fillRect(0, PH, W, SH);
+
+  // Gym logo or name
+  ctx.textAlign = "center";
+  if (logoImg) {
+    const lh = 52, lw = logoImg.width * (lh / logoImg.height);
+    ctx.drawImage(logoImg, (W - lw) / 2, PH + 18, lw, lh);
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.font = `400 20px ${fd}`;
+    ctx.fillText("via FitGrowX", W / 2, PH + SH - 18);
+  } else {
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = `700 34px ${fd}`;
+    ctx.fillText(gymName ?? "FitGrowX", W / 2, PH + 58);
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.font = `400 22px ${fd}`;
+    ctx.fillText("via FitGrowX", W / 2, PH + SH - 18);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
+async function compressImage(file: File, maxPx = 1080, quality = 0.82): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const ratio = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(file); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" }));
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("No se pudo leer la imagen")); };
+    img.src = objectUrl;
+  });
+}
+
 function AlumnoPanelInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -79,6 +200,7 @@ function AlumnoPanelInner() {
   const [rutina,       setRutina]       = useState<{ nombre: string; ejercicios: Ejercicio[] } | null>(null);
   const [pesos,        setPesos]        = useState<Peso[]>([]);
   const [loading,      setLoading]      = useState(true);
+  const [apiDown,      setApiDown]      = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [reservando,   setReservando]   = useState<string | null>(null);
   const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null; gym_whatsapp: string | null } | null>(null);
@@ -115,6 +237,36 @@ function AlumnoPanelInner() {
   const [pendingHitos, setPendingHitos] = useState<{ key: string; label: string; cardUrl: string }[]>([]);
   const [hitosChecked, setHitosChecked] = useState(false);
   const [hitoSharing,  setHitoSharing]  = useState(false);
+  const [ejSeleccionado, setEjSeleccionado] = useState<string | null>(null);
+  const [fotos,        setFotos]        = useState<{ id: string; foto_url: string; fecha: string; notas: string | null; privada: boolean }[]>([]);
+  const [fotosLoading,   setFotosLoading]   = useState(false);
+  const [fotoUploading,  setFotoUploading]  = useState(false);
+  const [nuevaFotoPrivada, setNuevaFotoPrivada] = useState(true);
+  const [comparadorMode,     setComparadorMode]     = useState(false);
+  const [fotosSeleccionadas, setFotosSeleccionadas] = useState<string[]>([]);
+  const [comparadorUrl,      setComparadorUrl]      = useState<string | null>(null);
+  const [generandoComp,      setGenerandoComp]      = useState(false);
+  const fotoInputRef = useRef<HTMLInputElement>(null);
+  const [notifOpen,    setNotifOpen]    = useState(false);
+  const [notifs,       setNotifs]       = useState<{ id: string; type: string; title: string; body: string | null; link: string | null; leida: boolean; created_at: string }[]>([]);
+  const [notifsLoaded, setNotifsLoaded] = useState(false);
+  const [deudaDismissed, setDeudaDismissed] = useState(false);
+  const [restSeconds, setRestSeconds] = useState<number | null>(null);
+  const [restTotal,   setRestTotal]   = useState(60);
+  const restRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { workoutSession, wsSyncing, initSession, markSerie, setSerieKg, finalizeWorkout, flushWorkoutSession, enqueueKg, flushKgQueue } =
+    useWorkoutSession(session?.alumno_id ?? null, session?.gym_id ?? null, session?.token ?? null);
+
+  // Group pesos by exercise in chronological order
+  const pesosPorEjercicio = useMemo(() => {
+    const map = new Map<string, { peso: number; fecha: string }[]>();
+    [...pesos].reverse().forEach(p => {
+      if (!map.has(p.ejercicio)) map.set(p.ejercicio, []);
+      map.get(p.ejercicio)!.push({ peso: p.peso, fecha: p.fecha });
+    });
+    return map;
+  }, [pesos]);
 
   useEffect(() => {
     const update = () => setIsOffline(!navigator.onLine);
@@ -123,6 +275,16 @@ function AlumnoPanelInner() {
     window.addEventListener("offline", update);
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, []);
+
+  // Flush offline workout + kg queue when connection is restored
+  useEffect(() => {
+    const handler = () => { void flushWorkoutSession(); void flushKgQueue(); };
+    window.addEventListener("online", handler);
+    return () => window.removeEventListener("online", handler);
+  }, [flushWorkoutSession, flushKgQueue]);
+
+  // Cleanup rest timer on unmount
+  useEffect(() => () => { if (restRef.current) clearInterval(restRef.current); }, []);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -136,6 +298,8 @@ function AlumnoPanelInner() {
     let parsed: Session;
     try { parsed = JSON.parse(raw); } catch { router.replace("/alumno/login"); return; }
     if (!parsed.token) { router.replace("/alumno/login"); return; }
+    const dismissKey = `fitgrowx_deuda_ok_${parsed.alumno_id}`;
+    if (sessionStorage.getItem(dismissKey) === "1") setDeudaDismissed(true);
     setSession(parsed);
     const pagoParam = searchParams.get("pago");
     fetch(`/api/alumno/me?alumno_id=${parsed.alumno_id}`, {
@@ -149,7 +313,7 @@ function AlumnoPanelInner() {
         }
         const d = await r.json();
         if (d.error) return;
-        const fresh: Session = { alumno_id: d.alumno_id, gym_id: d.gym_id, full_name: d.full_name, status: d.status, plan: d.plan, expiration: d.expiration, dni: d.dni ?? null, token: parsed.token };
+        const fresh: Session = { alumno_id: d.alumno_id, gym_id: d.gym_id, full_name: d.full_name, status: d.status, plan: d.plan, expiration: d.expiration, dni: d.dni ?? null, deuda_pendiente: d.deuda_pendiente ?? 0, token: parsed.token };
         localStorage.setItem("fitgrowx_alumno", JSON.stringify(fresh));
         setSession(fresh);
         if (pagoParam === "ok") showToast("✅ ¡Pago recibido! Tu membresía fue renovada.", true);
@@ -169,14 +333,22 @@ function AlumnoPanelInner() {
 
   const fetchBootstrap = useCallback(async (s: Session, includeTraining = false) => {
     const suffix = includeTraining ? "&include=training" : "";
-    const r = await fetch(`/api/alumno/bootstrap?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}${suffix}`, {
-      headers: { Authorization: `Bearer ${s.token}` },
-    });
+    let r: Response;
+    try {
+      r = await fetch(`/api/alumno/bootstrap?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}${suffix}`, {
+        headers: { Authorization: `Bearer ${s.token}` },
+      });
+    } catch {
+      setApiDown(true);
+      return;
+    }
     if (r.status === 401) {
       localStorage.removeItem("fitgrowx_alumno");
       router.replace("/alumno/login");
       return;
     }
+    if (r.status >= 500) { setApiDown(true); return; }
+    setApiDown(false);
     const d = await r.json();
     if (d.clases) setClases(d.clases);
     if (d.reservas) setReservas(d.reservas);
@@ -247,6 +419,15 @@ function AlumnoPanelInner() {
     void fetchBootstrap(session, true);
   }, [session, tab, rutina, fetchBootstrap]);
 
+  // Init workout session when routine loads and user is on the entrenamiento tab
+  useEffect(() => {
+    if (tab !== "entrenamiento" || !rutina || !session) return;
+    const isWod = !!(rutina.ejercicios[0] as { _meta?: boolean })?._meta;
+    if (isWod) return; // WOD doesn't use series tracking
+    initSession(rutina.nombre, rutina.ejercicios.map(e => ({ nombre: e.nombre, series: e.series })));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, rutina?.nombre, session?.alumno_id]);
+
   useEffect(() => {
     if (!session) return;
     if ((tab !== "entrenamiento" && tab !== "metas" && tab !== "perfil") || pesos.length > 0) return;
@@ -271,6 +452,69 @@ function AlumnoPanelInner() {
       .then(d => { if (d.hitos?.length) setPendingHitos(d.hitos); })
       .catch(() => {});
   }, [session, hitosChecked]);
+
+  useEffect(() => {
+    if (tab !== "metas" || !session || fotos.length > 0 || fotosLoading) return;
+    setFotosLoading(true);
+    fetch(`/api/alumno/fotos?alumno_id=${session.alumno_id}`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    })
+      .then(r => r.ok ? r.json() : { fotos: [] })
+      .then(d => setFotos(d.fotos ?? []))
+      .catch(() => {})
+      .finally(() => setFotosLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, session?.alumno_id]);
+
+  const fetchNotifications = useCallback(async (s: Session) => {
+    const r = await fetch("/api/alumno/notificaciones", {
+      headers: { Authorization: `Bearer ${s.token}` },
+    }).catch(() => null);
+    if (r?.ok) {
+      const d = await r.json();
+      setNotifs(d.notifications ?? []);
+    }
+    setNotifsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!session || notifsLoaded) return;
+    void fetchNotifications(session);
+  }, [session, notifsLoaded, fetchNotifications]);
+
+  const handleOpenNotifs = () => {
+    setNotifOpen(true);
+    if (!session || notifs.every(n => n.leida)) return;
+    fetch("/api/alumno/notificaciones", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+      body: JSON.stringify({ all: true }),
+    }).then(() => setNotifs(prev => prev.map(n => ({ ...n, leida: true })))).catch(() => {});
+  };
+
+  const startRest = (seconds: number) => {
+    if (restRef.current) clearInterval(restRef.current);
+    setRestTotal(seconds);
+    setRestSeconds(seconds);
+    restRef.current = setInterval(() => {
+      setRestSeconds(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(restRef.current!);
+          restRef.current = null;
+          if (prev === 1) {
+            try { navigator.vibrate([180, 80, 180, 80, 360]); } catch {}
+          }
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const cancelRest = () => {
+    if (restRef.current) { clearInterval(restRef.current); restRef.current = null; }
+    setRestSeconds(null);
+  };
 
   const handleSaveMedida = async () => {
     if (!session || !medPeso.trim()) return;
@@ -324,28 +568,123 @@ function AlumnoPanelInner() {
     if (!session) return;
     const val = inlineKg[ejercicio];
     if (!val || isNaN(parseFloat(val))) return;
+    const kgNum = parseFloat(val);
     setInlineSaving(prev => ({ ...prev, [ejercicio]: true }));
     try {
       const res = await fetch("/api/alumno/pesos", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
-        body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, ejercicio, peso: parseFloat(val), notas: null }),
+        body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, ejercicio, peso: kgNum, notas: null }),
       });
       const d = await res.json();
       if (d.ok) {
         setInlineKg(prev => ({ ...prev, [ejercicio]: "" }));
+        setSerieKg(ejercicio, kgNum);
         if (d.peso) {
           setPesos(prev => [d.peso as Peso, ...prev].slice(0, 50));
         } else {
           void fetchPesos(session);
         }
         showToast("Peso registrado!");
+      } else {
+        showToast(d.error ?? "Error.", false);
       }
-      else showToast(d.error ?? "Error.", false);
     } catch {
-      showToast("Error de conexion.", false);
+      if (!navigator.onLine) {
+        enqueueKg({ alumno_id: session.alumno_id, gym_id: session.gym_id, ejercicio, peso: kgNum });
+        setSerieKg(ejercicio, kgNum);
+        setInlineKg(prev => ({ ...prev, [ejercicio]: "" }));
+        showToast("Sin señal — el peso se guardará cuando recuperes conexión.", true);
+      } else {
+        showToast("Error de conexion.", false);
+      }
     }
     setInlineSaving(prev => ({ ...prev, [ejercicio]: false }));
+  };
+
+  const handleFinalize = async () => {
+    const ok = await finalizeWorkout();
+    if (!navigator.onLine) {
+      showToast("Guardado offline. Se sincronizará automáticamente.", true);
+    } else {
+      showToast(ok ? "¡Entrenamiento completado!" : "Error al guardar.", ok);
+    }
+  };
+
+  const handleFotoUpload = async (file: File) => {
+    if (!session) return;
+    setFotoUploading(true);
+    let compressed: File;
+    try {
+      compressed = await compressImage(file);
+    } catch {
+      compressed = file;
+    }
+    const fd = new FormData();
+    fd.append("file", compressed);
+    fd.append("alumno_id", session.alumno_id);
+    fd.append("gym_id", session.gym_id);
+    fd.append("privada", String(nuevaFotoPrivada));
+    try {
+      const res = await fetch("/api/alumno/fotos", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.token}` },
+        body: fd,
+      });
+      const d = await res.json();
+      if (d.ok && d.foto) { setFotos(prev => [d.foto, ...prev]); showToast("Foto guardada!"); }
+      else showToast(d.error ?? "Error al subir.", false);
+    } catch {
+      showToast("Error de conexión.", false);
+    }
+    setFotoUploading(false);
+  };
+
+  const handleTogglePrivada = async (fotoId: string, privadaActual: boolean) => {
+    if (!session) return;
+    const next = !privadaActual;
+    setFotos(prev => prev.map(f => f.id === fotoId ? { ...f, privada: next } : f));
+    try {
+      const res = await fetch("/api/alumno/fotos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        body: JSON.stringify({ foto_id: fotoId, alumno_id: session.alumno_id, privada: next }),
+      });
+      if (!res.ok) setFotos(prev => prev.map(f => f.id === fotoId ? { ...f, privada: privadaActual } : f));
+    } catch {
+      setFotos(prev => prev.map(f => f.id === fotoId ? { ...f, privada: privadaActual } : f));
+    }
+  };
+
+  const toggleFotoSeleccionada = (id: string) =>
+    setFotosSeleccionadas(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 2 ? [...prev, id] : prev
+    );
+
+  const handleGenerarComparador = async () => {
+    if (fotosSeleccionadas.length !== 2) return;
+    const [f1, f2] = fotosSeleccionadas.map(id => fotos.find(f => f.id === id));
+    if (!f1 || !f2) return;
+    setGenerandoComp(true);
+    try {
+      const url = await generateComparadorImage(f1, f2, gymInfo?.gym_name ?? null, gymInfo?.logo_url ?? null);
+      setComparadorUrl(url);
+    } catch { showToast("Error al generar la comparación.", false); }
+    setGenerandoComp(false);
+  };
+
+  const handleShareComparador = async () => {
+    if (!comparadorUrl) return;
+    try {
+      const resp = await fetch(comparadorUrl);
+      const blob = await resp.blob();
+      const file = new File([blob], "mi-progreso.png", { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Mi progreso", text: `Mi progreso en ${gymInfo?.gym_name ?? "el gym"} 💪` });
+      } else {
+        const a = document.createElement("a"); a.href = comparadorUrl; a.download = "mi-progreso.png"; a.click();
+      }
+    } catch {}
   };
 
   const doCheckin = async () => {
@@ -524,6 +863,36 @@ function AlumnoPanelInner() {
 
   if (!session) return null;
 
+  if (apiDown) {
+    return (
+      <div style={{ minHeight: "100svh", background: "#0A0A0F", fontFamily: fd, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", textAlign: "center" }}>
+        <style>{`@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }`}</style>
+        <div style={{ animation: "fadeUp 0.35s ease", maxWidth: 340 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 24, background: "rgba(251,191,36,0.07)", border: "1px solid rgba(251,191,36,0.18)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 28px" }}>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h2 style={{ font: `700 1.5rem/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", marginBottom: 10 }}>
+            Estamos con mucha demanda
+          </h2>
+          <p style={{ font: `400 0.82rem/1.6 ${fd}`, color: "rgba(255,255,255,0.38)", marginBottom: 32 }}>
+            No pudimos conectar al servidor. Esto es temporal — reintentá en un minuto.
+          </p>
+          <button
+            onClick={() => { setApiDown(false); setLoading(true); fetchBootstrap(session).finally(() => setLoading(false)); }}
+            style={{ padding: "13px 32px", background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 14, font: `700 0.88rem/1 ${fd}`, color: "#fff", cursor: "pointer", letterSpacing: "0.02em" }}
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const showDeudaBanner = (session.deuda_pendiente ?? 0) > 0 && !deudaDismissed && session.status === "activo";
+
   // Lock screen
   if (session.status !== "activo") {
     const gymName = gymInfo?.gym_name ?? "tu gimnasio";
@@ -654,9 +1023,18 @@ function AlumnoPanelInner() {
               FitGrow<span style={{ color: "#F97316" }}>X</span>
             </span>
           )}
-          <button onClick={logout} style={{ minHeight: 44, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "0 14px", font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", cursor: "pointer", letterSpacing: "0.05em" }}>
-            SALIR
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Bell icon */}
+            <button onClick={handleOpenNotifs} style={{ position: "relative", minHeight: 44, minWidth: 44, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <Bell size={17} color="rgba(255,255,255,0.55)" />
+              {notifs.some(n => !n.leida) && (
+                <span style={{ position: "absolute", top: 8, right: 8, width: 8, height: 8, borderRadius: "50%", background: "#F97316", border: "1.5px solid #0A0A0F" }} />
+              )}
+            </button>
+            <button onClick={logout} style={{ minHeight: 44, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "0 14px", font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", cursor: "pointer", letterSpacing: "0.05em" }}>
+              SALIR
+            </button>
+          </div>
         </div>
       </div>
 
@@ -960,6 +1338,30 @@ function AlumnoPanelInner() {
                                   ))}
                                 </div>
                               </div>
+                            {workoutSession?.series_log[ej.nombre] !== undefined && (
+                              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+                                <span style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em", minWidth: 42, flexShrink: 0 }}>Series</span>
+                                {Array.from({ length: ej.series }).map((_, idx) => {
+                                  const done = idx < (workoutSession.series_log[ej.nombre]?.completadas ?? 0);
+                                  return (
+                                    <button key={idx} onClick={() => markSerie(ej.nombre, idx)} style={{ width: 30, height: 30, borderRadius: "50%", border: done ? "none" : "1px solid rgba(255,255,255,0.18)", background: done ? "linear-gradient(135deg,#F97316,#EA580C)" : "rgba(255,255,255,0.06)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", padding: 0 }}>
+                                      {done && <span style={{ color: "#fff", fontSize: "0.68rem", lineHeight: 1 }}>✓</span>}
+                                    </button>
+                                  );
+                                })}
+                                <span style={{ font: `600 0.72rem/1 ${fd}`, color: (workoutSession.series_log[ej.nombre]?.completadas ?? 0) === ej.series ? "#F97316" : "rgba(255,255,255,0.28)", marginLeft: 4 }}>
+                                  {workoutSession.series_log[ej.nombre]?.completadas ?? 0}/{ej.series}
+                                </span>
+                                {/* Rest timer buttons */}
+                                <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
+                                  {([60, 90] as const).map(s => (
+                                    <button key={s} onClick={() => startRest(s)} style={{ height: 26, padding: "0 10px", borderRadius: 9999, background: restSeconds !== null && restTotal === s ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${restSeconds !== null && restTotal === s ? "rgba(249,115,22,0.4)" : "rgba(255,255,255,0.1)"}`, font: `600 0.65rem/1 ${fd}`, color: restSeconds !== null && restTotal === s ? "#F97316" : "rgba(255,255,255,0.35)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                                      ⏱ {s}s
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                             <div style={{ display: "grid", gridTemplateColumns: isCompactScreen ? "1fr" : "1fr auto", gap: 10, alignItems: "stretch", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 12 }}>
                               <div style={{ position: "relative", flex: 1 }}>
                                 <input
@@ -998,6 +1400,18 @@ function AlumnoPanelInner() {
                           </div>
                         );
                       })
+                    )}
+                    {workoutSession && (
+                      workoutSession.completada ? (
+                        <div style={{ ...gc, padding: "16px 18px", textAlign: "center" }}>
+                          <p style={{ font: `700 0.92rem/1 ${fd}`, color: "#F97316" }}>Entrenamiento completado</p>
+                          <p style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginTop: 6 }}>Los datos están guardados{workoutSession.offline ? " (offline)" : ""}</p>
+                        </div>
+                      ) : (
+                        <button onClick={handleFinalize} disabled={wsSyncing} style={{ width: "100%", minHeight: 52, background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)", border: "none", borderRadius: 16, font: `700 0.9rem/1 ${fd}`, color: "#FFFFFF", cursor: wsSyncing ? "not-allowed" : "pointer", opacity: wsSyncing ? 0.6 : 1, letterSpacing: "0.03em", transition: "opacity 0.15s" }}>
+                          {wsSyncing ? "Guardando..." : "Finalizar entrenamiento"}
+                        </button>
+                      )
                     )}
                   </>
                   );
@@ -1144,6 +1558,79 @@ function AlumnoPanelInner() {
                   );
                 })()}
 
+                {/* Curva de fuerza por ejercicio */}
+                {pesos.length > 0 && (() => {
+                  const exercises = [...pesosPorEjercicio.keys()];
+                  const selEj  = ejSeleccionado ?? exercises[0] ?? null;
+                  const ejData = selEj ? (pesosPorEjercicio.get(selEj) ?? []) : [];
+                  const vals   = ejData.map(d => d.peso);
+                  const pr     = vals.length ? Math.max(...vals) : 0;
+                  const delta  = vals.length >= 2 ? +(pr - vals[0]).toFixed(1) : null;
+                  const W = 300, H = 60;
+                  const sparkline = ejData.length >= 2 ? (() => {
+                    const min = Math.min(...vals), max = Math.max(...vals), rng = max - min || 1;
+                    const pts = vals.map((v, i) => {
+                      const x = ((i / (vals.length - 1)) * W).toFixed(1);
+                      const y = (H - ((v - min) / rng) * H * 0.78 - H * 0.1).toFixed(1);
+                      return `${x},${y}`;
+                    });
+                    const ptsStr = pts.join(" ");
+                    const prIdx  = vals.indexOf(pr);
+                    const prPt   = pts[prIdx].split(",");
+                    const lastPt = pts[pts.length - 1].split(",");
+                    return (
+                      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 60, display: "block", overflow: "visible" }}>
+                        <defs>
+                          <linearGradient id="sfg" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#F97316" stopOpacity="0.18" />
+                            <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+                        <path d={`M0,${H} ${ptsStr} ${W},${H} Z`} fill="url(#sfg)" />
+                        <polyline points={ptsStr} fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        {pts.map((pt, i) => { const [cx, cy] = pt.split(","); return <circle key={i} cx={cx} cy={cy} r="2.5" fill="#F97316" opacity="0.55" />; })}
+                        <circle cx={prPt[0]} cy={prPt[1]} r="5" fill="#F97316" stroke="#1A1D24" strokeWidth="1.5" />
+                        {prIdx !== vals.length - 1 && <circle cx={lastPt[0]} cy={lastPt[1]} r="3.5" fill="#F97316" />}
+                      </svg>
+                    );
+                  })() : (
+                    <div style={{ height: 48, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.2)" }}>Registrá más cargas para ver la curva</span>
+                    </div>
+                  );
+                  return (
+                    <div style={{ ...gc, padding: "18px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                        <p style={{ font: `500 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Curva de fuerza</p>
+                        {vals.length > 0 && (
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <span style={{ font: `700 0.82rem/1 ${fd}`, color: "#FFFFFF" }}>PR {pr} kg</span>
+                            {delta !== null && delta !== 0 && (
+                              <span style={{ font: `500 0.68rem/1 ${fd}`, color: delta > 0 ? "#34D399" : "#F87171", background: delta > 0 ? "rgba(52,211,153,0.08)" : "rgba(248,113,113,0.08)", padding: "2px 7px", borderRadius: 99 }}>
+                                {delta > 0 ? "+" : ""}{delta} kg
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                        {exercises.map(ej => (
+                          <button key={ej} onClick={() => setEjSeleccionado(ej)} style={{ padding: "5px 11px", borderRadius: 9999, background: selEj === ej ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.04)", border: `1px solid ${selEj === ej ? "rgba(249,115,22,0.4)" : "rgba(255,255,255,0.08)"}`, font: `500 0.68rem/1 ${fd}`, color: selEj === ej ? "#F97316" : "rgba(255,255,255,0.45)", cursor: "pointer", whiteSpace: "nowrap" }}>
+                            {ej}
+                          </button>
+                        ))}
+                      </div>
+                      {sparkline}
+                      {ejData.length >= 2 && (
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                          <span style={{ font: `400 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.2)" }}>{ejData[0].fecha}</span>
+                          <span style={{ font: `400 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.2)" }}>{ejData[ejData.length - 1].fecha}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Formulario registrar medición */}
                 <div style={{ ...gc, padding: "18px 20px" }}>
                   <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 14 }}>Registrar medición</p>
@@ -1195,6 +1682,87 @@ function AlumnoPanelInner() {
                     <p style={{ font: `400 0.68rem/1.5 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.06em" }}>Registrá tu peso hoy y en unas semanas vas a ver tu progreso acá.</p>
                   </div>
                 )}
+
+                {/* Fotos de progreso */}
+                <div style={{ ...gc, padding: "18px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: fotos.length > 0 ? 14 : 0 }}>
+                    <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF", flex: 1 }}>Fotos de progreso</p>
+                    {/* Privacy toggle for new uploads */}
+                    <button onClick={() => setNuevaFotoPrivada(p => !p)} title={nuevaFotoPrivada ? "Solo vos la ves — tocá para compartir con tu profe" : "Tu profe puede verla — tocá para hacerla privada"}
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 9999, background: nuevaFotoPrivada ? "rgba(255,255,255,0.06)" : "rgba(249,115,22,0.12)", border: `1px solid ${nuevaFotoPrivada ? "rgba(255,255,255,0.1)" : "rgba(249,115,22,0.3)"}`, cursor: "pointer" }}>
+                      {nuevaFotoPrivada
+                        ? <Lock  size={11} color="rgba(255,255,255,0.45)" strokeWidth={2} />
+                        : <Eye   size={11} color="#F97316" strokeWidth={2} />}
+                      <span style={{ font: `600 0.58rem/1 ${fd}`, color: nuevaFotoPrivada ? "rgba(255,255,255,0.38)" : "#F97316" }}>
+                        {nuevaFotoPrivada ? "Privada" : "Con profe"}
+                      </span>
+                    </button>
+                    {fotos.length >= 2 && (
+                      <button onClick={() => { setComparadorMode(m => !m); setFotosSeleccionadas([]); }}
+                        style={{ padding: "5px 11px", borderRadius: 9999, background: comparadorMode ? "rgba(249,115,22,0.15)" : "rgba(255,255,255,0.05)", border: `1px solid ${comparadorMode ? "rgba(249,115,22,0.4)" : "rgba(255,255,255,0.1)"}`, font: `600 0.62rem/1 ${fd}`, color: comparadorMode ? "#F97316" : "rgba(255,255,255,0.45)", cursor: "pointer" }}>
+                        {comparadorMode ? "Cancelar" : "Comparar"}
+                      </button>
+                    )}
+                    <button onClick={() => fotoInputRef.current?.click()} disabled={fotoUploading}
+                      style={{ padding: "6px 12px", borderRadius: 9999, background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)", font: `600 0.65rem/1 ${fd}`, color: "#F97316", cursor: fotoUploading ? "not-allowed" : "pointer", opacity: fotoUploading ? 0.5 : 1 }}>
+                      {fotoUploading ? "Subiendo..." : "+ Foto"}
+                    </button>
+                    <input ref={fotoInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) void handleFotoUpload(f); e.target.value = ""; }} />
+                  </div>
+                  {fotos.length === 0 ? (
+                    !fotosLoading && (
+                      <p style={{ font: `400 0.7rem/1.5 ${fd}`, color: "rgba(255,255,255,0.2)", textAlign: "center", padding: "18px 0 4px" }}>
+                        Tu progreso en fotos — privadas entre vos y tu profe.
+                      </p>
+                    )
+                  ) : (
+                    <>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                        {fotos.map(f => {
+                          const selIdx = fotosSeleccionadas.indexOf(f.id);
+                          const seleccionada = selIdx !== -1;
+                          const dimmed = comparadorMode && fotosSeleccionadas.length === 2 && !seleccionada;
+                          return (
+                            <div key={f.id}
+                              onClick={comparadorMode ? () => toggleFotoSeleccionada(f.id) : undefined}
+                              style={{ position: "relative", borderRadius: 10, overflow: "hidden", aspectRatio: "1", background: "rgba(255,255,255,0.04)", cursor: comparadorMode ? "pointer" : "default", opacity: dimmed ? 0.35 : 1, transition: "opacity 0.15s", outline: seleccionada ? "2.5px solid #F97316" : "none" }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={f.foto_url} alt={f.fecha} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
+                              <span style={{ position: "absolute", bottom: 4, left: 4, font: `400 0.5rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", background: "rgba(0,0,0,0.55)", padding: "2px 5px", borderRadius: 4 }}>{f.fecha}</span>
+                              {!comparadorMode && (
+                                <button onClick={e => { e.stopPropagation(); void handleTogglePrivada(f.id, f.privada); }}
+                                  title={f.privada ? "Solo vos — tocá para compartir con tu profe" : "Tu profe puede verla — tocá para hacer privada"}
+                                  style={{ position: "absolute", bottom: 4, right: 4, width: 22, height: 22, borderRadius: 6, background: "rgba(0,0,0,0.55)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                                  {f.privada
+                                    ? <Lock size={10} color="rgba(255,255,255,0.55)" strokeWidth={2.5} />
+                                    : <Eye  size={10} color="#F97316"                  strokeWidth={2.5} />}
+                                </button>
+                              )}
+                              {comparadorMode && (
+                                <div style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: "50%", background: seleccionada ? "#F97316" : "rgba(0,0,0,0.45)", border: seleccionada ? "none" : "1.5px solid rgba(255,255,255,0.55)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.72rem/1 ${fd}`, color: "#fff" }}>
+                                  {seleccionada ? selIdx + 1 : ""}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {comparadorMode && (
+                        fotosSeleccionadas.length === 2 ? (
+                          <button onClick={handleGenerarComparador} disabled={generandoComp}
+                            style={{ width: "100%", marginTop: 12, minHeight: 48, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 14, font: `700 0.88rem/1 ${fd}`, color: "#fff", cursor: generandoComp ? "not-allowed" : "pointer", opacity: generandoComp ? 0.65 : 1, transition: "opacity 0.15s" }}>
+                            {generandoComp ? "Generando..." : "Ver comparación →"}
+                          </button>
+                        ) : (
+                          <p style={{ textAlign: "center", font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", marginTop: 12 }}>
+                            Elegí {2 - fotosSeleccionadas.length} foto{2 - fotosSeleccionadas.length !== 1 ? "s" : ""} para comparar
+                          </p>
+                        )
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1603,6 +2171,158 @@ function AlumnoPanelInner() {
           </div>
         );
       })()}
+
+      {/* Comparador modal */}
+      {comparadorUrl && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 450, background: "rgba(0,0,0,0.94)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 16px", gap: 16 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={comparadorUrl} alt="Comparación de progreso" style={{ width: "100%", maxWidth: 440, borderRadius: 14, display: "block" }} />
+          <div style={{ display: "flex", gap: 10, width: "100%", maxWidth: 440 }}>
+            <button onClick={handleShareComparador} style={{ flex: 1, minHeight: 52, background: "linear-gradient(135deg,#F97316,#EA580C)", border: "none", borderRadius: 14, font: `700 0.9rem/1 ${fd}`, color: "#fff", cursor: "pointer" }}>
+              Compartir
+            </button>
+            <button onClick={() => { setComparadorUrl(null); setComparadorMode(false); setFotosSeleccionadas([]); }}
+              style={{ minHeight: 52, padding: "0 20px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 14, font: `600 0.82rem/1 ${fd}`, color: "rgba(255,255,255,0.65)", cursor: "pointer" }}>
+              Cerrar
+            </button>
+          </div>
+          <p style={{ font: `400 0.62rem/1.5 ${fd}`, color: "rgba(255,255,255,0.22)", textAlign: "center", maxWidth: 280 }}>
+            Guardá la imagen o compartila directo a Instagram Stories
+          </p>
+        </div>
+      )}
+
+      {/* Rest timer bar */}
+      {restSeconds !== null && (() => {
+        const pct = restSeconds / restTotal;
+        const r = 22;
+        const circ = 2 * Math.PI * r;
+        const dash = circ * pct;
+        const urgent = restSeconds <= 10;
+        return (
+          <div style={{ position: "fixed", bottom: "calc(72px + env(safe-area-inset-bottom, 0px))", left: "50%", transform: "translateX(-50%)", zIndex: 200, display: "flex", alignItems: "center", gap: 14, background: "rgba(15,15,20,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: `1px solid ${urgent ? "rgba(239,68,68,0.35)" : "rgba(249,115,22,0.3)"}`, borderRadius: 9999, padding: "10px 16px 10px 12px", boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px ${urgent ? "rgba(239,68,68,0.1)" : "rgba(249,115,22,0.08)"}` }}>
+            {/* Arc progress */}
+            <svg width={52} height={52} style={{ flexShrink: 0 }}>
+              <circle cx={26} cy={26} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={3} />
+              <circle cx={26} cy={26} r={r} fill="none" stroke={urgent ? "#EF4444" : "#F97316"} strokeWidth={3}
+                strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+                transform="rotate(-90 26 26)" style={{ transition: "stroke-dasharray 0.9s linear, stroke 0.3s" }} />
+              <text x={26} y={26} textAnchor="middle" dominantBaseline="central"
+                style={{ font: `700 0.88rem/1 ${fd}`, fill: urgent ? "#EF4444" : "#FFFFFF" }}>
+                {restSeconds}
+              </text>
+            </svg>
+            <div>
+              <p style={{ font: `600 0.82rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 2 }}>Descansando…</p>
+              <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.35)" }}>{restTotal}s · {urgent ? "¡Ya casi!" : "Preparate"}</p>
+            </div>
+            <button onClick={cancelRest} style={{ marginLeft: 4, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 9999, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: "0.9rem", flexShrink: 0 }}>✕</button>
+          </div>
+        );
+      })()}
+
+      {/* Deuda overlay */}
+      {showDeudaBanner && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 480, background: "rgba(8,4,4,0.97)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 24px", fontFamily: fd }}>
+          <style>{`@keyframes deudaPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } 60% { box-shadow: 0 0 0 18px rgba(239,68,68,0.08); } }`}</style>
+          {/* Glow */}
+          <div style={{ position: "fixed", top: "40%", left: "50%", transform: "translate(-50%,-50%)", width: 600, height: 600, background: "radial-gradient(circle, rgba(239,68,68,0.12) 0%, transparent 65%)", filter: "blur(80px)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 360, display: "flex", flexDirection: "column", gap: 20, alignItems: "center" }}>
+            {/* Icon */}
+            <div style={{ width: 76, height: 76, borderRadius: 26, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.22)", display: "flex", alignItems: "center", justifyContent: "center", animation: "deudaPulse 2.4s ease-in-out infinite" }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            {/* Gym logo or name */}
+            {gymInfo?.logo_url
+              ? <img src={gymInfo.logo_url} alt="" style={{ height: 24, maxWidth: 120, objectFit: "contain", opacity: 0.5, filter: "grayscale(1)" }} />
+              : <p style={{ font: `300 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.28em", textTransform: "uppercase" }}>{gymInfo?.gym_name ?? ""}</p>
+            }
+            {/* Main copy */}
+            <div style={{ textAlign: "center" }}>
+              <h2 style={{ font: `700 1.75rem/1.1 ${fd}`, color: "#fff", letterSpacing: "-0.03em", marginBottom: 8 }}>Tenés una deuda pendiente</h2>
+              <div style={{ display: "inline-flex", alignItems: "baseline", gap: 4, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 14, padding: "10px 20px", marginBottom: 12 }}>
+                <span style={{ font: `400 0.9rem/1 ${fd}`, color: "rgba(239,68,68,0.7)" }}>$</span>
+                <span style={{ font: `700 2.2rem/1 ${fd}`, color: "#EF4444", letterSpacing: "-0.04em" }}>
+                  {(session.deuda_pendiente ?? 0).toLocaleString("es-AR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+                <span style={{ font: `400 0.78rem/1 ${fd}`, color: "rgba(239,68,68,0.5)" }}>ARS</span>
+              </div>
+              <p style={{ font: `400 0.82rem/1.5 ${fd}`, color: "rgba(255,255,255,0.4)", maxWidth: 280, margin: "0 auto" }}>
+                Regularizá tu cuota para seguir disfrutando de todos los beneficios.
+              </p>
+            </div>
+            {/* Payment CTA */}
+            {gymInfo?.has_mp && (
+              <button
+                onClick={handlePagar}
+                disabled={loadingPago}
+                style={{ width: "100%", padding: "15px 0", background: loadingPago ? "rgba(0,158,227,0.5)" : "#009EE3", border: "none", borderRadius: 14, font: `700 0.92rem/1 ${fd}`, color: "#fff", cursor: loadingPago ? "not-allowed" : "pointer", boxShadow: "0 4px 24px rgba(0,158,227,0.3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="rgba(255,255,255,0.2)"/><path d="M8 12h8M12 8v8" stroke="white" strokeWidth="2" strokeLinecap="round"/></svg>
+                {loadingPago ? "Generando link..." : "Pagar ahora con MercadoPago"}
+              </button>
+            )}
+            {gymInfo?.gym_whatsapp && (
+              <a
+                href={`https://wa.me/${gymInfo.gym_whatsapp.replace(/\D/g,"")}?text=${encodeURIComponent("Hola, quiero regularizar mi deuda de $" + (session.deuda_pendiente ?? 0).toLocaleString("es-AR") + " ARS.")}`}
+                target="_blank" rel="noopener noreferrer"
+                style={{ width: "100%", padding: "14px 0", background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.22)", borderRadius: 14, font: `600 0.88rem/1 ${fd}`, color: "#25D366", cursor: "pointer", textAlign: "center", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.116.549 4.104 1.508 5.836L0 24l6.335-1.652A11.954 11.954 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.006-1.371l-.36-.214-3.728.977.994-3.63-.234-.374A9.818 9.818 0 1 1 12 21.818z"/></svg>
+                Avisar al gym por WhatsApp
+              </a>
+            )}
+            {/* Escape hatch — small and guilty-looking */}
+            <button
+              onClick={() => {
+                sessionStorage.setItem(`fitgrowx_deuda_ok_${session.alumno_id}`, "1");
+                setDeudaDismissed(true);
+              }}
+              style={{ background: "none", border: "none", font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.18)", cursor: "pointer", padding: "8px 12px", textDecoration: "underline", textUnderlineOffset: 3 }}
+            >
+              Entrar de todos modos
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Notifications inbox */}
+      {notifOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 460, display: "flex", flexDirection: "column" }} onClick={() => setNotifOpen(false)}>
+          {/* Backdrop */}
+          <div style={{ flex: 1, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }} />
+          {/* Sheet */}
+          <div onClick={e => e.stopPropagation()} style={{ background: "#111118", borderTop: "1px solid rgba(255,255,255,0.1)", borderRadius: "20px 20px 0 0", padding: "0 0 env(safe-area-inset-bottom,16px)", maxHeight: "72svh", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <span style={{ font: `700 1rem/1 ${fd}`, color: "#fff", letterSpacing: "-0.02em" }}>Notificaciones</span>
+              <button onClick={() => setNotifOpen(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", font: `500 0.82rem/1 ${fd}`, cursor: "pointer", padding: "4px 0" }}>Cerrar</button>
+            </div>
+            <div style={{ overflowY: "auto", padding: "8px 0" }}>
+              {notifs.length === 0 ? (
+                <div style={{ padding: "40px 20px", textAlign: "center", color: "rgba(255,255,255,0.25)", font: `400 0.85rem/1.5 ${fd}` }}>
+                  <Bell size={28} color="rgba(255,255,255,0.12)" style={{ marginBottom: 10 }} />
+                  <p>Sin notificaciones</p>
+                </div>
+              ) : (
+                notifs.map(n => (
+                  <div key={n.id} style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: n.leida ? "transparent" : "rgba(249,115,22,0.04)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: n.leida ? "transparent" : "#F97316", marginTop: 6, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ font: `600 0.85rem/1.3 ${fd}`, color: n.leida ? "rgba(255,255,255,0.55)" : "#fff", margin: 0, marginBottom: 3 }}>{n.title}</p>
+                      {n.body && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "rgba(255,255,255,0.38)", margin: 0, marginBottom: 4 }}>{n.body}</p>}
+                      <p style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.22)", margin: 0 }}>
+                        {new Date(n.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (

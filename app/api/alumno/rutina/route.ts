@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createAlumnoNotification } from "@/lib/alumno-notif";
+import { sanitizeError } from "@/lib/api-error";
 
 type StaffProfile = { gym_id: string | null; role: string | null };
 
@@ -49,6 +51,19 @@ export async function POST(req: NextRequest) {
     { onConflict: "alumno_id" }
   );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
+
+  // Notify alumno only when staff/admin assigns (not when alumno edits their own)
+  if (!tokenRow) {
+    void createAlumnoNotification(supabase, {
+      alumno_id: alumno_id,
+      gym_id:    gym_id,
+      type:      "rutina_asignada",
+      title:     "Nueva rutina asignada",
+      body:      nombre ? `Tu profe te asignó: ${nombre}` : "Tu profe actualizó tu rutina de entrenamiento.",
+      link:      "/alumno/panel?tab=entrenamiento",
+    });
+  }
+
   return NextResponse.json({ ok: true });
 }

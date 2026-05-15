@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getPlanNombre } from "@/lib/supabase-relations";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { withApiHandler } from "@/lib/api-error";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-export async function GET(req: NextRequest) {
+export const GET = withApiHandler(async function GET(req: NextRequest) {
   const alumno_id = new URL(req.url).searchParams.get("alumno_id");
   if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from("alumnos")
-    .select("id, dni, gym_id, full_name, status, next_expiration_date, planes!plan_id(nombre)")
+    .select("id, dni, gym_id, full_name, status, next_expiration_date, deuda_pendiente, planes!plan_id(nombre)")
     .eq("id", alumno_id)
     .eq("gym_id", tokenRow.gym_id)
     .single();
@@ -30,8 +31,9 @@ export async function GET(req: NextRequest) {
     dni:        data.dni ?? null,
     gym_id:     data.gym_id,
     full_name:  data.full_name,
-    status:     data.status,
-    plan:       getPlanNombre(data.planes),
-    expiration: data.next_expiration_date ?? null,
+    status:          data.status,
+    plan:            getPlanNombre(data.planes),
+    expiration:      data.next_expiration_date ?? null,
+    deuda_pendiente: data.deuda_pendiente ?? 0,
   });
-}
+});

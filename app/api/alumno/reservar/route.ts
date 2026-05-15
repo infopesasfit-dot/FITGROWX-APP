@@ -1,3 +1,4 @@
+import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.from("reservas").insert({ gym_id, alumno_id, clase_id, fecha, estado: "confirmada" });
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "Ya tenés una reserva para esa clase y fecha." }, { status: 409 });
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
@@ -86,7 +87,7 @@ export async function DELETE(req: NextRequest) {
     .eq("gym_id", tokenRow.gym_id)
     .eq("clase_id", clase_id)
     .eq("fecha", fecha);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

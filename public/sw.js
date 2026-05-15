@@ -30,11 +30,13 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Network-first + cache for alumno API endpoints (bootstrap, me, pesos)
+  // Network-first + cache for alumno API endpoints (bootstrap, me, pesos, rutina, workout-log)
   if (
     url.pathname.startsWith("/api/alumno/bootstrap") ||
     url.pathname.startsWith("/api/alumno/me") ||
-    url.pathname.startsWith("/api/alumno/pesos")
+    url.pathname.startsWith("/api/alumno/pesos") ||
+    url.pathname.startsWith("/api/alumno/rutina") ||
+    (url.pathname.startsWith("/api/alumno/workout-log") && request.method === "GET")
   ) {
     e.respondWith(networkFirstWithCache(request));
     return;

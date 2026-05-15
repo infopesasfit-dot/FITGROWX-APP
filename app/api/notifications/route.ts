@@ -1,3 +1,4 @@
+import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(30);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   return NextResponse.json({ notifications: data });
 }
 
@@ -66,7 +67,7 @@ export async function PATCH(req: NextRequest) {
     .eq("gym_id", gym_id)
     .eq("read", false);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
@@ -87,6 +88,6 @@ export async function POST(req: NextRequest) {
     .from("notifications")
     .insert([{ gym_id, type, title, body: body ?? null }]);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

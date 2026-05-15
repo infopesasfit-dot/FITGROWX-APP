@@ -17,6 +17,7 @@ import { DinoChatWidget } from "./components/DinoChatWidget";
 import { getGymSummary } from "@/lib/supabase-relations";
 import { getCachedProfile, getImpersonatedGym, clearImpersonation, prefetchDashboard, prefetchRoute, type ImpersonatedGym } from "@/lib/gym-cache";
 import { useNotificationPolling, type Notif } from "@/hooks/useNotificationPolling";
+import { DashboardPwaShell } from "./DashboardPwaShell";
 
 type NavItem = {
   href: string;
@@ -417,6 +418,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <DashboardPwaShell>
     <div style={{ display: "flex", minHeight: "100vh", background: "#0D0F12" }}>
 
       {/* ── Mobile backdrop ── */}
@@ -441,7 +443,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         position: isMobile ? "fixed" : "sticky",
         top: isMobile ? 0 : 12,
         left: 0,
-        zIndex: isMobile ? 100 : undefined,
+        zIndex: isMobile ? 100 : 2,
         flexShrink: 0,
         margin: isMobile ? 0 : "12px 0 12px 12px",
         borderRadius: isMobile ? "0 20px 20px 0" : 20,
@@ -1203,5 +1205,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
     </div>
+    </DashboardPwaShell>
   );
 }

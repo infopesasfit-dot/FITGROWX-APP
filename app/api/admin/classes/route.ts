@@ -1,6 +1,8 @@
+import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createClassesSchema, patchClassSchema, parseBody } from "@/lib/schemas";
 
 type AuthorizedProfile = {
   id: string;
@@ -55,14 +57,13 @@ export async function POST(req: NextRequest) {
   const profile = await getAuthorizedProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const { rows } = await req.json() as { rows?: Record<string, unknown>[] };
-  if (!rows || !Array.isArray(rows) || rows.length === 0) {
-    return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
-  }
+  const raw = await req.json();
+  const parsed = parseBody(createClassesSchema, raw);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
 
-  const safeRows = rows.map((row) => ({ ...row, gym_id: profile.gym_id }));
+  const safeRows = parsed.data.rows.map((row) => ({ ...row, gym_id: profile.gym_id }));
   const { error } = await admin.from("gym_classes").insert(safeRows);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
 
   const firstRow = safeRows[0];
   const className =
@@ -87,8 +88,10 @@ export async function PATCH(req: NextRequest) {
   const profile = await getAuthorizedProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const { id, payload } = await req.json() as { id?: string; payload?: Record<string, unknown> };
-  if (!id || !payload) return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
+  const raw = await req.json();
+  const parsed = parseBody(patchClassSchema, raw);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const { id, payload } = parsed.data;
 
   const { data: currentClass } = await admin
     .from("gym_classes")
@@ -106,7 +109,7 @@ export async function PATCH(req: NextRequest) {
     .eq("id", id)
     .eq("gym_id", profile.gym_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
 
   const className = typeof payload.class_name === "string" ? payload.class_name : currentClass.class_name;
   await insertAuditNotification(
@@ -141,7 +144,7 @@ export async function DELETE(req: NextRequest) {
     .eq("id", id)
     .eq("gym_id", profile.gym_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
 
   await insertAuditNotification(
     profile.gym_id,

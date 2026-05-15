@@ -1,3 +1,4 @@
+import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
     .update({ status: "pausado", frozen_since: today, pausa_hasta: pausaHastaStr })
     .eq("id", alumno_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   return NextResponse.json({ ok: true, frozen_since: today, pausa_hasta: pausaHastaStr });
 }
 
@@ -95,6 +96,6 @@ export async function DELETE(req: NextRequest) {
     })
     .eq("id", alumno_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   return NextResponse.json({ ok: true, dias_congelados: diasCongelados, next_expiration_date: newExpiration });
 }

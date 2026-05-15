@@ -50,6 +50,7 @@ interface Alumno {
   next_expiration_date: string | null;
   frozen_since: string | null;
   pausa_hasta: string | null;
+  deuda_pendiente: number;
 }
 
 
@@ -60,6 +61,13 @@ interface ActivityLog {
   actor: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
+}
+
+interface ProgresoData {
+  pesos:    { ejercicio: string; peso: number; fecha: string }[];
+  medidas:  { peso_kg: number; grasa_pct: number | null; fecha: string }[];
+  sessions: { id: string; fecha: string; rutina_nombre: string | null; completada: boolean }[];
+  fotos:    { id: string; foto_url: string; fecha: string }[];
 }
 
 const STATUS_STYLE: Record<Status, { color: string; bg: string; label: string }> = {
@@ -131,12 +139,22 @@ export default function AlumnosPage() {
   const [membresiaError,   setMembresiaError]   = useState<string | null>(null);
   const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
   const [bulkMembresiaOpen, setBulkMembresiaOpen] = useState(false);
+  const [reactivarTarget,   setReactivarTarget]   = useState<Alumno | null>(null);
+  const [reactivarPlanId,   setReactivarPlanId]   = useState("");
+  const [reactivarFechaInicio, setReactivarFechaInicio] = useState("");
+  const [reactivarSaldarDeuda, setReactivarSaldarDeuda] = useState(false);
+  const [reactivarSaving,   setReactivarSaving]   = useState(false);
+  const [reactivarError,    setReactivarError]    = useState<string | null>(null);
   const [guestLeads,       setGuestLeads]       = useState<{ id: string; code: string; status: string; lead_name: string | null; lead_phone: string | null; claimed_at: string | null; expires_at: string; alumnos: { full_name: string } | null }[]>([]);
   const [guestLeadsOpen,   setGuestLeadsOpen]   = useState(false);
   const [guestLeadsLoaded, setGuestLeadsLoaded] = useState(false);
-  const [fichaTarget,      setFichaTarget]      = useState<Alumno | null>(null);
-  const [fichaLogs,        setFichaLogs]        = useState<ActivityLog[]>([]);
-  const [fichaLoading,     setFichaLoading]     = useState(false);
+  const [fichaTarget,         setFichaTarget]         = useState<Alumno | null>(null);
+  const [fichaLogs,           setFichaLogs]           = useState<ActivityLog[]>([]);
+  const [fichaLoading,        setFichaLoading]        = useState(false);
+  const [fichaTab,            setFichaTab]            = useState<"historial" | "progreso">("historial");
+  const [fichaProgreso,       setFichaProgreso]       = useState<ProgresoData | null>(null);
+  const [fichaProgresoLoading, setFichaProgresoLoading] = useState(false);
+  const [fichaEjSel,          setFichaEjSel]          = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
 
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -538,6 +556,9 @@ export default function AlumnosPage() {
   // ── Ficha / historial ────────────────────────────────────────────
   const openFicha = async (alumno: Alumno) => {
     setFichaTarget(alumno);
+    setFichaTab("historial");
+    setFichaProgreso(null);
+    setFichaEjSel(null);
     setFichaLogs([]);
     setFichaLoading(true);
     const { data } = await supabase
@@ -548,6 +569,23 @@ export default function AlumnosPage() {
       .limit(60);
     setFichaLogs((data as ActivityLog[]) ?? []);
     setFichaLoading(false);
+  };
+
+  const loadFichaProgreso = async (alumnoId: string) => {
+    if (fichaProgreso) return;
+    setFichaProgresoLoading(true);
+    try {
+      const res = await fetch(`/api/admin/alumno-progreso?alumno_id=${alumnoId}`);
+      if (res.ok) {
+        const d: ProgresoData = await res.json();
+        setFichaProgreso(d);
+        if (d.pesos.length) {
+          const firstEj = d.pesos.find(() => true)?.ejercicio ?? null;
+          setFichaEjSel(firstEj);
+        }
+      }
+    } catch {}
+    setFichaProgresoLoading(false);
   };
 
   // ── Exportar ──────────────────────────────────────────────────────
@@ -601,6 +639,56 @@ export default function AlumnosPage() {
   };
 
   // ── Asignar Membresía ─────────────────────────────────────────────
+  const openReactivarModal = async (a: Alumno) => {
+    setReactivarTarget(a);
+    setReactivarPlanId(a.plan_id ?? "");
+    setReactivarFechaInicio(today);
+    setReactivarSaldarDeuda(false);
+    setReactivarError(null);
+    if (planes.length === 0 && gymId) await loadPlanes(gymId);
+  };
+
+  const handleReactivarSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reactivarTarget) return;
+    setReactivarSaving(true);
+    setReactivarError(null);
+    const plan = planes.find(p => p.id === reactivarPlanId);
+    const duracion = plan?.duracion_dias ?? 30;
+    const inicio = new Date(reactivarFechaInicio + "T12:00:00");
+    const vencimiento = new Date(inicio);
+    vencimiento.setDate(vencimiento.getDate() + duracion);
+    const nextExp = vencimiento.toISOString().slice(0, 10);
+    const updates: Record<string, unknown> = {
+      plan_id: reactivarPlanId || null,
+      status: "activo",
+      next_expiration_date: nextExp,
+      last_payment_date: reactivarFechaInicio,
+    };
+    if (reactivarSaldarDeuda) updates.deuda_pendiente = 0;
+    const { error } = await supabase.from("alumnos").update(updates).eq("id", reactivarTarget.id);
+    setReactivarSaving(false);
+    if (error) { setReactivarError("No se pudo reactivar. Intentá de nuevo."); return; }
+    if (gymId) {
+      supabase.from("alumno_activity_log").insert({
+        alumno_id: reactivarTarget.id, gym_id: gymId, type: "reactivado",
+        description: `Membresía reactivada → Plan: ${plan?.nombre ?? "sin plan"} · Vence: ${nextExp}${reactivarSaldarDeuda ? " · Deuda saldada" : ""}`,
+        actor: "admin",
+      }).then(() => {});
+    }
+    const prev = reactivarTarget;
+    replaceAlumno(prev.id, (c) => ({
+      ...c,
+      plan_id: reactivarPlanId || null,
+      planes: plan ? { nombre: plan.nombre, accent_color: plan.accent_color, precio: plan.precio, duracion_dias: plan.duracion_dias } : c.planes,
+      status: "activo",
+      next_expiration_date: nextExp,
+      deuda_pendiente: reactivarSaldarDeuda ? 0 : c.deuda_pendiente,
+    }));
+    setReactivarTarget(null);
+    setToast(`${prev.full_name} reactivado hasta ${nextExp}`);
+  };
+
   const openMembresiaModal = async (a: Alumno) => {
     setMembresiaTarget(a);
     setMembresiaPlanId(a.plan_id ?? "");
@@ -951,7 +1039,14 @@ export default function AlumnosPage() {
                     <td style={{ padding: "9px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <div style={{ width: 28, height: 28, borderRadius: "50%", background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: "white", flexShrink: 0 }}>{initials(a.full_name)}</div>
-                        <span style={{ font: `600 0.84rem/1 ${fd}`, color: t1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{a.full_name}</span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                          <span style={{ font: `600 0.84rem/1 ${fd}`, color: t1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{a.full_name}</span>
+                          {a.deuda_pendiente > 0 && (
+                            <span style={{ font: `600 0.62rem/1 ${fb}`, color: "#D97706", background: "rgba(217,119,6,0.1)", padding: "2px 6px", borderRadius: 6, alignSelf: "flex-start", whiteSpace: "nowrap" }}>
+                              Debe ${a.deuda_pendiente.toLocaleString("es-AR")}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td style={{ padding: "9px 16px", font: `500 0.8rem/1 ${fb}`, color: t2 }}>{a.dni ?? <span style={{ color: t3 }}>—</span>}</td>
@@ -1087,7 +1182,14 @@ export default function AlumnosPage() {
                       {ua && <span style={{ font: `400 0.62rem/1 ${fb}`, color: isToday ? "#22C55E" : t3, flexShrink: 0 }}>{isToday ? "Hoy ✓" : ua}</span>}
                     </div>
                   </div>
-                  <span style={{ margin: 0, font: `600 0.62rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "3px 8px", borderRadius: 9999, flexShrink: 0 }}>{STATUS_STYLE[a.status].label}</span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
+                    <span style={{ font: `600 0.62rem/1 ${fb}`, color: STATUS_STYLE[a.status].color, background: STATUS_STYLE[a.status].bg, padding: "3px 8px", borderRadius: 9999 }}>{STATUS_STYLE[a.status].label}</span>
+                    {a.deuda_pendiente > 0 && (
+                      <span style={{ font: `600 0.58rem/1 ${fb}`, color: "#D97706", background: "rgba(217,119,6,0.1)", padding: "2px 6px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                        Debe ${a.deuda_pendiente.toLocaleString("es-AR")}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {/* Row 2: action buttons — stopPropagation prevents toggling card selection */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 6 }}>
@@ -1199,6 +1301,7 @@ export default function AlumnosPage() {
                   value={form.full_name}
                   onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                   placeholder="Ej: Carlos Mendez"
+                  maxLength={100}
                   style={{ width: "100%", padding: "11px 14px 11px 36px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
                   onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
                   onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
@@ -1234,6 +1337,7 @@ export default function AlumnosPage() {
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                   placeholder="carlos@email.com"
+                  maxLength={255}
                   style={{ width: "100%", padding: "11px 14px 11px 36px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
                   onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
                   onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
@@ -1258,6 +1362,7 @@ export default function AlumnosPage() {
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   placeholder="5491112345678"
+                  maxLength={30}
                   style={{ width: "100%", padding: "11px 36px 11px 36px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
                   onFocus={e => (e.currentTarget.style.borderColor = "#25D366")}
                   onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
@@ -1392,6 +1497,7 @@ export default function AlumnosPage() {
           { label: "📋 Ver Historial", color: t1, action: () => { openFicha(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           { label: "💳 Enviar link de pago", color: "#16A34A", action: () => { handleSendPayLink(menuTarget); } },
           { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          ...(["vencido", "pendiente"].includes(menuTarget.status) ? [{ label: "♻️ Reactivar", color: "#16A34A", action: () => { openReactivarModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } }] : []),
           { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           { label: "Editar Datos", color: t1, action: () => { openEditModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           menuTarget.status === "pausado"
@@ -1430,6 +1536,7 @@ export default function AlumnosPage() {
               <div style={{ position: "relative" }}>
                 <User size={14} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
                 <input required value={editForm.full_name} onChange={e => setEditForm(f => ({ ...f, full_name: e.target.value }))}
+                  maxLength={100}
                   style={{ width: "100%", padding: "11px 14px 11px 36px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const }}
                   onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
                   onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
@@ -1441,6 +1548,7 @@ export default function AlumnosPage() {
               <div style={{ position: "relative" }}>
                 <Phone size={14} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
                 <input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="5491112345678"
+                  maxLength={30}
                   style={{ width: "100%", padding: "11px 14px 11px 36px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const }}
                   onFocus={e => (e.currentTarget.style.borderColor = "#25D366")}
                   onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
@@ -1554,6 +1662,97 @@ export default function AlumnosPage() {
               onMouseEnter={e => { if (!membresiaSaving) (e.currentTarget.style.opacity = "0.92"); }}
               onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
             >{membresiaSaving ? "Guardando..." : "Asignar Membresía"}</button>
+          </form>
+        </div>
+      </div>
+    )}
+
+    {/* ── Modal: Reactivar Alumno ── */}
+    {reactivarTarget && (
+      <div onClick={() => setReactivarTarget(null)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 420, overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", font: "1.2rem/1 sans-serif" }}>♻️</div>
+              <div>
+                <h2 style={{ font: `800 1.05rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Reactivar Membresía</h2>
+                <p style={{ font: `400 0.75rem/1 ${fb}`, color: t3, marginTop: 3 }}>{reactivarTarget.full_name}</p>
+              </div>
+            </div>
+            <button onClick={() => setReactivarTarget(null)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#E4E6EF"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0F2F8"; }}
+            ><X size={16} /></button>
+          </div>
+          <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 24px" }} />
+          {reactivarTarget.deuda_pendiente > 0 && (
+            <div style={{ margin: "16px 24px 0", background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.25)", borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
+              <div>
+                <p style={{ font: `600 0.82rem/1.3 ${fb}`, color: "#92400E", margin: 0 }}>
+                  Este alumno tiene una deuda pendiente de <strong>${reactivarTarget.deuda_pendiente.toLocaleString("es-AR")}</strong>
+                </p>
+                <p style={{ font: `400 0.74rem/1.3 ${fb}`, color: "#B45309", margin: "4px 0 0" }}>
+                  Podés saldarlo ahora o cobrarlo después desde Registrar Pago.
+                </p>
+              </div>
+            </div>
+          )}
+          <form onSubmit={handleReactivarSubmit} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Plan</label>
+              <div style={{ position: "relative" }}>
+                {planesLoading ? (
+                  <div style={{ padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t3 }}>Cargando planes...</div>
+                ) : (
+                  <>
+                    <select value={reactivarPlanId} onChange={e => setReactivarPlanId(e.target.value)}
+                      style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `500 0.875rem/1 ${fb}`, color: t1, outline: "none", appearance: "none", cursor: "pointer", boxSizing: "border-box" as const }}
+                      onFocus={e => (e.currentTarget.style.borderColor = "#16A34A")}
+                      onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                    >
+                      <option value="">Sin plan</option>
+                      {planes.map(p => <option key={p.id} value={p.id}>{p.nombre} — ${p.precio}/{p.periodo} ({p.duracion_dias}d)</option>)}
+                    </select>
+                    <svg viewBox="0 0 20 20" fill={t3} width="14" height="14" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                  </>
+                )}
+              </div>
+            </div>
+            <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Fecha de inicio <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>· vencimiento calculado automático</span></label>
+              <div style={{ position: "relative" }}>
+                <CalendarDays size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
+                <input required type="date" value={reactivarFechaInicio} onChange={e => setReactivarFechaInicio(e.target.value)}
+                  style={{ width: "100%", padding: "11px 14px 11px 34px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: reactivarFechaInicio ? t1 : t3, outline: "none", boxSizing: "border-box" as const }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "#16A34A")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                />
+              </div>
+              {reactivarPlanId && reactivarFechaInicio && (() => {
+                const plan = planes.find(p => p.id === reactivarPlanId);
+                if (!plan) return null;
+                const d = new Date(reactivarFechaInicio + "T12:00:00");
+                d.setDate(d.getDate() + plan.duracion_dias);
+                return <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 5 }}>Vence el {d.toLocaleDateString("es-AR")} ({plan.duracion_dias} días)</p>;
+              })()}
+            </div>
+            {reactivarTarget.deuda_pendiente > 0 && (
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input type="checkbox" checked={reactivarSaldarDeuda} onChange={e => setReactivarSaldarDeuda(e.target.checked)} style={{ width: 16, height: 16, accentColor: "#16A34A", cursor: "pointer" }} />
+                <span style={{ font: `500 0.82rem/1.3 ${fb}`, color: t1 }}>
+                  Saldar deuda de <strong>${reactivarTarget.deuda_pendiente.toLocaleString("es-AR")}</strong> al reactivar
+                </span>
+              </label>
+            )}
+            {reactivarError && (
+              <div style={{ background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9, padding: "10px 14px", font: `400 0.8rem/1.4 ${fb}`, color: "#DC2626" }}>{reactivarError}</div>
+            )}
+            <button type="submit" disabled={reactivarSaving}
+              style={{ width: "100%", padding: "13px", background: reactivarSaving ? "#9CA3AF" : "#16A34A", color: "white", border: "none", borderRadius: 12, font: `700 0.95rem/1 ${fd}`, cursor: reactivarSaving ? "not-allowed" : "pointer", boxShadow: reactivarSaving ? "none" : "0 4px 16px rgba(22,163,74,0.28)", marginTop: 4 }}
+              onMouseEnter={e => { if (!reactivarSaving) (e.currentTarget.style.opacity = "0.92"); }}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >{reactivarSaving ? "Reactivando..." : "Reactivar Membresía"}</button>
           </form>
         </div>
       </div>
@@ -1861,11 +2060,187 @@ export default function AlumnosPage() {
                 <span key={chip.label} style={{ font: `600 0.65rem/1 ${fb}`, color: chip.color, background: `${chip.color}18`, border: `1px solid ${chip.color}30`, padding: "4px 10px", borderRadius: 9999 }}>{chip.label}</span>
               ))}
             </div>
+            {/* Tabs */}
+            <div style={{ display: "flex", gap: 4, marginTop: 16, position: "relative", zIndex: 1 }}>
+              {(["historial", "progreso"] as const).map(t => (
+                <button key={t} onClick={() => { setFichaTab(t); if (t === "progreso") loadFichaProgreso(fichaTarget.id); }}
+                  style={{ padding: "6px 14px", borderRadius: 9999, border: "none", font: `600 0.68rem/1 ${fb}`, cursor: "pointer", transition: "all 0.15s", background: fichaTab === t ? "#F97316" : "rgba(255,255,255,0.12)", color: fichaTab === t ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                  {t === "historial" ? "Historial" : "Progreso"}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Timeline */}
+          {/* Tab content */}
           <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
-            {fichaLoading ? (
+            {fichaTab === "progreso" ? (
+              fichaProgresoLoading ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 120, gap: 10, color: t3, font: `400 0.85rem/1 ${fb}` }}>
+                  <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid #E5E7EB", borderTopColor: "#F97316", animation: "spinAI 0.7s linear infinite" }} />
+                  Cargando progreso...
+                </div>
+              ) : !fichaProgreso ? null : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+                  {/* ── Curva de fuerza ── */}
+                  {fichaProgreso.pesos.length > 0 && (() => {
+                    const map = new Map<string, { peso: number; fecha: string }[]>();
+                    [...fichaProgreso.pesos].reverse().forEach(p => {
+                      if (!map.has(p.ejercicio)) map.set(p.ejercicio, []);
+                      map.get(p.ejercicio)!.push({ peso: p.peso, fecha: p.fecha });
+                    });
+                    const exercises = [...map.keys()];
+                    const selEj  = fichaEjSel ?? exercises[0] ?? null;
+                    const ejData = selEj ? (map.get(selEj) ?? []) : [];
+                    const vals   = ejData.map(d => d.peso);
+                    const pr     = vals.length ? Math.max(...vals) : 0;
+                    const delta  = vals.length >= 2 ? +(pr - vals[0]).toFixed(1) : null;
+                    const W = 300, H = 50;
+                    const sparkline = ejData.length >= 2 ? (() => {
+                      const min = Math.min(...vals), max = Math.max(...vals), rng = max - min || 1;
+                      const pts = vals.map((v, i) => {
+                        const x = ((i / (vals.length - 1)) * W).toFixed(1);
+                        const y = (H - ((v - min) / rng) * H * 0.78 - H * 0.1).toFixed(1);
+                        return `${x},${y}`;
+                      });
+                      const ptsStr = pts.join(" ");
+                      const prIdx = vals.indexOf(pr);
+                      const prPt  = pts[prIdx].split(",");
+                      return (
+                        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 50, overflow: "visible" }}>
+                          <defs>
+                            <linearGradient id="fg-staff" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#F97316" stopOpacity="0.1" />
+                              <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          <path d={`M0,${H} ${ptsStr} ${W},${H} Z`} fill="url(#fg-staff)" />
+                          <polyline points={ptsStr} fill="none" stroke="#F97316" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          {pts.map((pt, i) => { const [cx, cy] = pt.split(","); return <circle key={i} cx={cx} cy={cy} r="2" fill="#F97316" opacity="0.5" />; })}
+                          <circle cx={prPt[0]} cy={prPt[1]} r="4" fill="#F97316" stroke="white" strokeWidth="1.5" />
+                        </svg>
+                      );
+                    })() : (
+                      <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3, padding: "10px 0" }}>
+                        {ejData.length === 1 ? `1 registro: ${vals[0]} kg (${ejData[0].fecha})` : "Sin cargas para este ejercicio"}
+                      </p>
+                    );
+                    return (
+                      <div style={{ ...card, padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                          <p style={{ font: `600 0.78rem/1 ${fb}`, color: t1 }}>Curva de fuerza</p>
+                          {vals.length > 0 && (
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span style={{ font: `700 0.75rem/1 ${fb}`, color: t1 }}>PR {pr} kg</span>
+                              {delta !== null && delta !== 0 && (
+                                <span style={{ font: `500 0.62rem/1 ${fb}`, color: delta > 0 ? "#16A34A" : "#DC2626", background: delta > 0 ? "#F0FDF4" : "#FEF2F2", padding: "2px 7px", borderRadius: 99 }}>
+                                  {delta > 0 ? "+" : ""}{delta} kg
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 12 }}>
+                          {exercises.map(ej => (
+                            <button key={ej} onClick={() => setFichaEjSel(ej)} style={{ padding: "4px 10px", borderRadius: 9999, background: fichaEjSel === ej ? "rgba(249,115,22,0.1)" : "#F3F4F6", border: `1px solid ${fichaEjSel === ej ? "rgba(249,115,22,0.35)" : "transparent"}`, font: `500 0.62rem/1 ${fb}`, color: fichaEjSel === ej ? "#F97316" : t2, cursor: "pointer" }}>
+                              {ej}
+                            </button>
+                          ))}
+                        </div>
+                        {sparkline}
+                        {ejData.length >= 2 && (
+                          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                            <span style={{ font: `400 0.58rem/1 ${fb}`, color: t3 }}>{ejData[0].fecha}</span>
+                            <span style={{ font: `400 0.58rem/1 ${fb}`, color: t3 }}>{ejData[ejData.length - 1].fecha}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Medidas corporales ── */}
+                  {fichaProgreso.medidas.length > 0 && (() => {
+                    const latest = fichaProgreso.medidas[0];
+                    const prev   = fichaProgreso.medidas[1];
+                    const diff   = prev ? +(latest.peso_kg - prev.peso_kg).toFixed(1) : null;
+                    const vals   = [...fichaProgreso.medidas].reverse().map(m => +m.peso_kg);
+                    const W = 300, H = 40;
+                    const sparkline = vals.length >= 2 ? (() => {
+                      const min = Math.min(...vals), max = Math.max(...vals), rng = max - min || 1;
+                      const pts = vals.map((v, i) => `${((i / (vals.length - 1)) * W).toFixed(1)},${(H - ((v - min) / rng) * H * 0.8 - H * 0.1).toFixed(1)}`).join(" ");
+                      return (
+                        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 40, overflow: "visible", marginTop: 10 }}>
+                          <polyline points={pts} fill="none" stroke="#6366F1" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+                        </svg>
+                      );
+                    })() : null;
+                    return (
+                      <div style={{ ...card, padding: "14px 16px" }}>
+                        <p style={{ font: `600 0.78rem/1 ${fb}`, color: t1, marginBottom: 10 }}>Medidas corporales</p>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                          <span style={{ font: `800 1.8rem/1 ${fd}`, color: t1, letterSpacing: "-0.03em" }}>{latest.peso_kg}</span>
+                          <span style={{ font: `500 0.8rem/1 ${fb}`, color: t3 }}>kg</span>
+                          {latest.grasa_pct != null && <span style={{ font: `400 0.68rem/1 ${fb}`, color: t3, marginLeft: 4 }}>{latest.grasa_pct}% grasa</span>}
+                          {diff !== null && (
+                            <span style={{ font: `500 0.68rem/1 ${fb}`, color: diff < 0 ? "#16A34A" : diff > 0 ? "#DC2626" : t3, background: diff < 0 ? "#F0FDF4" : diff > 0 ? "#FEF2F2" : "#F3F4F6", padding: "2px 8px", borderRadius: 99 }}>
+                              {diff > 0 ? "+" : ""}{diff} kg
+                            </span>
+                          )}
+                        </div>
+                        {sparkline}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── Sesiones completadas ── */}
+                  {fichaProgreso.sessions.length > 0 && (
+                    <div style={{ ...card, padding: "14px 16px" }}>
+                      <p style={{ font: `600 0.78rem/1 ${fb}`, color: t1, marginBottom: 10 }}>Últimas sesiones</p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {fichaProgreso.sessions.map(s => (
+                          <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <div>
+                              <p style={{ font: `500 0.75rem/1.2 ${fb}`, color: t1 }}>{s.rutina_nombre ?? "Entrenamiento"}</p>
+                              <p style={{ font: `400 0.62rem/1 ${fb}`, color: t3, marginTop: 2 }}>{s.fecha}</p>
+                            </div>
+                            <span style={{ font: `600 0.62rem/1 ${fb}`, color: "#16A34A", background: "#F0FDF4", padding: "3px 8px", borderRadius: 99 }}>✓ Completado</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Fotos compartidas ── */}
+                  <div style={{ ...card, padding: "14px 16px" }}>
+                    <p style={{ font: `600 0.78rem/1 ${fb}`, color: t1, marginBottom: 10 }}>
+                      Fotos de progreso
+                      <span style={{ font: `400 0.62rem/1 ${fb}`, color: t3, marginLeft: 6 }}>(solo las que el alumno compartió)</span>
+                    </p>
+                    {fichaProgreso.fotos.length === 0 ? (
+                      <p style={{ font: `400 0.7rem/1.5 ${fb}`, color: t3, textAlign: "center", padding: "12px 0" }}>El alumno no compartió fotos aún.</p>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                        {fichaProgreso.fotos.map(f => (
+                          <div key={f.id} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "#F3F4F6" }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={f.foto_url} alt={f.fecha} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
+                            <span style={{ position: "absolute", bottom: 3, left: 3, font: `400 0.48rem/1 ${fb}`, color: "rgba(255,255,255,0.85)", background: "rgba(0,0,0,0.5)", padding: "2px 4px", borderRadius: 3 }}>{f.fecha}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {fichaProgreso.pesos.length === 0 && fichaProgreso.medidas.length === 0 && fichaProgreso.sessions.length === 0 && fichaProgreso.fotos.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: t3 }}>
+                      <TrendingUp size={28} style={{ opacity: 0.25, marginBottom: 10 }} />
+                      <p style={{ font: `500 0.82rem/1.5 ${fb}` }}>Sin datos de progreso todavía.</p>
+                      <p style={{ font: `400 0.72rem/1.4 ${fb}`, marginTop: 4 }}>Cuando el alumno registre cargas o medidas, aparecerán acá.</p>
+                    </div>
+                  )}
+                </div>
+              )
+            ) : fichaLoading ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 120, gap: 10, color: t3, font: `400 0.85rem/1 ${fb}` }}>
                 <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid #E5E7EB", borderTopColor: "#F97316", animation: "spinAI 0.7s linear infinite" }} />
                 Cargando historial...

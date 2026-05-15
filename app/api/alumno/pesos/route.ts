@@ -1,3 +1,4 @@
+import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getTodayDate } from "@/lib/date-utils";
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     })
     .select("id, ejercicio, peso, fecha, notas")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
 
   return NextResponse.json({ ok: true, peso: data });
 }
