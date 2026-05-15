@@ -33,7 +33,6 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
     items: [
       { href: "/dashboard",             label: "Inicio",      icon: Home },
       { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
-      { href: "/dashboard/scanner",     label: "Escáner QR",  icon: ScanLine },
     ],
   },
   {
@@ -67,19 +66,12 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
   {
     section: "FINANZAS",
     items: [
-      {
-        href: "/dashboard/pagos",
-        label: "Finanzas",
-        icon: Wallet,
-        sub: [
-          { href: "/dashboard/pagos",   label: "Ingresos" },
-          { href: "/dashboard/egresos", label: "Egresos"  },
-        ],
-      },
+      { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
+      { href: "/dashboard/egresos", label: "Egresos",  icon: TrendingDown },
     ],
   },
   {
-    section: "SISTEMA",
+    section: "",
     items: [
       {
         href: "/dashboard/ajustes",
@@ -508,14 +500,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         `}</style>
         <nav className="sb-nav" style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {(role === "staff" ? NAV_SECTIONS_STAFF : NAV_SECTIONS_ADMIN).map(({ section, items }) => (
-            <div key={section} style={{ marginBottom: 2 }}>
-              {(isMobile || !collapsed) ? (
+            <div key={section || "__nosection"} style={{ marginBottom: 2 }}>
+              {section && (isMobile || !collapsed) ? (
                 <p style={{ font: `600 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em", textTransform: "uppercase" as const, padding: "12px 14px 4px", margin: 0 }}>
                   {section}
                 </p>
-              ) : (
+              ) : section ? (
                 <div style={{ margin: "8px 0 3px", borderTop: "1px solid rgba(255,255,255,0.07)" }} />
-              )}
+              ) : null}
 
               {items.map((item) => {
                 const Icon = item.icon;
