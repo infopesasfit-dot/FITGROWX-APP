@@ -81,7 +81,7 @@ async function enviarMensajeWA(gymId: string, phone: string, message: string): P
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": MOTOR_KEY },
       body: JSON.stringify({ phone: normalizePhone(phone), message }),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(15000),
     });
     return res.ok;
   } catch (e) {
@@ -242,22 +242,16 @@ async function notificarInasistentes(log: string[], todayStr: string): Promise<v
       await enviarMensajeWA(gymId, ownerPhone, msgDueno);
     }
 
-    const CHUNK = 5;
-    for (let i = 0; i < alumnos.length; i += CHUNK) {
-      const chunk = alumnos.slice(i, i + CHUNK);
-      await Promise.allSettled(
-        chunk.map(async alumno => {
-          const msg = `¡Hola ${alumno.full_name}! 👋 Te extrañamos en *${gymName}*.\n\n¿Todo bien? Si necesitás algo, estamos acá. ¡Te esperamos! 💪`;
-          const ok  = await enviarMensajeWA(gymId, alumno.phone!, msg);
-          if (ok) {
-            const { error } = await supabase.from("alumnos")
-              .update({ notif_inasistencia_sent_at: todayStr })
-              .eq("id", alumno.id);
-            if (error) console.error(`[vencimientos] marcar inasistencia alumno=${alumno.id}:`, error.message);
-            log.push(`💪 ${alumno.full_name} (${gymName}) — inasistencia 14d`);
-          }
-        }),
-      );
+    for (const alumno of alumnos) {
+      const msg = `¡Hola ${alumno.full_name}! 👋 Te extrañamos en *${gymName}*.\n\n¿Todo bien? Si necesitás algo, estamos acá. ¡Te esperamos! 💪`;
+      const ok  = await enviarMensajeWA(gymId, alumno.phone!, msg);
+      if (ok) {
+        const { error } = await supabase.from("alumnos")
+          .update({ notif_inasistencia_sent_at: todayStr })
+          .eq("id", alumno.id);
+        if (error) console.error(`[vencimientos] marcar inasistencia alumno=${alumno.id}:`, error.message);
+        log.push(`💪 ${alumno.full_name} (${gymName}) — inasistencia 14d`);
+      }
     }
   }
 }
@@ -449,48 +443,28 @@ async function enviarRecordatoriosProximos(
     const gymName       = gym.gym_name ?? "el gym";
     const paymentSuffix = buildPaymentSuffix(Boolean(gym.mp_access_token), gym.payment_info);
 
-    const CHUNK = 5;
-    for (let i = 0; i < pendientes.length; i += CHUNK) {
-      const chunk = pendientes.slice(i, i + CHUNK);
-      const resultados = await Promise.allSettled(
-        chunk.map(async alumno => {
-          const link      = buildPaymentLink(tokenMap[alumno.id], Boolean(gym.mp_access_token));
-          const fechaVto  = new Date(alumno.next_expiration_date! + "T12:00:00")
-            .toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-          const mensaje   = fillTemplate(template + (link ? `\n\n👉 Renová desde acá: ${link}` : "") + paymentSuffix, {
-            Nombre: alumno.full_name,
-            Gym:    gymName,
-            Fecha:  fechaVto,
-            Link:   link,
-          });
+    for (const alumno of pendientes) {
+      const link     = buildPaymentLink(tokenMap[alumno.id], Boolean(gym.mp_access_token));
+      const fechaVto = new Date(alumno.next_expiration_date! + "T12:00:00")
+        .toLocaleDateString("es-AR", { day: "numeric", month: "long" });
+      const mensaje  = fillTemplate(template + (link ? `\n\n👉 Renová desde acá: ${link}` : "") + paymentSuffix, {
+        Nombre: alumno.full_name,
+        Gym:    gymName,
+        Fecha:  fechaVto,
+        Link:   link,
+      });
 
-          const res = await fetch(`${MOTOR_URL}/send/${gym.gym_id}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-api-key": MOTOR_KEY },
-            body: JSON.stringify({ phone: normalizePhone(alumno.phone!), message: mensaje }),
-            signal: AbortSignal.timeout(8000),
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-          const { error: upErr } = await supabase.from("alumnos")
-            .update({ notif_vencimiento_para: alumno.next_expiration_date })
-            .eq("id", alumno.id);
-          if (upErr) console.error(`[vencimientos] marcar notif alumno=${alumno.id}:`, upErr.message);
-        }),
-      );
-
-      for (let j = 0; j < resultados.length; j++) {
-        const alumno = chunk[j];
-        if (resultados[j].status === "fulfilled") {
-          logWASend(supabase, gym.gym_id, "vencimiento");
-          enviados++;
-          log.push(`✓ ${alumno.full_name} (${gymName}) — vence ${alumno.next_expiration_date}`);
-        } else {
-          const reason = resultados[j].status === "rejected"
-            ? (resultados[j] as PromiseRejectedResult).reason
-            : null;
-          log.push(`✗ ${alumno.full_name} (${gymName}) — ${reason instanceof Error ? reason.message : "error"} (se reintentará)`);
-        }
+      const ok = await enviarMensajeWA(gym.gym_id, alumno.phone!, mensaje);
+      if (ok) {
+        const { error: upErr } = await supabase.from("alumnos")
+          .update({ notif_vencimiento_para: alumno.next_expiration_date })
+          .eq("id", alumno.id);
+        if (upErr) console.error(`[vencimientos] marcar notif alumno=${alumno.id}:`, upErr.message);
+        logWASend(supabase, gym.gym_id, "vencimiento");
+        enviados++;
+        log.push(`✓ ${alumno.full_name} (${gymName}) — vence ${alumno.next_expiration_date}`);
+      } else {
+        log.push(`✗ ${alumno.full_name} (${gymName}) — error de envío (se reintentará)`);
       }
     }
   }
