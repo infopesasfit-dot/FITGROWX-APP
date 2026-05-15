@@ -193,7 +193,9 @@ export async function GET(req: NextRequest) {
     gymRow?.name?.trim() ||
     "tu gym";
 
-  const activosPlanRows = (activosConPlanFull ?? []) as AlumnoPlanRow[];
+  const activosPlanRows = ((activosConPlanFull ?? []) as AlumnoPlanRow[]).filter(r =>
+    r.next_expiration_date == null || r.next_expiration_date >= todayStr
+  );
 
   const proyectado = activosPlanRows.reduce((sum, row) => {
     const plan = getRelationRecord(row.planes);
@@ -213,7 +215,10 @@ export async function GET(req: NextRequest) {
 
   const alumnoRows = (alumnosMetricRows ?? []) as AlumnoMetricRow[];
   const total = alumnoRows.length;
-  const activos = alumnoRows.filter(r => r.status === "activo").length;
+  const activos = alumnoRows.filter(r =>
+    r.status === "activo" &&
+    (r.next_expiration_date == null || r.next_expiration_date >= todayStr)
+  ).length;
   const recientes = [...alumnoRows]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, 4)
