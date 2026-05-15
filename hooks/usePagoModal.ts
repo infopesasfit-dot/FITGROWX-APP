@@ -16,6 +16,7 @@ interface Alumno {
   next_expiration_date: string | null;
   frozen_since: string | null;
   pausa_hasta: string | null;
+  deuda_pendiente: number;
 }
 
 const statusFromDate = (dateStr: string | null): Status => {

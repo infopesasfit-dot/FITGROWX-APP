@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { normalizePhone } from "@/lib/phone";
 
 export async function POST(req: NextRequest) {
-  const { classId, leadName, leadPhone, gymId, turnstileToken } = await req.json();
+  const raw = await req.json();
+  const { reservaBookSchema, parseBody } = await import("@/lib/schemas");
+  const parsed = parseBody(reservaBookSchema, raw);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+
+  const { classId, leadName, leadPhone, gymId, turnstileToken } = parsed.data;
   const ip = getClientIp(req);
 
-  if (!classId || !leadName || !leadPhone || !gymId) {
-    return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
-  }
-
-  const cleanPhone = String(leadPhone).replace(/\D/g, "");
+  const cleanPhone = normalizePhone(String(leadPhone));
   if (cleanPhone.length < 8) {
     return NextResponse.json({ error: "Ingresá un teléfono válido." }, { status: 400 });
   }

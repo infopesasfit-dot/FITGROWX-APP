@@ -484,6 +484,7 @@ export default function ClasesPage() {
                   value={form.class_name}
                   onChange={e => setForm(p => ({ ...p, class_name: e.target.value }))}
                   placeholder="Box, Zumba, Spinning..."
+                  maxLength={80}
                   style={{ padding: "10px 12px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 9, font: `400 0.875rem/1 ${fd}`, color: t1, outline: "none" }}
                 />
               </label>
@@ -589,6 +590,7 @@ export default function ClasesPage() {
                   value={form.coach_name}
                   onChange={e => setForm(p => ({ ...p, coach_name: e.target.value }))}
                   placeholder="Nombre del coach..."
+                  maxLength={100}
                   style={{ padding: "10px 12px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 9, font: `400 0.875rem/1 ${fd}`, color: t1, outline: "none" }}
                 />
               </label>
@@ -633,6 +635,7 @@ export default function ClasesPage() {
                   onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
                   placeholder="Descripción, WOD del día, o info adicional sobre la clase..."
                   rows={4}
+                  maxLength={2000}
                   style={{ padding: "10px 12px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 9, font: `400 0.875rem/1.5 ${fd}`, color: t1, outline: "none", resize: "vertical" }}
                 />
               </div>

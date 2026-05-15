@@ -1,0 +1,39 @@
+{
+  "id": "/dashboard",
+  "name": "FitGrowX Admin",
+  "short_name": "FitGrowX",
+  "description": "Gestioná tu gimnasio desde el celular",
+  "start_url": "/dashboard?pwa=1",
+  "scope": "/dashboard/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
+  "categories": ["fitness", "business", "productivity"],
+  "icons": [
+    {
+      "src": "/images/logo-favicon-fitgrowx.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/logo-favicon-fitgrowx.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Alumnos",
+      "url": "/dashboard/alumnos?pwa=1",
+      "icons": [{ "src": "/images/logo-favicon-fitgrowx.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Escáner QR",
+      "url": "/dashboard/scanner?pwa=1",
+      "icons": [{ "src": "/images/logo-favicon-fitgrowx.png", "sizes": "96x96" }]
+    }
+  ]
+}

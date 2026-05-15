@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createStaffSchema, parseBody } from "@/lib/schemas";
 
 type AdminProfile = {
   gym_id: string | null;
@@ -41,13 +42,14 @@ export async function POST(req: NextRequest) {
   const admin = await getAdminGymId(supabase);
   if (!admin) return NextResponse.json({ ok: false }, { status: 403 });
 
-  const { email, password, full_name } = await req.json() as { email: string; password: string; full_name?: string };
-  if (!email?.trim() || !password || password.length < 6) {
-    return NextResponse.json({ ok: false, error: "Email y contraseña (mín. 6 caracteres) son obligatorios." }, { status: 400 });
-  }
+  const raw = await req.json();
+  const parsed = parseBody(createStaffSchema, raw);
+  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
+
+  const { email, password, full_name } = parsed.data;
 
   const { data: newUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email: email.trim().toLowerCase(),
+    email,
     password,
     email_confirm: true,
   });
@@ -57,8 +59,8 @@ export async function POST(req: NextRequest) {
     id: newUser.user.id,
     gym_id: admin.gymId,
     role: "staff",
-    email: email.trim().toLowerCase(),
-    full_name: full_name?.trim() || null,
+    email,
+    full_name: full_name ?? null,
   });
 
   if (profileError) {

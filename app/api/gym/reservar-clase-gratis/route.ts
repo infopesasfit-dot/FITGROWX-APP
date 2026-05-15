@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     }
     const { data: created } = await supabase
       .from("prospectos")
-      .insert({ gym_id, full_name: name.trim(), phone, status: "pendiente", contactos_step: 0 })
+      .insert({ gym_id, full_name: name.trim(), phone: phoneNorm, status: "pendiente", contactos_step: 0 })
       .select("id, full_name, phone, clase_gratis_date, clase_gratis_status")
       .single();
     if (!created) return NextResponse.json({ error: "No se pudo registrar. Intentá de nuevo." }, { status: 500 });

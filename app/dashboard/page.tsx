@@ -738,47 +738,47 @@ export default function DashboardPage() {
           <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}` : "Hola 👋"}</h1>
           <p style={{ font: `500 0.8rem/1.55 ${fb}`, color: t2, marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
           {renderFilters(true)}
-          <div style={{ marginTop: 16, padding: "16px 16px 14px", borderRadius: 22, background: orangeGlow, color: "white", position: "relative", overflow: "hidden", boxShadow: "0 16px 34px rgba(255,122,24,0.26)" }}>
-            <div className="dashboard-grain" style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.18 }} />
+          <div style={{ marginTop: 16, padding: "18px 16px 16px", borderRadius: 24, background: orangeGlow, color: "white", position: "relative", overflow: "hidden", boxShadow: "0 16px 40px rgba(255,100,0,0.28), inset 0 1px 0 rgba(255,255,255,0.22)" }}>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 90% 10%, rgba(255,255,255,0.30) 0%, transparent 45%), radial-gradient(ellipse at 5% 90%, rgba(180,60,0,0.28) 0%, transparent 45%)", pointerEvents: "none" }} />
+            <div className="dashboard-grain" style={{ position: "absolute", inset: 0, pointerEvents: "none", opacity: 0.14 }} />
             <div style={{ position: "relative", zIndex: 1 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-                <span style={{ font: `700 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.82)", textTransform: "uppercase", letterSpacing: "0.09em" }}>Lo que vas a cobrar este mes</span>
-                <div style={{ width: 32, height: 32, borderRadius: 13, background: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <CreditCard size={15} color="white" />
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
+                <div>
+                  <span style={{ font: `600 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: "0.11em", display: "block", marginBottom: 10 }}>Lo que vas a cobrar este mes</span>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    {loading
+                      ? <SkelLight w={140} h={36} r={10} />
+                      : <span style={{ font: `800 2.2rem/0.92 ${fd}`, letterSpacing: "-0.06em" }}>{fmt(ingresoProyectado)}</span>}
+                    {!loading && <span style={{ font: `400 0.76rem/1 ${fb}`, color: "rgba(255,255,255,0.58)" }}>/ mes</span>}
+                  </div>
+                </div>
+                <div style={{ width: 34, height: 34, borderRadius: 12, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <CreditCard size={15} color="rgba(255,255,255,0.90)" />
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginBottom: 14 }}>
-                {loading
-                  ? <SkelLight w={140} h={36} r={10} />
-                  : <span style={{ font: `800 2rem/0.95 ${fd}`, letterSpacing: "-0.06em" }}>{fmt(ingresoProyectado)}</span>}
-                {!loading && <span style={{ font: `500 0.74rem/1 ${fb}`, color: "rgba(255,255,255,0.72)" }}>/ mes</span>}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                {!loading && recaudadoEsteMes > 0 && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                    <span style={{ font: `400 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.60)" }}>Cobrado</span>
+                    <span style={{ font: `700 0.66rem/1 ${fd}`, color: "white" }}>{fmt(recaudadoEsteMes)}</span>
+                  </div>
+                )}
+                {!loading && proyeccionProximoMes > 0 && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: "rgba(0,0,0,0.12)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <span style={{ font: `400 0.60rem/1 ${fb}`, color: "rgba(255,255,255,0.52)" }}>Próx. mes</span>
+                    <span style={{ font: `700 0.64rem/1 ${fd}`, color: "rgba(255,255,255,0.80)" }}>{fmt(proyeccionProximoMes)}</span>
+                  </div>
+                )}
               </div>
-              {!loading && recaudadoEsteMes > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-                  <span style={{ font: `500 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.52)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Cobrado este mes</span>
-                  <span style={{ font: `700 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.88)" }}>{fmt(recaudadoEsteMes)}</span>
-                </div>
-              )}
-              {!loading && proyeccionProximoMes > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                  <span style={{ font: `500 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.52)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Próximo mes · {renovacionesPendientes} renovaciones</span>
-                  <span style={{ font: `700 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.88)" }}>{fmt(proyeccionProximoMes)}</span>
-                  <span style={{ font: `500 0.58rem/1 ${fb}`, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.1)", borderRadius: 6, padding: "2px 6px" }}>esperado</span>
-                </div>
-              )}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 7 }}>
                 {[
-                  { label: "Con membresía",  value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(activosCount) },
-                  { label: "Mensajes auto",  value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(mensajesAutoEnviados) },
-                  { label: "Vencen pronto",  value: loading ? <SkelLight w="50%" h={18} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+                  { label: "Con membresía", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(activosCount) },
+                  { label: "Mensajes auto",  value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(mensajesAutoEnviados) },
+                  { label: "Vencen pronto", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
                 ].map((item) => (
-                  <a
-                    key={item.label}
-                    href={item.href}
-                    style={{ padding: "9px 9px 10px", borderRadius: 16, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.16)", cursor: item.href ? "pointer" : "default", textDecoration: "none", color: "inherit" }}
-                  >
-                    <p style={{ font: `700 0.86rem/1 ${fd}`, marginBottom: 4 }}>{item.value}</p>
-                    <p style={{ font: `500 0.58rem/1.35 ${fb}`, color: "rgba(255,255,255,0.72)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{item.label}</p>
+                  <a key={item.label} href={item.href} style={{ padding: "10px 10px 9px", borderRadius: 16, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.10)", cursor: item.href ? "pointer" : "default", textDecoration: "none", color: "inherit", display: "block" }}>
+                    <p style={{ font: `800 0.92rem/1 ${fd}`, marginBottom: 5, letterSpacing: "-0.03em" }}>{item.value}</p>
+                    <p style={{ font: `500 0.56rem/1.3 ${fb}`, color: "rgba(255,255,255,0.60)", textTransform: "uppercase", letterSpacing: "0.09em" }}>{item.label}</p>
                   </a>
                 ))}
               </div>
@@ -1133,51 +1133,53 @@ export default function DashboardPage() {
 
       {renderQuickActions()}
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20 }}>
-        <div className="dashboard-grain" style={{ borderRadius: 30, background: orangeGlow, padding: "22px 22px 20px", position: "relative", overflow: "hidden", boxShadow: "0 22px 54px rgba(255,122,24,0.24)" }}>
-          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top right, rgba(255,255,255,0.26), transparent 28%), radial-gradient(circle at bottom left, rgba(255,210,170,0.25), transparent 24%)", pointerEvents: "none" }} />
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
-              <div>
-                <p style={{ font: `700 0.72rem/1 ${fb}`, color: "rgba(255,255,255,0.82)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>Lo que vas a cobrar este mes</p>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                  {loading
-                    ? <SkelLight w={200} h={50} r={12} />
-                    : <span style={{ font: `800 3rem/0.92 ${fd}`, color: "white", letterSpacing: "-0.08em" }}>{fmt(ingresoProyectado)}</span>}
-                  {!loading && <span style={{ font: `500 0.82rem/1 ${fb}`, color: "rgba(255,255,255,0.78)" }}>/ mes</span>}
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.18)" }}>
-                    <ArrowUpRight size={14} color="white" />
-                    <span style={{ font: `700 0.74rem/1 ${fb}`, color: "white" }}>Suma de membresías vigentes</span>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.55fr) minmax(320px, 1fr)", gap: 20, alignItems: "start" }}>
+        <div className="dashboard-grain" style={{ borderRadius: 30, background: orangeGlow, padding: "26px 24px 24px", position: "relative", overflow: "hidden", boxShadow: "0 24px 60px rgba(255,100,0,0.28), inset 0 1px 0 rgba(255,255,255,0.22)" }}>
+          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 90% 10%, rgba(255,255,255,0.32) 0%, transparent 45%), radial-gradient(ellipse at 10% 90%, rgba(180,60,0,0.30) 0%, transparent 45%)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 18 }}>
+                <div style={{ flex: 1 }}>
+                  <p style={{ font: `600 0.65rem/1 ${fb}`, color: "rgba(255,255,255,0.68)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12 }}>Lo que vas a cobrar este mes</p>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    {loading
+                      ? <SkelLight w={200} h={54} r={12} />
+                      : <span style={{ font: `800 3.4rem/0.9 ${fd}`, color: "white", letterSpacing: "-0.06em" }}>{fmt(ingresoProyectado)}</span>}
+                    {!loading && <span style={{ font: `400 0.88rem/1 ${fb}`, color: "rgba(255,255,255,0.60)" }}>/ mes</span>}
                   </div>
-                  {!loading && recaudadoEsteMes > 0 && (
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.18)" }}>
-                      <span style={{ font: `500 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.72)" }}>Cobrado este mes</span>
-                      <span style={{ font: `700 0.74rem/1 ${fd}`, color: "white" }}>{fmt(recaudadoEsteMes)}</span>
-                    </div>
-                  )}
-                  {!loading && proyeccionProximoMes > 0 && (
-                    <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 12px", borderRadius: 9999, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.14)" }}>
-                      <span style={{ font: `500 0.68rem/1 ${fb}`, color: "rgba(255,255,255,0.62)" }}>Próximo mes · {renovacionesPendientes} renovaciones</span>
-                      <span style={{ font: `700 0.74rem/1 ${fd}`, color: "rgba(255,255,255,0.92)" }}>{fmt(proyeccionProximoMes)}</span>
-                    </div>
-                  )}
+                </div>
+                <div style={{ width: 44, height: 44, borderRadius: 15, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <CreditCard size={18} color="rgba(255,255,255,0.92)" />
                 </div>
               </div>
-              <div style={{ width: 48, height: 48, borderRadius: 18, background: "rgba(255,255,255,0.16)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <CreditCard size={20} color="white" />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 9999, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <ArrowUpRight size={12} color="rgba(255,255,255,0.85)" />
+                  <span style={{ font: `600 0.70rem/1 ${fb}`, color: "rgba(255,255,255,0.85)" }}>Membresías vigentes</span>
+                </div>
+                {!loading && recaudadoEsteMes > 0 && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 9999, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                    <span style={{ font: `400 0.66rem/1 ${fb}`, color: "rgba(255,255,255,0.60)" }}>Cobrado</span>
+                    <span style={{ font: `700 0.70rem/1 ${fd}`, color: "white" }}>{fmt(recaudadoEsteMes)}</span>
+                  </div>
+                )}
+                {!loading && proyeccionProximoMes > 0 && (
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 9999, background: "rgba(0,0,0,0.12)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <span style={{ font: `400 0.64rem/1 ${fb}`, color: "rgba(255,255,255,0.52)" }}>Próx. mes · {renovacionesPendientes} renov.</span>
+                    <span style={{ font: `700 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.80)" }}>{fmt(proyeccionProximoMes)}</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
-                {[
-                  { label: "Con membresía", value: loading ? <SkelLight w={36} h={22} r={5} /> : String(activosCount) },
-                  { label: "Fueron hoy",    value: loading ? <SkelLight w={36} h={22} r={5} /> : String(asistHoy) },
-                  { label: "Vencen pronto", value: loading ? <SkelLight w={36} h={22} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
-                ].map((item) => (
-                <a key={item.label} href={item.href} style={{ padding: "12px 12px 11px", borderRadius: 18, background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.16)", cursor: item.href ? "pointer" : "default", textAlign: "left", textDecoration: "none", color: "inherit" }}>
-                  <p style={{ font: `800 1.1rem/1 ${fd}`, color: "white", marginBottom: 5 }}>{item.value}</p>
-                  <p style={{ font: `600 0.63rem/1.35 ${fb}`, color: "rgba(255,255,255,0.74)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{item.label}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+              {[
+                { label: "Con membresía", value: loading ? <SkelLight w={36} h={26} r={5} /> : String(activosCount) },
+                { label: "Fueron hoy",    value: loading ? <SkelLight w={36} h={26} r={5} /> : String(asistHoy) },
+                { label: "Vencen pronto", value: loading ? <SkelLight w={36} h={26} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+              ].map((item) => (
+                <a key={item.label} href={item.href} style={{ padding: "13px 14px 12px", borderRadius: 18, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.10)", cursor: item.href ? "pointer" : "default", textAlign: "left", textDecoration: "none", color: "inherit", display: "block", backdropFilter: "blur(8px)" }}>
+                  <p style={{ font: `800 1.4rem/1 ${fd}`, color: "white", marginBottom: 6, letterSpacing: "-0.04em" }}>{item.value}</p>
+                  <p style={{ font: `500 0.58rem/1.3 ${fb}`, color: "rgba(255,255,255,0.58)", textTransform: "uppercase", letterSpacing: "0.10em" }}>{item.label}</p>
                 </a>
               ))}
             </div>

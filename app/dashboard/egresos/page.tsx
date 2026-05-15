@@ -379,6 +379,7 @@ export default function EgresosPage() {
                 value={form.titulo}
                 onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
                 placeholder="Ej: Alquiler de Mayo"
+                maxLength={120}
                 style={{ width: "100%", padding: "10px 14px", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" }}
               />
             </div>

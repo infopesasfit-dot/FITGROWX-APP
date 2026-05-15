@@ -2,16 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { createLeadSchema, parseBody } from "@/lib/schemas";
+import { normalizePhone } from "@/lib/phone";
 
 export async function POST(req: NextRequest) {
-  const { gymId, name, phone, email, turnstileToken } = await req.json();
+  const raw = await req.json();
+  const parsed = parseBody(createLeadSchema, raw);
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+
+  const { gymId, name, phone, email: emailNormalized, turnstileToken } = parsed.data;
   const ip = getClientIp(req);
-
-  if (!gymId || !name || !email) {
-    return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
-  }
-
-  const emailNormalized = normalizeIdentifier(String(email));
   const ipLimit = await applyRateLimit({
     namespace: "lead:ip",
     identifier: normalizeIdentifier(ip),
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     {
       gym_id:         gymId,
       full_name:      name,
-      phone:          phone || null,
+      phone:          phone ? normalizePhone(phone) : null,
       email:          emailNormalized,
       status:         "pendiente",
       contactos_step: 0,
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       gym_id: gymId,
       type: "new_prospecto",
       title: `Nuevo prospecto: ${name}`,
-      body: email ?? phone ?? null,
+      body: emailNormalized ?? phone ?? null,
     }]);
   } catch { /* non-fatal */ }
 
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         await fetch(`${motor}/send/${gymId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-          body: JSON.stringify({ phone, message: msg }),
+          body: JSON.stringify({ phone: normalizePhone(phone), message: msg }),
           signal: AbortSignal.timeout(8000),
         });
       } catch { /* non-fatal */ }

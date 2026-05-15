@@ -552,6 +552,7 @@ export default function MembresiasPage() {
                           value={draft.nombre}
                           onChange={e => updateDraft(p.id, "nombre", e.target.value)}
                           placeholder="Ej: Plan Básico"
+                          maxLength={80}
                           style={{ ...inlineInput, font: `800 1.25rem/1.2 ${fd}`, color: t1, display: "block" }}
                         />
                       </div>
@@ -645,6 +646,7 @@ export default function MembresiasPage() {
                           value={draft.features}
                           onChange={e => updateDraft(p.id, "features", e.target.value)}
                           placeholder={"Ej: Acceso a sala de pesas\nClases grupales\nAplicación de seguimiento"}
+                          maxLength={1000}
                           rows={Math.max(3, (draft.features?.split("\n") || []).length)}
                           style={{
                             width: "100%", padding: "10px 12px",

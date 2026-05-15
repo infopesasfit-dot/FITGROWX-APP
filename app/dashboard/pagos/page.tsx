@@ -390,7 +390,7 @@ export default function PagosPage() {
       if (error) { showToast(`Error: ${error.message}`, "err"); return; }
       // Renovar membresía del alumno
       const pago = pagos.find(p => p.id === pagoId);
-      if (pago) {
+      if (pago && pago.concepto === "membresia") {
         await renewMembership(pago.alumno_id, pago.date);
         fetch("/api/admin/invalidate-tokens", {
           method: "POST",

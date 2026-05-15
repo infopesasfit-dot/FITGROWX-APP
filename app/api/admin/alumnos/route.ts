@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { createAlumnoSchema, parseBody } from "@/lib/schemas";
 
 // null = sin límite. Cambiar aquí para aplicar a todos los gyms de ese plan.
 const PLAN_LIMITS: Record<string, number | null> = {
@@ -39,7 +40,7 @@ export async function GET() {
     await Promise.all([
       admin
         .from("alumnos")
-        .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, frozen_since, pausa_hasta, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
+        .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, frozen_since, pausa_hasta, deuda_pendiente, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
         .eq("gym_id", gymId)
         .is("deleted_at", null)
         .order("full_name"),
@@ -135,25 +136,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const body = await req.json();
-  const { full_name, dni, phone, email, plan_id, status, next_expiration_date, last_payment_date } = body;
+  const raw = await req.json();
+  const parsed = parseBody(createAlumnoSchema, raw);
+  if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
 
-  if (!full_name?.trim()) {
-    return NextResponse.json({ ok: false, error: "El nombre es obligatorio." }, { status: 400 });
-  }
+  const { full_name, dni, phone, email, plan_id, status, next_expiration_date, last_payment_date } = parsed.data;
 
   const { data: newAlumno, error } = await admin
     .from("alumnos")
     .insert([{
       gym_id: gymId,
-      full_name: full_name.trim(),
-      dni: dni?.trim() || null,
-      phone: phone?.trim() || null,
-      email: email?.trim() || null,
-      plan_id: plan_id || null,
-      status: status ?? "activo",
-      next_expiration_date: next_expiration_date || null,
-      last_payment_date: last_payment_date || null,
+      full_name,
+      dni:                  dni  ?? null,
+      phone:                phone ?? null,
+      email:                email ?? null,
+      plan_id:              plan_id ?? null,
+      status:               status ?? "activo",
+      next_expiration_date: next_expiration_date ?? null,
+      last_payment_date:    last_payment_date ?? null,
     }])
     .select("id, full_name, dni, phone, email, plan_id, status, next_expiration_date")
     .single();
