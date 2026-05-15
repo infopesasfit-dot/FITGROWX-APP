@@ -873,29 +873,6 @@ export default function AlumnosPage() {
         </div>
       </div>
 
-      {/* KPI row */}
-      {role !== "staff" && (
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14 }}>
-        {[
-          { label: "Total",      value: totalCount, icon: <Users      size={14} color="white" />, sub: "registrados" },
-          { label: "Activos",    value: activos,    icon: <UserCheck  size={14} color="white" />, sub: "en regla" },
-          { label: "Vencidos",   value: vencidos,   icon: <UserX      size={14} color="white" />, sub: "sin renovar" },
-          { label: "Pendientes", value: pendientes, icon: <TrendingUp size={14} color="white" />, sub: "por confirmar" },
-        ].map(s => (
-          <div key={s.label} style={{ ...card, padding: isMobile ? "12px 14px" : "16px 18px", transition: "box-shadow 0.2s, transform 0.2s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 28px rgba(0,0,0,0.10)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.boxShadow = card.boxShadow; (e.currentTarget as HTMLDivElement).style.transform = "none"; }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isMobile ? 8 : 10 }}>
-              <span style={{ font: `500 ${isMobile ? "0.65" : "0.72"}rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</span>
-              <div style={{ width: isMobile ? 26 : 30, height: isMobile ? 26 : 30, borderRadius: 7, background: "#2C2C2E", display: "flex", alignItems: "center", justifyContent: "center" }}>{s.icon}</div>
-            </div>
-            <p style={{ font: `800 ${isMobile ? "1.3" : "1.75"}rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{loading ? "—" : s.value}</p>
-            {!isMobile && <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>{s.sub}</p>}
-          </div>
-        ))}
-      </div>
-      )}
 
       {/* Guest Pass Leads */}
       <div style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)", borderRadius: 16, overflow: "hidden" }}>
