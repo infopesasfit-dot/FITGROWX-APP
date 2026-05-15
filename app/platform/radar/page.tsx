@@ -7,6 +7,7 @@ type HealthCheck = {
   status: "ok" | "degraded";
   checks: Record<string, "ok" | "error">;
   latency_ms: number;
+  latency_detail?: { database_ms: number; wa_motor_ms?: number };
   ts: string;
 };
 
@@ -174,7 +175,10 @@ export default function RadarPage() {
                   Latencia DB
                 </p>
                 <p style={{ font: "400 0.68rem/1 'Inter', sans-serif", color: "#6366f1" }}>
-                  {health.latency_ms} ms
+                  {health.latency_detail?.database_ms ?? health.latency_ms} ms
+                  {health.latency_detail?.wa_motor_ms != null && (
+                    <span style={{ color: "#9ca3af", marginLeft: 6 }}>· WA Motor: {health.latency_detail.wa_motor_ms} ms</span>
+                  )}
                 </p>
               </div>
             </div>

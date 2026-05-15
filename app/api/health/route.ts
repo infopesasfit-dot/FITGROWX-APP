@@ -5,39 +5,47 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const start = Date.now();
-  const checks: Record<string, "ok" | "error"> = {};
-
-  try {
-    const supabase = getSupabaseAdminClient();
-    const { error } = await supabase.from("profiles").select("id").limit(1).maybeSingle();
-    checks.database = error ? "error" : "ok";
-  } catch {
-    checks.database = "error";
-  }
-
   const waMotorUrl = process.env.WA_MOTOR_URL;
-  if (waMotorUrl) {
-    try {
-      const res = await fetch(`${waMotorUrl}/health`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      checks.wa_motor = res.ok ? "ok" : "error";
-    } catch {
-      checks.wa_motor = "error";
-    }
-  }
+
+  const [dbResult, waResult] = await Promise.all([
+    (async () => {
+      const t = Date.now();
+      try {
+        const supabase = getSupabaseAdminClient();
+        const { error } = await supabase.from("profiles").select("id").limit(1).maybeSingle();
+        return { status: (error ? "error" : "ok") as "ok" | "error", latency_ms: Date.now() - t };
+      } catch {
+        return { status: "error" as const, latency_ms: Date.now() - t };
+      }
+    })(),
+    (async () => {
+      if (!waMotorUrl) return null;
+      const t = Date.now();
+      try {
+        const res = await fetch(`${waMotorUrl}/health`, { signal: AbortSignal.timeout(3000) });
+        return { status: (res.ok ? "ok" : "error") as "ok" | "error", latency_ms: Date.now() - t };
+      } catch {
+        return { status: "error" as const, latency_ms: Date.now() - t };
+      }
+    })(),
+  ]);
+
+  const checks: Record<string, "ok" | "error"> = { database: dbResult.status };
+  if (waResult) checks.wa_motor = waResult.status;
 
   const allOk = Object.values(checks).every((v) => v === "ok");
-  const status = allOk ? 200 : 503;
 
   return NextResponse.json(
     {
       status: allOk ? "ok" : "degraded",
       checks,
-      latency_ms: Date.now() - start,
+      latency_ms: dbResult.latency_ms,
+      latency_detail: {
+        database_ms: dbResult.latency_ms,
+        ...(waResult ? { wa_motor_ms: waResult.latency_ms } : {}),
+      },
       ts: new Date().toISOString(),
     },
-    { status }
+    { status: allOk ? 200 : 503 }
   );
 }
