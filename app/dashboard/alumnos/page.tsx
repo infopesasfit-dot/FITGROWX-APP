@@ -87,6 +87,13 @@ function openWhatsApp(phone: string, full_name: string) {
   window.open(`https://wa.me/${clean}?text=${text}`, "_blank");
 }
 
+// A valid phone must have at least 10 digits after stripping formatting
+function isValidPhone(phone: string | null): boolean {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, "");
+  return digits.length >= 10;
+}
+
 
 const defaultExpiry = () => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10); };
 const statusFromDate = (dateStr: string | null): Status => {
@@ -1049,14 +1056,27 @@ export default function AlumnosPage() {
                             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
                           ><ClipboardCheck size={16} /></button>
                         </Tooltip>
-                        <Tooltip content={a.phone ? "Enviar WhatsApp" : "Sin teléfono"}>
-                          <button disabled={!a.phone} onClick={() => a.phone && openWhatsApp(a.phone, a.full_name)} style={{ background: "none", border: "none", cursor: a.phone ? "pointer" : "default", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", opacity: a.phone ? 1 : 0.35 }}
-                            onMouseEnter={e => { if (a.phone) (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
-                          >
-                            <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
-                          </button>
-                        </Tooltip>
+                        {(() => {
+                          const hasPhone = Boolean(a.phone);
+                          const validPhone = isValidPhone(a.phone);
+                          const tooltipMsg = !hasPhone ? "Sin teléfono" : !validPhone ? `Número inválido: "${a.phone}"` : "Enviar WhatsApp";
+                          const iconColor = validPhone ? t3 : "#9CA3AF";
+                          const iconOpacity = hasPhone && !validPhone ? 0.4 : hasPhone ? 1 : 0.3;
+                          return (
+                            <Tooltip content={tooltipMsg}>
+                              <button
+                                disabled={!validPhone}
+                                onClick={() => validPhone && a.phone && openWhatsApp(a.phone, a.full_name)}
+                                style={{ background: "none", border: hasPhone && !validPhone ? "1px solid rgba(239,68,68,0.3)" : "none", cursor: validPhone ? "pointer" : "default", color: iconColor, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", opacity: iconOpacity, position: "relative" }}
+                                onMouseEnter={e => { if (validPhone) (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "none"; }}
+                              >
+                                <svg width={16} height={16} viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.124.558 4.118 1.535 5.845L.057 23.5l5.828-1.528A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.882a9.877 9.877 0 01-5.032-1.374l-.36-.214-3.733.979.995-3.638-.235-.374A9.863 9.863 0 012.118 12C2.118 6.534 6.534 2.118 12 2.118S21.882 6.534 21.882 12 17.466 21.882 12 21.882z"/></svg>
+                                {hasPhone && !validPhone && <span style={{ position: "absolute", top: 4, right: 4, width: 7, height: 7, borderRadius: "50%", background: "#EF4444", border: "1.5px solid white" }} />}
+                              </button>
+                            </Tooltip>
+                          );
+                        })()}
                         <Tooltip content="Registrar pago">
                           <button onClick={() => openPagoModal(a)} style={{ background: "none", border: "none", cursor: "pointer", color: t3, width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}
                             onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4F5F9"; }}
