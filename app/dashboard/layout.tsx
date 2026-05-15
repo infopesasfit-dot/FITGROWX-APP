@@ -383,6 +383,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     fontFamily: fb,
     background: isActive(href) ? "rgba(255,255,255,0.10)" : "transparent",
     color: isActive(href) ? "#FFFFFF" : "rgba(255,255,255,0.50)",
+    boxShadow: isActive(href) ? "inset 2px 0 0 #FF7A18" : "none",
     overflow: "hidden",
     whiteSpace: "nowrap",
   });
@@ -628,7 +629,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "#F5F5F7", borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "#F6F6F4", borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
 
         {/* Topbar */}
         <header style={{

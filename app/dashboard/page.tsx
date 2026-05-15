@@ -20,10 +20,10 @@ const t3 = "#98A1B2";
 
 const cardBase: React.CSSProperties = {
   background: "#FFFFFF",
-  borderRadius: 28,
-  border: "1px solid rgba(17,24,39,0.06)",
-  boxShadow: "0 1px 0 rgba(255,255,255,0.8) inset, 0 18px 44px rgba(15,23,42,0.06), 0 4px 14px rgba(15,23,42,0.04)",
-  transition: "box-shadow 0.25s ease, transform 0.25s ease",
+  borderRadius: 16,
+  border: "1px solid rgba(15,17,21,0.07)",
+  boxShadow: "0 1px 0 rgba(15,17,21,0.04), 0 2px 8px rgba(15,17,21,0.05)",
+  transition: "box-shadow 0.2s ease, transform 0.2s ease",
 };
 
 interface RecenteAlumno { id: string; full_name: string; created_at: string; }
@@ -405,11 +405,11 @@ export default function DashboardPage() {
     if (hour >= 6 && hour < 10) return [
       { emoji: "✅", label: "Asistencia de hoy", hint: asistHoy > 0 ? `${asistHoy} registradas` : "Sin registros aún", href: "/dashboard/asistencias" },
       { emoji: "📋", label: "Tomar asistencia", hint: "Manual o QR", href: "/dashboard/scanner" },
-      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} socios por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Avisales antes de que venza" : "Todo al día", href: "#dashboard-alertas" },
+      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} socios por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Avisales antes de que venza" : "Todo al día", href: "/dashboard/alumnos" },
     ];
     if (hour >= 10 && hour < 14) return [
       { emoji: "💳", label: "Registrar un pago", hint: "Cobrar la cuota de un socio", href: "/dashboard/pagos" },
-      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Contactar para que renueven" : "Todo al día", href: "#dashboard-alertas" },
+      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} por vencer` : "Sin vencimientos hoy", hint: alerts.upcomingExpirations.length > 0 ? "Contactar para que renueven" : "Todo al día", href: "/dashboard/alumnos" },
       { emoji: "👤", label: "Agregar alumno", hint: "Sumarlo al sistema", href: "/dashboard/alumnos" },
     ];
     if (hour >= 14 && hour < 19) return [
@@ -418,9 +418,9 @@ export default function DashboardPage() {
       { emoji: "💳", label: "Registrar un pago", hint: "Cobrar la cuota de un socio", href: "/dashboard/pagos" },
     ];
     return [
-      { emoji: "📊", label: `${asistHoy} asistencias hoy`, hint: "Resumen del día", href: "#dashboard-alertas" },
+      { emoji: "📊", label: `${asistHoy} asistencias hoy`, hint: "Resumen del día", href: "/dashboard/asistencias" },
       { emoji: "📝", label: "Cargar egreso", hint: "Registrar gasto del día", href: "/dashboard/egresos" },
-      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} vencen pronto` : "Sin vencimientos pronto", hint: alerts.upcomingExpirations.length > 0 ? "Para mañana: contactar" : "Todo al día", href: "#dashboard-alertas" },
+      { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} vencen pronto` : "Sin vencimientos pronto", hint: alerts.upcomingExpirations.length > 0 ? "Para mañana: contactar" : "Todo al día", href: "/dashboard/alumnos" },
     ];
   }, [hour, asistHoy, alerts.upcomingExpirations.length, prospectos]);
 
@@ -454,8 +454,8 @@ export default function DashboardPage() {
   const totalDonut     = planDist.reduce((s, p) => s + p.count, 0);
 
   const hoverOn  = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.boxShadow = "0 1px 0 rgba(255,255,255,0.85) inset, 0 22px 60px rgba(15,23,42,0.09), 0 8px 20px rgba(15,23,42,0.05)";
-    e.currentTarget.style.transform = "translateY(-4px)";
+    e.currentTarget.style.boxShadow = "0 1px 0 rgba(15,17,21,0.04), 0 6px 20px rgba(15,17,21,0.08)";
+    e.currentTarget.style.transform = "translateY(-2px)";
   };
   const hoverOff = (e: React.MouseEvent<HTMLElement>) => {
     e.currentTarget.style.boxShadow = cardBase.boxShadow ?? "";
@@ -590,7 +590,7 @@ export default function DashboardPage() {
       <div key={metric.key} style={{ ...cardBase, padding: isMobile ? "16px 14px" : "17px 16px", background: "#FFFFFF" }} {...cardHover}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
           <div>
-            <p style={{ font: `700 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>{metric.label}</p>
+            <p style={{ font: `600 0.7rem/1 ${fm}`, color: t3, textTransform: "uppercase", letterSpacing: "0.11em", marginBottom: 6 }}>{metric.label}</p>
             <p style={{ font: `800 ${isMobile ? "1.35rem" : "1.55rem"}/0.94 ${fd}`, color: t1, letterSpacing: "-0.05em" }}>{formatMetricValue(metric)}</p>
           </div>
           {renderMetricInfo(metric)}
@@ -629,7 +629,7 @@ export default function DashboardPage() {
     const content = (
       <>
         <div>
-          <p style={{ font: `800 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>
+          <p style={{ font: `600 ${isMobile ? "0.96rem" : "1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>
             {section === "Embudo" ? "Captación de socios" : section === "Fidelización" ? "Retención" : "Eficiencia"}
           </p>
           <p style={{ font: `500 0.74rem/1.45 ${fb}`, color: t3 }}>
@@ -861,7 +861,7 @@ export default function DashboardPage() {
                 {[
                   { label: "Con membresía", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(activosCount) },
                   { label: "Fueron hoy",    value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(asistHoy) },
-                  { label: "Vencen pronto", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(alerts.upcomingExpirations.length), href: "#dashboard-alertas" },
+                  { label: "Vencen pronto", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(alerts.upcomingExpirations.length), href: "/dashboard/alumnos" },
                 ].map((item) => (
                   <a key={item.label} href={item.href} style={{ padding: "10px 10px 9px", borderRadius: 16, background: "rgba(0,0,0,0.18)", border: "1px solid rgba(255,255,255,0.10)", cursor: item.href ? "pointer" : "default", textDecoration: "none", color: "inherit", display: "block" }}>
                     <p style={{ font: `800 0.92rem/1 ${fd}`, marginBottom: 5, letterSpacing: "-0.03em" }}>{item.value}</p>
@@ -898,20 +898,21 @@ export default function DashboardPage() {
       {renderPulsoPanel()}
 
       {!loading && (
-        <div style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "1px solid rgba(99,102,241,0.18)" }}>
-          <p style={{ font: `700 0.65rem/1 ${fb}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Lo que FitGrowX hizo por vos este mes</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-            <div style={{ padding: "10px 10px", borderRadius: 12, background: "rgba(99,102,241,0.08)" }}>
-              <p style={{ font: `800 1.3rem/1 ${fd}`, color: "#4338CA", marginBottom: 4 }}>{mensajesAutoEnviados}</p>
-              <p style={{ font: `500 0.64rem/1.35 ${fb}`, color: "#6366F1" }}>mensajes enviados automáticamente</p>
+        <div style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, rgba(111,99,232,0.04) 0%, rgba(111,99,232,0) 60%), #FFFFFF", border: "1px solid rgba(15,17,21,0.07)" }}>
+          <p style={{ font: `600 0.65rem/1 ${fm}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>AUTOMATIZACIONES · ESTE MES</p>
+          <p style={{ font: `600 0.86rem/1 ${fd}`, color: t1, marginBottom: 12 }}>Lo que FitGrowX hizo por vos</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ padding: "10px 10px", borderRadius: 10, background: "rgba(111,99,232,0.07)", border: "1px solid rgba(15,17,21,0.05)" }}>
+              <p style={{ font: `600 1.25rem/1 ${fd}`, color: "#4338CA", marginBottom: 4, letterSpacing: "-0.03em" }}>{mensajesAutoEnviados}</p>
+              <p style={{ font: `500 0.6rem/1.3 ${fm}`, color: "#6366F1", letterSpacing: "0.04em" }}>MENSAJES</p>
             </div>
-            <div style={{ padding: "10px 10px", borderRadius: 12, background: "rgba(16,185,129,0.08)" }}>
-              <p style={{ font: `800 1.3rem/1 ${fd}`, color: "#047857", marginBottom: 4 }}>{renovacionesCount}</p>
-              <p style={{ font: `500 0.64rem/1.35 ${fb}`, color: "#059669" }}>socios que renovaron</p>
+            <div style={{ padding: "10px 10px", borderRadius: 10, background: "rgba(16,185,129,0.07)", border: "1px solid rgba(15,17,21,0.05)" }}>
+              <p style={{ font: `600 1.25rem/1 ${fd}`, color: "#047857", marginBottom: 4, letterSpacing: "-0.03em" }}>{renovacionesCount}</p>
+              <p style={{ font: `500 0.6rem/1.3 ${fm}`, color: "#059669", letterSpacing: "0.04em" }}>RENOV.</p>
             </div>
-            <div style={{ padding: "10px 10px", borderRadius: 12, background: recuperadosCount > 0 ? "rgba(34,197,94,0.12)" : "rgba(99,102,241,0.06)" }}>
-              <p style={{ font: `800 1.3rem/1 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#6366F1", marginBottom: 4 }}>{recuperadosCount > 0 ? fmt(recuperadosRevenue) : "—"}</p>
-              <p style={{ font: `500 0.64rem/1.35 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#818CF8" }}>{recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "socio recuperado" : "socios recuperados"}` : "sin recuperados aún"}</p>
+            <div style={{ padding: "10px 10px", borderRadius: 10, background: recuperadosCount > 0 ? "rgba(34,197,94,0.08)" : "rgba(111,99,232,0.04)", border: "1px solid rgba(15,17,21,0.05)" }}>
+              <p style={{ font: `600 1.25rem/1 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : t3, marginBottom: 4, letterSpacing: "-0.03em" }}>{recuperadosCount > 0 ? fmt(recuperadosRevenue) : "—"}</p>
+              <p style={{ font: `500 0.6rem/1.3 ${fm}`, color: recuperadosCount > 0 ? "#15803D" : t3, letterSpacing: "0.04em" }}>RECUP.</p>
             </div>
           </div>
         </div>
@@ -1270,8 +1271,8 @@ export default function DashboardPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, height: "100%", gridTemplateRows: "1fr 1fr", alignContent: "stretch" }}>
           {renderKpiCard("Tus socios",           loading ? <Skel w={52} h={38} r={9} /> : String(activosCount),                    `${totalCount} en total`,                <Users size={17} color="#fff" />,       "ink",    undefined)}
           {renderKpiCard("Fueron hoy",            loading ? <Skel w={52} h={38} r={9} /> : String(asistHoy),                       "Entrenaron hoy",                        <Activity size={17} color={accentDeep} />, "orange", undefined)}
-          {renderKpiCard("Sin venir en 7 días",   loading ? <Skel w={52} h={38} r={9} /> : String(alerts.inactiveCount),           "Siguen pagando pero no vienen",         <UserMinus size={17} color={accentDeep} />, "soft", "#dashboard-alertas")}
-          {renderKpiCard("Membresías por vencer", loading ? <Skel w={52} h={38} r={9} /> : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan",      <BadgeAlert size={17} color="#fff" />,  "ink",    "#dashboard-alertas")}
+          {renderKpiCard("Sin venir en 7 días",   loading ? <Skel w={52} h={38} r={9} /> : String(alerts.inactiveCount),           "Siguen pagando pero no vienen",         <UserMinus size={17} color={accentDeep} />, "soft", "/dashboard/alumnos")}
+          {renderKpiCard("Membresías por vencer", loading ? <Skel w={52} h={38} r={9} /> : String(alerts.upcomingExpirations.length), "Contactalos antes que venzan",      <BadgeAlert size={17} color="#fff" />,  "ink",    "/dashboard/alumnos")}
         </div>
       </div>
 
@@ -1299,33 +1300,34 @@ export default function DashboardPage() {
       {renderPulsoPanel()}
 
       {!loading && (
-        <div style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "1px solid rgba(99,102,241,0.18)" }}>
+        <div style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, rgba(111,99,232,0.04) 0%, rgba(111,99,232,0) 60%), #FFFFFF", border: "1px solid rgba(15,17,21,0.07)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
             <div>
-              <p style={{ font: `700 0.7rem/1 ${fb}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Lo que FitGrowX hizo por vos este mes</p>
-              <p style={{ font: `500 0.74rem/1.4 ${fb}`, color: "#818CF8" }}>El sistema trabajó por vos mientras te ocupabas del gym.</p>
+              <p style={{ font: `600 0.7rem/1 ${fm}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>AUTOMATIZACIONES · ESTE MES</p>
+              <p style={{ font: `600 0.9rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Lo que FitGrowX hizo por vos</p>
+              <p style={{ font: `500 0.74rem/1.4 ${fb}`, color: t3 }}>El sistema trabajó mientras te ocupabas del gym.</p>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 14, background: "rgba(99,102,241,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Zap size={18} />
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: "rgba(111,99,232,0.10)", color: "#6F63E8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Zap size={16} />
             </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-            <div style={{ padding: "14px 14px", borderRadius: 16, background: "rgba(99,102,241,0.08)" }}>
-              <p style={{ font: `800 1.6rem/1 ${fd}`, color: "#4338CA", marginBottom: 6, letterSpacing: "-0.04em" }}>{mensajesAutoEnviados}</p>
-              <p style={{ font: `600 0.72rem/1.35 ${fd}`, color: "#4338CA", marginBottom: 2 }}>Mensajes enviados</p>
-              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: "#818CF8" }}>recordatorios, bienvenidas y alertas automáticas</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(111,99,232,0.07)", border: "1px solid rgba(15,17,21,0.05)" }}>
+              <p style={{ font: `600 1.45rem/1 ${fd}`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.03em" }}>{mensajesAutoEnviados}</p>
+              <p style={{ font: `600 0.7rem/1 ${fm}`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 2 }}>MENSAJES ENVIADOS</p>
+              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: t3 }}>recordatorios, bienvenidas y alertas</p>
             </div>
-            <div style={{ padding: "14px 14px", borderRadius: 16, background: "rgba(16,185,129,0.09)" }}>
-              <p style={{ font: `800 1.6rem/1 ${fd}`, color: "#047857", marginBottom: 6, letterSpacing: "-0.04em" }}>{renovacionesCount}</p>
-              <p style={{ font: `600 0.72rem/1.35 ${fd}`, color: "#047857", marginBottom: 2 }}>Renovaciones</p>
-              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: "#059669" }}>socios que pagaron su membresía este mes</p>
+            <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(16,185,129,0.07)", border: "1px solid rgba(15,17,21,0.05)" }}>
+              <p style={{ font: `600 1.45rem/1 ${fd}`, color: "#047857", marginBottom: 5, letterSpacing: "-0.03em" }}>{renovacionesCount}</p>
+              <p style={{ font: `600 0.7rem/1 ${fm}`, color: "#059669", letterSpacing: "0.06em", marginBottom: 2 }}>RENOVACIONES</p>
+              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: t3 }}>socios que pagaron su membresía</p>
             </div>
-            <div style={{ padding: "14px 14px", borderRadius: 16, background: recuperadosCount > 0 ? "rgba(34,197,94,0.10)" : "rgba(99,102,241,0.05)", border: recuperadosCount > 0 ? "1.5px solid rgba(34,197,94,0.22)" : "none" }}>
-              <p style={{ font: `800 1.6rem/1 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#A5B4FC", marginBottom: 6, letterSpacing: "-0.04em" }}>
+            <div style={{ padding: "12px 14px", borderRadius: 12, background: recuperadosCount > 0 ? "rgba(34,197,94,0.08)" : "rgba(111,99,232,0.04)", border: `1px solid ${recuperadosCount > 0 ? "rgba(34,197,94,0.18)" : "rgba(15,17,21,0.05)"}` }}>
+              <p style={{ font: `600 1.45rem/1 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : t3, marginBottom: 5, letterSpacing: "-0.03em" }}>
                 {recuperadosCount > 0 ? fmt(recuperadosRevenue) : "—"}
               </p>
-              <p style={{ font: `600 0.72rem/1.35 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#A5B4FC", marginBottom: 2 }}>Recuperados</p>
-              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#C7D2FE" }}>
+              <p style={{ font: `600 0.7rem/1 ${fm}`, color: recuperadosCount > 0 ? "#15803D" : t3, letterSpacing: "0.06em", marginBottom: 2 }}>RECUPERADOS</p>
+              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: t3 }}>
                 {recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "socio que volvió" : "socios que volvieron"} a pagar` : "aún no hay socios recuperados"}
               </p>
             </div>
