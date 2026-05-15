@@ -80,6 +80,8 @@ export default function Home() {
               <Link href="/terminos" className="hover:text-white/50 transition-colors">Términos y Condiciones</Link>
               <span className="text-white/10">·</span>
               <Link href="/privacidad" className="hover:text-white/50 transition-colors">Política de Privacidad</Link>
+              <span className="text-white/10">·</span>
+              <Link href="/reseller" className="hover:text-white/50 transition-colors">Programa de Revendedores</Link>
             </div>
             <p className="text-[11px] font-light text-white/20 uppercase tracking-[0.16em]">
               © {new Date().getFullYear()} FitGrowX

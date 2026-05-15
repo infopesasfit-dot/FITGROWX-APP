@@ -60,6 +60,10 @@ const NAV_ITEMS: NavItem[] = [
     href: "/#planes",
   },
   {
+    label: "Revendé",
+    href: "/reseller",
+  },
+  {
     label: "Recursos",
     items: [
       {

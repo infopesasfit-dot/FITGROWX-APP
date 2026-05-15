@@ -590,7 +590,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
           {role === "admin" && (
-            <DinoChatWidget collapsed={collapsed} isMobile={isMobile} sidebarWidth={w + 24} />
+            <>
+              <Link
+                href="/reseller"
+                title={(!isMobile && collapsed) ? "Ganá comisiones" : undefined}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: (!isMobile && collapsed) ? "8px 0" : "9px 10px",
+                  justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
+                  borderRadius: 10, textDecoration: "none",
+                  background: "linear-gradient(135deg, rgba(249,115,22,0.12) 0%, rgba(234,88,12,0.08) 100%)",
+                  border: "1px solid rgba(249,115,22,0.22)",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(135deg, rgba(249,115,22,0.20) 0%, rgba(234,88,12,0.14) 100%)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(135deg, rgba(249,115,22,0.12) 0%, rgba(234,88,12,0.08) 100%)"; }}
+              >
+                <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1 }}>💸</span>
+                {(isMobile || !collapsed) && (
+                  <span style={{ font: `600 0.78rem/1 ${fd}`, color: "#FB923C", whiteSpace: "nowrap" }}>
+                    Ganá comisiones
+                  </span>
+                )}
+              </Link>
+              <DinoChatWidget collapsed={collapsed} isMobile={isMobile} sidebarWidth={w + 24} />
+            </>
           )}
           <button onClick={handleSignOut} style={logoutStyle} title={(!isMobile && collapsed) ? "Cerrar sesión" : undefined}>
             <LogOut size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
