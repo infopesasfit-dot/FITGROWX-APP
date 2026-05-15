@@ -39,9 +39,8 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
   {
     section: "SOCIOS",
     items: [
-      { href: "/dashboard/alumnos",    label: "Alumnos",           icon: Users },
-      { href: "/dashboard/clases",     label: "Clases y Horarios", icon: CalendarDays },
-      { href: "/dashboard/membresias", label: "Membresías",        icon: CreditCard },
+      { href: "/dashboard/alumnos", label: "Alumnos",           icon: Users },
+      { href: "/dashboard/clases",  label: "Clases y Horarios", icon: CalendarDays },
     ],
   },
   {
@@ -66,10 +65,17 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
     ],
   },
   {
-    section: "DINERO",
+    section: "FINANZAS",
     items: [
-      { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
-      { href: "/dashboard/egresos", label: "Egresos",  icon: TrendingDown },
+      {
+        href: "/dashboard/pagos",
+        label: "Finanzas",
+        icon: Wallet,
+        sub: [
+          { href: "/dashboard/pagos",   label: "Ingresos" },
+          { href: "/dashboard/egresos", label: "Egresos"  },
+        ],
+      },
     ],
   },
   {
@@ -83,6 +89,7 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
           { href: "/dashboard/ajustes?tab=general",    label: "General" },
           { href: "/dashboard/ajustes?tab=conexiones", label: "Conexiones" },
           { href: "/dashboard/ajustes?tab=equipo",     label: "Equipo" },
+          { href: "/dashboard/membresias",             label: "Membresías" },
         ],
       },
     ],
