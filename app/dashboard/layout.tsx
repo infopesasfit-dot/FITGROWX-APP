@@ -382,7 +382,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     textDecoration: "none",
     fontFamily: fb,
     position: "relative",
-    background: isActive(href) ? "rgba(255,255,255,0.10)" : "transparent",
+    background: isActive(href) ? "rgba(255,122,24,0.16)" : "transparent",
     color: isActive(href) ? "#FFFFFF" : "rgba(255,255,255,0.50)",
     overflow: "hidden",
     whiteSpace: "nowrap",
@@ -542,7 +542,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         style={{
                           borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center",
                           gap: 11, width: "100%", border: "none", textAlign: "left" as const, cursor: "pointer",
-                          background: anyActive ? "rgba(255,255,255,0.10)" : "transparent",
+                          background: anyActive ? "rgba(255,122,24,0.16)" : "transparent",
                           color: anyActive ? "#FFFFFF" : "rgba(255,255,255,0.50)",
                           fontFamily: fb, fontSize: "0.875rem", fontWeight: anyActive ? 600 : 500,
                           transition: "all 0.14s",
