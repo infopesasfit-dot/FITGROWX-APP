@@ -10,7 +10,7 @@ import {
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
-  CheckCircle,
+  CheckCircle, HelpCircle, Power,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { DinoChatWidget } from "./components/DinoChatWidget";
@@ -506,6 +506,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             border-radius: 0 2px 2px 0;
             background: #FF7A18;
           }
+          .sb-item:not(.sb-nav-active):hover {
+            color: rgba(255,255,255,0.88) !important;
+            background: rgba(255,255,255,0.05) !important;
+          }
         `}</style>
         <nav className="sb-nav" style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {(role === "staff" ? NAV_SECTIONS_STAFF : NAV_SECTIONS_ADMIN).map(({ section, items }) => (
@@ -530,7 +534,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                   if (!isMobile && collapsed) {
                     return (
-                      <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={isActive(item.href) ? "sb-nav-active" : ""} title={item.label}>
+                      <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={`sb-item${isActive(item.href) ? " sb-nav-active" : ""}`} title={item.label}>
                         <Icon size={16} style={{ opacity: anyActive ? 1 : 0.65, flexShrink: 0 }} />
                       </Link>
                     );
@@ -590,7 +594,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                 /* ── Regular item ── */
                 return (
-                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={isActive(item.href) ? "sb-nav-active" : ""} title={(!isMobile && collapsed) ? item.label : undefined} onMouseEnter={() => prefetchRoute(item.href)}>
+                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={`sb-item${isActive(item.href) ? " sb-nav-active" : ""}`} title={(!isMobile && collapsed) ? item.label : undefined} onMouseEnter={() => prefetchRoute(item.href)}>
                     <Icon size={16} style={{ opacity: isActive(item.href) ? 1 : 0.65, flexShrink: 0 }} />
                     {(isMobile || !collapsed) && <span style={{ flex: 1 }}>{item.label}</span>}
                   </Link>
@@ -600,7 +604,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
-        <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
           {role === "admin" && (
             <>
               <Link
@@ -608,28 +612,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 title={(!isMobile && collapsed) ? "Ganá comisiones" : undefined}
                 style={{
                   display: "flex", alignItems: "center", gap: 10,
-                  padding: (!isMobile && collapsed) ? "8px 0" : "9px 10px",
+                  padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px",
                   justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
                   borderRadius: 10, textDecoration: "none",
-                  background: "linear-gradient(135deg, rgba(249,115,22,0.12) 0%, rgba(234,88,12,0.08) 100%)",
-                  border: "1px solid rgba(249,115,22,0.22)",
+                  background: "rgba(255,122,24,0.14)",
+                  border: "1px solid rgba(255,122,24,0.20)",
                   transition: "all 0.15s",
+                  marginBottom: 2,
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(135deg, rgba(249,115,22,0.20) 0%, rgba(234,88,12,0.14) 100%)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(135deg, rgba(249,115,22,0.12) 0%, rgba(234,88,12,0.08) 100%)"; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,122,24,0.22)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,122,24,0.14)"; }}
               >
-                <span style={{ fontSize: 15, flexShrink: 0, lineHeight: 1 }}>💸</span>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF7A18", flexShrink: 0, boxShadow: "0 0 6px #FF7A18" }} />
                 {(isMobile || !collapsed) && (
-                  <span style={{ font: `600 0.78rem/1 ${fd}`, color: "#FB923C", whiteSpace: "nowrap" }}>
-                    Ganá comisiones
-                  </span>
+                  <>
+                    <span style={{ font: `600 0.825rem/1 ${fd}`, color: "#FB923C", whiteSpace: "nowrap", flex: 1 }}>
+                      Ganá comisiones
+                    </span>
+                    <span style={{ font: `700 0.58rem/1 ${fd}`, color: "#FF7A18", background: "rgba(255,122,24,0.18)", border: "1px solid rgba(255,122,24,0.30)", borderRadius: 5, padding: "2px 5px", letterSpacing: "0.06em", flexShrink: 0 }}>
+                      NEW
+                    </span>
+                  </>
                 )}
               </Link>
               <DinoChatWidget collapsed={collapsed} isMobile={isMobile} sidebarWidth={w + 24} />
             </>
           )}
+          <a
+            href="https://wa.me/5491165909374"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sb-item"
+            title={(!isMobile && collapsed) ? "Soporte" : undefined}
+            style={{ display: "flex", alignItems: "center", gap: 11, padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px", justifyContent: (!isMobile && collapsed) ? "center" : "flex-start", borderRadius: 10, textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, color: "rgba(255,255,255,0.50)", fontFamily: fb, transition: "all 0.14s", whiteSpace: "nowrap" }}
+          >
+            <HelpCircle size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
+            {(isMobile || !collapsed) && <span>Soporte</span>}
+          </a>
           <button onClick={handleSignOut} style={logoutStyle} title={(!isMobile && collapsed) ? "Cerrar sesión" : undefined}>
-            <LogOut size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
+            <Power size={15} style={{ opacity: 0.55, flexShrink: 0 }} />
             {(isMobile || !collapsed) && <span>Cerrar sesión</span>}
           </button>
         </div>
