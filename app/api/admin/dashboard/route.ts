@@ -417,6 +417,12 @@ export async function GET(req: NextRequest) {
       asistDiarias: dailyCounts.slice(-14),
       asistHoras: hourlyCounts,
       asistHoy: monthlyAsistenciaRows.filter((row) => row.fecha === todayStr).length,
+      asistPromedioDiario: (() => {
+        const diasConActividad = Object.values(dailyMap).filter(c => c > 0).length;
+        if (diasConActividad === 0) return 0;
+        const total = monthlyAsistenciaRows.length;
+        return Math.round(total / diasConActividad);
+      })(),
       metrics: [
         { key: "leads", label: "Consultas recibidas", section: "Embudo", tooltip: "Personas nuevas que preguntaron o se contactaron este mes.", value: leadCountCurrent, previous: leadCountPrevious, format: "number", accent: "orange" },
         { key: "lead_trial", label: "De consulta a prueba", section: "Embudo", tooltip: "De cada 100 personas que consultaron, cuántas llegaron a probar el gym.", value: leadToTrialCurrent, previous: leadToTrialPrevious, format: "percent", accent: "soft" },

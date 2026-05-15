@@ -64,6 +64,7 @@ interface DashboardSnapshot {
   asistDiarias: { fecha: string; count: number }[];
   asistHoras: number[];
   asistHoy: number;
+  asistPromedioDiario: number;
   metrics: DashboardMetric[];
   alerts: DashboardAlerts;
 }
@@ -184,7 +185,7 @@ function buildDemoSnapshot(): DashboardSnapshot {
     prospectos: 14,
     asistDiarias,
     asistHoras,
-    asistHoy: 17,
+    asistHoy: 17, asistPromedioDiario: 14,
     metrics: [
       { key: "leads",        label: "Consultas recibidas",   section: "Embudo",        tooltip: "Personas nuevas que preguntaron o se contactaron este mes.",               value: 23,   previous: 18,  format: "number",   accent: "orange" },
       { key: "lead_trial",   label: "De consulta a prueba",  section: "Embudo",        tooltip: "De cada 100 personas que consultaron, cuántas llegaron a probar el gym.",  value: 60.9, previous: 55.6,format: "percent",  accent: "soft"   },
@@ -250,6 +251,7 @@ export default function DashboardPage() {
   const [asistDiarias,      setAsistDiarias]      = useState<{ fecha: string; count: number }[]>([]);
   const [asistHoras,        setAsistHoras]        = useState<number[]>(Array(24).fill(0));
   const [asistHoy,          setAsistHoy]          = useState(0);
+  const [asistPromedioDiario, setAsistPromedioDiario] = useState(0);
   const [metrics,           setMetrics]           = useState<DashboardMetric[]>([]);
   const [alerts,            setAlerts]            = useState<DashboardAlerts>({ inactiveCount: 0, inactiveNames: [], upcomingExpirations: [] });
   const [activeInfo,        setActiveInfo]        = useState<{ title: string; body: string } | null>(null);
@@ -280,12 +282,13 @@ export default function DashboardPage() {
     setAsistDiarias(snapshot.asistDiarias);
     setAsistHoras(snapshot.asistHoras);
     setAsistHoy(snapshot.asistHoy);
+    setAsistPromedioDiario(snapshot.asistPromedioDiario ?? 0);
     setMetrics(snapshot.metrics);
     setAlerts(snapshot.alerts);
   }, []);
 
   const enterDemo = useCallback(() => {
-    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, renovacionesCount, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
+    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, renovacionesCount, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, asistPromedioDiario, metrics, alerts };
     applySnapshot(buildDemoSnapshot());
     setDemoMode(true);
   }, [activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts, applySnapshot]);
@@ -955,7 +958,7 @@ export default function DashboardPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
                 <div>
                   <p style={{ font: `800 0.94rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Asistencia diaria</p>
-                  <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3 }}>Últimos 14 días.</p>
+                  <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3 }}>Últimos 14 días · prom. {asistPromedioDiario}/día operativo</p>
                 </div>
                 <span style={{ font: `700 0.68rem/1 ${fb}`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "7px 10px" }}>{asistHoy} hoy</span>
               </div>
@@ -1422,7 +1425,7 @@ export default function DashboardPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
                 <div>
                   <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Asistencia diaria</p>
-                  <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Cuánta gente entrenó cada día.</p>
+                  <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Cuánta gente entrenó cada día · prom. <strong>{asistPromedioDiario}/día</strong> (solo días operativos)</p>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ font: `700 0.72rem/1 ${fb}`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "8px 12px" }}>{asistHoy} hoy</span>
