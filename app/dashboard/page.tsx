@@ -280,8 +280,8 @@ export default function DashboardPage() {
     setAsistHoras(snapshot.asistHoras);
     setAsistHoy(snapshot.asistHoy);
     setAsistPromedioDiario(snapshot.asistPromedioDiario ?? 0);
-    setMetrics(snapshot.metrics);
-    setAlerts(snapshot.alerts);
+    setMetrics(snapshot.metrics ?? []);
+    setAlerts(snapshot.alerts ?? { inactiveCount: 0, inactiveNames: [], upcomingExpirations: [] });
   }, []);
 
   const realBotActivityRef = useRef<typeof botActivity>(null);
@@ -321,7 +321,7 @@ export default function DashboardPage() {
     const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
     const lastDay = new Date(y, m + 1, 0).getDate();
     const to = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-    const cacheKey = `dashboard_${gym_id}_${from}`;
+    const cacheKey = `dashboard_v2_${gym_id}_${from}`;
     const cached = getPageCache<DashboardSnapshot>(cacheKey);
     if (cached) {
       applySnapshot(cached);
@@ -721,6 +721,16 @@ export default function DashboardPage() {
                   <Skel w={64} h={22} r={6} />
                   <Skel w={72} h={10} r={4} />
                 </div>
+              </div>
+            ))}
+          </div>
+        ) : sectionMetrics.length === 0 ? (
+          <div style={{ padding: "22px 20px", display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+            {Array(cols).fill(null).map((_, i) => (
+              <div key={i} style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 8, opacity: 0.45 }}>
+                <Skel w="40%" h={8} r={4} />
+                <Skel w="30%" h={28} r={7} />
+                <Skel w="55%" h={8} r={4} />
               </div>
             ))}
           </div>
