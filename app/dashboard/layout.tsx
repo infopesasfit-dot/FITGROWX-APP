@@ -175,11 +175,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showTrialModal,   setShowTrialModal]   = useState(false);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
+  const [planType,         setPlanType]         = useState<string | null>(null);
   const [waDisconnected,    setWaDisconnected]    = useState(false);
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
+  const mainRef    = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
   const [notifOpen,   setNotifOpen]   = useState(false);
@@ -192,9 +194,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [configOpen,  setConfigOpen]  = useState(() => pathname.startsWith("/dashboard/ajustes"));
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const el = mainRef.current;
+    if (!el) return;
+    const onScroll = () => setScrolled(el.scrollTop > 8);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
@@ -283,6 +287,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const subType = (gym as any).subscription_type ?? "monthly";
         setIsSubscribed(subscribed);
         setIsAnnual(subType === "annual");
+        setPlanType((gym as any).plan_type ?? null);
         if (subscribed && subType !== "annual") {
           const upsellDismissed = localStorage.getItem("fitgrowx_annual_upsell_dismissed");
           if (upsellDismissed !== new Date().toDateString()) setShowAnnualUpsell(true);
@@ -421,7 +426,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardPwaShell>
-    <div style={{ display: "flex", minHeight: "100vh", background: "#0D0F12" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#0D0F12" }}>
 
       {/* ── Mobile backdrop ── */}
       {isMobile && mobileNavOpen && (
@@ -438,37 +443,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Sidebar ── */}
       <aside style={{
-        background: "#0E0F13",
+        background: "#080909",
         width: isMobile ? "min(86vw, 320px)" : w,
-        height: isMobile ? "100vh" : "calc(100vh - 24px)",
-        minHeight: isMobile ? "100vh" : "calc(100vh - 24px)",
-        position: isMobile ? "fixed" : "sticky",
-        top: isMobile ? 0 : 12,
+        height: "100vh",
+        minHeight: "100vh",
+        position: isMobile ? "fixed" : "relative",
+        top: 0,
         left: 0,
         zIndex: isMobile ? 100 : 2,
         flexShrink: 0,
-        margin: isMobile ? 0 : "12px 0 12px 12px",
-        borderRadius: isMobile ? "0 20px 20px 0" : 20,
-        boxShadow: "0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.06)",
+        borderRadius: isMobile ? "0 20px 20px 0" : 0,
+        borderRight: "1px solid rgba(255,255,255,0.05)",
         display: isMobile ? (mobileNavOpen ? "flex" : "none") : "flex",
         flexDirection: "column",
         padding: (!isMobile && collapsed) ? "26px 8px" : "26px 16px",
         overflow: "hidden",
         transition: "width 0.22s cubic-bezier(0.4,0,0.2,1), padding 0.22s cubic-bezier(0.4,0,0.2,1)",
       }}>
-
-        {/* Blob 1 — top */}
-        <div style={{ position: "absolute", top: "-10%", left: "10%", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, #323232 0%, transparent 70%)", filter: "blur(72px)", pointerEvents: "none", zIndex: 0 }} />
-        {/* Blob 2 — bottom */}
-        <div style={{ position: "absolute", bottom: "-8%", right: "-10%", width: 380, height: 380, borderRadius: "50%", background: "radial-gradient(circle, #272727 0%, transparent 70%)", filter: "blur(90px)", pointerEvents: "none", zIndex: 0 }} />
-        {/* Grain overlay — sutil */}
-        <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.14, pointerEvents: "none", zIndex: 0 }} xmlns="http://www.w3.org/2000/svg">
-          <filter id="sb-grain">
-            <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="3" stitchTiles="stitch" />
-            <feColorMatrix type="saturate" values="0" />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#sb-grain)" />
-        </svg>
 
         {/* Logo + collapse/close toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40, position: "relative", zIndex: 1 }}>
@@ -615,18 +606,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px",
                   justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
                   borderRadius: 10, textDecoration: "none",
-                  background: "rgba(255,122,24,0.14)",
-                  border: "1px solid rgba(255,122,24,0.20)",
+                  background: "linear-gradient(90deg, rgba(255,122,24,0.14) 0%, rgba(0,0,0,0) 100%)",
+                  border: "1px solid rgba(255,122,24,0.10)",
                   transition: "all 0.15s",
                   marginBottom: 2,
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,122,24,0.22)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,122,24,0.14)"; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(90deg, rgba(255,122,24,0.22) 0%, rgba(0,0,0,0) 100%)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(90deg, rgba(255,122,24,0.14) 0%, rgba(0,0,0,0) 100%)"; }}
               >
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF7A18", flexShrink: 0, boxShadow: "0 0 6px #FF7A18" }} />
                 {(isMobile || !collapsed) && (
                   <>
-                    <span style={{ font: `600 0.825rem/1 ${fd}`, color: "#FB923C", whiteSpace: "nowrap", flex: 1 }}>
+                    <span style={{ font: `600 0.825rem/1 ${fd}`, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap", flex: 1 }}>
                       Ganá comisiones
                     </span>
                     <span style={{ font: `700 0.58rem/1 ${fd}`, color: "#FF7A18", background: "rgba(255,122,24,0.18)", border: "1px solid rgba(255,122,24,0.30)", borderRadius: 5, padding: "2px 5px", letterSpacing: "0.06em", flexShrink: 0 }}>
@@ -635,7 +626,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </>
                 )}
               </Link>
-              <DinoChatWidget collapsed={collapsed} isMobile={isMobile} sidebarWidth={w + 24} />
             </>
           )}
           <a
@@ -658,19 +648,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* ── Main ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "#F6F6F4", borderRadius: isMobile ? 0 : 20, margin: isMobile ? 0 : "12px 12px 12px 8px" }}>
+      <div ref={mainRef} style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100vh", overflowY: "auto", background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "#F6F6F4" }}>
 
         {/* Topbar */}
         <header style={{
           display: "flex", alignItems: "center", gap: isMobile ? 8 : 14,
           padding: isMobile ? "10px 14px" : "11px 20px",
           margin: isMobile ? "0" : "12px 0 0",
-          position: "sticky", top: isMobile ? 0 : 12, zIndex: 10,
-          borderRadius: scrolled ? 16 : 0,
-          background: isMobile ? "#151515" : isFlujosRoute ? (scrolled ? "rgba(13,15,18,0.88)" : "transparent") : (scrolled ? "rgba(248,250,252,0.82)" : "transparent"),
-          backdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
-          WebkitBackdropFilter: scrolled ? "blur(20px) saturate(180%)" : "none",
-          boxShadow: isMobile ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 16px rgba(0,0,0,0.30)" : (scrolled ? (isFlujosRoute ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.3)" : "0 1px 0 rgba(0,0,0,0.06), 0 4px 24px rgba(0,0,0,0.06)") : "none"),
+          position: "sticky", top: 0, zIndex: 10,
+          borderRadius: 0,
+          background: isMobile ? "#151515" : isFlujosRoute ? "rgba(13,15,18,0.92)" : "rgba(246,246,244,0.92)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          boxShadow: isMobile ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 16px rgba(0,0,0,0.30)" : (scrolled ? (isFlujosRoute ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.3)" : "0 1px 0 rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05)") : "0 1px 0 rgba(0,0,0,0.05)"),
           transition: "background 0.25s ease, box-shadow 0.25s ease, backdrop-filter 0.25s ease, border-radius 0.25s ease",
         }}>
           {/* Mobile: show gym logo / brand in topbar instead of hamburger */}
@@ -695,7 +685,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Spacer on mobile to push actions right */}
           {isMobile && <span style={{ flex: 1 }} />}
 
-          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, marginLeft: isMobile ? 0 : "auto" }}>
+<div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, marginLeft: isMobile ? 0 : "auto" }}>
             {!isMobile && (
               <button style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: isFlujosRoute ? "rgba(255,255,255,0.4)" : "#6B7280", padding: 5, display: "flex", alignItems: "center" }}>
                 <Mail size={19} />

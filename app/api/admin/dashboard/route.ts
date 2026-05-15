@@ -153,8 +153,8 @@ export async function GET(req: NextRequest) {
     admin.from("gym_settings").select("gym_name, owner_name").eq("gym_id", gymId).maybeSingle<GymSettingsRow>(),
     admin.from("gyms").select("name, owner_name").eq("id", gymId).maybeSingle<GymRow>(),
     admin.from("prospectos").select("created_at, phone, clase_gratis_date").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", thisMonthTo),
-    admin.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", prevMonthFrom).lte("date", thisMonthTo),
-    admin.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
+    admin.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", oldestMonthKey).lte("date", thisMonthTo),
+    admin.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", oldestMonthKey).lte("fecha", thisMonthTo),
     admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date, planes!plan_id(precio, nombre)").eq("gym_id", gymId).is("deleted_at", null),
     admin.from("reservas").select("fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
@@ -239,6 +239,8 @@ export async function GET(req: NextRequest) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const captacion5 = monthKeys.map((key) => captMap[key] || 0);
+  const ingresos5 = monthKeys.map((key) => pagoRows.filter((r) => r.date?.startsWith(key)).reduce((s, r) => s + r.amount, 0));
+  const gastos5   = monthKeys.map((key) => egresoRows.filter((r) => r.fecha?.startsWith(key)).reduce((s, r) => s + (r.monto ?? 0), 0));
 
   const planMap: Record<string, number> = {};
   activosPlanRows.forEach(row => {
@@ -417,6 +419,8 @@ export async function GET(req: NextRequest) {
       gastosTotal: egresoRows.filter(r => r.fecha >= from && r.fecha <= to).reduce((sum, r) => sum + (r.monto ?? 0), 0),
       recientes,
       captacion5,
+      ingresos5,
+      gastos5,
       planDist,
       prospectos: prospectosPendientes ?? 0,
       asistDiarias: dailyCounts.slice(-14),
