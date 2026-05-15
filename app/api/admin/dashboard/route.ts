@@ -314,6 +314,17 @@ export async function GET(req: NextRequest) {
   const arpuPrevious = previousActiveCount > 0 ? previousRevenue / previousActiveCount : 0;
   const avgTenureMonths = averageMonthsFromCreated(alumnoRows);
   const ltvCurrent = arpuCurrent * avgTenureMonths;
+
+  const paidThisMonthIds = new Set(
+    pagoRows.filter(r => isWithin(r.date, thisMonthFrom, thisMonthTo) && r.concepto === "membresia" && r.alumno_id).map(r => r.alumno_id as string)
+  );
+  const paidPrevMonthIds = new Set(
+    pagoRows.filter(r => isWithin(r.date, prevMonthFrom, prevMonthTo) && r.concepto === "membresia" && r.alumno_id).map(r => r.alumno_id as string)
+  );
+  const recuperadosCount = alumnoRows.filter(r =>
+    paidThisMonthIds.has(r.id) && !paidPrevMonthIds.has(r.id) && r.created_at.slice(0, 10) < prevMonthFrom
+  ).length;
+  const recuperadosRevenue = arpuCurrent > 0 ? Math.round(recuperadosCount * arpuCurrent) : 0;
   const ltvPrevious = arpuPrevious * avgTenureMonths;
 
   const buildOccupancy = (rangeStart: Date) => {
@@ -376,6 +387,8 @@ export async function GET(req: NextRequest) {
       proyeccionProximoMes,
       renovacionesPendientes,
       mensajesAutoEnviados: mensajesAutoCount ?? 0,
+      recuperadosCount,
+      recuperadosRevenue,
       gastosTotal: (egresosData ?? []).reduce((sum, row) => sum + ((row as EgresoMontoRow).monto ?? 0), 0),
       recientes: recientesData ?? [],
       captacion5,

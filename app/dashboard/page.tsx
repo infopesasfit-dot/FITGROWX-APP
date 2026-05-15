@@ -50,6 +50,8 @@ interface DashboardSnapshot {
   proyeccionProximoMes: number;
   renovacionesPendientes: number;
   mensajesAutoEnviados: number;
+  recuperadosCount: number;
+  recuperadosRevenue: number;
   gastosTotal: number;
   recientes: RecenteAlumno[];
   captacion5: number[];
@@ -165,7 +167,7 @@ function buildDemoSnapshot(): DashboardSnapshot {
     return 0;
   });
   return {
-    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, mensajesAutoEnviados: 47, gastosTotal: 210_000,
+    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, mensajesAutoEnviados: 47, recuperadosCount: 7, recuperadosRevenue: 126_000, gastosTotal: 210_000,
     recientes: [
       { id: "d1", full_name: "Valentina Ríos",    created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
       { id: "d2", full_name: "Matías Fernández",  created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -230,6 +232,8 @@ export default function DashboardPage() {
   const [proyeccionProximoMes,  setProyeccionProximoMes]  = useState(0);
   const [renovacionesPendientes,setRenovacionesPendientes]= useState(0);
   const [mensajesAutoEnviados,  setMensajesAutoEnviados]  = useState(0);
+  const [recuperadosCount,      setRecuperadosCount]      = useState(0);
+  const [recuperadosRevenue,    setRecuperadosRevenue]    = useState(0);
   const [gastosTotal,           setGastosTotal]           = useState(0);
   const [recientes,         setRecientes]         = useState<RecenteAlumno[]>([]);
   const [captacion5,        setCaptacion5]        = useState<number[]>([0, 0, 0, 0, 0]);
@@ -254,6 +258,8 @@ export default function DashboardPage() {
     setProyeccionProximoMes(snapshot.proyeccionProximoMes);
     setRenovacionesPendientes(snapshot.renovacionesPendientes);
     setMensajesAutoEnviados(snapshot.mensajesAutoEnviados);
+    setRecuperadosCount(snapshot.recuperadosCount);
+    setRecuperadosRevenue(snapshot.recuperadosRevenue);
     setGastosTotal(snapshot.gastosTotal);
     setRecientes(snapshot.recientes);
     setCaptacion5(snapshot.captacion5);
@@ -267,7 +273,7 @@ export default function DashboardPage() {
   }, []);
 
   const enterDemo = useCallback(() => {
-    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, mensajesAutoEnviados, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
+    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
     applySnapshot(buildDemoSnapshot());
     setDemoMode(true);
   }, [activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts, applySnapshot]);
@@ -767,6 +773,24 @@ export default function DashboardPage() {
       </div>
 
       {renderQuickActions()}
+
+      {!loading && recuperadosCount > 0 && (
+        <div style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "1px solid rgba(34,197,94,0.18)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 14, background: "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <ArrowUpRight size={17} color="#15803D" />
+            </div>
+            <div>
+              <p style={{ font: `700 0.65rem/1 ${fb}`, color: "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>ROI del sistema este mes</p>
+              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: "#14532D", letterSpacing: "-0.03em" }}>
+                {recuperadosCount} {recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} · {fmt(recuperadosRevenue)} recuperados
+              </p>
+              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: "#166534", marginTop: 4 }}>Socios que no renovaron el mes pasado y este mes volvieron a pagar.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {renderMetricSection("Embudo")}
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12 }}>
         {renderMetricSection("Fidelización", true)}
@@ -1132,6 +1156,27 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {!loading && recuperadosCount > 0 && (
+        <div style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "1px solid rgba(34,197,94,0.18)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 16, background: "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <ArrowUpRight size={20} color="#15803D" />
+              </div>
+              <div>
+                <p style={{ font: `700 0.7rem/1 ${fb}`, color: "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>ROI del sistema este mes</p>
+                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: "#14532D", letterSpacing: "-0.03em" }}>
+                  {recuperadosCount} {recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} — {fmt(recuperadosRevenue)} recuperados
+                </p>
+              </div>
+            </div>
+            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: "#166534", maxWidth: 340 }}>
+              Socios antiguos que no renovaron el mes pasado y este mes volvieron a pagar. El sistema los recordó.
+            </p>
+          </div>
+        </div>
+      )}
 
       {renderMetricSection("Embudo")}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 18 }}>
