@@ -186,8 +186,16 @@ export default function PagosPage() {
   const [showAlumnoList, setShowAlumnoList] = useState(false);
   const deferredAlumnoSearch = useDeferredValue(alumnoSearch);
 
+  // Pago grupal
+  const [grupalMode,     setGrupalMode]     = useState(false);
+  const [grupalAlumnos,  setGrupalAlumnos]  = useState<{ alumno: AlumnoOption; monto: string }[]>([]);
+  const [grupalSearch,   setGrupalSearch]   = useState("");
+  const [showGrupalList, setShowGrupalList] = useState(false);
+  const deferredGrupalSearch = useDeferredValue(grupalSearch);
+
   const fileRef    = useRef<HTMLInputElement>(null);
   const alumnoRef  = useRef<HTMLDivElement>(null);
+  const grupalRef  = useRef<HTMLDivElement>(null);
 
   const showToast = (msg: string, type: "ok" | "err") => {
     setToast({ msg, type });
@@ -332,9 +340,8 @@ export default function PagosPage() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (alumnoRef.current && !alumnoRef.current.contains(e.target as Node)) {
-        setShowAlumnoList(false);
-      }
+      if (alumnoRef.current && !alumnoRef.current.contains(e.target as Node)) setShowAlumnoList(false);
+      if (grupalRef.current && !grupalRef.current.contains(e.target as Node)) setShowGrupalList(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -363,6 +370,16 @@ export default function PagosPage() {
       .filter(a => a.full_name.toLowerCase().includes(deferredAlumnoSearch.toLowerCase()))
       .slice(0, 12),
     [alumnos, deferredAlumnoSearch],
+  );
+
+  const filteredGrupalAlumnos = useMemo(
+    () => alumnos
+      .filter(a =>
+        a.full_name.toLowerCase().includes(deferredGrupalSearch.toLowerCase()) &&
+        !grupalAlumnos.some(g => g.alumno.id === a.id)
+      )
+      .slice(0, 10),
+    [alumnos, deferredGrupalSearch, grupalAlumnos],
   );
 
   const validarPago = async (pagoId: string) => {
@@ -412,9 +429,64 @@ export default function PagosPage() {
     setPagoMonto(""); setPagoNotes(""); setComproFile(null);
     setPagoDiscountType("none"); setPagoDiscountValue(""); setPagoDiscountReason("");
     setSelectedAlumno(null); setAlumnoSearch(""); setShowAlumnoList(false);
+    setGrupalMode(false); setGrupalAlumnos([]); setGrupalSearch(""); setShowGrupalList(false);
   };
 
   const submitPago = async () => {
+    // ── Pago grupal ───────────────────────────────────────────────────────────
+    if (grupalMode) {
+      if (grupalAlumnos.length < 2) { showToast("Seleccioná al menos 2 alumnos.", "err"); return; }
+      const invalid = grupalAlumnos.find(g => !g.monto || parseFloat(g.monto) <= 0);
+      if (invalid) { showToast(`Ingresá el monto para ${invalid.alumno.full_name}.`, "err"); return; }
+      const needsValidation = pagoMethod === "transferencia";
+      setUploading(true);
+      try {
+        let comprUrl: string | null = null;
+        if (comproFile) {
+          const ext  = comproFile.name.split(".").pop();
+          const path = `${gymId}/${Date.now()}.${ext}`;
+          const { error: upErr } = await supabase.storage.from("comprobantes").upload(path, comproFile);
+          if (upErr) { showToast(`Error al subir imagen: ${upErr.message}`, "err"); return; }
+          const { data: urlData } = supabase.storage.from("comprobantes").getPublicUrl(path);
+          comprUrl = urlData.publicUrl;
+        }
+        const records = grupalAlumnos.map(g => ({
+          gym_id:          gymId,
+          alumno_id:       g.alumno.id,
+          amount:          parseFloat(g.monto),
+          method:          pagoMethod,
+          status:          needsValidation ? "pendiente" : "validado",
+          concepto:        "membresia" as Concepto,
+          descripcion:     pagoDescripcion.trim() || null,
+          comprobante_url: comprUrl,
+          notes:           pagoNotes.trim() || null,
+          date:            pagoFecha,
+        }));
+        const { data: insertedPagos, error } = await supabase
+          .from("pagos")
+          .insert(records)
+          .select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)");
+        if (error) { showToast(`Error: ${error.message}`, "err"); return; }
+        if (!needsValidation) {
+          await Promise.allSettled(grupalAlumnos.map(g => renewMembership(g.alumno.id, pagoFecha)));
+          Promise.allSettled(grupalAlumnos.map(g =>
+            fetch("/api/admin/invalidate-tokens", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ alumno_id: g.alumno.id }),
+            })
+          )).catch(() => {});
+        }
+        if (insertedPagos?.length) {
+          updatePagosCache(prev => [...insertedPagos.map(p => mapPagoRow(p as PagoRow)), ...prev].slice(0, 100));
+        }
+        invalidateDashboardCache();
+        showToast(needsValidation ? "Pagos grupales enviados. Esperá validación ✓" : `${grupalAlumnos.length} pagos registrados ✓`, "ok");
+        closePagoModal();
+      } finally { setUploading(false); }
+      return;
+    }
+    // ── Pago individual ───────────────────────────────────────────────────────
+
     const montoBase = parseFloat(pagoMonto);
     if (!montoBase || montoBase <= 0) { showToast("Ingresá un monto válido.", "err"); return; }
 
@@ -1074,59 +1146,133 @@ export default function PagosPage() {
                 </div>
               )}
 
-              {/* Combobox alumno — solo admin/staff */}
-              {role !== "student" && (
+              {/* Alumno(s) — solo admin/staff */}
+              {role !== "student" && !grupalMode && (
                 <div ref={alumnoRef} style={{ position: "relative" }}>
-                  <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>Alumno *</label>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <label style={{ font: `600 0.78rem/1 ${fb}`, color: t2 }}>Alumno *</label>
+                    {pagoConcepto === "membresia" && (
+                      <button
+                        onClick={() => { setGrupalMode(true); setSelectedAlumno(null); setAlumnoSearch(""); setPagoMonto(""); }}
+                        style={{ font: `600 0.7rem/1 ${fb}`, color: ORANGE, background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.22)", borderRadius: 7, padding: "3px 10px", cursor: "pointer" }}
+                      >
+                        + Pago grupal
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={selectedAlumno ? selectedAlumno.full_name : alumnoSearch}
-                    onChange={e => {
-                      setAlumnoSearch(e.target.value);
-                      setSelectedAlumno(null);
-                      setShowAlumnoList(true);
-                    }}
+                    onChange={e => { setAlumnoSearch(e.target.value); setSelectedAlumno(null); setShowAlumnoList(true); }}
                     onFocus={() => setShowAlumnoList(true)}
                     placeholder="Buscar alumno..."
                     style={{ ...inputStyle, paddingRight: selectedAlumno ? 36 : 14 }}
                   />
                   {selectedAlumno && (
-                    <button
-                      onClick={() => { setSelectedAlumno(null); setAlumnoSearch(""); setShowAlumnoList(false); }}
-                      style={{ position: "absolute", right: 10, top: "calc(50% + 10px)", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: t3, display: "flex", alignItems: "center" }}
-                    >
+                    <button onClick={() => { setSelectedAlumno(null); setAlumnoSearch(""); setShowAlumnoList(false); }}
+                      style={{ position: "absolute", right: 10, top: "calc(50% + 10px)", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: t3, display: "flex", alignItems: "center" }}>
                       <X size={14} />
                     </button>
                   )}
                   {showAlumnoList && !selectedAlumno && (
                     <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", zIndex: 10, maxHeight: 200, overflowY: "auto" as const }}>
                       {filteredAlumnos.map(a => (
-                          <button
-                            key={a.id}
+                        <button key={a.id}
+                          onMouseDown={() => { setSelectedAlumno(a); setAlumnoSearch(""); setShowAlumnoList(false); if (a.planes?.precio && pagoConcepto === "membresia") setPagoMonto(String(a.planes.precio)); }}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                          onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                        >
+                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.58rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>{initials(a.full_name)}</div>
+                          <span style={{ font: `500 0.85rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
+                        </button>
+                      ))}
+                      {filteredAlumnos.length === 0 && <p style={{ padding: "14px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>Sin resultados</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Modo grupal ── */}
+              {role !== "student" && grupalMode && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <label style={{ font: `600 0.78rem/1 ${fb}`, color: t2 }}>Alumnos * <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>({grupalAlumnos.length} seleccionados)</span></label>
+                    <button onClick={() => { setGrupalMode(false); setGrupalAlumnos([]); setGrupalSearch(""); }}
+                      style={{ font: `600 0.7rem/1 ${fb}`, color: t3, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                      ← Individual
+                    </button>
+                  </div>
+
+                  {/* Chips de alumnos seleccionados con monto individual */}
+                  {grupalAlumnos.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      {grupalAlumnos.map((g, i) => (
+                        <div key={g.alumno.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, background: "rgba(255,106,0,0.05)", border: "1px solid rgba(255,106,0,0.18)" }}>
+                          <div style={{ width: 26, height: 26, borderRadius: 6, background: "rgba(255,106,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.55rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>{initials(g.alumno.full_name)}</div>
+                          <span style={{ flex: 1, font: `500 0.82rem/1 ${fd}`, color: t1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.alumno.full_name}</span>
+                          <div style={{ position: "relative", flexShrink: 0 }}>
+                            <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", font: `700 0.8rem/1 ${fd}`, color: t2 }}>$</span>
+                            <input
+                              type="number"
+                              value={g.monto}
+                              onChange={e => setGrupalAlumnos(prev => prev.map((x, j) => j === i ? { ...x, monto: e.target.value } : x))}
+                              placeholder="0"
+                              style={{ width: 100, padding: "5px 8px 5px 20px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 8, font: `700 0.82rem/1 ${fd}`, color: t1, outline: "none", background: "white" }}
+                            />
+                          </div>
+                          <button onClick={() => setGrupalAlumnos(prev => prev.filter((_, j) => j !== i))}
+                            style={{ background: "none", border: "none", cursor: "pointer", color: t3, display: "flex", padding: 2 }}>
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ))}
+                      {/* Auto-dividir */}
+                      <button
+                        onClick={() => {
+                          const total = parseFloat(pagoMonto || "0");
+                          if (!total || total <= 0) { showToast("Ingresá el monto total primero.", "err"); return; }
+                          const parte = (total / grupalAlumnos.length).toFixed(2);
+                          setGrupalAlumnos(prev => prev.map(g => ({ ...g, monto: parte })));
+                        }}
+                        style={{ font: `600 0.72rem/1 ${fb}`, color: BLUE, background: "rgba(75,107,251,0.07)", border: "1px solid rgba(75,107,251,0.18)", borderRadius: 8, padding: "6px 0", cursor: "pointer" }}
+                      >
+                        Dividir monto total en partes iguales
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Buscador para agregar */}
+                  <div ref={grupalRef} style={{ position: "relative" }}>
+                    <input
+                      type="text"
+                      value={grupalSearch}
+                      onChange={e => { setGrupalSearch(e.target.value); setShowGrupalList(true); }}
+                      onFocus={() => setShowGrupalList(true)}
+                      placeholder="Agregar alumno..."
+                      style={{ ...inputStyle }}
+                    />
+                    {showGrupalList && (
+                      <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "white", border: "1px solid rgba(0,0,0,0.10)", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.10)", zIndex: 10, maxHeight: 180, overflowY: "auto" as const }}>
+                        {filteredGrupalAlumnos.map(a => (
+                          <button key={a.id}
                             onMouseDown={() => {
-                              setSelectedAlumno(a);
-                              setAlumnoSearch("");
-                              setShowAlumnoList(false);
-                              if (a.planes?.precio && pagoConcepto === "membresia") {
-                                setPagoMonto(String(a.planes.precio));
-                              }
+                              setGrupalAlumnos(prev => [...prev, { alumno: a, monto: a.planes?.precio ? String(a.planes.precio) : "" }]);
+                              setGrupalSearch("");
+                              setShowGrupalList(false);
                             }}
-                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const, transition: "background 0.1s" }}
+                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" as const }}
                             onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
                             onMouseLeave={e => (e.currentTarget.style.background = "none")}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.58rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>
-                              {initials(a.full_name)}
-                            </div>
-                            <span style={{ font: `500 0.85rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
+                            <div style={{ width: 26, height: 26, borderRadius: 7, background: "#F4F5F9", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.55rem/1 ${fd}`, color: ORANGE, flexShrink: 0 }}>{initials(a.full_name)}</div>
+                            <span style={{ font: `500 0.83rem/1 ${fd}`, color: t1 }}>{a.full_name}</span>
                           </button>
-                        ))
-                      }
-                      {filteredAlumnos.length === 0 && (
-                        <p style={{ padding: "14px", font: `400 0.8rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>Sin resultados</p>
-                      )}
-                    </div>
-                  )}
+                        ))}
+                        {filteredGrupalAlumnos.length === 0 && <p style={{ padding: "12px", font: `400 0.78rem/1 ${fb}`, color: t3, textAlign: "center" as const }}>{alumnos.length === grupalAlumnos.length ? "Ya están todos." : "Sin resultados"}</p>}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1146,15 +1292,18 @@ export default function PagosPage() {
 
               {/* Monto */}
               <div>
-                <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>Monto (ARS) *</label>
+                <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>
+                  {grupalMode ? "Monto total (para dividir)" : "Monto (ARS) *"}
+                </label>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", font: `700 1rem/1 ${fd}`, color: t2 }}>$</span>
                   <input type="number" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="0"
                     style={{ ...inputStyle, paddingLeft: 28, font: `700 1.1rem/1 ${fd}` }} />
                 </div>
+                {grupalMode && <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 4 }}>Usá "Dividir en partes iguales" o ingresá montos individuales arriba.</p>}
               </div>
 
-              <div style={{ display: "grid", gap: 10 }}>
+              {!grupalMode && <div style={{ display: "grid", gap: 10 }}>
                 <div>
                   <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 8 }}>Descuento (opcional)</label>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -1238,7 +1387,7 @@ export default function PagosPage() {
                     </div>
                   </>
                 )}
-              </div>
+              </div>}
 
               <div>
                 <label style={{ display: "block", font: `600 0.78rem/1 ${fb}`, color: t2, marginBottom: 6 }}>Fecha del pago</label>
@@ -1297,7 +1446,7 @@ export default function PagosPage() {
 
               <button onClick={submitPago} disabled={uploading}
                 style={{ padding: "12px", borderRadius: 12, border: "none", background: uploading ? "rgba(249,115,22,0.50)" : ORANGE, color: "white", font: `700 0.9rem/1 ${fd}`, cursor: uploading ? "wait" : "pointer", boxShadow: "0 4px 14px rgba(249,115,22,0.25)" }}>
-                {uploading ? "Registrando..." : pagoMethod === "transferencia" ? "Enviar comprobante" : "Confirmar pago"}
+                {uploading ? "Registrando..." : pagoMethod === "transferencia" ? "Enviar comprobante" : grupalMode ? `Confirmar ${grupalAlumnos.length || ""} pagos` : "Confirmar pago"}
               </button>
             </div>
           </div>
