@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Dumbbell, User, Target } from "lucide-react";
 
@@ -87,9 +87,15 @@ function AlumnoPanelInner() {
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
   const [inlineSaving, setInlineSaving] = useState<Record<string, boolean>>({});
   const [showQR,        setShowQR]        = useState(false);
-  const [checkinMode,   setCheckinMode]   = useState<"qr" | "checkin" | "dni">("qr");
+  const [checkinMode,   setCheckinMode]   = useState<"qr" | "scan">("qr");
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [checkinResult, setCheckinResult] = useState<{ ok: boolean; already?: boolean; full_name?: string; hora?: string; error?: string } | null>(null);
+  const [scanActive,    setScanActive]    = useState(false);
+  const [scanError,     setScanError]     = useState<string | null>(null);
+  const scanVideoRef   = useRef<HTMLVideoElement>(null);
+  const scanStreamRef  = useRef<MediaStream | null>(null);
+  const scanAnimRef    = useRef<number | null>(null);
+  const scanCooldown   = useRef(false);
   const [asistFechas,  setAsistFechas]  = useState<string[]>([]);
   const [asistCount,   setAsistCount]   = useState(0);
   const [isCompactScreen, setIsCompactScreen] = useState(false);
@@ -359,6 +365,89 @@ function AlumnoPanelInner() {
     }
     setCheckinLoading(false);
   };
+
+  const stopScan = useCallback(() => {
+    if (scanAnimRef.current) { cancelAnimationFrame(scanAnimRef.current); scanAnimRef.current = null; }
+    if (scanStreamRef.current) { scanStreamRef.current.getTracks().forEach(t => t.stop()); scanStreamRef.current = null; }
+    setScanActive(false);
+  }, []);
+
+  const startScan = useCallback(async () => {
+    if (!session) return;
+    setScanError(null);
+    setCheckinResult(null);
+    scanCooldown.current = false;
+
+    const BarcodeDetector = (window as Window & { BarcodeDetector?: new (o?: { formats: string[] }) => { detect: (v: HTMLVideoElement) => Promise<{ rawValue: string }[]> } }).BarcodeDetector;
+    if (!BarcodeDetector) {
+      setScanError("Tu navegador no soporta cámara QR. Usá Chrome o Safari actualizado.");
+      return;
+    }
+
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    } catch {
+      setScanError("No se pudo acceder a la cámara. Verificá los permisos.");
+      return;
+    }
+
+    scanStreamRef.current = stream;
+    setScanActive(true);
+
+    // Wait for videoRef to mount
+    await new Promise<void>(res => setTimeout(res, 80));
+    if (!scanVideoRef.current) { stopScan(); return; }
+    scanVideoRef.current.srcObject = stream;
+    await scanVideoRef.current.play().catch(() => {});
+
+    const detector = new BarcodeDetector({ formats: ["qr_code"] });
+
+    const tick = async () => {
+      if (!scanVideoRef.current || scanVideoRef.current.readyState < 2 || scanCooldown.current) {
+        scanAnimRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      try {
+        const codes = await detector.detect(scanVideoRef.current);
+        const val = codes[0]?.rawValue;
+        if (val) {
+          scanCooldown.current = true;
+          // Extract gymId from URL like https://fitgrowx.com/checkin/{gymId}
+          const match = val.match(/\/checkin\/([a-f0-9-]{36})/i);
+          const gymIdFromQR = match?.[1] ?? null;
+          if (!gymIdFromQR) {
+            setScanError("QR no válido. Asegurate de escanear el QR del gym.");
+            scanCooldown.current = false;
+            scanAnimRef.current = requestAnimationFrame(tick);
+            return;
+          }
+          stopScan();
+          setCheckinLoading(true);
+          try {
+            const res = await fetch("/api/alumno/checkin-publico", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+              body: JSON.stringify({ gym_id: gymIdFromQR }),
+            });
+            const d = await res.json();
+            setCheckinResult({ ok: d.ok, already: d.already, full_name: d.alumno?.full_name, hora: d.hora, error: d.error });
+          } catch {
+            setCheckinResult({ ok: false, error: "Error de conexión." });
+          }
+          setCheckinLoading(false);
+          return;
+        }
+      } catch { /* ignore */ }
+      scanAnimRef.current = requestAnimationFrame(tick);
+    };
+    scanAnimRef.current = requestAnimationFrame(tick);
+  }, [session, stopScan]);
+
+  // Stop camera when modal closes or mode changes
+  useEffect(() => {
+    if (!showQR || checkinMode !== "scan") stopScan();
+  }, [showQR, checkinMode, stopScan]);
 
   const logout = () => { localStorage.removeItem("fitgrowx_alumno"); router.replace("/alumno/login"); };
 
@@ -1348,9 +1437,8 @@ function AlumnoPanelInner() {
             {/* Tab switcher */}
             <div style={{ display: "flex", gap: 4, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 4, marginBottom: 20 }}>
               {([
-                { key: "qr",      label: "Mi QR" },
-                { key: "checkin", label: "Check-in" },
-                { key: "dni",     label: "Mi DNI" },
+                { key: "qr",   label: "Mi QR" },
+                { key: "scan", label: "Escanear" },
               ] as const).map(({ key, label }) => (
                 <button
                   key={key}
@@ -1379,10 +1467,10 @@ function AlumnoPanelInner() {
               </>
             )}
 
-            {/* Mode: Check-in automático */}
-            {checkinMode === "checkin" && (
+            {/* Mode: Escanear QR del gym */}
+            {checkinMode === "scan" && (
               <div style={{ marginBottom: 20 }}>
-                <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 20 }}>Escanéaste el QR del gym</p>
+                <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16 }}>Apuntá la cámara al QR del gym</p>
                 {checkinResult ? (
                   <div style={{ background: checkinResult.ok ? "rgba(52,211,153,0.06)" : "rgba(239,68,68,0.06)", border: `1px solid ${checkinResult.ok ? "rgba(52,211,153,0.18)" : "rgba(239,68,68,0.18)"}`, borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 36, height: 36, borderRadius: "50%", background: checkinResult.ok ? "rgba(52,211,153,0.12)" : "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1399,39 +1487,44 @@ function AlumnoPanelInner() {
                       {!checkinResult.ok && checkinResult.error && <p style={{ font: `400 0.72rem/1.3 ${fd}`, color: "#EF4444", marginTop: 3 }}>{checkinResult.error}</p>}
                     </div>
                   </div>
+                ) : scanActive ? (
+                  <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", background: "#000", aspectRatio: "4/3" }}>
+                    <video ref={scanVideoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    {/* Viewfinder overlay */}
+                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+                      <div style={{ width: 160, height: 160, position: "relative" }}>
+                        {[{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }].map((pos, i) => (
+                          <div key={i} style={{ position: "absolute", width: 24, height: 24, ...pos,
+                            borderTop: (i < 2) ? "2.5px solid #F97316" : "none",
+                            borderBottom: (i >= 2) ? "2.5px solid #F97316" : "none",
+                            borderLeft: (i === 0 || i === 2) ? "2.5px solid #F97316" : "none",
+                            borderRight: (i === 1 || i === 3) ? "2.5px solid #F97316" : "none",
+                          }} />
+                        ))}
+                      </div>
+                    </div>
+                    {checkinLoading && (
+                      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ width: 24, height: 24, borderRadius: "50%", border: "3px solid rgba(255,255,255,0.2)", borderTopColor: "#F97316", animation: "spin 0.7s linear infinite" }} />
+                      </div>
+                    )}
+                    <button onClick={stopScan} style={{ position: "absolute", top: 10, right: 10, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
+                  </div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    <p style={{ font: `400 0.75rem/1.5 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "left" }}>
-                      Registrá tu ingreso sin escanear nada — tu sesión identifica al gym automáticamente.
-                    </p>
+                    {scanError && <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#EF4444", textAlign: "left" }}>{scanError}</p>}
                     <button
-                      onClick={doCheckin}
-                      disabled={checkinLoading}
-                      style={{ width: "100%", padding: "13px 0", background: checkinLoading ? "rgba(249,115,22,0.3)" : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)", border: "none", borderRadius: 14, font: `700 0.85rem/1 ${fd}`, color: "#FFFFFF", cursor: checkinLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+                      onClick={startScan}
+                      style={{ width: "100%", padding: "13px 0", background: "linear-gradient(135deg, #F97316 0%, #EA580C 100%)", border: "none", borderRadius: 14, font: `700 0.85rem/1 ${fd}`, color: "#FFFFFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
                     >
-                      {checkinLoading
-                        ? <><div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.2)", borderTopColor: "#fff", animation: "spin 0.7s linear infinite" }} /> Registrando...</>
-                        : "Registrar mi ingreso"
-                      }
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                      Abrir cámara
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Mode: Mi DNI */}
-            {checkinMode === "dni" && (
-              <div style={{ marginBottom: 20 }}>
-                <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16 }}>El staff ingresa tu DNI</p>
-                <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: "32px 20px", marginBottom: 14 }}>
-                  <p style={{ font: `800 2.6rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "0.04em", fontVariantNumeric: "tabular-nums" }}>
-                    {session.dni ?? "—"}
-                  </p>
-                  <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginTop: 10 }}>DNI</p>
-                </div>
-                <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em", marginBottom: 4 }}>{session.full_name}</p>
-              </div>
-            )}
 
             <button onClick={() => setShowQR(false)} style={{ width: "100%", padding: "13px 0", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", cursor: "pointer", letterSpacing: "0.08em" }}>
               CERRAR

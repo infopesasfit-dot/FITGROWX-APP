@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Users, UserCheck, UserX, TrendingUp, DollarSign, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet } from "lucide-react";
+import { Search, Plus, Users, UserCheck, UserX, TrendingUp, DollarSign, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet, History } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache, invalidateDashboardCache } from "@/lib/gym-cache";
@@ -48,8 +48,19 @@ interface Alumno {
   planes: { nombre: string; accent_color: string | null; precio: number; duracion_dias: number } | null;
   status: Status;
   next_expiration_date: string | null;
+  frozen_since: string | null;
+  pausa_hasta: string | null;
 }
 
+
+interface ActivityLog {
+  id: string;
+  type: string;
+  description: string;
+  actor: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
 
 const STATUS_STYLE: Record<Status, { color: string; bg: string; label: string }> = {
   activo:    { color: "#16A34A", bg: "rgba(22,163,74,0.08)",   label: "Activo" },
@@ -101,6 +112,9 @@ export default function AlumnosPage() {
   const [editSaving,      setEditSaving]      = useState(false);
   const [editError,       setEditError]       = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [freezeTarget,    setFreezeTarget]    = useState<Alumno | null>(null);
+  const [freezeDias,      setFreezeDias]      = useState("15");
+  const [freezeSaving,    setFreezeSaving]    = useState(false);
   const [gymId, setGymId] = useState<string | null>(null);
   const [gymPlanType,      setGymPlanType]      = useState<string>("crecimiento");
   const [ultimaMap,        setUltimaMap]        = useState<Record<string, string>>({});
@@ -120,6 +134,9 @@ export default function AlumnosPage() {
   const [guestLeads,       setGuestLeads]       = useState<{ id: string; code: string; status: string; lead_name: string | null; lead_phone: string | null; claimed_at: string | null; expires_at: string; alumnos: { full_name: string } | null }[]>([]);
   const [guestLeadsOpen,   setGuestLeadsOpen]   = useState(false);
   const [guestLeadsLoaded, setGuestLeadsLoaded] = useState(false);
+  const [fichaTarget,      setFichaTarget]      = useState<Alumno | null>(null);
+  const [fichaLogs,        setFichaLogs]        = useState<ActivityLog[]>([]);
+  const [fichaLoading,     setFichaLoading]     = useState(false);
   const deferredSearch = useDeferredValue(search);
 
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -343,6 +360,15 @@ export default function AlumnosPage() {
     const newAlumno = result.alumno;
     invalidateDashboardCache();
 
+    if (newAlumno?.id && gymId) {
+      const planNombre = planes.find(p => p.id === form.plan_id)?.nombre;
+      supabase.from("alumno_activity_log").insert({
+        alumno_id: newAlumno.id, gym_id: gymId, type: "creado",
+        description: `Alumno creado${planNombre ? ` · Plan: ${planNombre}` : ""}`,
+        actor: "admin",
+      }).then(() => {});
+    }
+
     // Notificación: nuevo alumno registrado
     fetch("/api/notifications", {
       method: "POST",
@@ -428,19 +454,60 @@ export default function AlumnosPage() {
 
 
 
-  // ── Pausar / Reanudar ─────────────────────────────────────────────
-  const handlePausar = async (id: string) => {
-    const { error } = await supabase.from("alumnos").update({ status: "pausado" as Status }).eq("id", id);
-    if (!error) {
-      replaceAlumno(id, (current) => ({ ...current, status: "pausado" }));
+  // ── Congelar / Descongelar ────────────────────────────────────────
+  const handleCongelar = async () => {
+    if (!freezeTarget) return;
+    const dias = parseInt(freezeDias);
+    if (!dias || dias < 1) return;
+    setFreezeSaving(true);
+    const res = await fetch("/api/admin/alumnos/freeze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumno_id: freezeTarget.id, dias }),
+    });
+    const data = await res.json() as { ok?: boolean; frozen_since?: string; pausa_hasta?: string; error?: string };
+    setFreezeSaving(false);
+    if (!res.ok || !data.ok) { setToast(data.error ?? "Error al congelar."); return; }
+    replaceAlumno(freezeTarget.id, (c) => ({
+      ...c,
+      status: "pausado",
+      frozen_since: data.frozen_since ?? null,
+      pausa_hasta: data.pausa_hasta ?? null,
+    }));
+    if (gymId) {
+      supabase.from("alumno_activity_log").insert({
+        alumno_id: freezeTarget.id, gym_id: gymId, type: "congelado",
+        description: `Membresía congelada por ${dias} días`,
+        actor: "admin",
+      }).then(() => {});
     }
+    setFreezeTarget(null);
+    setToast(`${freezeTarget.full_name} congelado por ${dias} días. Vencimiento se extenderá al descongelar.`);
   };
 
-  const handleReanudar = async (id: string) => {
-    const { error } = await supabase.from("alumnos").update({ status: "activo" as Status }).eq("id", id);
-    if (!error) {
-      replaceAlumno(id, (current) => ({ ...current, status: "activo" }));
+  const handleDescongelar = async (alumno: Alumno) => {
+    const res = await fetch("/api/admin/alumnos/freeze", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alumno_id: alumno.id }),
+    });
+    const data = await res.json() as { ok?: boolean; dias_congelados?: number; next_expiration_date?: string; error?: string };
+    if (!res.ok || !data.ok) { setToast(data.error ?? "Error al descongelar."); return; }
+    replaceAlumno(alumno.id, (c) => ({
+      ...c,
+      status: "activo",
+      frozen_since: null,
+      pausa_hasta: null,
+      next_expiration_date: data.next_expiration_date ?? c.next_expiration_date,
+    }));
+    if (gymId) {
+      supabase.from("alumno_activity_log").insert({
+        alumno_id: alumno.id, gym_id: gymId, type: "descongelado",
+        description: `Membresía descongelada · +${data.dias_congelados ?? 0} días → ${data.next_expiration_date ?? "sin cambio"}`,
+        actor: "admin",
+      }).then(() => {});
     }
+    setToast(`${alumno.full_name} descongelado. Vencimiento extendido ${data.dias_congelados}d → ${data.next_expiration_date ?? "sin cambio"}.`);
   };
 
   // ── Eliminar Alumno ───────────────────────────────────────────────
@@ -451,6 +518,13 @@ export default function AlumnosPage() {
       setToast(`Error al eliminar: ${error.message}`);
       return;
     }
+    if (gymId) {
+      supabase.from("alumno_activity_log").insert({
+        alumno_id: id, gym_id: gymId, type: "eliminado",
+        description: `Alumno eliminado (soft delete)`,
+        actor: "admin",
+      }).then(() => {});
+    }
     setAlumnos(prev => {
       const next = prev.filter(alumno => alumno.id !== id);
       if (gymId) setPageCache(`alumnos_${gymId}`, next);
@@ -459,6 +533,21 @@ export default function AlumnosPage() {
     setTotalCount(prev => Math.max(0, prev - 1));
     setUltimaMap(prev => { const next = { ...prev }; delete next[id]; return next; });
     setToast(`${name} eliminado`);
+  };
+
+  // ── Ficha / historial ────────────────────────────────────────────
+  const openFicha = async (alumno: Alumno) => {
+    setFichaTarget(alumno);
+    setFichaLogs([]);
+    setFichaLoading(true);
+    const { data } = await supabase
+      .from("alumno_activity_log")
+      .select("id, type, description, actor, metadata, created_at")
+      .eq("alumno_id", alumno.id)
+      .order("created_at", { ascending: false })
+      .limit(60);
+    setFichaLogs((data as ActivityLog[]) ?? []);
+    setFichaLoading(false);
   };
 
   // ── Exportar ──────────────────────────────────────────────────────
@@ -571,6 +660,14 @@ export default function AlumnosPage() {
     if (error) { setEditError(error.message); setEditSaving(false); return; }
     setEditModalOpen(false);
     setEditSaving(false);
+    if (gymId) {
+      const planNombre = planes.find(p => p.id === editForm.plan_id)?.nombre;
+      supabase.from("alumno_activity_log").insert({
+        alumno_id: editForm.id, gym_id: gymId, type: "editado",
+        description: `Datos editados${planNombre ? ` · Plan: ${planNombre}` : ""}`,
+        actor: "admin",
+      }).then(() => {});
+    }
     const selectedPlan = planes.find(plan => plan.id === editForm.plan_id) ?? null;
     replaceAlumno(editForm.id, (current) => ({
       ...current,
@@ -1292,13 +1389,14 @@ export default function AlumnosPage() {
     {menuTarget && menuPos && portalRoot && createPortal(
       <div onClick={e => e.stopPropagation()} style={{ position: "fixed", ...(menuPos.openUp ? { bottom: window.innerHeight - menuPos.top } : { top: menuPos.top }), right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
         {[
+          { label: "📋 Ver Historial", color: t1, action: () => { openFicha(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           { label: "💳 Enviar link de pago", color: "#16A34A", action: () => { handleSendPayLink(menuTarget); } },
           { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           { label: "Editar Datos", color: t1, action: () => { openEditModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
           menuTarget.status === "pausado"
-            ? { label: "Reanudar Membresía", color: "#22C55E", action: () => { handleReanudar(menuTarget.id); setMenuOpenId(null); setMenuPos(null); } }
-            : { label: "Pausar Membresía",   color: "#64748B", action: () => { handlePausar(menuTarget.id);   setMenuOpenId(null); setMenuPos(null); } },
+            ? { label: "❄️ Descongelar", color: "#22C55E", action: () => { handleDescongelar(menuTarget); setMenuOpenId(null); setMenuPos(null); } }
+            : { label: "❄️ Congelar Membresía", color: "#64748B", action: () => { setFreezeTarget(menuTarget); setFreezeDias("15"); setMenuOpenId(null); setMenuPos(null); } },
           { label: "Eliminar Alumno", color: "#DC2626", action: () => { handleEliminar(menuTarget.id, menuTarget.full_name); setMenuOpenId(null); setMenuPos(null); } },
         ].map(item => (
           <button key={item.label} onClick={item.action}
@@ -1716,6 +1814,125 @@ export default function AlumnosPage() {
       </div>
     )}
 
+    {/* ── Lateral Drawer: Ficha / Historial ── */}
+    {fichaTarget && typeof document !== "undefined" && createPortal(
+      <>
+        {/* Backdrop */}
+        <div
+          onClick={() => setFichaTarget(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.35)", backdropFilter: "blur(3px)", WebkitBackdropFilter: "blur(3px)", animation: "fadeInBd 0.2s ease" }}
+        />
+        {/* Panel */}
+        <div style={{
+          position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 9001,
+          width: "min(480px, 96vw)",
+          background: "#FAFBFD",
+          boxShadow: "-12px 0 48px rgba(0,0,0,0.14), -1px 0 0 rgba(0,0,0,0.06)",
+          display: "flex", flexDirection: "column",
+          animation: "drawerIn 0.28s cubic-bezier(0.22,1,0.36,1)",
+        }}>
+          {/* Header */}
+          <div style={{ background: "#0D0F12", padding: "22px 24px 18px", flexShrink: 0, position: "relative", overflow: "hidden" }}>
+            <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.05, pointerEvents: "none" }}>
+              <filter id="grain-ficha"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="2" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter>
+              <rect width="100%" height="100%" filter="url(#grain-ficha)" />
+            </svg>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 42, height: 42, borderRadius: "50%", background: "rgba(249,115,22,0.15)", border: "1.5px solid rgba(249,115,22,0.3)", display: "flex", alignItems: "center", justifyContent: "center", font: `800 0.88rem/1 ${fd}`, color: "white", flexShrink: 0 }}>
+                  {initials(fichaTarget.full_name)}
+                </div>
+                <div>
+                  <p style={{ font: `300 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.16em", textTransform: "uppercase", marginBottom: 4 }}>Historial de actividad</p>
+                  <h2 style={{ font: `800 1.1rem/1.1 ${fd}`, color: "white", letterSpacing: "-0.02em" }}>{fichaTarget.full_name}</h2>
+                </div>
+              </div>
+              <button onClick={() => setFichaTarget(null)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.6)", flexShrink: 0 }}>
+                <X size={15} />
+              </button>
+            </div>
+            {/* Chips rápidos */}
+            <div style={{ display: "flex", gap: 8, marginTop: 14, position: "relative", zIndex: 1, flexWrap: "wrap" }}>
+              {[
+                { label: fichaTarget.planes?.nombre ?? "Sin plan", color: fichaTarget.planes?.accent_color ?? "#6B7280" },
+                { label: STATUS_STYLE[fichaTarget.status].label, color: fichaTarget.status === "activo" ? "#22C55E" : fichaTarget.status === "vencido" ? "#EF4444" : "#94A3B8" },
+                ...(fichaTarget.next_expiration_date ? [{ label: `Vence ${fichaTarget.next_expiration_date}`, color: "rgba(255,255,255,0.45)" }] : []),
+              ].map(chip => (
+                <span key={chip.label} style={{ font: `600 0.65rem/1 ${fb}`, color: chip.color, background: `${chip.color}18`, border: `1px solid ${chip.color}30`, padding: "4px 10px", borderRadius: 9999 }}>{chip.label}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+            {fichaLoading ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 120, gap: 10, color: t3, font: `400 0.85rem/1 ${fb}` }}>
+                <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid #E5E7EB", borderTopColor: "#F97316", animation: "spinAI 0.7s linear infinite" }} />
+                Cargando historial...
+              </div>
+            ) : fichaLogs.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px 0", color: t3 }}>
+                <History size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
+                <p style={{ font: `500 0.85rem/1.5 ${fb}`, color: t3 }}>Sin actividad registrada todavía.</p>
+                <p style={{ font: `400 0.75rem/1.4 ${fb}`, color: t3, marginTop: 4 }}>Los eventos futuros aparecerán aquí.</p>
+              </div>
+            ) : (
+              <div style={{ position: "relative" }}>
+                {/* Vertical line */}
+                <div style={{ position: "absolute", left: 15, top: 8, bottom: 8, width: 1.5, background: "linear-gradient(to bottom, rgba(249,115,22,0.3), rgba(0,0,0,0.06))", borderRadius: 1 }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                  {fichaLogs.map((log, i) => {
+                    const dt = new Date(log.created_at);
+                    const dateStr = dt.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                    const timeStr = dt.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+                    const iconMap: Record<string, { icon: string; color: string }> = {
+                      creado:           { icon: "✨", color: "#7C3AED" },
+                      pago:             { icon: "💰", color: "#16A34A" },
+                      plan_cambiado:    { icon: "📋", color: "#2563EB" },
+                      membresia_asignada: { icon: "⭐", color: "#F97316" },
+                      wa_enviado:       { icon: "💬", color: "#25D366" },
+                      congelado:        { icon: "❄️", color: "#64748B" },
+                      descongelado:     { icon: "🌡️", color: "#0EA5E9" },
+                      editado:          { icon: "✏️", color: "#D97706" },
+                      eliminado:        { icon: "🗑️", color: "#DC2626" },
+                      check_in:         { icon: "✅", color: "#22C55E" },
+                    };
+                    const meta = iconMap[log.type] ?? { icon: "•", color: t3 };
+                    return (
+                      <div key={log.id} style={{ display: "flex", gap: 16, paddingBottom: i < fichaLogs.length - 1 ? 18 : 0 }}>
+                        {/* Dot */}
+                        <div style={{ flexShrink: 0, width: 30, display: "flex", justifyContent: "center", paddingTop: 2 }}>
+                          <div style={{ width: 22, height: 22, borderRadius: "50%", background: "white", border: `1.5px solid ${meta.color}40`, boxShadow: `0 0 0 3px ${meta.color}10`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", zIndex: 1 }}>
+                            {meta.icon}
+                          </div>
+                        </div>
+                        {/* Content */}
+                        <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                            <span style={{ font: `600 0.82rem/1.3 ${fd}`, color: t1 }}>{log.description}</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 8, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
+                            <span style={{ font: `500 0.68rem/1 ${fb}`, color: t3 }}>{dateStr} {timeStr}</span>
+                            {log.actor && log.actor !== "sistema" && (
+                              <span style={{ font: `400 0.65rem/1 ${fb}`, color: t3, background: "#F3F4F6", padding: "2px 7px", borderRadius: 9999 }}>{log.actor}</span>
+                            )}
+                            {log.actor === "sistema" && (
+                              <span style={{ font: `400 0.65rem/1 ${fb}`, color: t3, background: "#F3F4F6", padding: "2px 7px", borderRadius: 9999 }}>automático</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </>,
+      document.body
+    )}
+
     {/* ── Lateral Drawer: Asignar Rutina ── */}
     {rutinaModalOpen && rutinaTarget && typeof document !== "undefined" && createPortal(
       <>
@@ -2003,6 +2220,54 @@ export default function AlumnosPage() {
         onConfirmed={() => { exportConfirm(); setExportConfirm(null); }}
         onCancel={() => setExportConfirm(null)}
       />
+    )}
+
+    {/* ── Modal congelar ── */}
+    {freezeTarget && (
+      <div
+        onClick={() => setFreezeTarget(null)}
+        style={{ position: "fixed", inset: 0, zIndex: 600, background: "rgba(0,0,0,0.48)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{ background: "white", borderRadius: 20, padding: "28px 28px 24px", width: "100%", maxWidth: 380, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", position: "relative" }}
+        >
+          <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase" as const, letterSpacing: "0.08em", marginBottom: 4 }}>Congelar membresía</p>
+          <h2 style={{ font: `800 1.15rem/1 ${fd}`, color: t1, marginBottom: 6 }}>{freezeTarget.full_name}</h2>
+          <p style={{ font: `400 0.8rem/1.5 ${fb}`, color: t2, marginBottom: 20 }}>
+            El alumno queda como <strong>pausado</strong>. Al descongelar, su vencimiento se extiende por la cantidad de días que estuvo congelado.
+          </p>
+
+          <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 8 }}>¿Cuántos días?</label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {[7, 15, 30].map(d => (
+              <button
+                key={d}
+                onClick={() => setFreezeDias(String(d))}
+                style={{ flex: 1, padding: "9px", borderRadius: 10, border: "none", font: `600 0.82rem/1 ${fb}`, cursor: "pointer", background: freezeDias === String(d) ? "#1C1C1E" : "#F2F2F7", color: freezeDias === String(d) ? "white" : t2 }}
+              >
+                {d}d
+              </button>
+            ))}
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={freezeDias}
+              onChange={e => setFreezeDias(e.target.value)}
+              style={{ width: 70, padding: "9px 10px", borderRadius: 10, border: "1px solid #E5E7EB", font: `600 0.82rem/1 ${fd}`, color: t1, textAlign: "center" as const, outline: "none" }}
+            />
+          </div>
+
+          <button
+            onClick={handleCongelar}
+            disabled={freezeSaving || !parseInt(freezeDias)}
+            style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", background: freezeSaving ? "#D1D5DB" : "#1C1C1E", color: "white", font: `700 0.9rem/1 ${fd}`, cursor: freezeSaving ? "wait" : "pointer" }}
+          >
+            {freezeSaving ? "Congelando..." : `❄️ Congelar ${parseInt(freezeDias) || 0} días`}
+          </button>
+        </div>
+      </div>
     )}
     </>
   );

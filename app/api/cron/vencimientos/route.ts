@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
+import { logAlumnoActivity } from "@/lib/alumno-log";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -257,7 +258,7 @@ async function notificarInasistentes(log: string[], todayStr: string): Promise<v
   }
 }
 
-// ── Bloque 3: Sincronizar status activo ↔ vencido ─────────────────────────────
+// ── Bloque 3: Sincronizar status activo ↔ vencido + auto-descongelar ────────
 
 async function sincronizarStatus(todayStr: string, log: string[]): Promise<void> {
   const { data: vencidos, error: e1 } = await supabase
@@ -281,6 +282,41 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
     .select("id");
   if (e2) console.error("[vencimientos] sincronizarStatus reactivados:", e2.message);
   if (reactivados?.length) log.push(`→ ${reactivados.length} alumno(s) reactivados por renovación`);
+
+  // Auto-descongelar: pausado cuyo pausa_hasta ya pasó
+  const { data: congelados, error: e3 } = await supabase
+    .from("alumnos")
+    .select("id, frozen_since, next_expiration_date")
+    .eq("status", "pausado")
+    .is("deleted_at", null)
+    .not("pausa_hasta", "is", null)
+    .lt("pausa_hasta", todayStr);
+  if (e3) { console.error("[vencimientos] sincronizarStatus congelados:", e3.message); return; }
+
+  for (const alumno of congelados ?? []) {
+    const frozenSince = (alumno as { frozen_since: string | null }).frozen_since ?? todayStr;
+    const diasCongelados = Math.max(
+      0,
+      Math.round((new Date(`${todayStr}T12:00:00`).getTime() - new Date(`${frozenSince}T12:00:00`).getTime()) / 86_400_000),
+    );
+    let newExpiration = (alumno as { next_expiration_date: string | null }).next_expiration_date ?? null;
+    if (newExpiration && diasCongelados > 0) {
+      const d = new Date(`${newExpiration}T12:00:00`);
+      d.setDate(d.getDate() + diasCongelados);
+      newExpiration = d.toISOString().slice(0, 10);
+    }
+    const { error: updErr } = await supabase
+      .from("alumnos")
+      .update({
+        status: "activo",
+        frozen_since: null,
+        pausa_hasta: null,
+        ...(newExpiration ? { next_expiration_date: newExpiration } : {}),
+      })
+      .eq("id", (alumno as { id: string }).id);
+    if (updErr) console.error(`[vencimientos] auto-descongelar alumno=${(alumno as { id: string }).id}:`, updErr.message);
+    else log.push(`❄️ Alumno ${(alumno as { id: string }).id} descongelado (+${diasCongelados}d → ${newExpiration})`);
+  }
 }
 
 // ── Bloque 4: Follow-ups post-vencimiento (día 3 y día 7) ────────────────────
@@ -339,6 +375,7 @@ async function enviarFollowupsPostVencimiento(
             .eq("id", alumno.id);
           if (upErr) console.error(`[vencimientos] followup ${step} alumno=${alumno.id}:`, upErr.message);
           logWASend(supabase, gym.gym_id, "vencimiento");
+          void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", `Recordatorio vencimiento día ${diasVencido} enviado por WA`);
           enviados++;
           log.push(`✓ ${alumno.full_name} (${gymName}) — follow-up ${step} (día ${diasVencido})`);
         } else {
@@ -399,6 +436,7 @@ async function enviarNotificacionesVenceHoy(
           .eq("id", alumno.id);
         if (upErr) console.error(`[vencimientos] vence-hoy alumno=${alumno.id}:`, upErr.message);
         logWASend(supabase, gym.gym_id, "vencimiento");
+        void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", "Aviso de vencimiento hoy enviado por WA");
         enviados++;
         log.push(`🔔 ${alumno.full_name} (${gymName}) — vence hoy`);
       }
@@ -467,6 +505,7 @@ async function enviarRecordatoriosProximos(
           .eq("id", alumno.id);
         if (upErr) console.error(`[vencimientos] marcar notif alumno=${alumno.id}:`, upErr.message);
         logWASend(supabase, gym.gym_id, "vencimiento");
+        void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", `Recordatorio pre-vencimiento enviado por WA · vence ${alumno.next_expiration_date}`);
         enviados++;
         log.push(`✓ ${alumno.full_name} (${gymName}) — vence ${alumno.next_expiration_date}`);
       } else {

@@ -14,6 +14,8 @@ interface Alumno {
   planes: { nombre: string; accent_color: string | null; precio: number; duracion_dias: number } | null;
   status: Status;
   next_expiration_date: string | null;
+  frozen_since: string | null;
+  pausa_hasta: string | null;
 }
 
 const statusFromDate = (dateStr: string | null): Status => {
@@ -172,6 +174,19 @@ export function usePagoModal(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ alumno_id: pagoTarget.id, type: "renewal" }),
       }).catch(() => {});
+    }
+
+    // Log actividad
+    if (gymId) {
+      const planNombre = pagoTarget.planes?.nombre;
+      const desc = isCuota
+        ? `Pago $${montoFinal.toLocaleString("es-AR")} · ${planNombre ?? "cuota"}${discountLabel ? ` · ${discountLabel}` : ""} · vence ${newExpiryStr ?? "—"}`
+        : `Cobro $${montoFinal.toLocaleString("es-AR")} · ${paymentNote}`;
+      supabase.from("alumno_activity_log").insert({
+        alumno_id: pagoTarget.id, gym_id: gymId, type: "pago",
+        description: desc, actor: "admin",
+        metadata: { method: pagoMetodo, amount: montoFinal },
+      }).then(() => {});
     }
 
     setPagoSaving(false);

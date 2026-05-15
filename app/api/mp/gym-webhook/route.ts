@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { normalizePhone } from "@/lib/phone";
+import { logAlumnoActivity } from "@/lib/alumno-log";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -338,6 +339,7 @@ export async function POST(req: NextRequest) {
   // ─────────────────────────────────────────────────────────────────────────────
 
   logWebhook(gymId, paymentId, "processed", { amount: payment.transaction_amount, alumnoId });
+  void logAlumnoActivity(alumnoId, gymId, "pago", `Pago $${payment.transaction_amount} via MercadoPago · ${planNombre} · vence ${nuevoVencimiento}`, "webhook_mp", { payment_id: paymentId, amount: payment.transaction_amount });
 
   // Acciones post-pago (non-blocking: errores no deben bloquear la respuesta a MP)
   await Promise.allSettled([
