@@ -289,7 +289,10 @@ export async function POST(req: NextRequest) {
   const nuevoVencimiento = calcularNuevoVencimiento(alumno.next_expiration_date, plan?.periodo ?? "mensual", plan?.duracion_dias ?? null);
   const today          = getTodayDate();
 
-  // ── Gate de idempotencia: insertamos el pago primero ─────────────────────────
+  // ── Gate de idempotencia ──────────────────────────────────────────────────────
+  // registrarPago hace INSERT con mp_payment_id (unique constraint).
+  // Si el mismo payment_id llega dos veces, el segundo INSERT falla con código 23505
+  // y devuelve "duplicado" → respondemos 200 sin tocar la membresía.
   const resultadoPago = await registrarPago(gymId, alumnoId, payment.transaction_amount, paymentId, planNombre, today);
 
   if (resultadoPago === "error") {
@@ -297,12 +300,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
 
-  // Si era duplicado: igual extendemos membresía (recovery ante crash entre insert y update)
-  await extenderMembresia(alumnoId, today, nuevoVencimiento);
   if (resultadoPago === "duplicado") {
     logWebhook(gymId, paymentId, "duplicate", { amount: payment.transaction_amount, alumnoId });
     return NextResponse.json({ ok: true });
   }
+
+  // Solo llegamos acá la primera vez (resultadoPago === "ok")
+  await extenderMembresia(alumnoId, today, nuevoVencimiento);
   // ─────────────────────────────────────────────────────────────────────────────
 
   logWebhook(gymId, paymentId, "processed", { amount: payment.transaction_amount, alumnoId });
