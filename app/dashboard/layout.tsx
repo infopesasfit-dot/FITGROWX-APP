@@ -173,8 +173,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
   const [waDisconnected,    setWaDisconnected]    = useState(false);
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
-  const [hasSlug,           setHasSlug]           = useState(true);
-  const [slugBannerDismissed, setSlugBannerDismissed] = useState(false);
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
@@ -269,7 +267,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (["needs_reauth", "disconnected"].includes(settings?.wa_status ?? "")) {
         setWaDisconnected(true);
       }
-      setHasSlug(!!settings?.slug);
       const displayName = settings?.owner_name?.trim() || user?.email?.split("@")[0] || "Admin";
       setUserName(displayName);
       setUserInitials(displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase());
@@ -876,34 +873,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
 
-        {/* ── Slug missing banner ── */}
-        {role === "admin" && !hasSlug && !slugBannerDismissed && (
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
-            background: "rgba(217,119,6,0.06)",
-            borderBottom: "1px solid rgba(217,119,6,0.16)",
-            flexShrink: 0,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <AlertTriangle size={13} color="#D97706" />
-              <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#D97706" }}>
-                {isMobile ? "URL de landing sin configurar — links automáticos rotos." : "Tu landing no tiene URL configurada — los links de reserva en los mensajes automáticos no funcionan."}
-              </span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Link href="/dashboard/landing" style={{
-                font: `700 0.72rem/1 ${fd}`, color: "white",
-                background: "#D97706",
-                padding: "5px 12px", borderRadius: 9999, textDecoration: "none",
-                whiteSpace: "nowrap",
-              }}>Configurar</Link>
-              <button onClick={() => setSlugBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "#D97706", display: "flex", padding: 2 }}>
-                <X size={13} />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* ── Trial countdown banner (day 10+) ── */}
         {role === "admin" && showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
