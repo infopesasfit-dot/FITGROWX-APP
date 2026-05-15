@@ -162,27 +162,45 @@ export default function RadarPage() {
               Cargando...
             </div>
           )}
-          {health && (
-            <div style={{
-              background: "#fff", borderRadius: 12,
-              border: "1px solid rgba(99,102,241,0.15)",
-              padding: "14px 16px",
-              display: "flex", alignItems: "center", gap: 10,
-            }}>
-              <Zap size={15} color="#6366f1" />
-              <div>
-                <p style={{ font: "600 0.78rem/1 'Inter', sans-serif", color: "#111827", marginBottom: 2 }}>
-                  Latencia DB
-                </p>
-                <p style={{ font: "400 0.68rem/1 'Inter', sans-serif", color: "#6366f1" }}>
-                  {health.latency_detail?.database_ms ?? health.latency_ms} ms
-                  {health.latency_detail?.wa_motor_ms != null && (
-                    <span style={{ color: "#9ca3af", marginLeft: 6 }}>· WA Motor: {health.latency_detail.wa_motor_ms} ms</span>
-                  )}
-                </p>
+          {health && (() => {
+            const dbMs = health.latency_detail?.database_ms ?? health.latency_ms;
+            const waMs = health.latency_detail?.wa_motor_ms;
+            const dbColor = dbMs < 300 ? "#10b981" : dbMs < 800 ? "#f59e0b" : "#ef4444";
+            const dbLabel = dbMs < 300 ? "Normal" : dbMs < 800 ? "Lento" : "Crítico";
+            const waColor = waMs == null ? "#9ca3af" : waMs < 500 ? "#10b981" : waMs < 1500 ? "#f59e0b" : "#ef4444";
+            const waLabel = waMs == null ? "—" : waMs < 500 ? "Normal" : waMs < 1500 ? "Lento" : "Crítico";
+            return (
+              <div style={{
+                background: "#fff", borderRadius: 12,
+                border: "1px solid rgba(99,102,241,0.15)",
+                padding: "14px 16px",
+                display: "flex", alignItems: "flex-start", gap: 10,
+              }}>
+                <Zap size={15} color="#6366f1" style={{ marginTop: 2, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ font: "600 0.78rem/1 'Inter', sans-serif", color: "#111827", marginBottom: 6 }}>
+                    Latencia
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <span style={{ font: "400 0.68rem/1 'Inter', sans-serif", color: "#6b7280" }}>DB</span>
+                      <span style={{ font: "600 0.68rem/1 'Inter', sans-serif", color: dbColor }}>{dbMs} ms · {dbLabel}</span>
+                    </div>
+                    {waMs != null && (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <span style={{ font: "400 0.68rem/1 'Inter', sans-serif", color: "#6b7280" }}>WA Motor</span>
+                        <span style={{ font: "600 0.68rem/1 'Inter', sans-serif", color: waColor }}>{waMs} ms · {waLabel}</span>
+                      </div>
+                    )}
+                  </div>
+                  <p style={{ font: "400 0.62rem/1.5 'Inter', sans-serif", color: "#9ca3af", marginTop: 8, borderTop: "1px solid #f3f4f6", paddingTop: 7 }}>
+                    DB: &lt;300ms normal · 300–800ms lento · &gt;800ms crítico
+                    {waMs != null && <><br />WA: &lt;500ms normal · 500–1500ms lento · &gt;1500ms crítico</>}
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </section>
 
