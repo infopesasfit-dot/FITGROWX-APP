@@ -447,15 +447,18 @@ export default function AlumnosPage() {
   const handleEliminar = async (id: string, name: string) => {
     if (!confirm(`¿Eliminar a ${name}? Podrás recuperarlo contactando a soporte.`)) return;
     const { error } = await supabase.from("alumnos").update({ deleted_at: new Date().toISOString(), status: "inactivo" as Status }).eq("id", id);
-    if (!error) {
-      setAlumnos(prev => prev.filter(alumno => alumno.id !== id));
-      setTotalCount(prev => Math.max(0, prev - 1));
-      setUltimaMap(prev => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
+    if (error) {
+      setToast(`Error al eliminar: ${error.message}`);
+      return;
     }
+    setAlumnos(prev => {
+      const next = prev.filter(alumno => alumno.id !== id);
+      if (gymId) setPageCache(`alumnos_${gymId}`, next);
+      return next;
+    });
+    setTotalCount(prev => Math.max(0, prev - 1));
+    setUltimaMap(prev => { const next = { ...prev }; delete next[id]; return next; });
+    setToast(`${name} eliminado`);
   };
 
   // ── Exportar ──────────────────────────────────────────────────────
