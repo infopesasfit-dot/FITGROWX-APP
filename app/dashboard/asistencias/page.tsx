@@ -31,6 +31,7 @@ interface Presente {
 interface Ausente {
   id: string;
   full_name: string;
+  next_expiration_date: string | null;
   planes: { nombre: string; accent_color: string | null } | null;
 }
 
@@ -200,24 +201,39 @@ export default function AsistenciasPage() {
       todayClasses: nextTodayClasses,
     });
 
+    // Load ausentes eagerly so the counter is populated on initial render
+    const presenteIds = new Set(presenteRows.map(p => p.alumno_id));
+    const { data: ausentesData } = await supabase
+      .from("alumnos")
+      .select("id, full_name, next_expiration_date, planes!plan_id(nombre, accent_color)")
+      .eq("gym_id", profile.gymId)
+      .eq("status", "activo")
+      .is("deleted_at", null)
+      .or(`next_expiration_date.is.null,next_expiration_date.gte.${today}`);
+    const ausenteRows = (ausentesData ?? []) as unknown as Ausente[];
+    setAusentes(ausenteRows.filter(a => !presenteIds.has(a.id)));
+    setAusentesLoaded(true);
+
     setLoading(false);
   }, [today, applySnapshot]);
 
-  const loadAusentes = useCallback(async () => {
-    if (!gymId || ausentesLoaded || ausentesLoading) return;
+  const loadAusentes = useCallback(async (forceGymId?: string) => {
+    const gid = forceGymId ?? gymId;
+    if (!gid || ausentesLoaded || ausentesLoading) return;
     setAusentesLoading(true);
     const { data } = await supabase
       .from("alumnos")
-      .select("id, full_name, planes!plan_id(nombre, accent_color)")
-      .eq("gym_id", gymId)
+      .select("id, full_name, next_expiration_date, planes!plan_id(nombre, accent_color)")
+      .eq("gym_id", gid)
       .eq("status", "activo")
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      .or(`next_expiration_date.is.null,next_expiration_date.gte.${today}`);
     const presenteIds = new Set(presentes.map(p => p.alumno_id));
     const activos = (data ?? []) as unknown as Ausente[];
     setAusentes(activos.filter(a => !presenteIds.has(a.id)));
     setAusentesLoaded(true);
     setAusentesLoading(false);
-  }, [gymId, ausentesLoaded, ausentesLoading, presentes]);
+  }, [gymId, ausentesLoaded, ausentesLoading, presentes, today]);
 
   const markClasePrueba = useCallback(async (id: string, status: "asistio" | "no_show") => {
     setClasesPrueba(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_status: status } : p));
