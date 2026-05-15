@@ -215,17 +215,21 @@ export async function GET(req: NextRequest) {
 
   const alumnoRows = (alumnosMetricRows ?? []) as AlumnoMetricRow[];
   const total = alumnoRows.length;
+  // Conversión real: status activo/vencido + tiene fecha de vencimiento asignada (pagaron al menos una vez)
+  const isPaidMember = (row: AlumnoMetricRow) =>
+    (row.status === "activo" || row.status === "vencido") && row.next_expiration_date != null;
   const activos = alumnoRows.filter(r =>
     r.status === "activo" &&
     (r.next_expiration_date == null || r.next_expiration_date >= todayStr)
   ).length;
   const recientes = [...alumnoRows]
+    .filter(isPaidMember)
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .slice(0, 4)
+    .slice(0, 5)
     .map(r => ({ id: r.id, full_name: r.full_name, created_at: r.created_at }));
 
   const captMap: Record<string, number> = {};
-  alumnoRows.filter(row => row.created_at >= oldestMonthKey).forEach(row => {
+  alumnoRows.filter(row => row.created_at >= oldestMonthKey && isPaidMember(row)).forEach(row => {
     const m = row.created_at.slice(0, 7);
     captMap[m] = (captMap[m] || 0) + 1;
   });
@@ -297,8 +301,8 @@ export async function GET(req: NextRequest) {
   const marketingCurrent = egresoRows.filter((row) => row.categoria === "Marketing" && isWithin(row.fecha, thisMonthFrom, thisMonthTo)).reduce((sum, row) => sum + (row.monto ?? 0), 0);
   const marketingPrevious = egresoRows.filter((row) => row.categoria === "Marketing" && isWithin(row.fecha, prevMonthFrom, prevMonthTo)).reduce((sum, row) => sum + (row.monto ?? 0), 0);
 
-  const newMembersCurrent = alumnoRows.filter((row) => isWithin(row.created_at.slice(0, 10), thisMonthFrom, thisMonthTo)).length;
-  const newMembersPrevious = alumnoRows.filter((row) => isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo)).length;
+  const newMembersCurrent = alumnoRows.filter((row) => isPaidMember(row) && isWithin(row.created_at.slice(0, 10), thisMonthFrom, thisMonthTo)).length;
+  const newMembersPrevious = alumnoRows.filter((row) => isPaidMember(row) && isWithin(row.created_at.slice(0, 10), prevMonthFrom, prevMonthTo)).length;
 
   const churnedCurrent = alumnoRows.filter((row) => ["vencido", "inactivo"].includes(row.status ?? "") && isWithin(row.next_expiration_date, thisMonthFrom, thisMonthTo)).length;
   const churnedPrevious = alumnoRows.filter((row) => ["vencido", "inactivo"].includes(row.status ?? "") && isWithin(row.next_expiration_date, prevMonthFrom, prevMonthTo)).length;
