@@ -398,6 +398,7 @@ export async function GET(req: NextRequest) {
       proyeccionProximoMes,
       renovacionesPendientes,
       mensajesAutoEnviados: mensajesAutoCount ?? 0,
+      renovacionesCount: paidThisMonthIds.size,
       recuperadosCount,
       recuperadosRevenue,
       recaudadoEsteMes: currentRevenue,

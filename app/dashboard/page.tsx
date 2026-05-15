@@ -49,6 +49,7 @@ interface DashboardSnapshot {
   ingresoProyectado: number;
   proyeccionProximoMes: number;
   renovacionesPendientes: number;
+  renovacionesCount: number;
   mensajesAutoEnviados: number;
   recuperadosCount: number;
   recuperadosRevenue: number;
@@ -170,7 +171,7 @@ function buildDemoSnapshot(): DashboardSnapshot {
     return 0;
   });
   return {
-    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, mensajesAutoEnviados: 47, recuperadosCount: 7, recuperadosRevenue: 126_000, recaudadoEsteMes: 612_000, deudaTotal: 85_000, morososCount: 6, gastosTotal: 210_000,
+    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, renovacionesCount: 31, mensajesAutoEnviados: 47, recuperadosCount: 7, recuperadosRevenue: 126_000, recaudadoEsteMes: 612_000, deudaTotal: 85_000, morososCount: 6, gastosTotal: 210_000,
     recientes: [
       { id: "d1", full_name: "Valentina Ríos",    created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
       { id: "d2", full_name: "Matías Fernández",  created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -234,6 +235,7 @@ export default function DashboardPage() {
   const [ingresoProyectado,     setIngresoProyectado]     = useState(0);
   const [proyeccionProximoMes,  setProyeccionProximoMes]  = useState(0);
   const [renovacionesPendientes,setRenovacionesPendientes]= useState(0);
+  const [renovacionesCount,     setRenovacionesCount]     = useState(0);
   const [mensajesAutoEnviados,  setMensajesAutoEnviados]  = useState(0);
   const [recuperadosCount,      setRecuperadosCount]      = useState(0);
   const [recuperadosRevenue,    setRecuperadosRevenue]    = useState(0);
@@ -263,6 +265,7 @@ export default function DashboardPage() {
     setIngresoProyectado(snapshot.ingresoProyectado);
     setProyeccionProximoMes(snapshot.proyeccionProximoMes);
     setRenovacionesPendientes(snapshot.renovacionesPendientes);
+    setRenovacionesCount(snapshot.renovacionesCount ?? 0);
     setMensajesAutoEnviados(snapshot.mensajesAutoEnviados);
     setRecuperadosCount(snapshot.recuperadosCount);
     setRecuperadosRevenue(snapshot.recuperadosRevenue);
@@ -282,7 +285,7 @@ export default function DashboardPage() {
   }, []);
 
   const enterDemo = useCallback(() => {
-    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
+    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, renovacionesCount, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts };
     applySnapshot(buildDemoSnapshot());
     setDemoMode(true);
   }, [activosCount, totalCount, ingresoProyectado, gastosTotal, recientes, captacion5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, metrics, alerts, applySnapshot]);
@@ -847,19 +850,20 @@ export default function DashboardPage() {
       )}
 
       {!loading && (
-        <div style={{ ...cardBase, padding: "16px 16px", background: recuperadosCount > 0 ? "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)" : "linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)", border: recuperadosCount > 0 ? "1px solid rgba(34,197,94,0.18)" : "1px solid rgba(15,23,42,0.07)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 14, background: recuperadosCount > 0 ? "rgba(34,197,94,0.14)" : "rgba(99,102,241,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <ArrowUpRight size={17} color={recuperadosCount > 0 ? "#15803D" : "#6366F1"} />
+        <div style={{ ...cardBase, padding: "16px 16px", background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "1px solid rgba(99,102,241,0.18)" }}>
+          <p style={{ font: `700 0.65rem/1 ${fb}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>Lo que FitGrowX hizo por vos este mes</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            <div style={{ padding: "10px 10px", borderRadius: 12, background: "rgba(99,102,241,0.08)" }}>
+              <p style={{ font: `800 1.3rem/1 ${fd}`, color: "#4338CA", marginBottom: 4 }}>{mensajesAutoEnviados}</p>
+              <p style={{ font: `500 0.64rem/1.35 ${fb}`, color: "#6366F1" }}>mensajes enviados automáticamente</p>
             </div>
-            <div>
-              <p style={{ font: `700 0.65rem/1 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>ROI del sistema este mes</p>
-              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#1E1B4B", letterSpacing: "-0.03em" }}>
-                {recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} · ${fmt(recuperadosRevenue)} recuperados` : "Los mensajes automáticos están activos"}
-              </p>
-              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: recuperadosCount > 0 ? "#166534" : "#4338CA", marginTop: 4 }}>
-                {recuperadosCount > 0 ? "Socios que no renovaron el mes pasado y este mes volvieron a pagar." : "Cuando algún socio vuelva a renovar este mes, lo vas a ver acá."}
-              </p>
+            <div style={{ padding: "10px 10px", borderRadius: 12, background: "rgba(16,185,129,0.08)" }}>
+              <p style={{ font: `800 1.3rem/1 ${fd}`, color: "#047857", marginBottom: 4 }}>{renovacionesCount}</p>
+              <p style={{ font: `500 0.64rem/1.35 ${fb}`, color: "#059669" }}>socios que renovaron</p>
+            </div>
+            <div style={{ padding: "10px 10px", borderRadius: 12, background: recuperadosCount > 0 ? "rgba(34,197,94,0.12)" : "rgba(99,102,241,0.06)" }}>
+              <p style={{ font: `800 1.3rem/1 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#6366F1", marginBottom: 4 }}>{recuperadosCount > 0 ? fmt(recuperadosRevenue) : "—"}</p>
+              <p style={{ font: `500 0.64rem/1.35 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#818CF8" }}>{recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "socio recuperado" : "socios recuperados"}` : "sin recuperados aún"}</p>
             </div>
           </div>
         </div>
@@ -1261,22 +1265,36 @@ export default function DashboardPage() {
       )}
 
       {!loading && (
-        <div style={{ ...cardBase, padding: "20px 22px", background: recuperadosCount > 0 ? "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)" : "linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)", border: recuperadosCount > 0 ? "1px solid rgba(34,197,94,0.18)" : "1px solid rgba(15,23,42,0.07)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 16, background: recuperadosCount > 0 ? "rgba(34,197,94,0.14)" : "rgba(99,102,241,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <ArrowUpRight size={20} color={recuperadosCount > 0 ? "#15803D" : "#6366F1"} />
-              </div>
-              <div>
-                <p style={{ font: `700 0.7rem/1 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>ROI del sistema este mes</p>
-                <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#1E1B4B", letterSpacing: "-0.03em" }}>
-                  {recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "alumno que volvió" : "alumnos que volvieron"} — ${fmt(recuperadosRevenue)} recuperados` : "Los mensajes automáticos están activos"}
-                </p>
-              </div>
+        <div style={{ ...cardBase, padding: "20px 22px", background: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "1px solid rgba(99,102,241,0.18)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+            <div>
+              <p style={{ font: `700 0.7rem/1 ${fb}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Lo que FitGrowX hizo por vos este mes</p>
+              <p style={{ font: `500 0.74rem/1.4 ${fb}`, color: "#818CF8" }}>El sistema trabajó por vos mientras te ocupabas del gym.</p>
             </div>
-            <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: recuperadosCount > 0 ? "#166534" : "#4338CA", maxWidth: 340 }}>
-              {recuperadosCount > 0 ? "Socios antiguos que no renovaron el mes pasado y este mes volvieron a pagar. El sistema los recordó." : "Cuando algún socio vuelva a pagar este mes después de haberse ido, lo vas a ver acá."}
-            </p>
+            <div style={{ width: 40, height: 40, borderRadius: 14, background: "rgba(99,102,241,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Zap size={18} />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div style={{ padding: "14px 14px", borderRadius: 16, background: "rgba(99,102,241,0.08)" }}>
+              <p style={{ font: `800 1.6rem/1 ${fd}`, color: "#4338CA", marginBottom: 6, letterSpacing: "-0.04em" }}>{mensajesAutoEnviados}</p>
+              <p style={{ font: `600 0.72rem/1.35 ${fd}`, color: "#4338CA", marginBottom: 2 }}>Mensajes enviados</p>
+              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: "#818CF8" }}>recordatorios, bienvenidas y alertas automáticas</p>
+            </div>
+            <div style={{ padding: "14px 14px", borderRadius: 16, background: "rgba(16,185,129,0.09)" }}>
+              <p style={{ font: `800 1.6rem/1 ${fd}`, color: "#047857", marginBottom: 6, letterSpacing: "-0.04em" }}>{renovacionesCount}</p>
+              <p style={{ font: `600 0.72rem/1.35 ${fd}`, color: "#047857", marginBottom: 2 }}>Renovaciones</p>
+              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: "#059669" }}>socios que pagaron su membresía este mes</p>
+            </div>
+            <div style={{ padding: "14px 14px", borderRadius: 16, background: recuperadosCount > 0 ? "rgba(34,197,94,0.10)" : "rgba(99,102,241,0.05)", border: recuperadosCount > 0 ? "1.5px solid rgba(34,197,94,0.22)" : "none" }}>
+              <p style={{ font: `800 1.6rem/1 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#A5B4FC", marginBottom: 6, letterSpacing: "-0.04em" }}>
+                {recuperadosCount > 0 ? fmt(recuperadosRevenue) : "—"}
+              </p>
+              <p style={{ font: `600 0.72rem/1.35 ${fd}`, color: recuperadosCount > 0 ? "#14532D" : "#A5B4FC", marginBottom: 2 }}>Recuperados</p>
+              <p style={{ font: `400 0.66rem/1.4 ${fb}`, color: recuperadosCount > 0 ? "#15803D" : "#C7D2FE" }}>
+                {recuperadosCount > 0 ? `${recuperadosCount} ${recuperadosCount === 1 ? "socio que volvió" : "socios que volvieron"} a pagar` : "aún no hay socios recuperados"}
+              </p>
+            </div>
           </div>
         </div>
       )}
