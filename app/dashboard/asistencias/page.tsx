@@ -23,6 +23,8 @@ const card: React.CSSProperties = {
 interface Presente {
   alumno_id: string;
   hora: string;
+  clase_id: string | null;
+  gym_classes: { class_name: string } | null;
   alumnos: { full_name: string; planes: { nombre: string; accent_color: string | null } | null } | null;
 }
 
@@ -136,7 +138,7 @@ export default function AsistenciasPage() {
       fetch(`/api/admin/asistencias-stats?gym_id=${profile.gymId}`),
       supabase
         .from("asistencias")
-        .select("alumno_id, hora, alumnos!alumno_id(full_name, planes!plan_id(nombre, accent_color))")
+        .select("alumno_id, hora, clase_id, gym_classes!clase_id(class_name), alumnos!alumno_id(full_name, planes!plan_id(nombre, accent_color))")
         .eq("gym_id", profile.gymId)
         .eq("fecha", today)
         .order("hora", { ascending: false }),
@@ -230,6 +232,8 @@ export default function AsistenciasPage() {
     const optimistic: Presente = {
       alumno_id: ausente.id,
       hora,
+      clase_id: null,
+      gym_classes: null,
       alumnos: { full_name: ausente.full_name, planes: ausente.planes as { nombre: string; accent_color: string | null } | null },
     };
     setCheckingIn(prev => new Set(prev).add(ausente.id));
@@ -509,75 +513,6 @@ export default function AsistenciasPage() {
         )}
       </div>
 
-      {/* Charts row */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.6fr 1fr", gap: 16 }}>
-
-        {/* Daily bar chart */}
-        <div id="asistencias-diaria" style={{ ...card, padding: "20px 22px", scrollMarginTop: 110 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Asistencia diaria</span>
-            <span style={{ font: `500 0.65rem/1 ${fb}`, color: t3, background: "#F1F2F6", borderRadius: 9999, padding: "3px 9px" }}>Últimos 14 días</span>
-          </div>
-          {loading ? (
-            <div style={{ height: 90, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <p style={{ color: t3, font: `400 0.8rem/1 ${fb}` }}>Cargando...</p>
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, minWidth: dailyBars.length * 26, height: 90, paddingBottom: 24, position: "relative" }}>
-                {dailyBars.map(d => {
-                  const h = maxBar > 0 ? Math.max((d.count / maxBar) * 66, d.count > 0 ? 4 : 0) : 0;
-                  const isToday = d.fecha === today;
-                  return (
-                    <div key={d.fecha} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, flex: 1, minWidth: 20 }}>
-                      {d.count > 0 && (
-                        <span style={{ font: `700 0.55rem/1 ${fd}`, color: isToday ? "#FF6A00" : t3 }}>{d.count}</span>
-                      )}
-                      <div style={{ width: "100%", height: h || 2, background: isToday ? "#FF6A00" : d.count > 0 ? "#1A1D23" : "#F1F2F6", borderRadius: "3px 3px 0 0", transition: "height 0.3s ease" }} />
-                      <span style={{ font: `400 0.5rem/1 ${fb}`, color: isToday ? "#FF6A00" : t3, position: "absolute", bottom: 0 }}>
-                        {new Date(d.fecha + "T12:00:00").getDate()}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Peak hours chart */}
-        <div id="asistencias-pico" style={{ ...card, padding: "20px 22px", scrollMarginTop: 110 }}>
-          <div style={{ marginBottom: 14 }}>
-            <span style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Horario pico</span>
-            {!loading && maxHour >= 0 && hourlyCounts[peakHour] > 0 && (
-              <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3, marginTop: 3 }}>
-                Más concurrido: <strong style={{ color: t1 }}>{peakHour}:00 – {peakHour + 1}:00h</strong>
-              </p>
-            )}
-          </div>
-          {loading ? (
-            <p style={{ color: t3, font: `400 0.8rem/1 ${fb}` }}>Cargando...</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {[6,7,8,9,10,17,18,19,20,21,22].map(h => {
-                const count = hourlyCounts[h] ?? 0;
-                const pct = maxHour > 0 ? (count / maxHour) * 100 : 0;
-                const isPeak = h === peakHour && count > 0;
-                return (
-                  <div key={h} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ font: `500 0.62rem/1 ${fb}`, color: t3, width: 30, textAlign: "right", flexShrink: 0 }}>{h}h</span>
-                    <div style={{ flex: 1, height: 6, background: "#F1F2F6", borderRadius: 9999, overflow: "hidden" }}>
-                      <div style={{ width: `${pct}%`, height: "100%", background: isPeak ? "#FF6A00" : "#1A1D23", borderRadius: 9999, transition: "width 0.4s ease" }} />
-                    </div>
-                    <span style={{ font: `600 0.62rem/1 ${fd}`, color: isPeak ? "#FF6A00" : t2, width: 18, flexShrink: 0 }}>{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Presentes / Ausentes tabs */}
       <div id="asistencias-listado" style={{ ...card, overflow: "hidden", scrollMarginTop: 110 }}>
         <div style={{ display: "flex", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
@@ -646,6 +581,8 @@ export default function AsistenciasPage() {
                 {presentes.map((p, i) => {
                   const name = p.alumnos?.full_name ?? "—";
                   const plan = (p.alumnos?.planes as { nombre?: string } | null)?.nombre ?? null;
+                  const claseLabel = (p.gym_classes as { class_name?: string } | null)?.class_name ?? "Entrada al gym";
+                  const isClase = Boolean(p.clase_id);
                   return (
                     <div key={p.alumno_id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: i < presentes.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
                       <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1A1D23", color: "white", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, flexShrink: 0 }}>{initials(name)}</div>
@@ -653,7 +590,10 @@ export default function AsistenciasPage() {
                         <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
                         {plan && <p style={{ font: `400 0.68rem/1 ${fb}`, color: t3, marginTop: 2 }}>{plan}</p>}
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 9999, padding: "4px 10px" }}>
+                      <span style={{ font: `500 0.68rem/1 ${fb}`, color: isClase ? "#6366F1" : t3, background: isClase ? "rgba(99,102,241,0.08)" : "#F1F2F6", border: `1px solid ${isClase ? "rgba(99,102,241,0.2)" : "transparent"}`, borderRadius: 9999, padding: "3px 9px", flexShrink: 0, maxWidth: isMobile ? 90 : 140, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {claseLabel}
+                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", borderRadius: 9999, padding: "4px 10px", flexShrink: 0 }}>
                         <Clock size={11} color="#34D399" />
                         <span style={{ font: `600 0.7rem/1 ${fd}`, color: "#34D399" }}>{fmt2(p.hora)}</span>
                       </div>
