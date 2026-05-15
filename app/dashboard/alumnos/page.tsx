@@ -446,7 +446,7 @@ export default function AlumnosPage() {
   // ── Eliminar Alumno ───────────────────────────────────────────────
   const handleEliminar = async (id: string, name: string) => {
     if (!confirm(`¿Eliminar a ${name}? Podrás recuperarlo contactando a soporte.`)) return;
-    const { error } = await supabase.from("alumnos").update({ deleted_at: new Date().toISOString(), status: "inactivo" as Status }).eq("id", id);
+    const { error } = await supabase.from("alumnos").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     if (error) {
       setToast(`Error al eliminar: ${error.message}`);
       return;
