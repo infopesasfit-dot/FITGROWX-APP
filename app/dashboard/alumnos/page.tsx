@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useDeferredValue } from "react";
 import { createPortal } from "react-dom";
-import { Search, Plus, Users, UserCheck, UserX, TrendingUp, DollarSign, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet, History } from "lucide-react";
+import { Search, Plus, Users, TrendingUp, DollarSign, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet, History } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache, invalidateDashboardCache } from "@/lib/gym-cache";
@@ -772,15 +772,6 @@ export default function AlumnosPage() {
      (a.dni ?? "").toLowerCase().includes(q)) &&
     (filtro === "todos" || a.status === filtro)
   ));
-
-  let activos = 0;
-  let vencidos = 0;
-  let pendientes = 0;
-  for (const alumno of alumnos) {
-    if (alumno.status === "activo") activos += 1;
-    else if (alumno.status === "vencido") vencidos += 1;
-    else if (alumno.status === "pendiente") pendientes += 1;
-  }
 
   const menuTarget = menuOpenId ? alumnos.find(a => a.id === menuOpenId) ?? null : null;
   const portalRoot = typeof document !== "undefined" ? document.body : null;

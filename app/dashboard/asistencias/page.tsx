@@ -35,8 +35,6 @@ interface Ausente {
   planes: { nombre: string; accent_color: string | null } | null;
 }
 
-interface DayBar { fecha: string; count: number; }
-
 interface TodayClass {
   id: string;
   class_name: string;
@@ -67,8 +65,6 @@ export default function AsistenciasPage() {
   const [todayCount, setTodayCount] = useState(0);
   const [totalMonth, setTotalMonth] = useState(0);
   const [weeklyAvg, setWeeklyAvg] = useState(0);
-  const [dailyBars, setDailyBars] = useState<DayBar[]>([]);
-  const [hourlyCounts, setHourlyCounts] = useState<number[]>(Array(24).fill(0));
   const [tab, setTab] = useState<"presentes" | "ausentes">("presentes");
   const [todayClasses, setTodayClasses] = useState<TodayClass[]>([]);
   const [clasesPrueba, setClasesPrueba] = useState<ClasePrueba[]>([]);
@@ -96,16 +92,12 @@ export default function AsistenciasPage() {
     todayCount: number;
     totalMonth: number;
     weeklyAvg: number;
-    dailyBars: DayBar[];
-    hourlyCounts: number[];
     presentes: Presente[];
     todayClasses: TodayClass[];
   }) => {
     setTodayCount(snapshot.todayCount);
     setTotalMonth(snapshot.totalMonth);
     setWeeklyAvg(snapshot.weeklyAvg);
-    setDailyBars(snapshot.dailyBars);
-    setHourlyCounts(snapshot.hourlyCounts);
     setPresentes(snapshot.presentes);
     setTodayClasses(snapshot.todayClasses);
   }, []);
@@ -123,8 +115,6 @@ export default function AsistenciasPage() {
       todayCount: number;
       totalMonth: number;
       weeklyAvg: number;
-      dailyBars: DayBar[];
-      hourlyCounts: number[];
       presentes: Presente[];
       todayClasses: TodayClass[];
     }>(cacheKey);
@@ -162,16 +152,12 @@ export default function AsistenciasPage() {
           todayCount?: number;
           totalMonth?: number;
           weeklyAvg?: number;
-          dailyCounts?: DayBar[];
-          hourlyCounts?: number[];
         }
       : null;
     if (stats) {
       setTodayCount(stats.todayCount ?? 0);
       setTotalMonth(stats.totalMonth ?? 0);
       setWeeklyAvg(stats.weeklyAvg ?? 0);
-      setDailyBars((stats.dailyCounts ?? []).slice(-14));
-      setHourlyCounts(stats.hourlyCounts ?? Array(24).fill(0));
     }
 
     const rawClases = (clasesRes.data ?? []) as unknown as Array<{
@@ -195,8 +181,6 @@ export default function AsistenciasPage() {
       todayCount: stats?.todayCount ?? 0,
       totalMonth: stats?.totalMonth ?? 0,
       weeklyAvg: stats?.weeklyAvg ?? 0,
-      dailyBars: (stats?.dailyCounts ?? []).slice(-14),
-      hourlyCounts: stats?.hourlyCounts ?? Array(24).fill(0),
       presentes: presenteRows,
       todayClasses: nextTodayClasses,
     });
@@ -342,9 +326,7 @@ export default function AsistenciasPage() {
     scrollToSection(targetId);
   };
 
-  const maxBar = Math.max(...dailyBars.map(d => d.count), 1);
-  const maxHour = Math.max(...hourlyCounts, 1);
-  const peakHour = hourlyCounts.indexOf(Math.max(...hourlyCounts));
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>

@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
-  Home, Users, CreditCard, Wallet, TrendingDown, Settings, LogOut,
+  Home, Users, Wallet, TrendingDown, Settings, LogOut,
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
