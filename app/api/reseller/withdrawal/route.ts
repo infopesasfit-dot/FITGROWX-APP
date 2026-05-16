@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { MIN_WITHDRAWAL } from "@/lib/constants";
 
 const sb = getSupabaseAdminClient();
-const MIN_WITHDRAWAL = 50000;
 
 export async function POST() {
   const supabase = await createSupabaseServerClient();

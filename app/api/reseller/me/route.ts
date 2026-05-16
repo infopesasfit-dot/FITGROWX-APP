@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
+import { MIN_WITHDRAWAL } from "@/lib/constants";
 
 const sb = getSupabaseAdminClient();
 
@@ -32,7 +34,7 @@ export async function GET() {
   const [{ data: gyms }, { data: commissions }, { data: withdrawals }] = await Promise.all([
     sb
       .from("gyms")
-      .select("id, gym_name, owner_name, is_subscription_active, gym_status, subscription_expires_at, created_at")
+      .select("id, gym_name, owner_name, is_subscription_active, gym_status, subscription_expires_at, plan_type, created_at")
       .eq("reseller_id", reseller.id)
       .order("created_at", { ascending: false }),
     sb
@@ -62,9 +64,12 @@ export async function GET() {
   const paidAmt     = commList.filter(c => c.status === "paid").reduce((s, c) => s + (c.commission_amount ?? 0), 0);
 
   // Next estimated commission: earliest active gym renewal
+  const planPriceMap = Object.fromEntries(FITGROWX_PLANS.map(p => [p.key, p.priceMonthly]));
+  const gymPrice = (planType: string | null) => planPriceMap[planType ?? "crecimiento"] ?? planPriceMap["crecimiento"] ?? 65_000;
+
   const nextRenewal = gymList
     .filter(g => g.is_subscription_active && g.subscription_expires_at)
-    .map(g => ({ name: g.gym_name, date: g.subscription_expires_at! }))
+    .map(g => ({ name: g.gym_name, date: g.subscription_expires_at!, plan_type: g.plan_type as string | null }))
     .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
 
   // Tier progress
@@ -77,8 +82,12 @@ export async function GET() {
     ? Math.round(((activeGyms - currentTier.minGyms) / (nextTier.minGyms - currentTier.minGyms)) * 100)
     : 100;
 
-  // Annual projection at current rate
-  const annualProjection = Math.round(activeGyms * 65000 * (reseller.commission_pct / 100) * 12);
+  // Annual projection — uses each gym's actual plan price
+  const annualProjection = Math.round(
+    gymList
+      .filter(g => g.is_subscription_active)
+      .reduce((sum, g) => sum + gymPrice(g.plan_type as string | null) * (reseller.commission_pct / 100) * 12, 0)
+  );
 
   // Pending withdrawal already requested?
   const hasPendingWithdrawal = withList.some(w => w.status === "pending" || w.status === "processing");
@@ -106,6 +115,6 @@ export async function GET() {
       progress:    tierProgress,
     },
     hasPendingWithdrawal,
-    minWithdrawal: 50000,
+    minWithdrawal: MIN_WITHDRAWAL,
   });
 }

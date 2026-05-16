@@ -239,8 +239,6 @@ export async function GET(req: NextRequest) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const captacion5 = monthKeys.map((key) => captMap[key] || 0);
-  const ingresos5 = monthKeys.map((key) => pagoRows.filter((r) => r.date?.startsWith(key)).reduce((s, r) => s + r.amount, 0));
-  const gastos5   = monthKeys.map((key) => egresoRows.filter((r) => r.fecha?.startsWith(key)).reduce((s, r) => s + (r.monto ?? 0), 0));
 
   const planMap: Record<string, number> = {};
   activosPlanRows.forEach(row => {
@@ -252,6 +250,9 @@ export async function GET(req: NextRequest) {
   const prospectRows = (prospectosRows ?? []) as ProspectoRow[];
   const pagoRows = ((pagosMetricRows ?? []) as PagoMetricRow[]).filter((row) => row.status === "validado");
   const egresoRows = (egresosMetricRows ?? []) as EgresoMetricRow[];
+
+  const ingresos5 = monthKeys.map((key) => pagoRows.filter((r) => r.date?.startsWith(key)).reduce((s, r) => s + r.amount, 0));
+  const gastos5   = monthKeys.map((key) => egresoRows.filter((r) => r.fecha?.startsWith(key)).reduce((s, r) => s + (r.monto ?? 0), 0));
   const reservaRows = ((reservasMetricRows ?? []) as ReservaMetricRow[]).filter((row) => row.estado === "confirmada");
   const allAsistencias = (allAsistRows ?? []) as AsistenciaMetricRow[];
   const monthlyAsistenciaRows = allAsistencias.filter(r => r.fecha >= thisMonthFrom);

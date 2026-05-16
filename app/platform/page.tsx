@@ -265,6 +265,13 @@ export default function PlatformPage() {
   const [tplTesting, setTplTesting] = useState<Record<string, "idle" | "sending" | "ok" | "error">>({});
   const tplSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
+  type OverviewData = {
+    sistema: { erroresH1: number; waDesconectados: number };
+    negocio: { mrrMes: number; gymsActivos: number; conversionesMes: number };
+    atencion: { trialsRisk: number; trialsRiskList: { id: string; company_name: string; trial_ends_at: string }[]; inactivos7d: number; prospectosSinSeg: number; feedbackReciente7d: number };
+  };
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+
   const platWaProxy = async (action: string, extra?: Record<string, string>) => {
     return fetch("/api/wa/proxy", {
       method: "POST",
@@ -448,6 +455,17 @@ export default function PlatformPage() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchOverview = async () => {
+      const r = await fetch("/api/platform/overview").catch(() => null);
+      if (r?.ok && mounted) setOverview(await r.json());
+    };
+    fetchOverview();
+    const t = setInterval(fetchOverview, 60_000);
+    return () => { mounted = false; clearInterval(t); };
   }, []);
 
   useEffect(() => {
@@ -753,6 +771,62 @@ export default function PlatformPage() {
           ))}
         </div>
       </section>
+
+      {/* ── Overview strip ── */}
+      {overview && (() => {
+        const { sistema, negocio, atencion } = overview;
+        const sysAlert = sistema.erroresH1 > 0 || sistema.waDesconectados > 0;
+        const fmt = (n: number) => n >= 1_000_000 ? `$${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n/1_000).toFixed(0)}k` : `$${n}`;
+        const alertItems = [
+          atencion.trialsRisk > 0     && { label: `${atencion.trialsRisk} trial${atencion.trialsRisk > 1 ? "s" : ""} en riesgo`, color: "#DC2626", bg: "rgba(220,38,38,0.08)", href: "/platform/pulso" },
+          atencion.inactivos7d > 0    && { label: `${atencion.inactivos7d} inactivo${atencion.inactivos7d > 1 ? "s" : ""} 7d+`, color: "#D97706", bg: "rgba(217,119,6,0.08)", href: "/platform/pulso" },
+          atencion.prospectosSinSeg > 0 && { label: `${atencion.prospectosSinSeg} prosp. sin seguimiento`, color: "#7C3AED", bg: "rgba(124,58,237,0.08)", href: "/platform" },
+          atencion.feedbackReciente7d > 0 && { label: `${atencion.feedbackReciente7d} feedback esta semana`, color: "#0284C7", bg: "rgba(2,132,199,0.08)", href: "/platform" },
+        ].filter(Boolean) as { label: string; color: string; bg: string; href: string }[];
+
+        return (
+          <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 12, alignItems: "center", marginBottom: 20, padding: "14px 20px", borderRadius: 18, background: sysAlert ? "rgba(220,38,38,0.04)" : "rgba(248,250,252,0.9)", border: `1px solid ${sysAlert ? "rgba(220,38,38,0.14)" : "rgba(15,23,42,0.07)"}` }}>
+            {/* Sistema */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: sysAlert ? "#DC2626" : "#16A34A", flexShrink: 0, boxShadow: sysAlert ? "0 0 6px rgba(220,38,38,0.5)" : "none" }} />
+              <span style={{ font: `600 0.72rem/1 ${fd}`, color: sysAlert ? "#DC2626" : "#15803D", whiteSpace: "nowrap" }}>
+                {sysAlert
+                  ? [sistema.erroresH1 > 0 && `${sistema.erroresH1} err/h`, sistema.waDesconectados > 0 && `${sistema.waDesconectados} WA off`].filter(Boolean).join(" · ")
+                  : "Sistema OK"}
+              </span>
+              {sysAlert && (
+                <a href="/platform/radar" style={{ font: `500 0.68rem/1 ${fd}`, color: "#6B7280", textDecoration: "none", padding: "2px 8px", borderRadius: 6, background: "rgba(0,0,0,0.04)" }}>ver →</a>
+              )}
+            </div>
+
+            {/* Negocio */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
+              {[
+                { label: "MRR mes", value: fmt(negocio.mrrMes), sub: null },
+                { label: "Activos", value: String(negocio.gymsActivos), sub: null },
+                { label: "Conv. mes", value: String(negocio.conversionesMes), sub: null },
+              ].map((item) => (
+                <div key={item.label} style={{ textAlign: "center" }}>
+                  <p style={{ font: `700 1.1rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.03em" }}>{item.value}</p>
+                  <p style={{ font: `500 0.6rem/1 ${fd}`, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 3 }}>{item.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Atención */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {alertItems.length === 0
+                ? <span style={{ font: `500 0.7rem/1 ${fd}`, color: "#9CA3AF" }}>Sin alertas</span>
+                : alertItems.map((a, i) => (
+                    <a key={i} href={a.href} style={{ textDecoration: "none", font: `600 0.68rem/1 ${fd}`, color: a.color, background: a.bg, padding: "4px 10px", borderRadius: 9999, whiteSpace: "nowrap" }}>
+                      {a.label}
+                    </a>
+                  ))
+              }
+            </div>
+          </div>
+        );
+      })()}
 
       {loading && (
         <div style={{ ...shellCard, padding: 28 }}>

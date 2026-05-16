@@ -1,3 +1,5 @@
+export const MIN_WITHDRAWAL = 50_000; // ARS — mínimo para solicitar retiro (sincronizado con withdrawal/route.ts)
+
 // Realistic mock expenses — used as fallback in egresos/page.tsx until real DB data exists
 export const MOCK_GASTOS_TOTAL = 1_820_000; // ARS acumulado del mes
 

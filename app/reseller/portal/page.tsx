@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 const fd = "'Inter', system-ui, sans-serif";
 
 function fmt(n: number) { return n.toLocaleString("es-AR", { maximumFractionDigits: 0 }); }
 function fmtDate(iso: string) { return new Date(iso).toLocaleDateString("es-AR", { day: "numeric", month: "long" }); }
 
-interface Gym { id: string; gym_name: string; owner_name: string | null; is_subscription_active: boolean; gym_status: string; subscription_expires_at: string | null; created_at: string; }
+interface Gym { id: string; gym_name: string; owner_name: string | null; is_subscription_active: boolean; gym_status: string; subscription_expires_at: string | null; plan_type: string | null; created_at: string; }
 interface Commission { id: string; gym_id: string; commission_amount: number; payment_type: string; period_month: string; status: string; created_at: string; }
 interface Withdrawal { id: string; amount: number; status: string; requested_at: string; paid_at: string | null; }
 
@@ -20,7 +21,7 @@ interface PortalData {
   stats: {
     totalGyms: number; activeGyms: number; thisMonthAmt: number; lastMonthAmt: number;
     pctChange: number | null; pendingAmt: number; paidAmt: number; annualProjection: number;
-    nextRenewal: { name: string; date: string } | null;
+    nextRenewal: { name: string; date: string; plan_type: string | null } | null;
   };
   tier: { current: { key: string; label: string; pct: number }; next: { key: string; label: string; minGyms: number; pct: number } | null; gymsToNext: number; progress: number };
   hasPendingWithdrawal: boolean;
@@ -104,6 +105,9 @@ export default function ResellerPortal() {
 
   const { reseller, gyms, commissions, withdrawals, stats, tier, hasPendingWithdrawal, minWithdrawal } = data;
   const refLink = `${appUrl}/start?reseller=${reseller.slug}`;
+  const planPrices = Object.fromEntries(FITGROWX_PLANS.map(p => [p.key, p.priceMonthly]));
+  const gymCommission = (planType: string | null) =>
+    Math.round((planPrices[planType ?? "crecimiento"] ?? planPrices["crecimiento"] ?? 65_000) * reseller.commission_pct / 100);
   const hasFiscalData = !!reseller.cuit && reseller.fiscal_condition !== "pendiente";
   const canWithdraw = stats.pendingAmt >= minWithdrawal && !hasPendingWithdrawal && hasFiscalData;
 
@@ -214,7 +218,7 @@ export default function ResellerPortal() {
               <div style={{ height: "100%", width: `${tier.progress}%`, borderRadius: 99, background: "linear-gradient(90deg, #F97316, #EA580C)", transition: "width 0.6s ease" }} />
             </div>
             <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", marginTop: 8 }}>
-              Con {tier.next.minGyms} gyms activos, tu comisión sube de {tier.current.pct}% a {tier.next.pct}% — +${fmt(Math.round((tier.next.pct - tier.current.pct) / 100 * tier.next.minGyms * 65000))}/mes extra
+              Con {tier.next.minGyms} gyms activos, tu comisión sube de {tier.current.pct}% a {tier.next.pct}% — +${fmt(Math.round((tier.next.pct - tier.current.pct) / 100 * tier.next.minGyms * (planPrices["crecimiento"] ?? 65_000)))}/mes extra
             </p>
           </div>
         )}
@@ -265,7 +269,7 @@ export default function ResellerPortal() {
                   <p style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{stats.nextRenewal.name} renueva su plan</p>
                 </div>
                 <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#F97316", marginLeft: "auto", flexShrink: 0 }}>
-                  +${fmt(Math.round(65000 * reseller.commission_pct / 100))}
+                  +${fmt(gymCommission(stats.nextRenewal?.plan_type ?? null))}
                 </p>
               </div>
             )}
@@ -413,7 +417,7 @@ export default function ResellerPortal() {
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <p style={{ font: `600 0.78rem/1 ${fd}`, color: g.is_subscription_active ? "#34D399" : "rgba(255,255,255,0.2)" }}>
-                    {g.is_subscription_active ? `+$${fmt(Math.round(65000 * reseller.commission_pct / 100))}/mes` : "—"}
+                    {g.is_subscription_active ? `+$${fmt(gymCommission(g.plan_type))}/mes` : "—"}
                   </p>
                   <p style={{ font: `500 0.6rem/1 ${fd}`, color: g.is_subscription_active ? "rgba(52,211,153,0.5)" : "rgba(255,255,255,0.15)", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     {g.is_subscription_active ? "Activo" : g.gym_status === "trial" ? "Trial" : "Inactivo"}

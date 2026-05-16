@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 
 const ORANGE = "#F97316";
 const FM = "'JetBrains Mono', 'Fira Mono', monospace";
@@ -19,6 +20,8 @@ function calcTier(gyms: number) {
 }
 
 function fmtARS(n: number) { return n.toLocaleString("es-AR", { maximumFractionDigits: 0 }); }
+
+const PRO_PRICE = FITGROWX_PLANS.find(p => p.key === "crecimiento")?.priceMonthly ?? 65_000;
 
 /* ── Count-up hook ── */
 function useCountUp(target: number, duration = 1400) {
@@ -81,7 +84,7 @@ export default function ResellerLanding() {
   const formRef = useRef<HTMLDivElement>(null);
 
   const tier           = calcTier(gyms);
-  const monthly        = Math.round(gyms * 65000 * tier.pct / 100);
+  const monthly        = Math.round(gyms * PRO_PRICE * tier.pct / 100);
   const annual         = monthly * 12;
   const nextTier       = TIERS.find(t => t.minGyms > gyms);
   const gymsToNextTier = nextTier ? nextTier.minGyms - gyms : 0;
@@ -272,7 +275,7 @@ export default function ResellerLanding() {
               </div>
               {nextTier && (
                 <span style={{ font: `600 0.68rem/1 ${FS}`, color: "#34D399", background: "rgba(52,211,153,0.08)", padding: "5px 11px", borderRadius: 9999, whiteSpace: "nowrap" }}>
-                  +${fmtARS(Math.round(gyms * 65000 * (nextTier.pct - tier.pct) / 100))}/mes en {nextTier.label}
+                  +${fmtARS(Math.round(gyms * PRO_PRICE * (nextTier.pct - tier.pct) / 100))}/mes en {nextTier.label}
                 </span>
               )}
             </div>
@@ -304,7 +307,7 @@ export default function ResellerLanding() {
               </p>
               <div style={{ padding: "9px 0", background: `${t.color}0d`, borderRadius: 10 }}>
                 <p style={{ font: `500 0.7rem/1 ${FS}`, color: t.color, letterSpacing: "-0.01em" }}>
-                  ${fmtARS(Math.round(t.minGyms * 65000 * t.pct / 100))}/mes con {t.minGyms} gym{t.minGyms !== 1 ? "s" : ""}
+                  ${fmtARS(Math.round(t.minGyms * PRO_PRICE * t.pct / 100))}/mes con {t.minGyms} gym{t.minGyms !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>

@@ -254,6 +254,7 @@ export default function DashboardPage() {
   const [ownerPhoneMissing, setOwnerPhoneMissing] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [sugerOpen, setSugerOpen] = useState(false);
   const realSnapshotRef = useRef<DashboardSnapshot | null>(null);
 
   const applySnapshot = useCallback((snapshot: DashboardSnapshot) => {
@@ -667,7 +668,10 @@ export default function DashboardPage() {
       <div key={metric.key} style={{ padding: isMobile ? "14px 12px" : "18px 20px", display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
         {showStep && <span style={{ font: `500 0.62rem/1 ${fm}`, color: t3, letterSpacing: "0.06em" }}>0{idx + 1}</span>}
         <div>
-          <p style={{ font: `600 0.64rem/1 ${fm}`, color: t3, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>{metric.label}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <p style={{ font: `600 0.64rem/1 ${fm}`, color: t3, textTransform: "uppercase", letterSpacing: "0.12em" }}>{metric.label}</p>
+            {metric.tooltip && renderMetricInfo(metric)}
+          </div>
           <p style={{ font: `700 ${isMobile ? "1.4rem" : "1.75rem"}/0.94 ${fd}`, color: t1, letterSpacing: "-0.04em" }}>{formatMetricValue(metric)}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto" }}>
@@ -966,28 +970,22 @@ export default function DashboardPage() {
           <p style={{ font: `600 0.62rem/1 ${fm}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
           <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, marginBottom: 2 }}>Lo que FitGrowX hizo por vos</p>
           <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t3, marginBottom: 12 }}>El sistema trabajó mientras te ocupabas del gym.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
-            <div style={{ padding: "10px 10px", borderRadius: 10, background: "rgba(111,99,232,0.06)", border: "1px solid rgba(111,99,232,0.10)" }}>
-              <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6 }}><Send size={12} /></div>
-              <p style={{ font: `700 1.2rem/1 ${fd}`, color: "#4338CA", marginBottom: 3, letterSpacing: "-0.03em" }}>{mensajesAutoEnviados}</p>
-              <p style={{ font: `500 0.58rem/1.3 ${fm}`, color: "#6366F1", letterSpacing: "0.04em" }}>MENSAJES</p>
-            </div>
-            <div style={{ padding: "10px 10px", borderRadius: 10, background: "rgba(111,99,232,0.06)", border: "1px solid rgba(111,99,232,0.10)" }}>
-              <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6 }}><CheckCircle size={12} /></div>
-              <p style={{ font: `700 1.2rem/1 ${fd}`, color: "#4338CA", marginBottom: 3, letterSpacing: "-0.03em" }}>{renovacionesCount}</p>
-              <p style={{ font: `500 0.58rem/1.3 ${fm}`, color: "#6366F1", letterSpacing: "0.04em" }}>RENOVAC.</p>
-            </div>
-            <div style={{ padding: "10px 10px", borderRadius: 10, background: "rgba(111,99,232,0.06)", border: "1px solid rgba(111,99,232,0.10)" }}>
-              <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6 }}><RefreshCw size={12} /></div>
-              <p style={{ font: `700 1.2rem/1 ${fd}`, color: "#4338CA", marginBottom: 3, letterSpacing: "-0.03em" }}>{recuperadosCount}</p>
-              <p style={{ font: `500 0.58rem/1.3 ${fm}`, color: "#6366F1", letterSpacing: "0.04em", marginBottom: 2 }}>RECUP.</p>
-              {recuperadosRevenue > 0 && <p style={{ font: `500 0.56rem/1 ${fb}`, color: "#15803D" }}>{fmt(recuperadosRevenue)}</p>}
-            </div>
-            <div style={{ padding: "10px 10px", borderRadius: 10, background: "rgba(111,99,232,0.06)", border: "1px solid rgba(111,99,232,0.10)" }}>
-              <div style={{ width: 24, height: 24, borderRadius: 7, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6 }}><Clock size={12} /></div>
-              <p style={{ font: `700 1.2rem/1 ${fd}`, color: "#4338CA", marginBottom: 3, letterSpacing: "-0.03em" }}>{Math.round(mensajesAutoEnviados / 6)} hs</p>
-              <p style={{ font: `500 0.58rem/1.3 ${fm}`, color: "#6366F1", letterSpacing: "0.04em" }}>AHORRADAS</p>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {[
+              { icon: <Send size={13} />, value: mensajesAutoEnviados, label: "MENSAJES" },
+              { icon: <CheckCircle size={13} />, value: renovacionesCount, label: "RENOVAC." },
+              { icon: <RefreshCw size={13} />, value: recuperadosCount, label: "RECUP.", sub: recuperadosRevenue > 0 ? fmt(recuperadosRevenue) : null },
+              { icon: <Clock size={13} />, value: `${Math.round(mensajesAutoEnviados / 6)} hs`, label: "AHORRADAS" },
+            ].map((item, i) => (
+              <div key={i} style={{ padding: "12px 12px", borderRadius: 10, background: "rgba(111,99,232,0.06)", border: "1px solid rgba(111,99,232,0.10)", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.icon}</div>
+                <div>
+                  <p style={{ font: `700 1.1rem/1 ${fd}`, color: "#4338CA", marginBottom: 2, letterSpacing: "-0.03em" }}>{item.value}</p>
+                  <p style={{ font: `500 0.57rem/1.3 ${fm}`, color: "#6366F1", letterSpacing: "0.04em" }}>{item.label}</p>
+                  {item.sub && <p style={{ font: `500 0.58rem/1 ${fb}`, color: "#15803D", marginTop: 2 }}>{item.sub}</p>}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -1156,6 +1154,47 @@ export default function DashboardPage() {
                 })}
               </div>
             </div>
+          </div>
+        );
+      })()}
+
+      {!loading && (() => {
+        const items: { iconBg: string; title: string; desc: string; href: string }[] = [];
+        if (!setup?.landing) items.push({ iconBg: "rgba(255,122,24,0.12)", title: "Subí tu landing page", desc: "Sin landing no podemos atraer leads.", href: "/dashboard/landing" });
+        if (!setup?.whatsapp) items.push({ iconBg: "rgba(34,197,94,0.12)", title: "Activá recordatorios automáticos", desc: "Reduce hasta 18% la mora.", href: "/dashboard/configuracion" });
+        if (morososCount > 0) items.push({ iconBg: "rgba(239,68,68,0.10)", title: `${morososCount} ${morososCount === 1 ? "socio con cuota impaga" : "socios con cuotas impagas"}`, desc: "Contactalos para reducir la deuda.", href: "/dashboard/alumnos" });
+        if (alerts.upcomingExpirations.length > 0 && items.length < 3) items.push({ iconBg: "rgba(99,102,241,0.12)", title: `${alerts.upcomingExpirations.length} socios vencen pronto`, desc: "Avisales antes para mejorar retención.", href: "/dashboard/alumnos" });
+        const hasAlerts = items.length > 0;
+        if (!hasAlerts) items.push({ iconBg: "rgba(34,197,94,0.12)", title: "Todo en orden", desc: "Sin alertas pendientes.", href: "/dashboard" });
+        const isOpen = sugerOpen || hasAlerts;
+        return (
+          <div style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
+            <button
+              onClick={() => setSugerOpen(v => !v)}
+              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#6366F1" }}>✦</span>
+                <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Sugerencias</p>
+                {hasAlerts && <span style={{ font: `700 0.6rem/1 ${fm}`, color: "#DC2626", background: "rgba(220,38,38,0.10)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9999, padding: "2px 7px" }}>{items.length}</span>}
+              </div>
+              <span style={{ font: `400 1rem/1 ${fd}`, color: t3, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>⌄</span>
+            </button>
+            {isOpen && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 1, borderTop: "1px solid rgba(15,17,21,0.07)" }}>
+                {items.slice(0, 3).map((s, i) => (
+                  <a key={i} href={s.href} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: i % 2 === 0 ? "#FAFAFA" : "#FFFFFF", textDecoration: "none" }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 9, background: s.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, color: t2 }}>›</span>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ font: `600 0.82rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{s.title}</p>
+                      <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: t3 }}>{s.desc}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         );
       })()}
