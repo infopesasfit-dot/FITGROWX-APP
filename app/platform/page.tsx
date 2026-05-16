@@ -84,6 +84,8 @@ type FeedbackRow = {
   email: string | null;
   message: string;
   created_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
 };
 
 type AccountStatus = "trial_setup" | "trial_active" | "trial_risk" | "converted" | "churned";
@@ -221,6 +223,8 @@ export default function PlatformPage() {
   const [vaultResources, setVaultResources] = useState<VaultResourceRow[]>([]);
   const [vaultCategories, setVaultCategories] = useState<VaultCategoryRow[]>([]);
   const [feedbackRows, setFeedbackRows] = useState<FeedbackRow[]>([]);
+  const [feedbackFilter, setFeedbackFilter] = useState<"pendientes" | "todos">("pendientes");
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [crmSearch, setCrmSearch] = useState("");
   const [crmFilter, setCrmFilter] = useState<"todos" | "leads" | "trial" | "riesgo" | "convertido" | "churn">("todos");
   const [updatingAccountId, setUpdatingAccountId] = useState<string | null>(null);
@@ -372,9 +376,9 @@ export default function PlatformPage() {
         .order("sort_order", { ascending: true }),
       supabase
         .from("platform_feedback")
-        .select("id, gym_id, gym_name, email, message, created_at")
+        .select("id, gym_id, gym_name, email, message, created_at, resolved_at, resolved_by")
         .order("created_at", { ascending: false })
-        .limit(50),
+        .limit(100),
       supabase
         .from("gym_settings")
         .select("gym_id, gym_name, onboarding_completed")
@@ -1633,97 +1637,93 @@ export default function PlatformPage() {
           )}
 
       {/* ── Feedback tab ── */}
-      {!loading && !error && authorized && activeTab === "feedback" && (
-        <>
-          {/* Stats bar */}
-          <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
-            {[
-              {
-                label: "Total mensajes",
-                value: feedbackRows.length,
-                color: "#2563EB",
-                bg: "rgba(37,99,235,0.08)",
-              },
-              {
-                label: "Últimos 7 días",
-                value: feedbackRows.filter(r => {
-                  const d = new Date(r.created_at);
-                  return Date.now() - d.getTime() < 7 * 24 * 60 * 60 * 1000;
-                }).length,
-                color: "#F97316",
-                bg: "rgba(249,115,22,0.08)",
-              },
-              {
-                label: "Gyms distintos",
-                value: new Set(feedbackRows.map(r => r.gym_id)).size,
-                color: "#16A34A",
-                bg: "rgba(22,163,74,0.08)",
-              },
-            ].map(stat => (
-              <div key={stat.label} style={{ ...shellCard, padding: "20px 22px" }}>
-                <p style={{ margin: "0 0 6px", font: `400 0.78rem/1 ${fb}`, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>{stat.label}</p>
-                <p style={{ margin: 0, font: `700 1.7rem/1 ${fd}`, color: stat.color }}>{stat.value}</p>
-              </div>
-            ))}
-          </section>
+      {!loading && !error && authorized && activeTab === "feedback" && (() => {
+        const pending  = feedbackRows.filter(r => !r.resolved_at);
+        const resolved = feedbackRows.filter(r => !!r.resolved_at);
+        const visible  = feedbackFilter === "pendientes" ? pending : feedbackRows;
 
-          {/* Count badge */}
-          <div style={{ marginBottom: 18, display: "flex", justifyContent: "flex-end" }}>
-            <span style={{ padding: "5px 12px", borderRadius: 999, background: "rgba(37,99,235,0.08)", font: `600 0.78rem/1 ${fd}`, color: "#2563EB" }}>
-              {feedbackRows.length} mensaje{feedbackRows.length !== 1 ? "s" : ""}
-            </span>
-          </div>
+        const handleResolve = async (id: string, currentlyResolved: boolean) => {
+          setResolvingId(id);
+          const r = await fetch("/api/platform/feedback", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, resolved: !currentlyResolved }) }).catch(() => null);
+          if (r?.ok) {
+            setFeedbackRows(prev => prev.map(row => row.id === id ? { ...row, resolved_at: !currentlyResolved ? new Date().toISOString() : null, resolved_by: null } : row));
+          }
+          setResolvingId(null);
+        };
 
-          {feedbackRows.length === 0 ? (
-            emptyState("Sin feedback todavía", "Cuando algún usuario envíe un mensaje desde el dashboard, va a aparecer acá.")
-          ) : (
-            <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {feedbackRows.map(row => {
-                const daysAgo = Math.floor((Date.now() - new Date(row.created_at).getTime()) / (1000 * 60 * 60 * 24));
-                const relTime = daysAgo === 0 ? "Hoy" : daysAgo === 1 ? "Ayer" : `Hace ${daysAgo} días`;
-                return (
-                  <article key={row.id} style={{ ...shellCard, padding: "0", overflow: "hidden", display: "flex" }}>
-                    {/* Left accent bar */}
-                    <div style={{ width: 4, flexShrink: 0, background: "linear-gradient(180deg, #2563EB 0%, #7C3AED 100%)" }} />
-                    <div style={{ flex: 1, padding: "18px 22px" }}>
-                      {/* Header row */}
-                      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                          {/* Gym pill */}
-                          <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(37,99,235,0.09)", font: `600 0.78rem/1 ${fd}`, color: "#2563EB", display: "flex", alignItems: "center", gap: 5 }}>
-                            <Building2 size={11} />
-                            {row.gym_name ?? row.gym_id}
-                          </span>
-                          {row.email && (
-                            <span style={{ font: `400 0.78rem/1 ${fb}`, color: "#9CA3AF" }}>{row.email}</span>
-                          )}
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                          <span style={{ font: `400 0.75rem/1 ${fb}`, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 4 }}>
-                            <Clock3 size={11} /> {relTime}
-                          </span>
-                          {row.email && (
-                            <a
-                              href={`mailto:${row.email}?subject=Re: tu feedback en FitGrowX`}
-                              style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: "#374151", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}
-                            >
-                              <Send size={10} /> Responder
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                      {/* Message body */}
-                      <p style={{ margin: 0, font: `400 0.9rem/1.7 ${fb}`, color: "#374151", whiteSpace: "pre-wrap" }}>
-                        {row.message}
-                      </p>
-                    </div>
-                  </article>
-                );
-              })}
+        return (
+          <>
+            {/* Stats bar */}
+            <section style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
+              {[
+                { label: "Sin responder", value: pending.length, color: "#DC2626", bg: "rgba(220,38,38,0.08)" },
+                { label: "Respondidos",   value: resolved.length, color: "#16A34A", bg: "rgba(22,163,74,0.08)" },
+                { label: "Gyms distintos",value: new Set(feedbackRows.map(r => r.gym_id)).size, color: "#2563EB", bg: "rgba(37,99,235,0.08)" },
+              ].map(stat => (
+                <div key={stat.label} style={{ ...shellCard, padding: "20px 22px" }}>
+                  <p style={{ margin: "0 0 6px", font: `400 0.78rem/1 ${fb}`, color: "#6B7280", letterSpacing: "0.04em", textTransform: "uppercase" }}>{stat.label}</p>
+                  <p style={{ margin: 0, font: `700 1.7rem/1 ${fd}`, color: stat.color }}>{stat.value}</p>
+                </div>
+              ))}
             </section>
-          )}
-        </>
-      )}
+
+            {/* Filter + count */}
+            <div style={{ marginBottom: 18, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(["pendientes", "todos"] as const).map(f => (
+                  <button key={f} onClick={() => setFeedbackFilter(f)} style={{ padding: "6px 14px", borderRadius: 9999, border: "1px solid rgba(15,23,42,0.1)", background: feedbackFilter === f ? "#111827" : "#fff", color: feedbackFilter === f ? "#fff" : "#6B7280", font: `600 0.75rem/1 ${fd}`, cursor: "pointer", textTransform: "capitalize" }}>
+                    {f === "pendientes" ? `Sin responder (${pending.length})` : `Todos (${feedbackRows.length})`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {visible.length === 0 ? (
+              emptyState("Todo respondido", "No hay mensajes pendientes. ¡Bien hecho!")
+            ) : (
+              <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {visible.map(row => {
+                  const daysAgo = Math.floor((Date.now() - new Date(row.created_at).getTime()) / (1000 * 60 * 60 * 24));
+                  const relTime = daysAgo === 0 ? "Hoy" : daysAgo === 1 ? "Ayer" : `Hace ${daysAgo} días`;
+                  const isResolved = !!row.resolved_at;
+                  return (
+                    <article key={row.id} style={{ ...shellCard, padding: "0", overflow: "hidden", display: "flex", opacity: isResolved ? 0.55 : 1, transition: "opacity 0.2s" }}>
+                      <div style={{ width: 4, flexShrink: 0, background: isResolved ? "#D1D5DB" : "linear-gradient(180deg, #2563EB 0%, #7C3AED 100%)" }} />
+                      <div style={{ flex: 1, padding: "18px 22px" }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                            <span style={{ padding: "4px 10px", borderRadius: 999, background: "rgba(37,99,235,0.09)", font: `600 0.78rem/1 ${fd}`, color: "#2563EB", display: "flex", alignItems: "center", gap: 5 }}>
+                              <Building2 size={11} />{row.gym_name ?? row.gym_id}
+                            </span>
+                            {row.email && <span style={{ font: `400 0.78rem/1 ${fb}`, color: "#9CA3AF" }}>{row.email}</span>}
+                            {isResolved && <span style={{ font: `500 0.7rem/1 ${fd}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", padding: "2px 8px", borderRadius: 9999 }}>✓ Respondido</span>}
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                            <span style={{ font: `400 0.75rem/1 ${fb}`, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 4 }}><Clock3 size={11} /> {relTime}</span>
+                            {row.email && (
+                              <a href={`mailto:${row.email}?subject=Re: tu feedback en FitGrowX`} style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid rgba(15,23,42,0.12)", background: "#fff", font: `600 0.75rem/1 ${fd}`, color: "#374151", textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
+                                <Send size={10} /> Responder
+                              </a>
+                            )}
+                            <button
+                              disabled={resolvingId === row.id}
+                              onClick={() => handleResolve(row.id, isResolved)}
+                              style={{ padding: "4px 10px", borderRadius: 8, border: `1px solid ${isResolved ? "rgba(220,38,38,0.2)" : "rgba(22,163,74,0.2)"}`, background: isResolved ? "rgba(220,38,38,0.06)" : "rgba(22,163,74,0.06)", font: `600 0.75rem/1 ${fd}`, color: isResolved ? "#DC2626" : "#16A34A", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                            >
+                              <CheckCircle size={10} />{isResolved ? "Desmarcar" : "Marcar respondido"}
+                            </button>
+                          </div>
+                        </div>
+                        <p style={{ margin: 0, font: `400 0.9rem/1.7 ${fb}`, color: "#374151", whiteSpace: "pre-wrap" }}>{row.message}</p>
+                      </div>
+                    </article>
+                  );
+                })}
+              </section>
+            )}
+          </>
+        );
+      })()}
 
       {/* ── WhatsApp tab ── */}
       {!loading && !error && authorized && activeTab === "whatsapp" && (

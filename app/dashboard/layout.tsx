@@ -10,7 +10,7 @@ import {
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
-  CheckCircle, HelpCircle, Power,
+  CheckCircle, HelpCircle, Power, MessageSquare,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { DinoChatWidget } from "./components/DinoChatWidget";
@@ -173,6 +173,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showTrialBanner,  setShowTrialBanner]  = useState(false);
   const [showAnnualUpsell, setShowAnnualUpsell] = useState(false);
   const [showTrialModal,   setShowTrialModal]   = useState(false);
+  const [feedbackOpen,    setFeedbackOpen]    = useState(false);
+  const [feedbackText,    setFeedbackText]    = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackDone,    setFeedbackDone]    = useState(false);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
   const [planType,         setPlanType]         = useState<string | null>(null);
@@ -1197,6 +1201,70 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       )}
+      {/* ── Feedback floating button (desktop only) ── */}
+      {!isMobile && role === "admin" && !trialExpired && (
+        <button
+          onClick={() => { setFeedbackOpen(true); setFeedbackDone(false); setFeedbackText(""); }}
+          style={{ position: "fixed", bottom: 28, right: 28, zIndex: 200, display: "flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 9999, background: "#111827", border: "none", color: "#F9FAFB", font: `600 0.75rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.22)", opacity: 0.82, transition: "opacity 0.15s" }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+          onMouseLeave={e => (e.currentTarget.style.opacity = "0.82")}
+        >
+          <MessageSquare size={13} />
+          Feedback
+        </button>
+      )}
+
+      {/* ── Feedback modal ── */}
+      {feedbackOpen && (
+        <div
+          onClick={() => setFeedbackOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 20, padding: "28px 26px", maxWidth: 420, width: "100%", boxShadow: "0 32px 80px rgba(0,0,0,0.22)" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <div>
+                <p style={{ font: `700 1rem/1 ${fd}`, color: "#111827" }}>Dejanos tu feedback</p>
+                <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280", marginTop: 4 }}>Lo leemos todos los días. Sin filtro.</p>
+              </div>
+              <button onClick={() => setFeedbackOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", padding: 4 }}><X size={18} /></button>
+            </div>
+
+            {feedbackDone ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <CheckCircle size={36} color="#16A34A" style={{ margin: "0 auto 12px", display: "block" }} />
+                <p style={{ font: `600 0.9rem/1.4 ${fd}`, color: "#111827" }}>¡Gracias! Lo revisamos pronto.</p>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="¿Qué mejorarías? ¿Algo que no funciona? ¿Una idea que tenés?..."
+                  rows={5}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid #E5E7EB", font: `400 0.88rem/1.6 ${fd}`, color: "#111827", resize: "vertical", outline: "none", boxSizing: "border-box", background: "#F9FAFB" }}
+                />
+                <button
+                  disabled={feedbackSending || !feedbackText.trim()}
+                  onClick={async () => {
+                    if (!feedbackText.trim()) return;
+                    setFeedbackSending(true);
+                    await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: feedbackText }) }).catch(() => null);
+                    setFeedbackSending(false);
+                    setFeedbackDone(true);
+                  }}
+                  style={{ marginTop: 12, width: "100%", padding: "12px", borderRadius: 12, background: feedbackText.trim() ? "#111827" : "#E5E7EB", border: "none", color: feedbackText.trim() ? "#F9FAFB" : "#9CA3AF", font: `700 0.88rem/1 ${fd}`, cursor: feedbackText.trim() ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                >
+                  {feedbackSending ? "Enviando..." : "Enviar feedback"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
     </DashboardPwaShell>
   );
