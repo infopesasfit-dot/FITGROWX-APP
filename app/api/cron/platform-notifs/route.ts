@@ -269,6 +269,60 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ── 6. Resumen diario al owner ──────────────────────────────────────────
+  const ownerPhone = normalizePhone(process.env.OWNER_PHONE);
+  if (ownerPhone) {
+    const h1ago   = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const d7ago   = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
+    const [
+      { count: erroresH1 },
+      { count: waDesconectados },
+      { count: trialsRiskCount },
+      { count: inactivosCount },
+      { count: prospectosSinSeg },
+      mrrResult,
+    ] = await Promise.all([
+      sb.from("platform_logs").select("id", { count: "exact", head: true }).eq("level", "ERROR").gte("created_at", h1ago),
+      sb.from("gym_settings").select("gym_id", { count: "exact", head: true }).not("wa_status", "in", '("active","qr")'),
+      sb.from("platform_accounts").select("id", { count: "exact", head: true }).in("status", ["trial_active", "trial_risk"]).lte("trial_ends_at", new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)).gte("trial_ends_at", todayStr),
+      sb.from("platform_accounts").select("id", { count: "exact", head: true }).in("status", ["trial_active", "trial_risk", "converted"]).not("last_seen_at", "is", null).lt("last_seen_at", d7ago),
+      sb.from("prospectos").select("id", { count: "exact", head: true }).not("next_follow_up_at", "is", null).lt("next_follow_up_at", new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString().slice(0, 10)).neq("status", "convertido"),
+      sb.from("pagos").select("amount").eq("status", "validado").gte("date", monthStr).lte("date", todayStr),
+    ]);
+
+    const mrr = (mrrResult.data ?? []).reduce((s, r) => s + (r.amount ?? 0), 0);
+    const fmtArs = (n: number) => n >= 1_000_000 ? `$${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n/1_000).toFixed(0)}k` : `$${n}`;
+
+    const alertLines: string[] = [];
+    if ((erroresH1 ?? 0) > 0)         alertLines.push(`❌ ${erroresH1} errores sistema (última hora)`);
+    if ((waDesconectados ?? 0) > 0)    alertLines.push(`📵 ${waDesconectados} sesión${waDesconectados !== 1 ? "es" : ""} WA desconectada${waDesconectados !== 1 ? "s" : ""}`);
+    if ((trialsRiskCount ?? 0) > 0)    alertLines.push(`⏰ ${trialsRiskCount} trial${trialsRiskCount !== 1 ? "s" : ""} vence${trialsRiskCount === 1 ? "" : "n"} en ≤3 días`);
+    if ((inactivosCount ?? 0) > 0)     alertLines.push(`😴 ${inactivosCount} gym${inactivosCount !== 1 ? "s" : ""} inactivo${inactivosCount !== 1 ? "s" : ""} 7d+`);
+    if ((prospectosSinSeg ?? 0) > 0)   alertLines.push(`📋 ${prospectosSinSeg} prospecto${prospectosSinSeg !== 1 ? "s" : ""} sin seguimiento`);
+
+    const msg = [
+      `📊 *FitGrowX — Resumen ${new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}*`,
+      ``,
+      `💰 MRR del mes: *${fmtArs(mrr)}*`,
+      ``,
+      alertLines.length > 0
+        ? `⚠️ *Requiere atención:*\n${alertLines.join("\n")}`
+        : `✅ Todo en orden, sin alertas críticas.`,
+      ``,
+      `Ver plataforma: ${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/platform/pulso`,
+    ].join("\n");
+
+    if (await sendWA(motorUrl, ownerPhone, msg)) {
+      log.push(`✓ Resumen diario → owner`);
+    } else {
+      log.push(`✗ Resumen diario → owner (WA falló)`);
+    }
+  } else {
+    log.push(`— Resumen diario: OWNER_PHONE no configurado`);
+  }
+
   log.push(`Completado: ${todayStr}`);
   return NextResponse.json({ ok: true, log });
 }
