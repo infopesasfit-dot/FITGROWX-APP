@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
@@ -41,25 +42,20 @@ export async function POST(req: NextRequest) {
   });
 
   // Notify admin
-  const motorUrl   = process.env.WA_MOTOR_URL;
   const ownerPhone = process.env.OWNER_PHONE;
-  if (motorUrl && ownerPhone) {
-    fetch(`${motorUrl}/send/fitgrowx-platform`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-      body: JSON.stringify({
-        phone: ownerPhone,
-        message:
-          `🤝 *Nueva postulación de reseller*\n\n` +
-          `👤 ${name.trim()}\n` +
-          `📱 ${whatsapp.trim()}\n` +
-          `📧 ${email.trim()}\n` +
-          `👥 Colegas: ${colleague_count ?? "—"}\n` +
-          `📣 Redes: ${social_links?.trim() || "—"}\n\n` +
-          `Ver en plataforma: ${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/platform/resellers`,
-      }),
-      signal: AbortSignal.timeout(8000),
-    }).catch(() => {});
+  if (ownerPhone) {
+    void sendWa(
+      "fitgrowx-platform",
+      ownerPhone,
+      `🤝 *Nueva postulación de reseller*\n\n` +
+      `👤 ${name.trim()}\n` +
+      `📱 ${whatsapp.trim()}\n` +
+      `📧 ${email.trim()}\n` +
+      `👥 Colegas: ${colleague_count ?? "—"}\n` +
+      `📣 Redes: ${social_links?.trim() || "—"}\n\n` +
+      `Ver en plataforma: ${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/platform/resellers`,
+      { route: "reseller/apply" },
+    );
   }
 
   return NextResponse.json({ ok: true });

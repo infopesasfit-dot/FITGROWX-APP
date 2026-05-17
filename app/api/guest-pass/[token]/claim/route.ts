@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
@@ -41,48 +42,33 @@ export async function POST(
   const gymName    = settings?.gym_name ?? "el gym";
   const alumnoName = (alumno?.full_name ?? "").split(" ")[0] || "tu amigo";
   const expDate    = new Date(pass.expires_at).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-  const motorUrl   = process.env.WA_MOTOR_URL;
-  const appUrl     = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com";
+  const passUrl = `${appUrl}/pase/${token}`;
+  const normalizedPhone = phone.trim().replace(/\D/g, "");
 
-  if (motorUrl) {
-    const passUrl = `${appUrl}/pase/${token}`;
+  void sendWa(
+    pass.gym_id,
+    normalizedPhone,
+    `🏋️ *¡Hola ${name.trim().split(" ")[0]}! Tu pase libre para ${gymName} está listo.*\n\n` +
+    `📋 Código: *${pass.code}*\n` +
+    `📅 Válido hasta el ${expDate}\n\n` +
+    `Mostrá este código al staff cuando llegues:\n${passUrl}\n\n` +
+    `_Invitado por ${alumnoName}_ 💪`,
+    { route: "guest-pass/claim" },
+  );
 
-    // WA to the lead (friend)
-    const normalizedPhone = phone.trim().replace(/\D/g, "");
-    fetch(`${motorUrl}/send/${pass.gym_id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-      body: JSON.stringify({
-        phone: normalizedPhone,
-        message:
-          `🏋️ *¡Hola ${name.trim().split(" ")[0]}! Tu pase libre para ${gymName} está listo.*\n\n` +
-          `📋 Código: *${pass.code}*\n` +
-          `📅 Válido hasta el ${expDate}\n\n` +
-          `Mostrá este código al staff cuando llegues:\n${passUrl}\n\n` +
-          `_Invitado por ${alumnoName}_ 💪`,
-      }),
-      signal: AbortSignal.timeout(8000),
-    }).catch(() => {});
-
-    // WA to gym owner (lead notification)
-    if (settings?.whatsapp) {
-      const ownerPhone = settings.whatsapp.replace(/\D/g, "");
-      fetch(`${motorUrl}/send/${pass.gym_id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-        body: JSON.stringify({
-          phone: ownerPhone,
-          message:
-            `🎯 *Nuevo lead — Pase Libre*\n\n` +
-            `👤 Nombre: ${name.trim()}\n` +
-            `📱 Teléfono: ${normalizedPhone}\n` +
-            `🤝 Invitado por: ${alumno?.full_name ?? alumnoName}\n` +
-            `📅 Válido hasta: ${expDate}\n\n` +
-            `Ver en dashboard: ${appUrl}/dashboard/alumnos`,
-        }),
-        signal: AbortSignal.timeout(8000),
-      }).catch(() => {});
-    }
+  if (settings?.whatsapp) {
+    void sendWa(
+      pass.gym_id,
+      settings.whatsapp.replace(/\D/g, ""),
+      `🎯 *Nuevo lead — Pase Libre*\n\n` +
+      `👤 Nombre: ${name.trim()}\n` +
+      `📱 Teléfono: ${normalizedPhone}\n` +
+      `🤝 Invitado por: ${alumno?.full_name ?? alumnoName}\n` +
+      `📅 Válido hasta: ${expDate}\n\n` +
+      `Ver en dashboard: ${appUrl}/dashboard/alumnos`,
+      { route: "guest-pass/claim" },
+    );
   }
 
   return NextResponse.json({ code: pass.code, expiresAt: pass.expires_at, gymName });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
@@ -25,21 +26,11 @@ export async function POST(req: NextRequest) {
   const { key, phone, body } = await req.json();
   if (!key || !phone?.trim()) return NextResponse.json({ error: "key y phone requeridos" }, { status: 400 });
 
-  const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) return NextResponse.json({ error: "WA_MOTOR_URL no configurado" }, { status: 500 });
-
   const digits = phone.replace(/\D/g, "");
   const normalizedPhone = digits.startsWith("549") ? digits : digits.startsWith("54") ? "549" + digits.slice(2) : "549" + digits;
-
   const preview = fill(body ?? "", { nombre: "Nombre", dias: "2" });
 
-  const res = await fetch(`${motorUrl}/send/fitgrowx-platform`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-    body: JSON.stringify({ phone: normalizedPhone, message: `[TEST — ${key}]\n\n${preview}` }),
-    signal: AbortSignal.timeout(10_000),
-  }).catch(() => null);
-
-  if (!res?.ok) return NextResponse.json({ error: "No se pudo enviar. Verificá que el QR esté conectado." }, { status: 500 });
+  const ok = await sendWa("fitgrowx-platform", normalizedPhone, `[TEST — ${key}]\n\n${preview}`, { route: "wa-templates/test", timeout: 10_000 });
+  if (!ok) return NextResponse.json({ error: "No se pudo enviar. Verificá que el QR esté conectado." }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

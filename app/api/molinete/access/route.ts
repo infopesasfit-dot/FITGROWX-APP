@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { getTodayDate, getCurrentTime } from "@/lib/date-utils";
+import { getTodayDate, getCurrentTime, formatTimeInTimeZone } from "@/lib/date-utils";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
 const admin = getSupabaseAdminClient();
@@ -94,6 +94,26 @@ export async function POST(req: NextRequest) {
   // ── Registrar asistencia ──────────────────────────────────────────
   const hora = getCurrentTime();
 
+  // Ventana anti-duplicado: ignorar si ya hubo un check-in en los últimos 30 min
+  const cutoffHora = formatTimeInTimeZone(new Date(Date.now() - 30 * 60 * 1000));
+  const { data: recentAsist } = await admin
+    .from("asistencias")
+    .select("id")
+    .eq("alumno_id", alumno.id)
+    .eq("fecha", today)
+    .gte("hora", cutoffHora)
+    .limit(1)
+    .maybeSingle();
+
+  if (recentAsist) {
+    return NextResponse.json({
+      access: "allow",
+      already: true,
+      alumno: { full_name: alumno.full_name, status: alumno.status, expires_at: alumno.next_expiration_date },
+      hora,
+    });
+  }
+
   const { error: insErr } = await admin.from("asistencias").insert({
     gym_id:    alumno.gym_id,
     alumno_id: alumno.id,
@@ -101,7 +121,6 @@ export async function POST(req: NextRequest) {
     hora,
   } as never);
 
-  // Código 23505 = unique_violation (ya registró hoy) — igual dejamos pasar
   if (insErr && insErr.code !== "23505") {
     return NextResponse.json({ access: "deny", reason: "Error interno al registrar asistencia." }, { status: 500 });
   }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight, Dumbbell, UserPlus } from "lucide-react";
+import { Users, CheckCircle, XCircle, Clock, TrendingUp, ScanLine, ChevronRight, Dumbbell, UserPlus, Unlock } from "lucide-react";
 import Link from "next/link";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
@@ -21,6 +21,7 @@ const card: React.CSSProperties = {
 };
 
 interface Presente {
+  id: string;
   alumno_id: string;
   hora: string;
   clase_id: string | null;
@@ -75,9 +76,13 @@ export default function AsistenciasPage() {
   const [convertDni, setConvertDni] = useState("");
   const [checkingIn, setCheckingIn] = useState<Set<string>>(new Set());
   const [checkinError, setCheckinError] = useState<string | null>(null);
+  const [deletingAsist, setDeletingAsist] = useState<Set<string>>(new Set());
   const router = useRouter();
   const [ausentesLoading, setAusentesLoading] = useState(false);
   const [ausentesLoaded, setAusentesLoaded] = useState(false);
+  const [emergencyLoading, setEmergencyLoading] = useState(false);
+  const [emergencyStatus, setEmergencyStatus] = useState<"idle" | "pending" | "consumed" | "expired" | "error">("idle");
+  const emergencyPollRef = useState<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -129,7 +134,7 @@ export default function AsistenciasPage() {
       fetch(`/api/admin/asistencias-stats?gym_id=${profile.gymId}`),
       supabase
         .from("asistencias")
-        .select("alumno_id, hora, clase_id, gym_classes!clase_id(class_name), alumnos!alumno_id(full_name, planes!plan_id(nombre, accent_color))")
+        .select("id, alumno_id, hora, clase_id, gym_classes!clase_id(class_name), alumnos!alumno_id(full_name, planes!plan_id(nombre, accent_color))")
         .eq("gym_id", profile.gymId)
         .eq("fecha", today)
         .order("hora", { ascending: false }),
@@ -219,6 +224,14 @@ export default function AsistenciasPage() {
     setAusentesLoading(false);
   }, [gymId, ausentesLoaded, ausentesLoading, presentes, today]);
 
+  const handleDeleteAsist = useCallback(async (asistId: string) => {
+    setDeletingAsist(prev => new Set(prev).add(asistId));
+    setPresentes(prev => prev.filter(p => p.id !== asistId));
+    setTodayCount(prev => Math.max(0, prev - 1));
+    await fetch(`/api/admin/asistencias/${asistId}`, { method: "DELETE" });
+    setDeletingAsist(prev => { const s = new Set(prev); s.delete(asistId); return s; });
+  }, []);
+
   const markClasePrueba = useCallback(async (id: string, status: "asistio" | "no_show") => {
     setClasesPrueba(prev => prev.map(p => p.id === id ? { ...p, clase_gratis_status: status } : p));
     await supabase.from("prospectos").update({ clase_gratis_status: status }).eq("id", id);
@@ -230,6 +243,7 @@ export default function AsistenciasPage() {
     // — Optimistic update —
     const hora = new Date().toTimeString().slice(0, 8);
     const optimistic: Presente = {
+      id: `opt-${ausente.id}`,
       alumno_id: ausente.id,
       hora,
       clase_id: null,
@@ -305,6 +319,35 @@ export default function AsistenciasPage() {
     return () => window.clearTimeout(timeoutId);
   }, [fetchAll]);
 
+  const handleEmergencyOpen = async () => {
+    setEmergencyLoading(true);
+    setEmergencyStatus("idle");
+    if (emergencyPollRef[0]) clearInterval(emergencyPollRef[0]);
+
+    const res = await fetch("/api/admin/molinete-emergency", { method: "POST" });
+    setEmergencyLoading(false);
+    if (!res.ok) { setEmergencyStatus("error"); return; }
+
+    setEmergencyStatus("pending");
+
+    // Poll every 2 seconds for up to 45s to detect when hardware consumed the token
+    const interval = setInterval(async () => {
+      const r = await fetch("/api/admin/molinete-emergency");
+      if (!r.ok) return;
+      const d = await r.json() as { status: string };
+      if (d.status === "consumed") {
+        setEmergencyStatus("consumed");
+        clearInterval(interval);
+      } else if (d.status === "expired" || d.status === "none") {
+        setEmergencyStatus("expired");
+        clearInterval(interval);
+      }
+    }, 2000);
+    emergencyPollRef[0] = interval;
+    // Safety: always clear after 50s
+    setTimeout(() => { clearInterval(interval); setEmergencyStatus(s => s === "pending" ? "expired" : s); }, 50_000);
+  };
+
   const scrollToSection = (targetId: string) => {
     window.requestAnimationFrame(() => {
       const element = document.getElementById(targetId);
@@ -338,9 +381,27 @@ export default function AsistenciasPage() {
           <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Hoy · {new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}</p>
           <h1 style={{ font: `800 1.45rem/1 ${fd}`, color: t1, letterSpacing: "-0.025em" }}>Asistencias</h1>
         </div>
-        <Link href="/dashboard/scanner" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "#1A1D23", color: "white", borderRadius: 12, textDecoration: "none", font: `600 0.8rem/1 ${fd}` }}>
-          <ScanLine size={15} /> Escáner QR
-        </Link>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            onClick={handleEmergencyOpen}
+            disabled={emergencyLoading || emergencyStatus === "pending"}
+            title="Envía una señal de apertura al molinete. Requiere hardware con polling activo."
+            style={{
+              display: "flex", alignItems: "center", gap: 7, padding: "9px 14px",
+              background: emergencyStatus === "consumed" ? "#16A34A" : emergencyStatus === "expired" || emergencyStatus === "error" ? "#DC2626" : emergencyStatus === "pending" ? "#D97706" : "rgba(220,38,38,0.08)",
+              color: emergencyStatus === "idle" ? "#DC2626" : "white",
+              border: emergencyStatus === "idle" ? "1px solid rgba(220,38,38,0.25)" : "none",
+              borderRadius: 12, font: `600 0.8rem/1 ${fd}`, cursor: (emergencyLoading || emergencyStatus === "pending") ? "not-allowed" : "pointer",
+              opacity: (emergencyLoading || emergencyStatus === "pending") ? 0.85 : 1, transition: "background 0.2s",
+            }}
+          >
+            <Unlock size={14} />
+            {emergencyStatus === "pending" ? "Esperando hardware…" : emergencyStatus === "consumed" ? "¡Puerta abierta!" : emergencyStatus === "expired" ? "Sin respuesta" : emergencyStatus === "error" ? "Error" : "Abrir Molinete"}
+          </button>
+          <Link href="/dashboard/scanner" style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "#1A1D23", color: "white", borderRadius: 12, textDecoration: "none", font: `600 0.8rem/1 ${fd}` }}>
+            <ScanLine size={15} /> Escáner QR
+          </Link>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -582,7 +643,7 @@ export default function AsistenciasPage() {
                   const claseLabel = (p.gym_classes as { class_name?: string } | null)?.class_name ?? "Entrada al gym";
                   const isClase = Boolean(p.clase_id);
                   return (
-                    <div key={p.alumno_id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: i < presentes.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: i < presentes.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none" }}>
                       <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1A1D23", color: "white", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.65rem/1 ${fd}`, flexShrink: 0 }}>{initials(name)}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
@@ -595,6 +656,12 @@ export default function AsistenciasPage() {
                         <Clock size={11} color="#34D399" />
                         <span style={{ font: `600 0.7rem/1 ${fd}`, color: "#34D399" }}>{fmt2(p.hora)}</span>
                       </div>
+                      <button
+                        onClick={() => { if (window.confirm(`¿Anular asistencia de ${name}?`)) void handleDeleteAsist(p.id); }}
+                        disabled={deletingAsist.has(p.id)}
+                        title="Anular asistencia"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", padding: "4px 6px", borderRadius: 6, lineHeight: 1, flexShrink: 0, opacity: deletingAsist.has(p.id) ? 0.4 : 1 }}
+                      >✕</button>
                     </div>
                   );
                 })}

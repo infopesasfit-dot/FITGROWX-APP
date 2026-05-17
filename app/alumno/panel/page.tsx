@@ -203,7 +203,7 @@ function AlumnoPanelInner() {
   const [apiDown,      setApiDown]      = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [reservando,   setReservando]   = useState<string | null>(null);
-  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null; gym_whatsapp: string | null } | null>(null);
+  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null; gym_whatsapp: string | null; cancel_window_hours: number | null } | null>(null);
   const [loadingPago,  setLoadingPago]  = useState(false);
   const [copiedPayment, setCopiedPayment] = useState(false);
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
@@ -362,6 +362,7 @@ function AlumnoPanelInner() {
         plan_type: d.gym_info.plan_type ?? null,
         payment_info: d.gym_info.payment_info ?? null,
         gym_whatsapp: d.gym_info.gym_whatsapp ?? null,
+        cancel_window_hours: d.gym_info.cancel_window_hours ?? null,
       });
     }
     if (d.asistencias) {
@@ -547,9 +548,26 @@ function AlumnoPanelInner() {
     try {
       const isReserved = reservas.some(r => r.clase_id === clase_id && r.fecha === fecha);
       if (isReserved) {
+        const windowHours = gymInfo?.cancel_window_hours ?? null;
+        if (windowHours != null && windowHours > 0) {
+          const claseData = clases.find(c => c.id === clase_id);
+          if (claseData?.start_time) {
+            const claseDatetime = new Date(`${fecha}T${claseData.start_time}-03:00`);
+            const diffHours = (claseDatetime.getTime() - Date.now()) / (1000 * 60 * 60);
+            if (diffHours >= 0 && diffHours < windowHours) {
+              const ok = window.confirm(
+                `Estás cancelando a menos de ${windowHours}h de la clase. Esta cancelación se registrará como tardía y contará en tu cuota semanal. ¿Continuar?`
+              );
+              if (!ok) { setReservando(null); return; }
+            }
+          }
+        }
         const res = await fetch("/api/alumno/reservar", { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ alumno_id: session.alumno_id, clase_id, fecha }) });
         const d = await res.json();
-        if (d.ok) { setReservas(prev => prev.filter(r => !(r.clase_id === clase_id && r.fecha === fecha))); showToast("Reserva cancelada."); }
+        if (d.ok) {
+          setReservas(prev => prev.filter(r => !(r.clase_id === clase_id && r.fecha === fecha)));
+          showToast(d.late_cancel ? (d.message ?? "Cancelación tardía registrada.") : "Reserva cancelada.");
+        }
         else showToast(d.error ?? "Error.", false);
       } else {
         const res = await fetch("/api/alumno/reservar", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, clase_id, fecha }) });

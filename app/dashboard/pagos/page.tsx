@@ -453,7 +453,7 @@ export default function PagosPage() {
       if (pago && pago.concepto === "membresia") {
         const newExpiry = await renewMembership(pago.alumno_id, pago.date);
         if (newExpiry) {
-          supabase.from("pagos").update({ resulting_expiry: newExpiry }).eq("id", pagoId).then(() => {});
+          await supabase.from("pagos").update({ resulting_expiry: newExpiry }).eq("id", pagoId);
         }
         fetch("/api/admin/invalidate-tokens", {
           method: "POST",
@@ -497,6 +497,7 @@ export default function PagosPage() {
       const json = await res.json();
       if (!json.ok) { showToast(`Error: ${json.error}`, "err"); return; }
       updatePagosCache(prev => prev.map(p => p.id === pagoId ? { ...p, status: "anulado" as PagoStatus } : p));
+      invalidateDashboardCache();
       showToast(json.new_expiry
         ? `Pago anulado · vencimiento ajustado a ${json.new_expiry}`
         : "Pago anulado · sin membresía activa", "ok");
@@ -553,11 +554,11 @@ export default function PagosPage() {
         if (!needsValidation) {
           const renewResults = await Promise.allSettled(grupalAlumnos.map(g => renewMembership(g.alumno.id, pagoFecha)));
           if (insertedPagos?.length) {
-            renewResults.forEach((r, i) => {
+            await Promise.allSettled(renewResults.map((r, i) => {
               if (r.status === "fulfilled" && r.value && insertedPagos[i]) {
-                supabase.from("pagos").update({ resulting_expiry: r.value }).eq("id", insertedPagos[i].id).then(() => {});
+                return supabase.from("pagos").update({ resulting_expiry: r.value }).eq("id", insertedPagos[i].id);
               }
-            });
+            }));
           }
           Promise.allSettled(grupalAlumnos.map(g =>
             fetch("/api/admin/invalidate-tokens", {
@@ -666,7 +667,7 @@ export default function PagosPage() {
         if (!needsValidation) {
           const newExpiry = await renewMembership(alumnoId, pagoFecha);
           if (newExpiry && insertedPago) {
-            supabase.from("pagos").update({ resulting_expiry: newExpiry }).eq("id", insertedPago.id).then(() => {});
+            await supabase.from("pagos").update({ resulting_expiry: newExpiry }).eq("id", insertedPago.id);
           }
           // Invalidar links de pago MP activos para evitar doble acreditación
           fetch("/api/admin/invalidate-tokens", {

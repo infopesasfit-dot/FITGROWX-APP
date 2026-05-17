@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 
 const supabase = getSupabaseAdminClient();
 
@@ -26,8 +27,6 @@ export async function POST(req: NextRequest) {
   const { alumno_id } = await req.json();
   if (!alumno_id) return NextResponse.json({ ok: false }, { status: 400 });
 
-  const motorUrl = process.env.WA_MOTOR_URL;
-
   const { data: alumno } = await supabase
     .from("alumnos")
     .select("id, gym_id, full_name, phone")
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
     .eq("gym_id", callerProfile.gym_id)
     .single();
 
-  if (!alumno?.phone || !motorUrl) return NextResponse.json({ ok: true });
+  if (!alumno?.phone) return NextResponse.json({ ok: true });
 
   // Reutilizar token válido si existe, sino crear uno nuevo
   const { data: existing } = await supabase
@@ -77,12 +76,7 @@ export async function POST(req: NextRequest) {
     .replace(/\{gym\}/gi, gymName)
     .replace(/\{link\}/gi, `${baseUrl}/alumno/auth?token=${token}`);
 
-  fetch(`${motorUrl}/send/${alumno.gym_id}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-    body: JSON.stringify({ phone: normalizePhone(alumno.phone), message: msg }),
-    signal: AbortSignal.timeout(8_000),
-  }).catch(() => {});
+  void sendWa(alumno.gym_id, normalizePhone(alumno.phone), msg, { route: "alumno/notify-rutina" });
 
   return NextResponse.json({ ok: true });
 }

@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 
 export async function POST(req: NextRequest) {
   const raw = await req.json();
@@ -137,23 +138,12 @@ export async function POST(req: NextRequest) {
   } catch (e) { console.error("[book] prospecto/notif upsert failed:", e instanceof Error ? e.message : e); }
 
   // Enviar confirmación por WhatsApp
-  const motor = process.env.WA_MOTOR_URL;
-  if (motor) {
+  {
     const days = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
     const hora = cls.start_time.slice(0, 5);
     const dia  = days[cls.day_of_week];
     const msg  = `¡Hola ${leadName}! ✅ Tu reserva para *${cls.class_name}* el ${dia} a las ${hora}hs está confirmada. ¡Te esperamos! 💪`;
-
-    try {
-      await fetch(`${motor}/send/${gymId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: cleanPhone, message: msg }),
-        signal: AbortSignal.timeout(8000),
-      });
-    } catch {
-      // No es fatal — la reserva ya se guardó
-    }
+    void sendWa(gymId, cleanPhone, msg, { route: "reserva/book" });
   }
 
   return NextResponse.json({ ok: true });

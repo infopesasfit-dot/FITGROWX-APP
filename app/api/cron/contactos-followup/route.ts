@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
+import { sendWa } from "@/lib/wa";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,8 +18,6 @@ const DEFAULT_MSG_3 = `Hola {nombre}, último mensajito 🙌 Si en algún moment
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
-  const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) return NextResponse.json({ error: "Motor WA no configurado." }, { status: 500 });
 
   const today = new Date();
 
@@ -85,25 +84,11 @@ export async function GET(req: NextRequest) {
 
       const phone = normalizePhone(p.phone);
 
-      try {
-        const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-          body: JSON.stringify({ phone, message }),
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (res.ok) {
-          await supabase.from("prospectos").update({ contactos_step: nextStep }).eq("id", p.id);
-          logWASend(supabase, gym.gym_id, "nuevo_contacto", p.id, p.full_name);
-          totalEnviados++;
-          log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} (día ${diffDays})`);
-        } else {
-          log.push(`✗ ${p.full_name} — HTTP ${res.status}`);
-        }
-      } catch (e) {
-        log.push(`✗ ${p.full_name} — ${e instanceof Error ? e.message : "error"}`);
-      }
+      await supabase.from("prospectos").update({ contactos_step: nextStep }).eq("id", p.id);
+      void sendWa(gym.gym_id, phone, message, { route: "cron/contactos-followup" });
+      logWASend(supabase, gym.gym_id, "nuevo_contacto", p.id, p.full_name);
+      totalEnviados++;
+      log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} (día ${diffDays})`);
     }
   }
 

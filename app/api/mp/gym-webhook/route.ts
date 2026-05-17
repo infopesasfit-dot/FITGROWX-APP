@@ -330,6 +330,18 @@ export async function POST(req: NextRequest) {
   }
 
   if (resultadoPago === "duplicado") {
+    // Pago ya registrado — verificar si extenderMembresia se completó en el intento anterior.
+    // Si no (crash entre INSERT y UPDATE), completar la extensión ahora.
+    const { data: alumnoActual } = await supabase
+      .from("alumnos")
+      .select("next_expiration_date, status")
+      .eq("id", alumnoId)
+      .single();
+    const fechaVigenteOVencida =
+      !alumnoActual?.next_expiration_date || alumnoActual.next_expiration_date < today;
+    if (fechaVigenteOVencida) {
+      await extenderMembresia(alumnoId, today, nuevoVencimiento);
+    }
     logWebhook(gymId, paymentId, "duplicate", { amount: payment.transaction_amount, alumnoId });
     return NextResponse.json({ ok: true });
   }

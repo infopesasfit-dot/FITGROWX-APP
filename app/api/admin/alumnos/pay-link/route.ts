@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
@@ -71,17 +72,8 @@ export async function POST(req: NextRequest) {
     ? `💳 *${gymName}* — Link de pago\n\nHola ${alumno.full_name.split(" ")[0]}! Te mandamos tu link para renovar tu membresía *${plan.nombre}* por $${precio}.\n\n👉 ${link}\n\n_Se abre directo en Mercado Pago. Sin registro._`
     : `💳 *${gymName}* — Renovación de membresía\n\nHola ${alumno.full_name.split(" ")[0]}! Tu membresía *${plan.nombre}* es $${precio}.\n\n👉 ${link}\n\n${settings?.payment_info ? `\n💳 Datos de pago:\n${settings.payment_info}` : ""}`;
 
-  const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) return NextResponse.json({ error: "WA no configurado" }, { status: 500 });
-
-  const waRes = await fetch(`${motorUrl}/send/${profile.gym_id}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-    body: JSON.stringify({ phone: normalizePhone(alumno.phone), message: msg }),
-    signal: AbortSignal.timeout(8_000),
-  }).catch(() => null);
-
-  if (!waRes?.ok) return NextResponse.json({ error: "No se pudo enviar el WA. Verificá que esté conectado." }, { status: 500 });
+  const waOk = await sendWa(profile.gym_id, normalizePhone(alumno.phone), msg, { route: "admin/pay-link" });
+  if (!waOk) return NextResponse.json({ error: "No se pudo enviar el WA. Verificá que esté conectado." }, { status: 500 });
 
   return NextResponse.json({ ok: true, link });
 }

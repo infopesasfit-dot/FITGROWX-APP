@@ -6,6 +6,7 @@ import {
   PlayCircle,
   TrendingUp,
   Users,
+  Cpu,
   type LucideIcon,
 } from "lucide-react";
 
@@ -372,6 +373,38 @@ export const vaultResources: VaultResource[] = [
       "Empezar simple acelera adopción y reduce errores del equipo.",
       "El panel del alumno tiene más valor cuando la información cargada es consistente.",
       "Las automatizaciones sirven más cuando acompañan la operación, no cuando la reemplazan mal.",
+    ],
+  },
+  {
+    slug: "integracion-molinete-hardware",
+    category: "tutoriales-fitgrowx",
+    title: "Guía técnica: conectar un molinete o puerta automática a FitGrowX",
+    description:
+      "Paso a paso para que el técnico instale y configure un ESP32, Arduino o Raspberry Pi como controlador de acceso físico integrado con la API de FitGrowX.",
+    tags: ["molinete", "hardware", "ESP32", "acceso físico", "API"],
+    cta: "Ver guía técnica",
+    format: "Guía de instalación",
+    readTime: "10 min",
+    objective: "Conectar el hardware de acceso físico a FitGrowX para que valide membresías en tiempo real y reciba aperturas de emergencia desde el dashboard.",
+    outcome: "Molinete o puerta funcionando con validación automática de QR/DNI y apertura remota desde el panel del dueño sin intervención manual.",
+    icon: Cpu,
+    intro:
+      "FitGrowX incluye una API de acceso físico que el hardware puede consultar en tiempo real. Esta guía está escrita para el técnico instalador: cubre los dos endpoints necesarios, los errores frecuentes y las correcciones críticas para que la integración funcione desde el primer intento.",
+    steps: [
+      "Generar la API Key desde el panel del dueño: Ajustes → Molinete → Nueva key. Guardarla de forma segura; solo se muestra una vez y no puede recuperarse.",
+      "Configurar el endpoint de validación de acceso: POST a /api/molinete/access con header x-api-key y body { \"qr\": \"FITGROWX:ID:<alumno_id>\" }. Si la respuesta es { \"access\": \"allow\" }, activar el relé. Si es { \"access\": \"deny\" }, mostrar señal de rechazo.",
+      "Configurar el polling de apertura de emergencia: GET a /api/molinete/emergency-poll con el mismo header x-api-key cada 3 segundos. Si la respuesta es { \"open\": true }, activar el relé inmediatamente. El token se consume en el primer polling exitoso.",
+      "Configurar HTTPS correctamente en ESP32: agregar http.setInsecure() antes de cada llamada o cargar el certificado raíz de Vercel. Sin este paso, las conexiones HTTPS fallan silenciosamente en la mayoría de los firmwares.",
+      "Parsear el JSON de respuesta con ArduinoJson (o librería equivalente). No usar String.indexOf() para detectar campos booleanos: el servidor puede devolver espacios en el JSON y el match falla. ArduinoJson resuelve esto con res[\"open\"] == true.",
+      "Probar el flujo completo: escanear un QR válido (acceso esperado: allow), uno vencido (deny) y disparar una apertura de emergencia desde el dashboard mientras el dispositivo está en loop. Verificar que el relé responde en los tres casos.",
+      "Revocar y regenerar la API Key si el dispositivo se pierde o es comprometido: Ajustes → Molinete → Revocar. La key anterior deja de funcionar inmediatamente.",
+    ],
+    bullets: [
+      "El QR del alumno tiene el formato FITGROWX:ID:<uuid>. El lector debe enviar ese string completo en el campo qr del body, no solo el DNI.",
+      "El polling de emergencia no bloquea el loop del QR si se implementa con millis() en lugar de delay(). Usar delay(3000) en el loop principal impide leer QRs durante ese tiempo.",
+      "Si el técnico ve siempre { \"access\": \"deny\" } con una key válida, lo más probable es que el body tenga el campo mal nombrado (dni en vez de qr) o el formato del QR no empiece con FITGROWX:.",
+      "Cada key está vinculada a un único gimnasio. Una key de otro gym siempre retorna 401.",
+      "El token de apertura de emergencia expira a los 45 segundos. Si el hardware no hace polling en ese tiempo, la apertura se pierde y el dueño debe presionar el botón nuevamente.",
     ],
   },
 ];

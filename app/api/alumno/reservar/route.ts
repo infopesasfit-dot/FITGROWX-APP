@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       .select("id", { count: "exact", head: true })
       .eq("gym_id", gym_id)
       .eq("alumno_id", alumno_id)
-      .eq("estado", "confirmada")
+      .in("estado", ["confirmada", "cancelada_tarde"])
       .gte("fecha", from)
       .lte("fecha", to);
 
@@ -80,14 +80,42 @@ export async function DELETE(req: NextRequest) {
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
+  const gymId = tokenRow.gym_id;
+
+  const [{ data: claseRow }, { data: settings }] = await Promise.all([
+    supabase.from("gym_classes").select("start_time").eq("id", clase_id).single(),
+    supabase.from("gym_settings").select("cancel_window_hours").eq("gym_id", gymId).maybeSingle(),
+  ]);
+
+  let estado: "cancelada" | "cancelada_tarde" = "cancelada";
+  const windowHours: number | null = settings?.cancel_window_hours ?? null;
+
+  if (claseRow?.start_time && windowHours != null && windowHours > 0) {
+    // Build class datetime in ART (UTC-3)
+    const claseDatetimeStr = `${fecha}T${claseRow.start_time}-03:00`;
+    const claseDatetime = new Date(claseDatetimeStr);
+    const nowMs = Date.now();
+    const diffHours = (claseDatetime.getTime() - nowMs) / (1000 * 60 * 60);
+    if (diffHours < windowHours) {
+      estado = "cancelada_tarde";
+    }
+  }
+
   const { error } = await supabase
     .from("reservas")
-    .update({ estado: "cancelada" })
+    .update({ estado })
     .eq("alumno_id", alumno_id)
-    .eq("gym_id", tokenRow.gym_id)
+    .eq("gym_id", gymId)
     .eq("clase_id", clase_id)
     .eq("fecha", fecha);
   if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
 
+  if (estado === "cancelada_tarde") {
+    return NextResponse.json({
+      ok: true,
+      late_cancel: true,
+      message: `Cancelaste fuera del plazo permitido (${windowHours}h antes). La clase se descontará de tu cuota semanal.`,
+    });
+  }
   return NextResponse.json({ ok: true });
 }

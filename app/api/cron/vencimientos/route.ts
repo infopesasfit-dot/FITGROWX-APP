@@ -5,6 +5,7 @@ import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
 import { logAlumnoActivity } from "@/lib/alumno-log";
 import { enqueueWABulk } from "@/lib/wa-queue";
+import { getTodayDate } from "@/lib/date-utils";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -48,9 +49,9 @@ type AlumnoPendiente = {
 // ── Utilidades ────────────────────────────────────────────────────────────────
 
 function fechaRelativa(dias: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
+  const base = new Date(`${getTodayDate()}T12:00:00`);
+  base.setDate(base.getDate() + dias);
+  return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
 }
 
 function esMismoNumero(phone1: string | null, phone2: string | null): boolean {
@@ -530,24 +531,48 @@ export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
   if (!MOTOR_URL) return NextResponse.json({ error: "Motor WA no configurado." }, { status: 500 });
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const startedAt = Date.now();
+  const todayStr = getTodayDate();
   const log: string[] = [];
 
-  await notificarTransferenciasPendientes(log);
-  await notificarInasistentes(log, todayStr);
-  await sincronizarStatus(todayStr, log);
+  try {
+    await notificarTransferenciasPendientes(log);
+    await notificarInasistentes(log, todayStr);
+    await sincronizarStatus(todayStr, log);
 
-  const { data: gyms, error: gymsErr } = await supabase
-    .from("gym_settings")
-    .select("gym_id, gym_name, vencimiento_dias, vencimiento_msg, mp_access_token, payment_info")
-    .eq("vencimiento_activo", true);
+    const { data: gyms, error: gymsErr } = await supabase
+      .from("gym_settings")
+      .select("gym_id, gym_name, vencimiento_dias, vencimiento_msg, mp_access_token, payment_info")
+      .eq("vencimiento_activo", true);
 
-  if (gymsErr) console.error("[vencimientos] cargar gyms:", gymsErr.message);
-  if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log });
+    if (gymsErr) console.error("[vencimientos] cargar gyms:", gymsErr.message);
 
-  const venceHoy      = await enviarNotificacionesVenceHoy(gyms, todayStr, log);
-  const followups     = await enviarFollowupsPostVencimiento(gyms, todayStr, log);
-  const recordatorios = await enviarRecordatoriosProximos(gyms, todayStr, log);
+    let venceHoy = 0, followups = 0, recordatorios = 0;
+    if (gyms?.length) {
+      venceHoy      = await enviarNotificacionesVenceHoy(gyms, todayStr, log);
+      followups     = await enviarFollowupsPostVencimiento(gyms, todayStr, log);
+      recordatorios = await enviarRecordatoriosProximos(gyms, todayStr, log);
+    }
 
-  return NextResponse.json({ ok: true, enviados: venceHoy + followups + recordatorios, log });
+    const enviados = venceHoy + followups + recordatorios;
+    void supabase.from("cron_runs").insert({
+      cron_name:   "vencimientos",
+      status:      "ok",
+      duration_ms: Date.now() - startedAt,
+      summary:     `${todayStr} · ${enviados} WA enviados`,
+      counts:      { venceHoy, followups, recordatorios, log },
+    });
+
+    return NextResponse.json({ ok: true, enviados, log });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void supabase.from("cron_runs").insert({
+      cron_name:   "vencimientos",
+      status:      "error",
+      duration_ms: Date.now() - startedAt,
+      summary:     msg,
+    });
+    console.error("[vencimientos] error fatal:", msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

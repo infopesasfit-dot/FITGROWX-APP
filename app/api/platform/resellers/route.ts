@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
@@ -113,23 +114,19 @@ export async function PATCH(req: NextRequest) {
       }
 
       // Notify reseller via WA
-      const motorUrl = process.env.WA_MOTOR_URL;
-      if (motorUrl) {
+      {
         const { data: reseller } = await sb.from("resellers").select("user_id, payout_info").eq("id", wr.reseller_id).maybeSingle();
         if (reseller?.user_id) {
           const { data: profile } = await sb.from("profiles").select("gym_id").eq("id", reseller.user_id).maybeSingle();
           if (profile?.gym_id) {
             const { data: gymSettings } = await sb.from("gym_settings").select("whatsapp").eq("gym_id", profile.gym_id).maybeSingle();
             if (gymSettings?.whatsapp) {
-              fetch(`${motorUrl}/send/fitgrowx-platform`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-                body: JSON.stringify({
-                  phone: gymSettings.whatsapp,
-                  message: `💸 *¡Tu retiro fue procesado!*\n\nMonto: $${wr.amount.toLocaleString("es-AR")} ARS\nDestino: ${reseller.payout_info ?? "tu cuenta"}\n\nGracias por ser parte de la red FitGrowX 🙌`,
-                }),
-                signal: AbortSignal.timeout(8000),
-              }).catch(() => {});
+              void sendWa(
+                "fitgrowx-platform",
+                gymSettings.whatsapp,
+                `💸 *¡Tu retiro fue procesado!*\n\nMonto: $${wr.amount.toLocaleString("es-AR")} ARS\nDestino: ${reseller.payout_info ?? "tu cuenta"}\n\nGracias por ser parte de la red FitGrowX 🙌`,
+                { route: "resellers/withdrawal" },
+              );
             }
           }
         }

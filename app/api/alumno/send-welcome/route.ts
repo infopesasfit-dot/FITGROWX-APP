@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { logger } from "@/lib/logger";
+import { sendWa as sendWaLib } from "@/lib/wa";
 
 const ROUTE = "/api/alumno/send-welcome";
 
@@ -92,32 +93,12 @@ export async function POST(req: NextRequest) {
   })()).replace(/\/$/, "");
   const link = `${baseUrl}/alumno/auth?token=${token}`;
 
-  const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) {
-    logger.warn("send-welcome: WA_MOTOR_URL no configurado", { route: ROUTE, meta: { requestId, alumno_id, gymId: alumno.gym_id, type } });
-    return NextResponse.json({ ok: true });
-  }
-
   const phone = normalizePhone(alumno.phone);
   const logMeta = { requestId, alumno_id: alumno.id, gymId: alumno.gym_id, phone: phone.slice(-4), type };
 
   async function sendWA(message: string, step: string) {
-    try {
-      const res = await fetch(`${motorUrl}/send/${alumno!.gym_id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-        body: JSON.stringify({ phone, message }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        logger.error(`send-welcome: motor respondió ${res.status} en paso ${step}`, { route: ROUTE, meta: { ...logMeta, motorStatus: res.status, motorBody: body.slice(0, 200) } });
-      } else {
-        logger.info(`send-welcome: mensaje enviado (${step})`, { route: ROUTE, meta: logMeta });
-      }
-    } catch (err) {
-      logger.error(`send-welcome: fetch al motor falló en paso ${step}`, { route: ROUTE, meta: { ...logMeta, error: String(err) } });
-    }
+    const ok = await sendWaLib(alumno!.gym_id, phone, message, { route: ROUTE });
+    if (ok) void logger.info(`send-welcome: mensaje enviado (${step})`, { route: ROUTE, meta: logMeta });
   }
 
   if (type === "renewal") {

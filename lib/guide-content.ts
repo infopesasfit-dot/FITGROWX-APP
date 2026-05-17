@@ -133,8 +133,23 @@ export const FAQ_ITEMS = [
       "Entregamos una caja de bienvenida con porta QR y NFC para que el dueño automatice la entrada y le dé al gimnasio una experiencia más prolija desde el primer contacto.",
   },
   {
+    question: "¿FitGrowX se integra con molinetes y puertas automáticas?",
+    answer:
+      "Sí. FitGrowX tiene una API de acceso físico que valida QR o DNI en tiempo real y responde si el alumno tiene membresía activa. Compatible con ESP32, Arduino y Raspberry Pi. También permite apertura remota desde el dashboard del dueño sin necesidad de ir físicamente al hardware. La guía técnica para el instalador está disponible en Recursos.",
+  },
+  {
     question: "¿Las automatizaciones reemplazan al equipo?",
     answer:
       "No. Lo que hacen es sacar trabajo repetitivo, acelerar el seguimiento y dejar al equipo más libre para atención, ventas y acompañamiento real.",
+  },
+  {
+    question: "¿El alumno tiene su propia app o solo ve una pantalla básica?",
+    answer:
+      "Tiene su propia app con el logo y los colores de tu gym. Desde ahí entra con QR, reserva clases, sigue su rutina asignada por el coach, ve su historial de asistencia y anota sus marcas. No es una pantalla básica: es el panel del alumno con tu marca.",
+  },
+  {
+    question: "¿El dueño y el staff ven lo mismo dentro del sistema?",
+    answer:
+      "No. El dueño tiene acceso completo: métricas, cobros, configuración y reportes. El staff opera recepción, scanner QR, alumnos y clases, sin tocar precios ni configuraciones sensibles. Cada uno entra con sus propias credenciales y ve solo lo que necesita.",
   },
 ];

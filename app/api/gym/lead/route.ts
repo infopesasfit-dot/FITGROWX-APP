@@ -4,6 +4,7 @@ import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { createLeadSchema, parseBody } from "@/lib/schemas";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 
 export async function POST(req: NextRequest) {
   const raw = await req.json();
@@ -76,8 +77,7 @@ export async function POST(req: NextRequest) {
   } catch { /* non-fatal */ }
 
   // Enviar mensaje día-0 si WA configurado y automatización activa
-  const motor = process.env.WA_MOTOR_URL;
-  if (motor && phone && settings?.lead_auto_welcome === true) {
+  if (phone && settings?.lead_auto_welcome === true) {
     const gymName = settings?.gym_name ?? "el gym";
     const firstName = name.split(" ")[0];
 
@@ -92,14 +92,7 @@ export async function POST(req: NextRequest) {
         .replace(/\{gym\}/gi, gymName)
         .replace(/\{link\}/gi, reservarLink ?? "");
 
-      try {
-        await fetch(`${motor}/send/${gymId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-          body: JSON.stringify({ phone: normalizePhone(phone), message: msg }),
-          signal: AbortSignal.timeout(8000),
-        });
-      } catch { /* non-fatal */ }
+      void sendWa(gymId, normalizePhone(phone), msg, { route: "gym/lead" });
     }
 
     // Avanzar step siempre para que los follow-ups puedan correr

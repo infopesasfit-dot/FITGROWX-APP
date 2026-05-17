@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
+import { sendWa } from "@/lib/wa";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,8 +31,6 @@ const DEFAULT_MSG_NOSHOW = `Hola {nombre} 👋 Vimos que no pudiste venir a tu c
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
-  const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) return NextResponse.json({ error: "Motor WA no configurado." }, { status: 500 });
 
   const today = new Date();
 
@@ -67,24 +66,11 @@ export async function GET(req: NextRequest) {
       // Day-before reminder: class is tomorrow, not yet reminded (step === 0)
       if (p.clase_gratis_status === "registrado" && diffDays === -1 && p.followup_step === 0) {
         const msgTemplate = fillTemplate(DEFAULT_MSG_REMINDER, p.full_name, gymName);
-        try {
-          const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-            body: JSON.stringify({ phone: normalizePhone(p.phone!), message: msgTemplate }),
-            signal: AbortSignal.timeout(8000),
-          });
-          if (res.ok) {
-            await supabase.from("prospectos").update({ followup_step: -1 }).eq("id", p.id);
-            logWASend(supabase, gym.gym_id, "clase_gratis", p.id, p.full_name);
-            totalEnviados++;
-            log.push(`🔔 ${p.full_name} (${gymName}) — recordatorio día anterior`);
-          } else {
-            log.push(`✗ ${p.full_name} — recordatorio HTTP ${res.status}`);
-          }
-        } catch (e) {
-          log.push(`✗ ${p.full_name} — recordatorio ${e instanceof Error ? e.message : "error"}`);
-        }
+        await supabase.from("prospectos").update({ followup_step: -1 }).eq("id", p.id);
+        void sendWa(gym.gym_id, normalizePhone(p.phone!), msgTemplate, { route: "cron/clase-gratis-followup" });
+        logWASend(supabase, gym.gym_id, "clase_gratis", p.id, p.full_name);
+        totalEnviados++;
+        log.push(`🔔 ${p.full_name} (${gymName}) — recordatorio día anterior`);
         continue;
       }
 
@@ -142,27 +128,13 @@ export async function GET(req: NextRequest) {
       const message = fillTemplate(msgTemplateSanitized + paymentSuffix, p.full_name, gymName, reservarLink);
       const phone = normalizePhone(p.phone);
 
-      try {
-        const res = await fetch(`${motorUrl}/send/${gym.gym_id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-          body: JSON.stringify({ phone, message }),
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (res.ok) {
-          const updates: Record<string, unknown> = { followup_step: nextStep };
-          if (nextStep === 3) updates.clase_gratis_status = "perdido";
-          await supabase.from("prospectos").update(updates).eq("id", p.id);
-          logWASend(supabase, gym.gym_id, "clase_gratis", p.id, p.full_name);
-          totalEnviados++;
-          log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} [${p.clase_gratis_status}] (día ${diffDays})`);
-        } else {
-          log.push(`✗ ${p.full_name} — HTTP ${res.status}`);
-        }
-      } catch (e) {
-        log.push(`✗ ${p.full_name} — ${e instanceof Error ? e.message : "error"}`);
-      }
+      const updates: Record<string, unknown> = { followup_step: nextStep };
+      if (nextStep === 3) updates.clase_gratis_status = "perdido";
+      await supabase.from("prospectos").update(updates).eq("id", p.id);
+      void sendWa(gym.gym_id, phone, message, { route: "cron/clase-gratis-followup" });
+      logWASend(supabase, gym.gym_id, "clase_gratis", p.id, p.full_name);
+      totalEnviados++;
+      log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} [${p.clase_gratis_status}] (día ${diffDays})`);
     }
   }
 

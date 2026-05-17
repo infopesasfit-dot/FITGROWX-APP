@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,8 +14,6 @@ export async function POST(req: NextRequest) {
   const { gym_id } = await req.json();
   if (!gym_id) return NextResponse.json({ ok: false, error: "gym_id requerido." }, { status: 400 });
 
-  const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) return NextResponse.json({ ok: false, error: "Motor WA no configurado." }, { status: 500 });
 
   const { data: gym } = await supabase
     .from("gym_settings")
@@ -66,22 +65,9 @@ export async function POST(req: NextRequest) {
 
     const phone = normalizePhone(alumno.phone!);
 
-    try {
-      const res = await fetch(`${motorUrl}/send/${gym_id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-        body: JSON.stringify({ phone, message }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (res.ok) {
-        await supabase.from("alumnos").update({ ultima_notif_inactividad: new Date().toISOString() }).eq("id", alumno.id);
-        enviados++;
-      } else {
-        console.error(`[ausentes-trigger] WA send failed gym=${gym_id} alumno=${alumno.id} status=${res.status}`);
-      }
-    } catch (err) {
-      console.error(`[ausentes-trigger] WA send error gym=${gym_id} alumno=${alumno.id}:`, err instanceof Error ? err.message : err);
-    }
+    await supabase.from("alumnos").update({ ultima_notif_inactividad: new Date().toISOString() }).eq("id", alumno.id);
+    void sendWa(gym_id, phone, message, { route: "cron/ausentes-trigger" });
+    enviados++;
   }
 
   return NextResponse.json({ ok: true, enviados });

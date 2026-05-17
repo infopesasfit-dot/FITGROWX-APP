@@ -18,11 +18,15 @@
     },
     {
       "path": "/api/cron/vencimientos",
-      "schedule": "0 13 * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/trial-check",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/wa-keepalive",
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/cron/wa-keepalive",

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPlanNombre } from "@/lib/supabase-relations";
-import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
+import { getCurrentTime, getTodayDate, formatTimeInTimeZone } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 
 type StaffProfile = {
   gym_id: string | null;
@@ -140,6 +141,30 @@ export async function POST(req: NextRequest) {
 
   const hora = getCurrentTime();
 
+  // Ventana anti-duplicado: ignorar si ya hubo un check-in en los últimos 30 min
+  const cutoffHora = formatTimeInTimeZone(new Date(Date.now() - 30 * 60 * 1000));
+  const { data: recentAsist } = await supabaseAdmin
+    .from("asistencias")
+    .select("id")
+    .eq("alumno_id", alumno_id)
+    .eq("fecha", today)
+    .gte("hora", cutoffHora)
+    .limit(1)
+    .maybeSingle();
+
+  if (recentAsist) {
+    return NextResponse.json({
+      ok: true,
+      already: true,
+      alumno: {
+        full_name: alumnoRow.full_name,
+        plan: getPlanNombre(alumnoRow.planes),
+        status: alumnoRow.status,
+        expiration,
+      },
+    });
+  }
+
   const { error: insErr } = await supabaseAdmin.from("asistencias").insert({
     gym_id: alumnoRow.gym_id,
     alumno_id,
@@ -159,8 +184,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Fire presente WA message — non-blocking
-  const motor = process.env.WA_MOTOR_URL;
-  if (motor && alumnoRow.phone) {
+  if (alumnoRow.phone) {
     void (async () => {
       const { data: gs } = await supabaseAdmin
         .from("gym_settings")
@@ -173,15 +197,7 @@ export async function POST(req: NextRequest) {
       const msg = (gs.diadia_presente_msg?.trim() || DEFAULT)
         .replace(/{nombre}/g, alumnoRow.full_name)
         .replace(/{gym}/g, gs.gym_name ?? "el gym");
-      const phone = normalizePhone(alumnoRow.phone!);
-      try {
-        await fetch(`${motor}/send/${alumnoRow.gym_id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-          body: JSON.stringify({ phone, message: msg }),
-          signal: AbortSignal.timeout(8000),
-        });
-      } catch { /* non-fatal */ }
+      await sendWa(alumnoRow.gym_id, normalizePhone(alumnoRow.phone!), msg, { route: "alumno/checkin" });
     })();
   }
 

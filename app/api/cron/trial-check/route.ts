@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getGymSettingsSummary } from "@/lib/supabase-relations";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,7 +13,6 @@ const supabase = createClient(
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
-  const motorUrl = process.env.WA_MOTOR_URL;
   const today = new Date().toISOString().slice(0, 10);
   const log: string[] = [];
 
@@ -29,8 +29,6 @@ export async function GET(req: NextRequest) {
   else log.push(`Marcados como trial_expired: ${expired?.length ?? 0}`);
 
   // ── 2. Day-13 and Day-15 WA notifications ────────────────────────────
-  if (!motorUrl) return NextResponse.json({ ok: true, log: [...log, "Motor WA no configurado, notificaciones omitidas."] });
-
   // Use "started N+ days ago AND not yet sent" instead of exact date match.
   // This retries the next day if WA was down, so notifications are never permanently lost.
   const day13Cutoff = new Date();
@@ -40,7 +38,6 @@ export async function GET(req: NextRequest) {
   day15Cutoff.setDate(day15Cutoff.getDate() - 14);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
-  const waHeaders = { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" };
 
   async function sendTrialNotif(
     gym: { id: string; gym_settings: unknown },
@@ -57,38 +54,24 @@ export async function GET(req: NextRequest) {
     }
 
     const phone = normalizePhone(rawPhone);
-
     const message = daysLeft === 1
       ? `⚠️ *${gymName}* — Tu prueba de FitGrowX vence *mañana*. Pasado mañana perderás el acceso al sistema. Elegí un plan ahora en: ${appUrl}/dashboard/suscripcion`
       : `⏳ *${gymName}* — Te quedan *${daysLeft} días* de prueba gratuita en FitGrowX. No pierdas el acceso a tus alumnos y rutinas. Elegí tu plan en: ${appUrl}/dashboard/suscripcion`;
 
-    try {
-      const res = await fetch(`${motorUrl}/send/${gym.id}`, {
-        method: "POST",
-        headers: waHeaders,
-        body: JSON.stringify({ phone, message }),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (res.ok) {
-        await Promise.all([
-          supabase.from("gyms").update({ [notifCol]: new Date().toISOString() }).eq("id", gym.id),
-          supabase.from("notifications").insert({
-            gym_id: gym.id,
-            type: "trial_warning",
-            title: daysLeft === 1 ? "⚠️ Tu prueba vence mañana" : `⏳ ${daysLeft} días de prueba restantes`,
-            body: daysLeft === 1
-              ? "Mañana perdés el acceso. Activá tu plan ahora para no interrumpir tu operación."
-              : `En ${daysLeft} días perdés acceso a alumnos, cobros y automatizaciones.`,
-            link: "/dashboard/planes",
-          }),
-        ]);
-        log.push(`✓ Día ${daysLeft === 1 ? 15 : 13} → ${gymName}`);
-      } else {
-        log.push(`✗ Día ${daysLeft === 1 ? 15 : 13} → ${gymName} (HTTP ${res.status}, se reintentará)`);
-      }
-    } catch (err) {
-      log.push(`✗ Día ${daysLeft === 1 ? 15 : 13} → ${gymName} — ${err instanceof Error ? err.message : "error"} (se reintentará)`);
-    }
+    await Promise.all([
+      supabase.from("gyms").update({ [notifCol]: new Date().toISOString() }).eq("id", gym.id),
+      supabase.from("notifications").insert({
+        gym_id: gym.id,
+        type: "trial_warning",
+        title: daysLeft === 1 ? "⚠️ Tu prueba vence mañana" : `⏳ ${daysLeft} días de prueba restantes`,
+        body: daysLeft === 1
+          ? "Mañana perdés el acceso. Activá tu plan ahora para no interrumpir tu operación."
+          : `En ${daysLeft} días perdés acceso a alumnos, cobros y automatizaciones.`,
+        link: "/dashboard/planes",
+      }),
+    ]);
+    void sendWa(gym.id, phone, message, { route: "cron/trial-check" });
+    log.push(`✓ Día ${daysLeft === 1 ? 15 : 13} → ${gymName}`);
   }
 
   // Day 13 (3 days left): started 12+ days ago, d13 not sent yet

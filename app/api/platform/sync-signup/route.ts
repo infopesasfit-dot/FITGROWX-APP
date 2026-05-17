@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { generateUniqueSlug } from "@/lib/slug-utils";
+import { sendWa } from "@/lib/wa";
 
 const supabase = getSupabaseAdminClient();
 
@@ -317,42 +318,28 @@ export async function POST(req: NextRequest) {
       }
 
       // Mensaje de bienvenida WA desde el número de soporte (fire-and-forget)
-      const motorUrl = process.env.WA_MOTOR_URL;
-      if (motorUrl && normalizedPhone) {
+      if (normalizedPhone) {
         (async () => {
-          try {
-            // Cargar plantilla editable
-            const { data: tplRow } = await supabase
-              .from("platform_wa_templates")
-              .select("body")
-              .eq("key", "bienvenida")
-              .maybeSingle();
+          const { data: tplRow } = await supabase
+            .from("platform_wa_templates")
+            .select("body")
+            .eq("key", "bienvenida")
+            .maybeSingle();
 
-            const nombre = normalizedName?.split(" ")[0] ?? companyName.split(" ")[0];
-            const body = (tplRow?.body ?? "¡Hola {nombre}! 🎉 Bienvenido a FitGrowX. Cualquier duda, respondé este mensaje.")
-              .replace(/\{nombre\}/gi, nombre);
+          const nombre = normalizedName?.split(" ")[0] ?? companyName.split(" ")[0];
+          const body = (tplRow?.body ?? "¡Hola {nombre}! 🎉 Bienvenido a FitGrowX. Cualquier duda, respondé este mensaje.")
+            .replace(/\{nombre\}/gi, nombre);
 
-            const digits = normalizedPhone.replace(/\D/g, "");
-            const phone = digits.startsWith("549") ? digits : digits.startsWith("54") ? "549" + digits.slice(2) : "549" + digits;
+          const digits = normalizedPhone.replace(/\D/g, "");
+          const phone = digits.startsWith("549") ? digits : digits.startsWith("54") ? "549" + digits.slice(2) : "549" + digits;
 
-            const res = await fetch(`${motorUrl}/send/fitgrowx-platform`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
-              },
-              body: JSON.stringify({ phone, message: body }),
-              signal: AbortSignal.timeout(10_000),
-            });
-
-            // Marcar como enviado para no repetir
-            if (res.ok) {
-              await supabase
-                .from("platform_accounts")
-                .update({ wa_bienvenida_sent_at: new Date().toISOString() })
-                .eq("auth_user_id", user.id);
-            }
-          } catch { /* non-fatal */ }
+          const ok = await sendWa("fitgrowx-platform", phone, body, { route: "sync-signup/bienvenida" });
+          if (ok) {
+            await supabase
+              .from("platform_accounts")
+              .update({ wa_bienvenida_sent_at: new Date().toISOString() })
+              .eq("auth_user_id", user.id);
+          }
         })();
       }
     }

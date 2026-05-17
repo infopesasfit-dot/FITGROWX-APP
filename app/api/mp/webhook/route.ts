@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHmac } from "crypto";
 import { addOneMonth } from "@/lib/date-utils";
+import { sendWa } from "@/lib/wa";
 
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN!;
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest) {
 
     // WA de confirmación al dueño
     const motorUrl = process.env.WA_MOTOR_URL;
-    if (motorUrl) {
+    {
       const { data: settings } = await supabaseAdmin
         .from("gym_settings")
         .select("gym_name, whatsapp")
@@ -154,12 +155,7 @@ export async function POST(req: NextRequest) {
           `✅ 12 meses de acceso garantizado\n` +
           `📅 Válido hasta el ${annualExpiry.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}\n\n` +
           `Gracias por confiar en FitGrowX. ¡A hacer crecer ${settings.gym_name ?? "tu gym"}! 💪`;
-        fetch(`${motorUrl}/send/${gymId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-          body: JSON.stringify({ phone: settings.whatsapp, message: msg }),
-          signal: AbortSignal.timeout(8000),
-        }).catch(() => {});
+        void sendWa(gymId, settings.whatsapp, msg, { route: "mp/webhook" });
       }
     }
 
@@ -279,8 +275,7 @@ export async function POST(req: NextRequest) {
           console.log(`MP webhook: referral bonus → gym ${referral.referrer_gym_id} extendido hasta ${refNewExpiry}`);
 
           // Notificar al referente por WA (fire-and-forget)
-          const motorUrl = process.env.WA_MOTOR_URL;
-          if (motorUrl) {
+          {
             const { data: refSettings } = await supabaseAdmin
               .from("gym_settings")
               .select("gym_name, whatsapp")
@@ -288,12 +283,7 @@ export async function POST(req: NextRequest) {
               .maybeSingle();
             if (refSettings?.whatsapp) {
               const msg = `🎁 *¡Ganaste 1 mes gratis!* Uno de los gyms que recomendaste a FitGrowX acaba de activar su suscripción. Tu acceso se extendió hasta el ${refNewExpiry.slice(0, 10)}. ¡Gracias por recomendar FitGrowX! 🙌`;
-              fetch(`${motorUrl}/send/${referral.referrer_gym_id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-                body: JSON.stringify({ phone: refSettings.whatsapp, message: msg }),
-                signal: AbortSignal.timeout(8000),
-              }).catch(() => {});
+              void sendWa(referral.referrer_gym_id, refSettings.whatsapp, msg, { route: "mp/webhook" });
             }
           }
         }
@@ -304,31 +294,16 @@ export async function POST(req: NextRequest) {
   }
 
   if (isCancelled) {
-    const motorUrl = process.env.WA_MOTOR_URL;
-    if (motorUrl) {
-      const { data: settings } = await supabaseAdmin
-        .from("gym_settings")
-        .select("gym_name, whatsapp")
-        .eq("gym_id", gymId)
-        .maybeSingle();
-
-      const phone    = settings?.whatsapp;
-      const gymName  = settings?.gym_name ?? "tu gimnasio";
-      const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
-
-      if (phone) {
-        const message = `⚠️ *${gymName}* — Hubo un problema con el pago de tu suscripción FitGrowX y tu acceso fue suspendido.\n\nPodés renovarla en: ${appUrl}/dashboard/suscripcion\n\nSi tenés dudas, escribinos a soporte@fitgrowx.com.`;
-        try {
-          await fetch(`${motorUrl}/send/${gymId}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-            body: JSON.stringify({ phone, message }),
-            signal: AbortSignal.timeout(8000),
-          });
-        } catch (err) {
-          console.error(`MP webhook: WA notif failed para gym ${gymId}:`, err instanceof Error ? err.message : err);
-        }
-      }
+    const { data: settings } = await supabaseAdmin
+      .from("gym_settings")
+      .select("gym_name, whatsapp")
+      .eq("gym_id", gymId)
+      .maybeSingle();
+    if (settings?.whatsapp) {
+      const gymName = settings?.gym_name ?? "tu gimnasio";
+      const appUrl  = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
+      const message = `⚠️ *${gymName}* — Hubo un problema con el pago de tu suscripción FitGrowX y tu acceso fue suspendido.\n\nPodés renovarla en: ${appUrl}/dashboard/suscripcion\n\nSi tenés dudas, escribinos a soporte@fitgrowx.com.`;
+      await sendWa(gymId, settings.whatsapp, message, { route: "mp/webhook" });
     }
   }
 

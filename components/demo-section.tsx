@@ -151,15 +151,15 @@ export function DemoSection() {
             initial={false}
             animate="visible"
           >
-            Tu gym,{" "}
+            Un panel para vos.{" "}
             <br />
             <span
               className="font-extralight italic"
               style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
             >
-              en la palma
+              Una app
             </span>{" "}
-            de tu mano.
+            para tu alumno.
           </motion.h2>
 
           <motion.p
@@ -168,9 +168,8 @@ export function DemoSection() {
             initial={false}
             animate="visible"
           >
-            Interfaz diseñada para la claridad absoluta. Gestioná tu centro
-            desde el dashboard profesional o tomá el control total desde tu
-            móvil.
+            Vos y tu staff gestionan cobros, clases y alumnos desde el dashboard.
+            Cada alumno accede con su propia app — con el logo y los colores de tu gym.
           </motion.p>
 
           {/* Platform badges */}
@@ -182,11 +181,11 @@ export function DemoSection() {
           >
             <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] uppercase tracking-[0.15em] text-white/50">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
-              Escritorio
+              Panel dueño &amp; staff
             </div>
             <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] uppercase tracking-[0.15em] text-white/50">
               <span className="h-1.5 w-1.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(255,106,0,0.5)]" />
-              Móvil Optimizado
+              App del alumno con tu marca
             </div>
           </motion.div>
         </div>
@@ -223,7 +222,7 @@ export function DemoSection() {
               <div className="overflow-hidden rounded-[1.6rem] border border-white/[0.05]">
                 <Image
                   src="/images/fitgrowx-dashboard-real-new.png"
-                  alt="Dashboard FitGrowX"
+                  alt="Panel del dueño y staff — FitGrowX"
                   width={1240}
                   height={760}
                   className="h-auto w-full"
@@ -268,7 +267,7 @@ export function DemoSection() {
               <div className="overflow-hidden rounded-[2.2rem] border border-white/[0.04]">
                 <Image
                   src="/images/fitgrowx-plataforma-celu.png"
-                  alt="App móvil FitGrowX"
+                  alt="App del alumno con tu marca — FitGrowX"
                   width={400}
                   height={850}
                   className="w-full"

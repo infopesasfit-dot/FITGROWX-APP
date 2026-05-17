@@ -212,6 +212,8 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
+  const [lastCronRun, setLastCronRun] = useState<{ ran_at: string; status: string; summary: string | null } | null>(null);
+  const [waStatus, setWaStatus] = useState<"active" | "disconnected" | "qr" | "unknown">("unknown");
   const [botActivity, setBotActivity] = useState<{ msgHoy: number; vencHoy: number; pagosHoyCount: number; feed: { ts: string; tipo: "wa" | "pago"; label: string; name: string }[] } | null>(null);
   const [gymName, setGymName] = useState("tu gym");
   const [greetPhase, setGreetPhase] = useState<"hola" | "exit" | "welcome">("hola");
@@ -336,6 +338,8 @@ export default function DashboardPage() {
       ownerName?: string;
       gymName?: string;
       fetchedAt?: string;
+      lastCronRun?: { ran_at: string; status: string; summary: string | null } | null;
+      waStatus?: "active" | "disconnected" | "qr" | "unknown";
       snapshot?: DashboardSnapshot;
     } | null;
 
@@ -349,6 +353,8 @@ export default function DashboardPage() {
     setOwnerName(name);
     setGymName(payload.gymName?.trim() || "tu gym");
     if (payload.fetchedAt) setFetchedAt(new Date(payload.fetchedAt));
+    setLastCronRun(payload.lastCronRun ?? null);
+    if (payload.waStatus) setWaStatus(payload.waStatus);
     if (name) {
       setGreetPhase("exit");
       setTimeout(() => setGreetPhase("welcome"), 650);
@@ -567,6 +573,26 @@ export default function DashboardPage() {
     return `Actualizado hace ${Math.floor(diff / 60)}h`;
   })();
 
+  const waBadge = (() => {
+    if (waStatus === "active")       return { text: "WhatsApp", color: "#16A34A", bg: "rgba(22,163,74,0.07)",   border: "rgba(22,163,74,0.18)",   dot: "#16A34A", href: null };
+    if (waStatus === "qr")           return { text: "WA: escanear QR", color: "#D97706", bg: "rgba(217,119,6,0.07)", border: "rgba(217,119,6,0.25)", dot: "#D97706", href: "/dashboard/conexiones" };
+    if (waStatus === "disconnected") return { text: "WA desconectado", color: "#DC2626", bg: "rgba(220,38,38,0.07)",  border: "rgba(220,38,38,0.18)",  dot: "#DC2626", href: "/dashboard/conexiones" };
+    return null;
+  })();
+
+  const cronSyncLabel = (() => {
+    if (!lastCronRun) return { text: "Sin sincronización registrada", stale: true };
+    const diffH = (Date.now() - new Date(lastCronRun.ran_at).getTime()) / 3_600_000;
+    const diffMin = Math.floor(diffH * 60);
+    const timeAgo = diffMin < 60
+      ? `hace ${diffMin} min`
+      : diffH < 24
+        ? `hace ${Math.floor(diffH)}h`
+        : `hace ${Math.floor(diffH / 24)}d`;
+    const stale = lastCronRun.status === "error" || diffH > 26;
+    return { text: `Sincronizado ${timeAgo}`, stale };
+  })();
+
   const renderFilters = (compact = false) => (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
       <div style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F5F7FA", borderRadius: compact ? 14 : 16, padding: 4, border: "1px solid rgba(17,24,39,0.06)" }}>
@@ -585,6 +611,25 @@ export default function DashboardPage() {
       </div>
       {fetchedAtLabel && !compact && (
         <span style={{ font: `400 0.68rem/1 ${fb}`, color: t3, whiteSpace: "nowrap" }}>{fetchedAtLabel}</span>
+      )}
+      {waBadge && (
+        waBadge.href ? (
+          <a href={waBadge.href} style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 0.68rem/1 ${fb}`, color: waBadge.color, background: waBadge.bg, border: `1px solid ${waBadge.border}`, borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap", textDecoration: "none", cursor: "pointer" }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: waBadge.dot, flexShrink: 0 }} />
+            {waBadge.text}
+          </a>
+        ) : (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 0.68rem/1 ${fb}`, color: waBadge.color, background: waBadge.bg, border: `1px solid ${waBadge.border}`, borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap" }}>
+            <span style={{ width: 5, height: 5, borderRadius: "50%", background: waBadge.dot, flexShrink: 0 }} />
+            {waBadge.text}
+          </span>
+        )
+      )}
+      {!compact && (
+        <span title={lastCronRun?.summary ?? undefined} style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 0.68rem/1 ${fb}`, color: cronSyncLabel.stale ? "#DC2626" : "#16A34A", background: cronSyncLabel.stale ? "rgba(220,38,38,0.07)" : "rgba(22,163,74,0.07)", border: `1px solid ${cronSyncLabel.stale ? "rgba(220,38,38,0.18)" : "rgba(22,163,74,0.18)"}`, borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap", cursor: lastCronRun?.summary ? "help" : "default" }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: cronSyncLabel.stale ? "#DC2626" : "#16A34A", flexShrink: 0 }} />
+          {cronSyncLabel.text}
+        </span>
       )}
     </div>
   );

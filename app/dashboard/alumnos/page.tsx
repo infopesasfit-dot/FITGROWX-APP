@@ -11,6 +11,7 @@ import SensitiveConfirm from "@/app/dashboard/components/SensitiveConfirm";
 import { EJERCICIOS } from "@/lib/ejercicios";
 import { usePagoModal } from "@/hooks/usePagoModal";
 import { useRutinaModal } from "@/hooks/useRutinaModal";
+import { addMonths } from "@/lib/date-utils";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -673,7 +674,11 @@ export default function AlumnosPage() {
   const openReactivarModal = async (a: Alumno) => {
     setReactivarTarget(a);
     setReactivarPlanId(a.plan_id ?? "");
-    setReactivarFechaInicio(today);
+    setReactivarFechaInicio(
+      a.next_expiration_date && a.next_expiration_date > today
+        ? a.next_expiration_date
+        : today
+    );
     setReactivarSaldarDeuda(false);
     setReactivarError(null);
     if (planes.length === 0 && gymId) await loadPlanes(gymId);
@@ -685,11 +690,21 @@ export default function AlumnosPage() {
     setReactivarSaving(true);
     setReactivarError(null);
     const plan = planes.find(p => p.id === reactivarPlanId);
-    const duracion = plan?.duracion_dias ?? 30;
-    const inicio = new Date(reactivarFechaInicio + "T12:00:00");
-    const vencimiento = new Date(inicio);
-    vencimiento.setDate(vencimiento.getDate() + duracion);
-    const nextExp = vencimiento.toISOString().slice(0, 10);
+    const base = new Date(reactivarFechaInicio + "T12:00:00");
+    const MESES: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
+    const DIAS:  Record<string, number> = { semanal: 7, semana: 7 };
+    const periodo = plan?.periodo ?? "mensual";
+    let vencimiento: Date;
+    if (plan?.duracion_dias && plan.duracion_dias > 0) {
+      vencimiento = new Date(base);
+      vencimiento.setDate(vencimiento.getDate() + plan.duracion_dias);
+    } else if (MESES[periodo]) {
+      vencimiento = addMonths(base, MESES[periodo]);
+    } else {
+      vencimiento = new Date(base);
+      vencimiento.setDate(vencimiento.getDate() + (DIAS[periodo] ?? 30));
+    }
+    const nextExp = `${vencimiento.getFullYear()}-${String(vencimiento.getMonth() + 1).padStart(2, "0")}-${String(vencimiento.getDate()).padStart(2, "0")}`;
     const updates: Record<string, unknown> = {
       plan_id: reactivarPlanId || null,
       status: "activo",
@@ -778,9 +793,19 @@ export default function AlumnosPage() {
     if (planChanged && planChangePolicy === "now") {
       const newPlan = planes.find(p => p.id === editForm.plan_id);
       if (newPlan) {
-        const d = new Date();
-        d.setDate(d.getDate() + newPlan.duracion_dias);
-        finalExpiry = d.toISOString().slice(0, 10);
+        const base = new Date(); base.setHours(12, 0, 0, 0);
+        const PM: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
+        const PD: Record<string, number> = { semanal: 7, semana: 7 };
+        const per = newPlan.periodo ?? "mensual";
+        let exp: Date;
+        if (newPlan.duracion_dias > 0) {
+          exp = new Date(base); exp.setDate(exp.getDate() + newPlan.duracion_dias);
+        } else if (PM[per]) {
+          exp = addMonths(base, PM[per]);
+        } else {
+          exp = new Date(base); exp.setDate(exp.getDate() + (PD[per] ?? 30));
+        }
+        finalExpiry = `${exp.getFullYear()}-${String(exp.getMonth() + 1).padStart(2, "0")}-${String(exp.getDate()).padStart(2, "0")}`;
       }
     }
 
@@ -1595,7 +1620,17 @@ export default function AlumnosPage() {
             </div>
             {editForm.plan_id && editForm.plan_id !== editOriginalPlanId && editForm.next_expiration_date && (() => {
               const newPlan = planes.find(p => p.id === editForm.plan_id);
-              const previewDate = newPlan ? (() => { const d = new Date(); d.setDate(d.getDate() + newPlan.duracion_dias); return d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }); })() : "—";
+              const previewDate = newPlan ? (() => {
+                const base = new Date(); base.setHours(12, 0, 0, 0);
+                const PM: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
+                const PD: Record<string, number> = { semanal: 7, semana: 7 };
+                const per = newPlan.periodo ?? "mensual";
+                let exp: Date;
+                if (newPlan.duracion_dias > 0) { exp = new Date(base); exp.setDate(exp.getDate() + newPlan.duracion_dias); }
+                else if (PM[per]) { exp = addMonths(base, PM[per]); }
+                else { exp = new Date(base); exp.setDate(exp.getDate() + (PD[per] ?? 30)); }
+                return exp.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+              })() : "—";
               return (
                 <div style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.22)", borderRadius: 10, padding: "12px 14px" }}>
                   <p style={{ font: `600 0.78rem/1 ${fb}`, color: "#92400E", marginBottom: 10 }}>¿Cuándo aplicar el plan nuevo?</p>
@@ -1709,6 +1744,15 @@ export default function AlumnosPage() {
             ><X size={16} /></button>
           </div>
           <div style={{ height: 1, background: "rgba(0,0,0,0.06)", margin: "0 24px" }} />
+          {reactivarTarget.next_expiration_date && reactivarTarget.next_expiration_date > today && (
+            <div style={{ margin: "16px 24px 0", background: "rgba(59,130,246,0.07)", border: "1px solid rgba(59,130,246,0.22)", borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
+              <span style={{ fontSize: "1rem", flexShrink: 0 }}>📅</span>
+              <p style={{ font: `400 0.8rem/1.45 ${fb}`, color: "#1D4ED8", margin: 0 }}>
+                Se detectó una membresía vigente. El nuevo período se sumará a partir del{" "}
+                <strong>{new Date(reactivarTarget.next_expiration_date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}</strong>.
+              </p>
+            </div>
+          )}
           {reactivarTarget.deuda_pendiente > 0 && (
             <div style={{ margin: "16px 24px 0", background: "rgba(217,119,6,0.07)", border: "1px solid rgba(217,119,6,0.25)", borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
               <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
@@ -1756,9 +1800,19 @@ export default function AlumnosPage() {
               {reactivarPlanId && reactivarFechaInicio && (() => {
                 const plan = planes.find(p => p.id === reactivarPlanId);
                 if (!plan) return null;
-                const d = new Date(reactivarFechaInicio + "T12:00:00");
-                d.setDate(d.getDate() + plan.duracion_dias);
-                return <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 5 }}>Vence el {d.toLocaleDateString("es-AR")} ({plan.duracion_dias} días)</p>;
+                const base = new Date(reactivarFechaInicio + "T12:00:00");
+                const PM: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
+                const PD: Record<string, number> = { semanal: 7, semana: 7 };
+                const per = plan.periodo ?? "mensual";
+                let exp: Date;
+                if (plan.duracion_dias && plan.duracion_dias > 0) {
+                  exp = new Date(base); exp.setDate(exp.getDate() + plan.duracion_dias);
+                } else if (PM[per]) {
+                  exp = addMonths(base, PM[per]);
+                } else {
+                  exp = new Date(base); exp.setDate(exp.getDate() + (PD[per] ?? 30));
+                }
+                return <p style={{ font: `400 0.72rem/1 ${fb}`, color: t3, marginTop: 5 }}>Vence el {exp.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}</p>;
               })()}
             </div>
             {reactivarTarget.deuda_pendiente > 0 && (

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { sendWa } from "@/lib/wa";
 import { getTodayDate } from "@/lib/date-utils";
 
 const supabase = getSupabaseAdminClient();
@@ -84,19 +85,11 @@ export async function POST(req: NextRequest) {
   const fechaFmt = new Date(fecha + "T12:00:00").toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 
   // WA confirmation to prospecto
-  const motor = process.env.WA_MOTOR_URL;
-  if (motor) {
+  {
     const horaPart = hora ? ` a las *${hora}*` : "";
     const clasePart = clase_nombre ? ` — *${clase_nombre}*` : "";
     const msg = `✅ ¡Perfecto, ${nombre}! Tu clase de prueba en *${gymName}* queda confirmada para el *${fechaFmt}*${horaPart}${clasePart}.\n\n¡Te esperamos! 💪`;
-    try {
-      await fetch(`${motor}/send/${gym_id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-        body: JSON.stringify({ phone: phoneNorm, message: msg }),
-        signal: AbortSignal.timeout(8000),
-      });
-    } catch { /* non-fatal */ }
+    void sendWa(gym_id, phoneNorm, msg, { route: "gym/reservar-clase-gratis" });
   }
 
   // In-app notification for gym

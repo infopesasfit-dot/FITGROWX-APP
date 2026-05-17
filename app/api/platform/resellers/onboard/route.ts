@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
@@ -84,28 +85,23 @@ export async function POST(req: NextRequest) {
   }
 
   // --- 5. Send WA onboarding ---
-  const motorUrl   = process.env.WA_MOTOR_URL;
-  const phone      = whatsapp?.replace(/\D/g, "");
+  const phone = whatsapp?.replace(/\D/g, "");
   const refLink    = `${appUrl}/start?reseller=${slug}`;
   const portalLink = `${appUrl}/reseller/portal`;
 
-  if (motorUrl && phone) {
-    fetch(`${motorUrl}/send/fitgrowx-platform`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-      body: JSON.stringify({
-        phone,
-        message:
-          `🎉 *¡Bienvenido/a a la red FitGrowX, ${name.trim().split(" ")[0]}!*\n\n` +
-          `Tu cuenta de revendedor está lista. Esto es todo lo que necesitás:\n\n` +
-          `🔗 *Tu link de revendedor:*\n${refLink}\n\n` +
-          `Compartilo con tus colegas y cada vez que contraten FitGrowX, vos ganás comisión de por vida.\n\n` +
-          `📊 *Tu portal de comisiones:*\n${portalLink}\n\n` +
-          `Para acceder, hacé click acá 👇\n${magicLink}\n\n` +
-          `Cualquier duda respondé este mensaje. ¡A crecer! 💪`,
-      }),
-      signal: AbortSignal.timeout(8000),
-    }).catch(() => {});
+  if (phone) {
+    void sendWa(
+      "fitgrowx-platform",
+      phone,
+      `🎉 *¡Bienvenido/a a la red FitGrowX, ${name.trim().split(" ")[0]}!*\n\n` +
+      `Tu cuenta de revendedor está lista. Esto es todo lo que necesitás:\n\n` +
+      `🔗 *Tu link de revendedor:*\n${refLink}\n\n` +
+      `Compartilo con tus colegas y cada vez que contraten FitGrowX, vos ganás comisión de por vida.\n\n` +
+      `📊 *Tu portal de comisiones:*\n${portalLink}\n\n` +
+      `Para acceder, hacé click acá 👇\n${magicLink}\n\n` +
+      `Cualquier duda respondé este mensaje. ¡A crecer! 💪`,
+      { route: "resellers/onboard" },
+    );
   }
 
   return NextResponse.json({ reseller, slug, refLink });

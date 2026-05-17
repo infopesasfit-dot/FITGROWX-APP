@@ -20,7 +20,7 @@ type AlumnoMetricRow = { id: string; full_name: string; phone: string | null; st
 type ReservaMetricRow = { fecha: string; estado: string | null };
 type AsistenciaMetricRow = { alumno_id: string; fecha: string; hora: string | null };
 type GymClassMetricRow = { day_of_week: number; max_capacity: number; event_type: "regular" | "especial" | null; event_date: string | null };
-type GymSettingsRow = { gym_name: string | null; owner_name: string | null };
+type GymSettingsRow = { gym_name: string | null; owner_name: string | null; wa_status: string | null };
 type GymRow = { name: string | null; owner_name: string | null };
 
 function startOfMonth(date = new Date()) {
@@ -148,9 +148,10 @@ export async function GET(req: NextRequest) {
     { data: allAsistRows, error: asistError },
     { data: gymClassesMetricRows, error: classesError },
     { count: mensajesAutoCount, error: mensajesAutoError },
+    { data: lastCronRunRows },
   ] = await Promise.all([
     admin.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "pendiente"),
-    admin.from("gym_settings").select("gym_name, owner_name").eq("gym_id", gymId).maybeSingle<GymSettingsRow>(),
+    admin.from("gym_settings").select("gym_name, owner_name, wa_status").eq("gym_id", gymId).maybeSingle<GymSettingsRow>(),
     admin.from("gyms").select("name, owner_name").eq("id", gymId).maybeSingle<GymRow>(),
     admin.from("prospectos").select("created_at, phone, clase_gratis_date").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", thisMonthTo),
     admin.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", oldestMonthKey).lte("date", thisMonthTo),
@@ -160,6 +161,7 @@ export async function GET(req: NextRequest) {
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
     admin.from("wa_mensajes_log").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("sent_at", `${thisMonthFrom}T00:00:00Z`).lte("sent_at", `${thisMonthTo}T23:59:59Z`),
+    admin.from("cron_runs").select("ran_at, status, summary").eq("cron_name", "vencimientos").order("ran_at", { ascending: false }).limit(1),
   ]);
 
   const anyError =
@@ -198,8 +200,13 @@ export async function GET(req: NextRequest) {
   const activosPlanRows = alumnoRows.filter(r =>
     r.status === "activo" && (r.next_expiration_date == null || r.next_expiration_date >= todayStr)
   );
+  // Morosos: usa next_expiration_date como fuente de verdad, no el status.
+  // Cubre el caso donde el cron falló y status sigue en "activo" pero la fecha ya venció.
   const morososRows = alumnoRows.filter(r =>
-    r.status === "vencido" && getRelationRecord(r.planes) != null
+    r.next_expiration_date != null &&
+    r.next_expiration_date < todayStr &&
+    r.status !== "pendiente" &&
+    getRelationRecord(r.planes) != null
   );
 
   const proyectado = activosPlanRows.reduce((sum, row) => {
@@ -399,11 +406,15 @@ export async function GET(req: NextRequest) {
   const retentionCurrent = retentionDenominatorCurrent > 0 ? (renewedMembersCurrent / retentionDenominatorCurrent) * 100 : 0;
   const retentionPrevious = retentionDenominatorPrevious > 0 ? (renewedMembersPrevious / retentionDenominatorPrevious) * 100 : 0;
 
+  const lastCronRun = lastCronRunRows?.[0] as { ran_at: string; status: string; summary: string | null } | undefined;
+
   return NextResponse.json({
     ok: true,
     ownerName: ownerDisplayRaw.split(" ")[0],
     gymName: gymDisplay,
     fetchedAt: new Date().toISOString(),
+    lastCronRun: lastCronRun ?? null,
+    waStatus: (gymSettings?.wa_status ?? "unknown") as "active" | "disconnected" | "qr" | "unknown",
     snapshot: {
       activosCount: activos,
       totalCount: total,

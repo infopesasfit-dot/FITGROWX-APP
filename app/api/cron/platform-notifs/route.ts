@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
+import { sendWa, isWaConnected } from "@/lib/wa";
 
 export const dynamic = "force-dynamic";
 
@@ -16,23 +17,6 @@ function fill(template: string, vars: Record<string, string>) {
     (s, [k, v]) => s.replace(new RegExp(`\\{${k}\\}`, "gi"), v),
     template,
   );
-}
-
-async function sendWA(motorUrl: string, phone: string, message: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${motorUrl}/send/${PLAT_SESSION}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
-      },
-      body: JSON.stringify({ phone, message }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
 }
 
 function normalizePhone(raw: string | null | undefined): string | null {
@@ -51,19 +35,12 @@ function nombre(acc: { owner_name?: string | null; company_name: string }) {
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
-  const motorUrl = process.env.WA_MOTOR_URL;
   const log: string[] = [];
 
-  if (!motorUrl) return NextResponse.json({ ok: false, log: ["WA_MOTOR_URL no configurado."] });
+  if (!process.env.WA_MOTOR_URL) return NextResponse.json({ ok: false, log: ["WA_MOTOR_URL no configurado."] });
 
   // Verificar sesión activa
-  const sessionCheck = await fetch(`${motorUrl}/session-status/${PLAT_SESSION}`, {
-    headers: { "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-    signal: AbortSignal.timeout(6_000),
-  }).catch(() => null);
-
-  const sessionData = await sessionCheck?.json().catch(() => ({})) ?? {};
-  if (sessionData?.status !== "active") {
+  if (!await isWaConnected(PLAT_SESSION)) {
     return NextResponse.json({ ok: false, log: ["Sesión WA de plataforma no activa. Escaneá el QR primero."] });
   }
 
@@ -98,12 +75,9 @@ export async function GET(req: NextRequest) {
     if (!phone) { log.push(`Trial vence — sin tel: ${acc.company_name}`); continue; }
     const dias = Math.ceil((new Date(acc.trial_ends_at).getTime() - now.getTime()) / 86_400_000);
     const msg  = fill(tpl["trial_vence"] ?? "Tu trial vence en {dias} días, {nombre}.", { nombre: nombre(acc), dias: String(dias) });
-    if (await sendWA(motorUrl, phone, msg)) {
-      await sb.from("platform_accounts").update({ wa_trial_vence_sent_at: now.toISOString() }).eq("id", acc.id);
-      log.push(`✓ Trial vence → ${acc.company_name} (${dias}d)`);
-    } else {
-      log.push(`✗ Trial vence → ${acc.company_name} (reintentará mañana)`);
-    }
+    await sb.from("platform_accounts").update({ wa_trial_vence_sent_at: now.toISOString() }).eq("id", acc.id);
+    void sendWa(PLAT_SESSION, phone, msg);
+    log.push(`✓ Trial vence → ${acc.company_name} (${dias}d)`);
   }
 
   // ── 2. Trial vencido HOY sin convertir (ventana 0-36h del vencimiento) ──
@@ -123,12 +97,9 @@ export async function GET(req: NextRequest) {
     const phone = normalizePhone(acc.phone);
     if (!phone) { log.push(`Trial expirado — sin tel: ${acc.company_name}`); continue; }
     const msg = fill(tpl["trial_expirado"] ?? "Hola {nombre}, tu prueba venció hoy. Tus datos siguen guardados.", { nombre: nombre(acc) });
-    if (await sendWA(motorUrl, phone, msg)) {
-      await sb.from("platform_accounts").update({ wa_trial_expirado_sent_at: now.toISOString() }).eq("id", acc.id);
-      log.push(`✓ Trial expirado → ${acc.company_name}`);
-    } else {
-      log.push(`✗ Trial expirado → ${acc.company_name} (reintentará)`);
-    }
+    await sb.from("platform_accounts").update({ wa_trial_expirado_sent_at: now.toISOString() }).eq("id", acc.id);
+    void sendWa(PLAT_SESSION, phone, msg);
+    log.push(`✓ Trial expirado → ${acc.company_name}`);
   }
 
   // ── 3. Sin actividad ≥7 días (máx 1 vez cada 30 días) ──────────────────
@@ -148,12 +119,9 @@ export async function GET(req: NextRequest) {
     const phone = normalizePhone(acc.phone);
     if (!phone) { log.push(`Inactivo — sin tel: ${acc.company_name}`); continue; }
     const msg = fill(tpl["inactivo_7d"] ?? "Ey {nombre}! ¿Cómo va el gym?", { nombre: nombre(acc) });
-    if (await sendWA(motorUrl, phone, msg)) {
-      await sb.from("platform_accounts").update({ wa_inactivo_notif_sent_at: now.toISOString() }).eq("id", acc.id);
-      log.push(`✓ Inactivo 7d → ${acc.company_name}`);
-    } else {
-      log.push(`✗ Inactivo 7d → ${acc.company_name}`);
-    }
+    await sb.from("platform_accounts").update({ wa_inactivo_notif_sent_at: now.toISOString() }).eq("id", acc.id);
+    void sendWa(PLAT_SESSION, phone, msg);
+    log.push(`✓ Inactivo 7d → ${acc.company_name}`);
   }
 
   // ── 4. Día 3 sin cargar alumnos ──────────────────────────────────────────
@@ -200,12 +168,9 @@ export async function GET(req: NextRequest) {
     if (!phone) continue;
 
     const msg = fill(tpl["activacion_d3"] ?? "Ey {nombre}! ¿Pudiste cargar tus alumnos?", { nombre: nombre(acc) });
-    if (await sendWA(motorUrl, phone, msg)) {
-      await sb.from("platform_accounts").update({ wa_activacion_d3_sent_at: now.toISOString() }).eq("id", acc.id);
-      log.push(`✓ Día 3 sin alumnos → ${acc.company_name}`);
-    } else {
-      log.push(`✗ Día 3 → ${acc.company_name}`);
-    }
+    await sb.from("platform_accounts").update({ wa_activacion_d3_sent_at: now.toISOString() }).eq("id", acc.id);
+    void sendWa(PLAT_SESSION, phone, msg);
+    log.push(`✓ Día 3 sin alumnos → ${acc.company_name}`);
   }
 
   // ── 5. Primer pago registrado en el gym ──────────────────────────────────
@@ -261,12 +226,9 @@ export async function GET(req: NextRequest) {
     if (!phone) continue;
 
     const msg = fill(tpl["primer_pago"] ?? "🎉 {nombre}, tu gym recibió su primer pago en FitGrowX.", { nombre: nombre(acc) });
-    if (await sendWA(motorUrl, phone, msg)) {
-      await sb.from("platform_accounts").update({ wa_primer_pago_sent_at: now.toISOString() }).eq("id", acc.id);
-      log.push(`✓ Primer pago → ${acc.company_name}`);
-    } else {
-      log.push(`✗ Primer pago → ${acc.company_name}`);
-    }
+    await sb.from("platform_accounts").update({ wa_primer_pago_sent_at: now.toISOString() }).eq("id", acc.id);
+    void sendWa(PLAT_SESSION, phone, msg);
+    log.push(`✓ Primer pago → ${acc.company_name}`);
   }
 
   // ── 6. Resumen diario al owner ──────────────────────────────────────────
@@ -314,7 +276,7 @@ export async function GET(req: NextRequest) {
       `Ver plataforma: ${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/platform/pulso`,
     ].join("\n");
 
-    if (await sendWA(motorUrl, ownerPhone, msg)) {
+    if (await sendWa(PLAT_SESSION,ownerPhone, msg)) {
       log.push(`✓ Resumen diario → owner`);
     } else {
       log.push(`✗ Resumen diario → owner (WA falló)`);

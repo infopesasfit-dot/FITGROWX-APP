@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createHmac } from "crypto";
+import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
@@ -66,13 +67,12 @@ export async function GET(req: NextRequest) {
   );
 
   // Disparar WA para cada hito (fire-and-forget)
-  const motorUrl  = process.env.WA_MOTOR_URL;
   const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com";
   const phone     = alumno?.phone;
   const firstName = (alumno?.full_name ?? "").split(" ")[0];
   const gymName   = settings?.gym_name ?? "tu gym";
 
-  if (motorUrl && phone) {
+  if (phone) {
     for (const h of newHitos) {
       const cardUrl = `${appUrl}/api/alumno/share-card?a=${alumno_id}&h=${h}&s=${sign(alumno_id, h)}`;
       const label   = LABELS[h] ?? h;
@@ -81,14 +81,9 @@ export async function GET(req: NextRequest) {
         `🎴 Mirá tu tarjeta de logro:\n${cardUrl}\n\n` +
         `Subíla a tus Stories 📸 ¡A seguir! 💪`;
 
-      fetch(`${motorUrl}/send/${gym_id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.WA_MOTOR_API_KEY ?? "" },
-        body: JSON.stringify({ phone, message }),
-        signal: AbortSignal.timeout(8000),
-      }).then(() =>
-        sb.from("alumno_hitos").update({ wa_sent_at: new Date().toISOString() }).eq("alumno_id", alumno_id).eq("hito", h)
-      ).catch(() => {});
+      void sendWa(gym_id, phone, message, { route: "alumno/hitos" }).then(ok => {
+        if (ok) void sb.from("alumno_hitos").update({ wa_sent_at: new Date().toISOString() }).eq("alumno_id", alumno_id).eq("hito", h);
+      });
     }
   }
 

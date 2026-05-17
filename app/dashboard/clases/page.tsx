@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star, Sparkles } from "lucide-react";
+import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star, Sparkles, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getPagoAlumnoSummary } from "@/lib/supabase-relations";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -89,6 +89,10 @@ export default function ClasesPage() {
   const [wodTimeCap,    setWodTimeCap]    = useState("15");
   const [wodAiLoading,  setWodAiLoading]  = useState(false);
   const [wodError,      setWodError]      = useState<string | null>(null);
+  const [cancelInstancia, setCancelInstancia] = useState<{ clase_id: string; fecha: string } | null>(null);
+  const [cancelMotivo,    setCancelMotivo]    = useState("");
+  const [cancelLoading,   setCancelLoading]   = useState(false);
+  const [cancelResult,    setCancelResult]    = useState<string | null>(null);
 
   useEffect(() => {
     getCachedProfile().then((profile) => { if (profile) setGymId(profile.gymId); });
@@ -238,6 +242,29 @@ export default function ClasesPage() {
     setDeleteId(null);
     setExpandedId(null);
     fetchClases(gymId);
+  };
+
+  const handleCancelInstancia = async () => {
+    if (!cancelInstancia) return;
+    setCancelLoading(true);
+    const res = await fetch("/api/admin/clase/cancelar-instancia", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clase_id: cancelInstancia.clase_id, fecha: cancelInstancia.fecha, motivo: cancelMotivo || undefined }),
+    });
+    const data = await res.json();
+    setCancelLoading(false);
+    if (!res.ok || data.error) { setCancelResult(`Error: ${data.error ?? "desconocido"}`); return; }
+    setCancelResult(`Clase cancelada. ${data.cancelled_reservas} reserva(s) liberadas, ${data.notified} WA enviado(s).`);
+    // Remove cancelled reservas from local state
+    setReservas(prev => ({
+      ...prev,
+      [cancelInstancia.clase_id]: (prev[cancelInstancia.clase_id] ?? []).filter(r => r.fecha !== cancelInstancia.fecha),
+    }));
+    setClases(prev => prev.map(c => c.id === cancelInstancia.clase_id
+      ? { ...c, reservas_count: Math.max(0, (c.reservas_count ?? 0) - data.cancelled_reservas) }
+      : c
+    ));
   };
 
   const toggleExpand = async (id: string) => {
@@ -441,17 +468,33 @@ export default function ClasesPage() {
                               <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#94A3B8" }}>Sin reservas en los próximos 7 días.</p>
                             ) : (
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {res.map(r => (
-                                  <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                      <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.6rem/1 ${fd}`, color: "white", flexShrink: 0 }}>
-                                        {(r.alumnos?.full_name ?? "?").slice(0, 2).toUpperCase()}
+                                {/* Group by date and show "Cancelar día" per date */}
+                                {Array.from(new Set(res.map(r => r.fecha))).sort().map(fecha => {
+                                  const alumnosDelDia = res.filter(r => r.fecha === fecha);
+                                  return (
+                                    <div key={fecha} style={{ border: "1px solid rgba(0,0,0,0.06)", borderRadius: 8, overflow: "hidden" }}>
+                                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "rgba(0,0,0,0.02)" }}>
+                                        <span style={{ font: `600 0.72rem/1 ${fd}`, color: t2 }}>{fecha}</span>
+                                        <button
+                                          onClick={() => { setCancelInstancia({ clase_id: c.id, fecha }); setCancelMotivo(""); setCancelResult(null); }}
+                                          style={{ display: "flex", alignItems: "center", gap: 4, font: `600 0.68rem/1 ${fd}`, color: "#DC2626", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 6, padding: "3px 8px", cursor: "pointer" }}
+                                        >
+                                          <AlertTriangle size={10} /> Cancelar día
+                                        </button>
                                       </div>
-                                      <span style={{ font: `500 0.82rem/1 ${fd}`, color: t1 }}>{r.alumnos?.full_name ?? "—"}</span>
+                                      <div style={{ padding: "6px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+                                        {alumnosDelDia.map(r => (
+                                          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.58rem/1 ${fd}`, color: "white", flexShrink: 0 }}>
+                                              {(r.alumnos?.full_name ?? "?").slice(0, 2).toUpperCase()}
+                                            </div>
+                                            <span style={{ font: `500 0.8rem/1 ${fd}`, color: t1 }}>{r.alumnos?.full_name ?? "—"}</span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
-                                    <span style={{ font: `400 0.7rem/1 ${fd}`, color: t2 }}>{r.fecha}</span>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
@@ -650,6 +693,43 @@ export default function ClasesPage() {
                 {saving ? "Guardando..." : editId ? "Guardar cambios" : `Crear clase${!editId && form.days_of_week.length > 1 ? ` (${form.days_of_week.length} días)` : ""}`}
               </button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Cancel instance (profesor ausente) */}
+      {cancelInstancia && typeof window !== "undefined" && createPortal(
+        <div onClick={() => { if (!cancelLoading) { setCancelInstancia(null); setCancelResult(null); } }} style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "white", borderRadius: 18, padding: "28px 24px", width: "100%", maxWidth: 380, boxShadow: "0 24px 60px rgba(0,0,0,0.18)", textAlign: "center" }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              <AlertTriangle size={22} color="#D97706" />
+            </div>
+            <h3 style={{ font: `700 1rem/1 ${fd}`, color: t1, marginBottom: 8 }}>Cancelar clase del {cancelInstancia.fecha}</h3>
+            {cancelResult ? (
+              <>
+                <p style={{ font: `400 0.82rem/1.4 ${fd}`, color: cancelResult.startsWith("Error") ? "#DC2626" : "#16A34A", marginBottom: 20 }}>{cancelResult}</p>
+                <button onClick={() => { setCancelInstancia(null); setCancelResult(null); }} style={{ padding: "10px 24px", background: t1, border: "none", borderRadius: 9, font: `600 0.82rem/1 ${fd}`, color: "white", cursor: "pointer" }}>Cerrar</button>
+              </>
+            ) : (
+              <>
+                <p style={{ font: `400 0.82rem/1.4 ${fd}`, color: t2, marginBottom: 16 }}>Todas las reservas de esa fecha se liberarán sin penalización y se enviará un aviso por WhatsApp a cada alumno.</p>
+                <div style={{ marginBottom: 20 }}>
+                  <input
+                    placeholder="Motivo (opcional): ej. Profesor enfermo"
+                    value={cancelMotivo}
+                    onChange={e => setCancelMotivo(e.target.value)}
+                    style={{ width: "100%", padding: "10px 12px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 9, font: `400 0.82rem/1 ${fd}`, color: t1, outline: "none", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setCancelInstancia(null)} disabled={cancelLoading} style={{ flex: 1, padding: "10px", background: "none", border: "1px solid rgba(0,0,0,0.1)", borderRadius: 9, font: `500 0.82rem/1 ${fd}`, color: t2, cursor: "pointer" }}>Volver</button>
+                  <button onClick={handleCancelInstancia} disabled={cancelLoading} style={{ flex: 1, padding: "10px", background: "#D97706", border: "none", borderRadius: 9, font: `600 0.82rem/1 ${fd}`, color: "white", cursor: cancelLoading ? "not-allowed" : "pointer", opacity: cancelLoading ? 0.7 : 1 }}>
+                    {cancelLoading ? "Cancelando..." : "Confirmar"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>,
         document.body

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
+import { getCurrentTime, getTodayDate, formatTimeInTimeZone } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 
@@ -61,6 +61,22 @@ export async function POST(req: NextRequest) {
         ? "No se puede registrar asistencia: la membresía está vencida."
         : "No se puede registrar asistencia: la membresía está inactiva.",
     }, { status: 409 });
+  }
+
+  // Anti-duplicado: solo para entradas de hoy (no bloquear retroactivos)
+  if (dateStr === getTodayDate()) {
+    const cutoffHora = formatTimeInTimeZone(new Date(Date.now() - 30 * 60 * 1000));
+    const { data: recentAsist } = await supabaseAdmin
+      .from("asistencias")
+      .select("id")
+      .eq("alumno_id", alumno_id)
+      .eq("fecha", dateStr)
+      .gte("hora", cutoffHora)
+      .limit(1)
+      .maybeSingle();
+    if (recentAsist) {
+      return NextResponse.json({ ok: true, already: true, fecha: dateStr, hora });
+    }
   }
 
   const { error } = await supabaseAdmin
