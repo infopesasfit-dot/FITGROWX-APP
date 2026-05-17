@@ -469,9 +469,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40, position: "relative", zIndex: 1 }}>
           {(isMobile || !collapsed) && (
             <div style={{ flexShrink: 0 }}>
-              {gymLogoUrl
-                ? // eslint-disable-next-line @next/next/no-img-element
-                  <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 36, maxWidth: 160, objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} />
+              {gymDisplayName
+                ? <span style={{ font: `800 1.05rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", fontStyle: "italic" }}>
+                    {gymDisplayName.split(" ").slice(0, -1).join(" ")}{gymDisplayName.split(" ").length > 1 ? " " : ""}
+                    <span style={{ color: "#F97316" }}>{gymDisplayName.split(" ").slice(-1)[0]}</span>
+                  </span>
                 : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} style={{ height: 36, width: "auto", objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} priority unoptimized />
               }
             </div>
@@ -670,9 +672,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Mobile: show gym logo / brand in topbar instead of hamburger */}
           {isMobile && (
             <div style={{ flexShrink: 0 }}>
-              {gymLogoUrl
-                ? // eslint-disable-next-line @next/next/no-img-element
-                  <img src={gymLogoUrl} alt={gymDisplayName ?? "Logo"} style={{ height: 28, maxWidth: 100, objectFit: "contain", display: "block" }} />
+              {gymDisplayName
+                ? <span style={{ font: `800 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", fontStyle: "italic" }}>
+                    {gymDisplayName.split(" ").slice(0, -1).join(" ")}{gymDisplayName.split(" ").length > 1 ? " " : ""}
+                    <span style={{ color: "#F97316" }}>{gymDisplayName.split(" ").slice(-1)[0]}</span>
+                  </span>
                 : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={300} height={90} style={{ height: 24, width: "auto", objectFit: "contain", display: "block" }} priority unoptimized />
               }
             </div>

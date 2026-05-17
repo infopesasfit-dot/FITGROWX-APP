@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
         trial_start_date: existingGym?.trial_start_date ?? now.toISOString().slice(0, 10),
         trial_expires_at: existingGym?.trial_expires_at ?? defaultTrialEnd,
         gym_status: existingGym?.gym_status ?? "trial",
-        plan_type: existingGym?.plan_type ?? null,
+        plan_type: existingGym?.plan_type ?? "crecimiento",
         is_subscription_active: existingGym?.is_subscription_active ?? false,
         ...(resellerId ? { reseller_id: resellerId } : {}),
       },

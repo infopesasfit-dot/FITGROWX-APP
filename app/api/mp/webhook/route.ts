@@ -179,7 +179,9 @@ export async function POST(req: NextRequest) {
   const preapproval = await mpRes.json();
   const { id, status, external_reference } = preapproval;
 
-  const gymId = external_reference?.split("|")[0];
+  const extParts = (external_reference ?? "").split("|");
+  const gymId   = extParts[0];
+  const planKey = extParts[1] ?? "crecimiento";
   if (!gymId) return NextResponse.json({ ok: true });
 
   const isActive    = status === "authorized";
@@ -220,8 +222,16 @@ export async function POST(req: NextRequest) {
     .update({
       mp_preapproval_id: id,
       is_subscription_active: isActive,
-      ...(isActive    ? { subscription_expires_at: newExpiry } : {}),
-      ...(isCancelled ? { is_subscription_active: false, subscription_expires_at: null } : {}),
+      ...(isActive ? {
+        subscription_expires_at: newExpiry,
+        plan_type: planKey,
+        gym_status: "active",
+      } : {}),
+      ...(isCancelled ? {
+        is_subscription_active: false,
+        subscription_expires_at: null,
+        gym_status: "inactive",
+      } : {}),
     })
     .eq("id", gymId);
 

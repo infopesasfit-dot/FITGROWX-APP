@@ -29,8 +29,9 @@ export async function POST(req: NextRequest) {
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-  if (profile.role !== "platform_owner" && profile.gym_id !== gym_id) {
-    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+  // Solo platform_owner puede cambiar el plan directamente (sin pago)
+  if (profile.role !== "platform_owner") {
+    return NextResponse.json({ error: "Solo la plataforma puede cambiar el plan directamente." }, { status: 403 });
   }
 
   const { error } = await supabase

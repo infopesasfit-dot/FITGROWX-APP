@@ -3,8 +3,9 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createAlumnoSchema, parseBody } from "@/lib/schemas";
 
-// null = sin límite. Cambiar aquí para aplicar a todos los gyms de ese plan.
+// null = sin límite. Cambiar aquí para actualizar todos los gyms de ese plan.
 const PLAN_LIMITS: Record<string, number | null> = {
+  starter:     60,
   crecimiento: null,
 };
 
@@ -120,7 +121,10 @@ export async function POST(req: NextRequest) {
   // Verificar límite del plan
   const { data: gymData } = await admin.from("gyms").select("plan_type").eq("id", gymId).maybeSingle();
   const planType = (gymData as { plan_type?: string } | null)?.plan_type ?? "crecimiento";
-  const limit = PLAN_LIMITS[planType] ?? null;
+  // Si plan_type no está en PLAN_LIMITS, se asume sin límite (Pro)
+  const limit = Object.prototype.hasOwnProperty.call(PLAN_LIMITS, planType)
+    ? PLAN_LIMITS[planType]
+    : null;
 
   if (limit !== null) {
     const { count } = await admin

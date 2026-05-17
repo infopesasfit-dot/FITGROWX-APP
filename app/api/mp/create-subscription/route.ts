@@ -64,9 +64,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: data.message ?? "Error MP" }, { status: res.status });
   }
 
+  // Solo guardamos el preapproval_id — plan_type se setea en el webhook
+  // cuando MP confirma el pago, no antes (evita dar Pro gratis si abandona el checkout)
   const { error: dbErr } = await supabaseAdmin
     .from("gyms")
-    .update({ mp_preapproval_id: data.id, plan_type: plan_key })
+    .update({ mp_preapproval_id: data.id })
     .eq("id", gym_id);
   if (dbErr) console.error("create-subscription: DB update failed:", dbErr.message);
 

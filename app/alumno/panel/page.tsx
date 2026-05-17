@@ -925,7 +925,7 @@ function AlumnoPanelInner() {
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
           </div>
-          {gymInfo?.logo_url ? (
+          {gymInfo?.plan_type === "crecimiento" && gymInfo?.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={gymInfo.logo_url} alt={gymName} style={{ height: 28, maxWidth: 140, objectFit: "contain", margin: "0 auto 24px", display: "block", opacity: 0.4, filter: "grayscale(1)" }} />
           ) : (
@@ -1033,12 +1033,12 @@ function AlumnoPanelInner() {
       {/* Header */}
       <div style={{ position: "sticky", top: 0, zIndex: 50, backdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", WebkitBackdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", background: "rgba(10,10,15,0.9)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: isCompactScreen ? "12px 16px" : "13px 20px" }}>
         <div style={{ maxWidth: 520, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {gymInfo?.logo_url ? (
+          {gymInfo?.plan_type === "crecimiento" && gymInfo?.logo_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={gymInfo.logo_url} alt={gymInfo.gym_name ?? "Logo"} style={{ height: 28, maxWidth: 120, objectFit: "contain", borderRadius: 6 }} />
           ) : (
-            <span style={{ font: `700 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.02em" }}>
-              FitGrow<span style={{ color: "#F97316" }}>X</span>
+            <span style={{ font: `800 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", fontStyle: "italic" }}>
+              {(() => { const parts = (gymInfo?.gym_name ?? "FitGrowX").split(" "); return <>{parts.slice(0, -1).join(" ")}{parts.length > 1 ? " " : ""}<span style={{ color: gymInfo?.accent_color ?? "#F97316" }}>{parts.slice(-1)[0]}</span></>; })()}
             </span>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -2253,7 +2253,7 @@ function AlumnoPanelInner() {
               </svg>
             </div>
             {/* Gym logo or name */}
-            {gymInfo?.logo_url
+            {gymInfo?.plan_type === "crecimiento" && gymInfo?.logo_url
               ? <img src={gymInfo.logo_url} alt="" style={{ height: 24, maxWidth: 120, objectFit: "contain", opacity: 0.5, filter: "grayscale(1)" }} />
               : <p style={{ font: `300 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.28em", textTransform: "uppercase" }}>{gymInfo?.gym_name ?? ""}</p>
             }
