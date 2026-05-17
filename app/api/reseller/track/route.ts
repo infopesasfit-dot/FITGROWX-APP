@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const COOKIE = "fitgrowx_ref";
 const TTL_DAYS = 30;
 
 export async function POST(req: NextRequest) {
+  // 15 intentos por IP por minuto
+  if (!rateLimit(`reseller_track:${getClientIp(req)}`, 15, 60 * 1000)) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   const { slug } = await req.json();
   if (!slug?.trim()) return NextResponse.json({ error: "slug requerido" }, { status: 400 });
 

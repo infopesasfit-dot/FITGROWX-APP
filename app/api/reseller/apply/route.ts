@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const sb = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
+  // 3 intentos por IP por hora
+  if (!rateLimit(`reseller_apply:${getClientIp(req)}`, 3, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Demasiados intentos. Esperá un rato." }, { status: 429 });
+  }
+
   const { name, email, whatsapp, colleague_count, social_links, motivation } = await req.json();
 
   if (!name?.trim() || !email?.trim() || !whatsapp?.trim()) {
