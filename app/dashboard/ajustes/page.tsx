@@ -684,10 +684,6 @@ function AjustesContent() {
                       <input value={gymName} onChange={(event) => setGymName(event.target.value)} maxLength={100} style={inputStyle} />
                     </Field>
 
-                    <Field label="Email de acceso" hint="El cambio de email se gestiona desde autenticación, por eso hoy lo mostramos como referencia.">
-                      <input value={email} readOnly style={mutedInputStyle} />
-                    </Field>
-
                     <Field label="Tu número de WhatsApp para alertas" hint="Con código de país, sin espacios. Ej: 5491165909374. Si usás este número también para el WhatsApp del gym, las alertas llegan solo por notificación en el dashboard.">
                       <input
                         value={ownerPhone}
