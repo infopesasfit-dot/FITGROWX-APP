@@ -10,7 +10,7 @@ import {
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
-  CheckCircle, HelpCircle, Power, MessageSquare,
+  CheckCircle, HelpCircle, Power, MessageSquare, Smartphone,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { DinoChatWidget } from "./components/DinoChatWidget";
@@ -179,6 +179,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [feedbackDone,    setFeedbackDone]    = useState(false);
   const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
   const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
+  const [gymSlug,          setGymSlug]          = useState<string | null>(null);
   const [planType,         setPlanType]         = useState<string | null>(null);
   const [waDisconnected,    setWaDisconnected]    = useState(false);
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
@@ -276,6 +277,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setProspectBadge(count ?? 0);
       setGymLogoUrl(settings?.logo_url ?? null);
       setGymDisplayName(settings?.gym_name ?? null);
+      setGymSlug(settings?.slug ?? null);
       if (["needs_reauth", "disconnected"].includes(settings?.wa_status ?? "")) {
         setWaDisconnected(true);
       }
@@ -633,6 +635,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
               </Link>
             </>
+          )}
+          {gymSlug && (
+            <a
+              href={`/alumno/preview?slug=${gymSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sb-item"
+              title={(!isMobile && collapsed) ? "Ver app del alumno" : undefined}
+              style={{ display: "flex", alignItems: "center", gap: 11, padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px", justifyContent: (!isMobile && collapsed) ? "center" : "flex-start", borderRadius: 10, textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, color: "rgba(255,255,255,0.50)", fontFamily: fb, transition: "all 0.14s", whiteSpace: "nowrap" }}
+            >
+              <Smartphone size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
+              {(isMobile || !collapsed) && <span>Ver app del alumno</span>}
+            </a>
           )}
           <a
             href="https://wa.me/5491165909374"

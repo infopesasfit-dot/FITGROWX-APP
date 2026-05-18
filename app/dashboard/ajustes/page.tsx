@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
+  BarChart2,
   Building2,
+  Shield,
   ChevronRight,
   Copy,
   CreditCard,
@@ -811,119 +813,120 @@ function AjustesContent() {
                   </div>
                 </div>
 
-                <div style={{ padding: "16px 18px", borderRadius: 16, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                  <div>
-                    <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Seguridad de la cuenta</p>
-                    <p style={{ font: `400 0.75rem/1.45 ${fb}`, color: t2 }}>Protegé el acceso principal del negocio.</p>
-                  </div>
-                  <button
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 6,
-                      background: "#FFFFFF",
-                      color: t2,
-                      border: "1px solid rgba(15,23,42,0.08)",
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      font: `700 0.78rem/1 ${fd}`,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Lock size={13} />
-                    Cambiar contraseña
-                    <ChevronRight size={13} />
-                  </button>
-                </div>
+              </div>
+            </SectionCard>
 
-                <div style={{ padding: "16px 18px", borderRadius: 16, background: "linear-gradient(180deg, #FFFDF9 0%, #FFF7EF 100%)", border: "1px solid rgba(255,122,24,0.10)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                  <div>
-                    <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Reporte mensual del dashboard</p>
-                    <p style={{ font: `400 0.75rem/1.5 ${fb}`, color: t2, maxWidth: 520 }}>
-                      Cada primer día del mes te vamos a enviar el resumen de <span style={{ color: ACCENT_DARK, fontWeight: 700 }}>{previousMonthLabel}</span> por email y además te va a aparecer el aviso dentro del sistema.
-                    </p>
-                    {lastMonthlyReport && (
-                      <div style={{ marginTop: 10, display: "grid", gap: 4 }}>
-                        <p style={{ font: `600 0.73rem/1.45 ${fb}`, color: t1 }}>
-                          Último reporte enviado:{" "}
-                          <span style={{ color: ACCENT_DARK }}>
-                            {new Date(`${lastMonthlyReport.report_month}T12:00:00`).toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
-                          </span>
-                        </p>
-                        <p style={{ font: `400 0.72rem/1.45 ${fb}`, color: t3 }}>
-                          Salió el {new Date(lastMonthlyReport.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })} a {lastMonthlyReport.email}
-                        </p>
-                      </div>
-                    )}
-                    {reportStatus && (
-                      <p
-                        style={{
-                          marginTop: 10,
-                          font: `600 0.74rem/1.45 ${fb}`,
-                          color: reportStatus.tone === "success" ? "#166534" : reportStatus.tone === "info" ? ACCENT_DARK : "#DC2626",
-                        }}
-                      >
-                        {reportStatus.message}
+            {/* ── Plan y suscripción ── */}
+            {(() => {
+              const trialExpired = trialExpiresAt ? new Date(trialExpiresAt) < new Date() : false;
+              const statusColor = isSubscriptionActive ? "#15803D" : trialExpired ? "#DC2626" : "#C2410C";
+              const statusBg    = isSubscriptionActive ? "rgba(22,163,74,0.06)" : trialExpired ? "rgba(220,38,38,0.06)" : "rgba(249,115,22,0.06)";
+              const statusBorder = isSubscriptionActive ? "rgba(22,163,74,0.18)" : trialExpired ? "rgba(220,38,38,0.18)" : "rgba(249,115,22,0.18)";
+              const expLabel = isSubscriptionActive && subscriptionExpiresAt
+                ? `Válido hasta ${new Date(subscriptionExpiresAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}`
+                : trialExpiresAt && !trialExpired
+                ? `Prueba vence el ${new Date(trialExpiresAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}`
+                : trialExpired ? "Tu período de prueba venció" : null;
+              return (
+                <SectionCard icon={<CreditCard size={18} color="white" />} title="Plan y suscripción" desc="Estado actual de tu acceso a FitGrowX.">
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", padding: "4px 0" }}>
+                    <div>
+                      <p style={{ font: `700 0.9rem/1 ${fd}`, color: statusColor, marginBottom: 4 }}>
+                        {isSubscriptionActive ? "Plan activo — FitGrowX Crecimiento" : trialExpired ? "Prueba vencida" : `${trialDaysLeft ?? "—"} días de prueba restantes`}
                       </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleSendMonthlyReport}
-                    disabled={reportSending}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      background: reportSending ? "#D1D5DB" : "#FFFFFF",
-                      color: reportSending ? "#6B7280" : ACCENT_DARK,
-                      border: "1px solid rgba(255,122,24,0.14)",
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      font: `800 0.78rem/1 ${fd}`,
-                      cursor: reportSending ? "not-allowed" : "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <Mail size={13} />
-                    {reportSending ? "Enviando..." : "Enviar reporte ahora"}
-                  </button>
-                </div>
-
-                {/* ── Suscripción ── */}
-                {(() => {
-                  const trialExpired = trialExpiresAt ? new Date(trialExpiresAt) < new Date() : false;
-                  const statusColor = isSubscriptionActive ? "#15803D" : trialExpired ? "#DC2626" : "#C2410C";
-                  const statusBg    = isSubscriptionActive ? "rgba(22,163,74,0.06)" : trialExpired ? "rgba(220,38,38,0.06)" : "rgba(249,115,22,0.06)";
-                  const statusBorder = isSubscriptionActive ? "rgba(22,163,74,0.18)" : trialExpired ? "rgba(220,38,38,0.18)" : "rgba(249,115,22,0.18)";
-                  const expLabel = isSubscriptionActive && subscriptionExpiresAt
-                    ? `Válido hasta ${new Date(subscriptionExpiresAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}`
-                    : trialExpiresAt && !trialExpired
-                    ? `Prueba vence el ${new Date(trialExpiresAt).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}`
-                    : trialExpired ? "Tu período de prueba venció" : null;
-                  return (
-                    <div style={{ padding: "14px 16px", borderRadius: 16, background: statusBg, border: `1px solid ${statusBorder}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div>
-                        <p style={{ font: `700 0.84rem/1 ${fd}`, color: statusColor, marginBottom: 3 }}>
-                          {isSubscriptionActive ? "Plan activo — FitGrowX Crecimiento" : trialExpired ? "Prueba vencida" : `${trialDaysLeft ?? "—"} días de prueba restantes`}
-                        </p>
-                        {expLabel && <p style={{ font: `400 0.74rem/1.4 ${fb}`, color: t2 }}>{expLabel}</p>}
-                      </div>
-                      <Link
-                        href="/dashboard/planes"
-                        style={{
-                          display: "inline-flex", alignItems: "center", gap: 6,
-                          padding: "8px 14px", borderRadius: 10, textDecoration: "none",
-                          background: isSubscriptionActive ? "rgba(22,163,74,0.10)" : "rgba(249,115,22,0.10)",
-                          color: isSubscriptionActive ? "#15803D" : "#C2410C",
-                          font: `700 0.76rem/1 ${fd}`, whiteSpace: "nowrap",
-                        }}
-                      >
-                        <CreditCard size={12} />
-                        {isSubscriptionActive ? "Ver plan" : "Activar plan"}
-                      </Link>
+                      {expLabel && <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: t2 }}>{expLabel}</p>}
                     </div>
-                  );
-                })()}
+                    <Link
+                      href="/dashboard/planes"
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        padding: "10px 16px", borderRadius: 12, textDecoration: "none",
+                        background: statusBg, border: `1px solid ${statusBorder}`,
+                        color: statusColor, font: `700 0.8rem/1 ${fd}`, whiteSpace: "nowrap",
+                      }}
+                    >
+                      <CreditCard size={13} />
+                      {isSubscriptionActive ? "Ver plan" : "Activar plan"}
+                    </Link>
+                  </div>
+                </SectionCard>
+              );
+            })()}
+
+            {/* ── Reportes ── */}
+            <SectionCard
+              icon={<BarChart2 size={18} color="white" />}
+              title="Reporte mensual"
+              desc={`Cada 1° del mes recibís el resumen de ${previousMonthLabel} por email.`}
+              actions={
+                <button
+                  onClick={handleSendMonthlyReport}
+                  disabled={reportSending}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 7,
+                    background: reportSending ? "#D1D5DB" : "#FFFFFF",
+                    color: reportSending ? "#6B7280" : ACCENT_DARK,
+                    border: "1px solid rgba(255,122,24,0.14)",
+                    padding: "10px 14px", borderRadius: 12,
+                    font: `800 0.78rem/1 ${fd}`,
+                    cursor: reportSending ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  <Mail size={13} />
+                  {reportSending ? "Enviando..." : "Enviar ahora"}
+                </button>
+              }
+            >
+              {lastMonthlyReport && (
+                <div style={{ display: "grid", gap: 3 }}>
+                  <p style={{ font: `600 0.78rem/1.45 ${fb}`, color: t1 }}>
+                    Último reporte:{" "}
+                    <span style={{ color: ACCENT_DARK }}>
+                      {new Date(`${lastMonthlyReport.report_month}T12:00:00`).toLocaleDateString("es-AR", { month: "long", year: "numeric" })}
+                    </span>
+                  </p>
+                  <p style={{ font: `400 0.72rem/1.45 ${fb}`, color: t3 }}>
+                    Enviado el {new Date(lastMonthlyReport.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })} a {lastMonthlyReport.email}
+                  </p>
+                </div>
+              )}
+              {reportStatus && (
+                <p style={{ font: `600 0.74rem/1.45 ${fb}`, color: reportStatus.tone === "success" ? "#166534" : reportStatus.tone === "info" ? ACCENT_DARK : "#DC2626" }}>
+                  {reportStatus.message}
+                </p>
+              )}
+              {!lastMonthlyReport && !reportStatus && (
+                <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t3 }}>Todavía no se envió ningún reporte este año.</p>
+              )}
+            </SectionCard>
+
+            {/* ── Seguridad ── */}
+            <SectionCard icon={<Shield size={18} color="white" />} title="Seguridad" desc="Protegé el acceso principal de tu cuenta.">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+                <div>
+                  <p style={{ font: `600 0.85rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Contraseña</p>
+                  <p style={{ font: `400 0.75rem/1.45 ${fb}`, color: t2 }}>Cambiala si creés que tu cuenta estuvo comprometida.</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (!user?.email) return;
+                    await supabase.auth.resetPasswordForEmail(user.email, {
+                      redirectTo: `${window.location.origin}/reset-password`,
+                    });
+                    alert("Te enviamos un email para resetear tu contraseña.");
+                  }}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: "#FFFFFF", color: t2,
+                    border: "1px solid rgba(15,23,42,0.08)",
+                    padding: "10px 14px", borderRadius: 12,
+                    font: `700 0.78rem/1 ${fd}`, cursor: "pointer",
+                  }}
+                >
+                  <Lock size={13} />
+                  Cambiar contraseña
+                </button>
               </div>
             </SectionCard>
 
