@@ -164,6 +164,7 @@ function AjustesContent() {
   const [ownerPhone, setOwnerPhone] = useState("");
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
   const [slug, setSlug] = useState("");
+  const [savedSlug, setSavedSlug] = useState("");
   const [slugError, setSlugError] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [mpToken, setMpToken] = useState("");
@@ -361,6 +362,7 @@ function AjustesContent() {
       if (settings?.gym_name) setGymName(settings.gym_name);
       if (settings?.slug) {
         setSlug(settings.slug);
+        setSavedSlug(settings.slug);
       } else {
         // Auto-generate and persist slug for gyms that don't have one yet
         const base = (settings?.gym_name ?? "gym")
@@ -386,6 +388,7 @@ function AjustesContent() {
         await supabase
           .from("gym_settings")
           .upsert({ gym_id: gymIdVal, slug: candidate }, { onConflict: "gym_id" });
+        setSavedSlug(candidate);
       }
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
       if (settings?.instagram_url) setInstagramUrl(settings.instagram_url);
@@ -459,6 +462,7 @@ function AjustesContent() {
     if (ownerUserId && ownerPhone.trim()) {
       await supabase.from("profiles").update({ phone: normalizePhone(ownerPhone.trim()) }).eq("id", ownerUserId);
     }
+    if (cleanSlug) setSavedSlug(cleanSlug);
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
   };
@@ -645,34 +649,6 @@ function AjustesContent() {
     <>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-        <section
-          style={{
-            ...card,
-            padding: 28,
-            background: "linear-gradient(140deg, #FFFFFF 0%, #F8FAFC 48%, #EEF4FF 100%)",
-            position: "relative",
-            overflow: "hidden",
-          }}
-        >
-          <div style={{ position: "absolute", top: -60, right: -40, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.13) 0%, transparent 70%)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -80, left: -60, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(15,23,42,0.05) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-          <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 22 }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-              <div style={{ maxWidth: 700 }}>
-                <h1 style={{ font: `800 1.6rem/1.1 ${fd}`, color: t1, letterSpacing: "-0.03em", marginBottom: 6 }}>
-                  {currentTabMeta.title}
-                </h1>
-                <p style={{ font: `400 0.88rem/1.5 ${fb}`, color: t2 }}>
-                  {currentTabMeta.desc}
-                </p>
-              </div>
-
-            </div>
-
-          </div>
-        </section>
-
         {activeTab === "general" && (
           <div style={{ display: "grid", gap: 18 }}>
             <SectionCard
@@ -734,13 +710,16 @@ function AjustesContent() {
                           />
                         </div>
                         {slugError && <span style={{ fontSize: "0.77rem", color: "#EF4444", fontWeight: 600 }}>{slugError}</span>}
-                        {slug && !slugError && (
+                        {slug && !slugError && savedSlug === slug && (
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: "0.77rem", color: "#16A34A", fontWeight: 600 }}>✓ Tu link público:</span>
                             <a href={`/gym/${slug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.77rem", color: ACCENT, fontWeight: 600, textDecoration: "none" }}>
                               fitgrowx.com/gym/{slug} →
                             </a>
                           </div>
+                        )}
+                        {slug && !slugError && savedSlug !== slug && (
+                          <span style={{ fontSize: "0.77rem", color: t3, fontWeight: 500 }}>Guardá para confirmar el link.</span>
                         )}
                       </div>
                     </Field>
