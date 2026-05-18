@@ -12,7 +12,6 @@ import {
   Copy,
   CreditCard,
   ImagePlus,
-  Camera,
   Key,
   Loader2,
   Lock,
@@ -168,7 +167,6 @@ function AjustesContent() {
   const [slug, setSlug] = useState("");
   const [savedSlug, setSavedSlug] = useState("");
   const [slugError, setSlugError] = useState("");
-  const [instagramUrl, setInstagramUrl] = useState("");
   const [mpToken, setMpToken] = useState("");
   const [paymentInfo, setPaymentInfo] = useState("");
   const [email, setEmail] = useState("");
@@ -346,7 +344,7 @@ function AjustesContent() {
           .maybeSingle(),
         supabase
           .from("gym_settings")
-          .select("gym_name, logo_url, instagram_url, accent_color, landing_title, landing_desc, slug, mp_access_token, payment_info")
+          .select("gym_name, logo_url, accent_color, landing_title, landing_desc, slug, mp_access_token, payment_info")
           .eq("gym_id", gymIdVal)
           .maybeSingle(),
         supabase
@@ -393,7 +391,6 @@ function AjustesContent() {
         setSavedSlug(candidate);
       }
       if (settings?.logo_url) setLogoUrl(settings.logo_url);
-      if (settings?.instagram_url) setInstagramUrl(settings.instagram_url);
       if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
       if (settings?.payment_info) setPaymentInfo(settings.payment_info);
       setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
@@ -460,7 +457,7 @@ function AjustesContent() {
     }
     setSlugError("");
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
-    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, instagram_url: instagramUrl.trim() || null, mp_access_token: mpToken.trim() || null, payment_info: paymentInfo.trim() || null }, { onConflict: "gym_id" });
+    await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, mp_access_token: mpToken.trim() || null, payment_info: paymentInfo.trim() || null }, { onConflict: "gym_id" });
     if (ownerUserId && ownerPhone.trim()) {
       await supabase.from("profiles").update({ phone: normalizePhone(ownerPhone.trim()) }).eq("id", ownerUserId);
     }
@@ -1080,38 +1077,6 @@ function AjustesContent() {
                         <Smartphone size={14} />
                         Vincular
                       </button>
-                    ),
-                  },
-                  {
-                    key: "gmail",
-                    icon: <Mail size={18} color={t3} />,
-                    title: "Gmail",
-                    description: "Preparado para futura integración de envío y bandeja. Hoy no hay backend activo.",
-                    badge: { label: "Próximamente", bg: "#F1F5F9", color: t2 },
-                    action: (
-                      <button disabled style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: "#E5E7EB", color: "#6B7280", font: `700 0.78rem/1 ${fd}`, cursor: "not-allowed" }}>
-                        Próximamente
-                      </button>
-                    ),
-                  },
-                  {
-                    key: "ig",
-                    icon: <Camera size={18} color={instagramUrl ? "#E1306C" : t3} />,
-                    title: "Instagram",
-                    description: instagramUrl ? instagramUrl : "Vinculá tu perfil para mostrarlo en tu landing y automatizaciones.",
-                    badge: instagramUrl ? { label: "Vinculado", bg: "rgba(225,48,108,0.08)", color: "#E1306C" } : { label: "Sin vincular", bg: "#F1F5F9", color: t2 },
-                    action: (
-                      <div style={{ position: "relative" }}>
-                        <Camera size={14} color={t3} style={{ position: "absolute", top: 12, left: 12 }} />
-                        <input
-                          value={instagramUrl}
-                          onChange={e => setInstagramUrl(e.target.value)}
-                          onBlur={handleSaveGym}
-                          placeholder="@tugym"
-                          maxLength={200}
-                          style={{ ...inputStyle, paddingLeft: 36, width: 200, fontSize: "0.78rem" }}
-                        />
-                      </div>
                     ),
                   },
                 ].map((item) => (
