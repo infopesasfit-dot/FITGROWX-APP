@@ -97,22 +97,22 @@ export default function RadarPage() {
   const errorRateHigh = (radar?.error_rate_24h_pct ?? 0) > (radar?.alert_threshold_pct ?? 1);
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px 60px" }}>
+    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 24px 48px" }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Activity size={18} color="#6366f1" />
-          <span style={{ font: "700 1.1rem/1 'Inter', sans-serif", color: "#111827", letterSpacing: "-0.03em" }}>
-            Radar de Observabilidad
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Activity size={14} color="#6366f1" />
+          <span style={{ font: "700 1rem/1 'Inter', sans-serif", color: "#111827", letterSpacing: "-0.02em" }}>
+            Radar
           </span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {lastRefresh && (
             <span style={{ font: "400 0.72rem/1 'Inter', sans-serif", color: "#9ca3af" }}>
-              Actualizado {lastRefresh.toLocaleTimeString("es-AR")}
+              · {lastRefresh.toLocaleTimeString("es-AR")}
             </span>
           )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button
             onClick={refresh}
             disabled={loading}

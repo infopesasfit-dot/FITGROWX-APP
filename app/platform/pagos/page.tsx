@@ -106,7 +106,7 @@ export default function PagosPage() {
   const pendingCount = logs.filter(l => l.status === "received").length;
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px 60px" }}>
+    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "16px 24px 48px" }}>
 
       {toast && (
         <div style={{
@@ -123,15 +123,10 @@ export default function PagosPage() {
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ font: `700 1.1rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.03em", marginBottom: 4 }}>
-            Webhooks de pago
-          </h1>
-          <p style={{ font: `400 0.76rem/1 ${fd}`, color: "#9ca3af" }}>
-            Auditoría y re-procesamiento de eventos MercadoPago
-          </p>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 }}>
+        <h1 style={{ font: `700 1rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.02em" }}>
+          Pagos MP
+        </h1>
         <button
           onClick={() => fetchLogs(filter)} disabled={loading}
           style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 8, background: "rgba(0,0,0,0.05)", border: "none", font: `600 0.75rem/1 ${fd}`, color: "#374151", cursor: "pointer", opacity: loading ? 0.5 : 1 }}

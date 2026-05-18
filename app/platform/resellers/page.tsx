@@ -142,14 +142,11 @@ export default function PlatformResellers() {
   const statusColor = (s: string) => s === "active" ? "#22C55E" : "#EF4444";
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "28px 20px", display: "flex", flexDirection: "column", gap: 20, fontFamily: fd }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "16px 20px 40px", display: "flex", flexDirection: "column", gap: 14, fontFamily: fd }}>
 
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div>
-          <p style={{ font: `500 0.7rem/1 ${fd}`, color: t3, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Red de revendedores</p>
-          <h1 style={{ font: `800 1.7rem/1 ${fd}`, color: t1, letterSpacing: "-0.03em" }}>Resellers</h1>
-        </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h1 style={{ font: `700 1rem/1 ${fd}`, color: t1, letterSpacing: "-0.02em" }}>Resellers</h1>
         {tab === "resellers" && (
           <button
             onClick={() => { setShowForm(true); setFormError(null); }}

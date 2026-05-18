@@ -223,14 +223,11 @@ export default function PulsoPage() {
   const inactivosSev: Severity = data.gyms_inactivos_7d.length >= 3 ? "critical" : data.gyms_inactivos_7d.length >= 1 ? "warn" : "ok";
 
   return (
-    <div style={{ padding: "28px 32px 60px", maxWidth: 1100, margin: "0 auto", fontFamily: fd }}>
+    <div style={{ padding: "16px 32px 48px", maxWidth: 1100, margin: "0 auto", fontFamily: fd }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
-          <h1 style={{ font: `800 1.5rem/1 ${fd}`, margin: 0, color: "#111827" }}>Pulso</h1>
-          <p style={{ font: `400 0.82rem/1 ${fd}`, color: "#9ca3af", margin: "6px 0 0" }}>
-            Dashboard operativo · actualiza cada 60s · última vez {data.ts ? fmtTime(data.ts) : "—"}
-          </p>
+          <h1 style={{ font: `700 1rem/1 ${fd}`, margin: 0, color: "#111827" }}>Pulso <span style={{ font: `400 0.75rem/1 ${fd}`, color: "#9ca3af" }}>· última vez {data.ts ? fmtTime(data.ts) : "—"}</span></h1>
         </div>
         <button
           onClick={load}

@@ -722,33 +722,12 @@ export default function PlatformPage() {
   }, [resourceForm.category_id, vaultCategories]);
 
   return (
-    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px 48px" }}>
-      <section style={{ ...shellCard, padding: "30px 30px 28px", marginBottom: 24 }}>
-        <p
-          style={{
-            marginBottom: 8,
-            font: `700 0.75rem/1 ${fd}`,
-            color: "#F97316",
-            textTransform: "uppercase",
-            letterSpacing: "0.14em",
-          }}
-        >
-          Platform Admin
-        </p>
-        <h1
-          style={{
-            marginBottom: 14,
-            font: `800 clamp(2rem, 4vw, 3.2rem)/1 ${fd}`,
-            color: "#111827",
-            letterSpacing: "-0.05em",
-          }}
-        >
-          Panel interno para administrar FitGrowX.
-        </h1>
-        <p style={{ maxWidth: 860, font: `400 1rem/1.7 ${fb}`, color: "#475569" }}>
-          Panel interno para gestionar clientes, comunicaciones y contenido de FitGrowX.
-        </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 24px 48px" }}>
+      <section style={{ ...shellCard, padding: "14px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <span style={{ font: `700 0.78rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.01em", flexShrink: 0 }}>
+          FitGrowX <span style={{ color: "#F97316" }}>Platform</span>
+        </span>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {[
             { key: "crm", label: "Clientes FitGrowX" },
             { key: "cms", label: "CMS Bóveda" },
@@ -761,12 +740,12 @@ export default function PlatformPage() {
               type="button"
               onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback" | "whatsapp" | "onboarding")}
               style={{
-                padding: "10px 14px",
+                padding: "6px 12px",
                 borderRadius: 999,
                 border: "1px solid rgba(255,255,255,0.9)",
                 background: activeTab === tab.key ? "#111827" : "rgba(255,255,255,0.68)",
                 color: activeTab === tab.key ? "#FFFFFF" : "#475569",
-                font: `700 0.82rem/1 ${fd}`,
+                font: `600 0.75rem/1 ${fd}`,
                 cursor: "pointer",
               }}
             >
@@ -776,8 +755,8 @@ export default function PlatformPage() {
         </div>
       </section>
 
-      {/* ── Overview strip ── */}
-      {overview && (() => {
+      {/* ── Overview strip — solo en el tab CRM (dash principal) ── */}
+      {activeTab === "crm" && overview && (() => {
         const { sistema, negocio, atencion } = overview;
         const sysAlert = sistema.erroresH1 > 0 || sistema.waDesconectados > 0;
         const fmt = (n: number) => n >= 1_000_000 ? `$${(n/1_000_000).toFixed(1)}M` : n >= 1_000 ? `$${(n/1_000).toFixed(0)}k` : `$${n}`;

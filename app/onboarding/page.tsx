@@ -63,8 +63,19 @@ export default function OnboardingPage() {
         .select("gym_id, full_name")
         .eq("id", user.id)
         .maybeSingle();
-      if (profile?.gym_id) setGymId(profile.gym_id);
-      if (profile?.full_name) { router.push("/dashboard"); return; }
+      const resolvedGymId = profile?.gym_id ?? null;
+      if (resolvedGymId) {
+        setGymId(resolvedGymId);
+        // Skip onboarding only if the user explicitly completed it (flag in gym_settings).
+        // Checking full_name would bypass onboarding for Google sign-ins that pre-populate the name.
+        const { data: settings } = await supabase
+          .from("gym_settings")
+          .select("onboarding_completed")
+          .eq("gym_id", resolvedGymId)
+          .maybeSingle();
+        if (settings?.onboarding_completed) { router.push("/dashboard"); return; }
+      }
+      if (profile?.full_name) setValues(v => ({ ...v, name: profile.full_name! }));
     });
   }, [router]);
 
