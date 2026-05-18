@@ -313,7 +313,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (settings?.whatsapp) {
       const gymName = settings?.gym_name ?? "tu gimnasio";
-      const appUrl  = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
+      const appUrl  = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
       const message = `⚠️ *${gymName}* — Hubo un problema con el pago de tu suscripción FitGrowX y tu acceso fue suspendido.\n\nPodés renovarla en: ${appUrl}/dashboard/suscripcion\n\nSi tenés dudas, escribinos a soporte@fitgrowx.com.`;
       await sendWa(gymId, settings.whatsapp, message, { route: "mp/webhook" });
     }

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export type AlumnoTokenRow = {
@@ -16,10 +17,12 @@ export async function getValidAlumnoToken(req: NextRequest): Promise<AlumnoToken
   const token = getAlumnoBearerToken(req);
   if (!token) return null;
 
+  const tokenHash = createHash("sha256").update(String(token)).digest("hex");
+
   const { data, error } = await supabase
     .from("alumno_tokens")
     .select("alumno_id, gym_id, expires_at")
-    .eq("token", token)
+    .eq("token", tokenHash)
     .single();
   const tokenRow = data as AlumnoTokenRow | null;
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type WaStatus = "unknown" | "connected" | "disconnected" | "needs_reauth";
+export type WaStatus = "unknown" | "connected" | "disconnected" | "needs_reauth" | "connecting";
 export type QrError = "max_network" | "max_session" | "scan_failed" | null;
 
 export function useWaSession(gymId: string | null) {
@@ -21,9 +21,10 @@ export function useWaSession(gymId: string | null) {
   const [qrAttempt,   setQrAttempt]   = useState(0);
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null);
 
-  const qrCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollRef        = useRef<ReturnType<typeof setInterval> | null>(null);
-  const retryRef       = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const qrCountdownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryRef        = useRef<ReturnType<typeof setTimeout>  | null>(null);
+  const bgPollRef       = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,7 @@ export function useWaSession(gymId: string | null) {
   const parseWaStatus = (raw: string): WaStatus => {
     if (raw === "active")       return "connected";
     if (raw === "needs_reauth") return "needs_reauth";
+    if (raw === "qr")           return "connecting";
     return "disconnected";
   };
 
@@ -198,6 +200,15 @@ export function useWaSession(gymId: string | null) {
     } catch { setRefreshing(false); }
   };
 
+  const applyStatusData = (data: Record<string, unknown>) => {
+    setWaStatus(parseWaStatus(String(data.status ?? "")));
+    if (data.retries != null) setWaRetries(data.retries as number);
+    if (data.phone)           setWaPhone(data.phone as string);
+    if (data.battery != null) setWaBattery(data.battery as number);
+    if (data.signal  != null) setWaSignal(data.signal as number);
+    if (data.plugged != null) setWaPlugged(data.plugged as boolean);
+  };
+
   // Initial status check once gymId is known
   useEffect(() => {
     if (!gymId) return;
@@ -205,15 +216,25 @@ export function useWaSession(gymId: string | null) {
       try {
         const response = await waProxy("session-status");
         const data = await response.json();
-        setWaStatus(parseWaStatus(data.status));
-        if (data.retries != null) setWaRetries(data.retries);
-        if (data.phone)     setWaPhone(data.phone);
-        if (data.battery != null) setWaBattery(data.battery);
-        if (data.signal  != null) setWaSignal(data.signal);
-        if (data.plugged != null) setWaPlugged(data.plugged);
+        applyStatusData(data);
       } catch { setWaStatus("disconnected"); }
     })();
-    return () => { stopPolling(); stopQrCountdown(); };
+
+    // Background sync every 45s so multiple open tabs/computers stay in agreement
+    bgPollRef.current = setInterval(async () => {
+      if (pollRef.current) return; // skip if active QR poll is already running
+      try {
+        const response = await waProxy("session-status");
+        const data = await response.json();
+        applyStatusData(data);
+      } catch {}
+    }, 45_000);
+
+    return () => {
+      stopPolling();
+      stopQrCountdown();
+      if (bgPollRef.current) { clearInterval(bgPollRef.current); bgPollRef.current = null; }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gymId]);
 

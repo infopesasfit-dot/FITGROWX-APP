@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
 
@@ -37,11 +38,12 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
   if (!token) return NextResponse.redirect(`${APP_URL}/alumno/login`);
 
-  // Validate token
+  // Validate token — DB stores SHA-256 hash, never plaintext
+  const tokenHash = createHash("sha256").update(String(token)).digest("hex");
   const { data: tokenRow } = await supabase
     .from("alumno_tokens")
     .select("alumno_id, gym_id, expires_at")
-    .eq("token", token)
+    .eq("token", tokenHash)
     .gt("expires_at", new Date().toISOString())
     .maybeSingle();
 

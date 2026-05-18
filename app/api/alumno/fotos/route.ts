@@ -109,7 +109,8 @@ export async function PATCH(req: NextRequest) {
   const { error } = await supabase
     .from("progreso_fotos")
     .update({ privada })
-    .eq("id", foto_id);
+    .eq("id", foto_id)
+    .eq("alumno_id", alumno_id);
 
   if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   return NextResponse.json({ ok: true });

@@ -176,8 +176,6 @@ function AjustesContent() {
   const [lastMonthlyReport, setLastMonthlyReport] = useState<LastMonthlyReport | null>(null);
 
   const [gymId, setGymId] = useState<string | null>(null);
-  const [refCode, setRefCode] = useState<string | null>(null);
-  const [refCopied, setRefCopied] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState<"export" | "confirm">("export");
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -412,14 +410,6 @@ function AjustesContent() {
       }
 
       void loadLastMonthlyReport(gymIdVal);
-
-      // Cargar ref_code para el link de referidos
-      supabase
-        .from("platform_accounts")
-        .select("ref_code")
-        .eq("auth_user_id", userIdVal)
-        .maybeSingle()
-        .then(({ data: pa }) => { if (pa?.ref_code) setRefCode(pa.ref_code); });
 
       fetch("/api/admin/staff")
         .then((response) => response.json())
@@ -1032,6 +1022,8 @@ function AjustesContent() {
                         ? `${waPhone ? waPhone : "Conectado"}${waBattery !== null ? ` · ${waBattery}% batería` : ""}${waSignal !== null ? ` · señal ${waSignal}/4` : ""}${waPlugged ? " · cargando" : ""}`
                         : waStatus === "needs_reauth"
                         ? "La sesión venció o fue cerrada desde el teléfono. Necesitás vincular de nuevo."
+                        : waStatus === "connecting"
+                        ? "Alguien está escaneando el código QR en este momento. Esperá unos segundos."
                         : waRetries > 0
                         ? "Reintentando reconectar... Si tu teléfono perdió internet, revisalo."
                         : "Escaneá el QR para activar los mensajes automáticos.",
@@ -1039,6 +1031,8 @@ function AjustesContent() {
                       ? { label: "Conexión estable", bg: "rgba(34,197,94,0.10)", color: "#15803D" }
                       : waStatus === "needs_reauth"
                       ? { label: "Acción requerida", bg: "rgba(239,68,68,0.10)", color: "#DC2626" }
+                      : waStatus === "connecting"
+                      ? { label: "Vinculando...", bg: "rgba(59,130,246,0.10)", color: "#1D4ED8" }
                       : waRetries > 0
                       ? { label: "Reintentando...", bg: "rgba(234,179,8,0.10)", color: "#92400E" }
                       : { label: "Desconectado", bg: "#F1F5F9", color: t2 },
@@ -1060,6 +1054,11 @@ function AjustesContent() {
                           Desvincular
                         </button>
                       </div>
+                    ) : waStatus === "connecting" ? (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, background: "rgba(59,130,246,0.08)", color: "#1D4ED8", font: `700 0.78rem/1 ${fd}` }}>
+                        <RefreshCw size={14} style={{ animation: "spin 1s linear infinite" }} />
+                        Vinculando...
+                      </span>
                     ) : waRetries > 0 ? (
                       <button
                         onClick={handleRefreshSession}
@@ -1318,37 +1317,6 @@ function AjustesContent() {
               </div>
             </SectionCard>
 
-            {/* Link de referidos */}
-            <SectionCard
-              icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>}
-              title="Tu link de referidos"
-              desc="Compartí este link con otros dueños de gym. Ganás 1 mes gratis cada vez que alguien que te recomendaste pague su primera suscripción."
-            >
-              {refCode ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.08)", borderRadius: 12, padding: "10px 14px" }}>
-                    <span style={{ flex: 1, font: `500 0.82rem/1 ${fd}`, color: t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      fitgrowx.com/start?ref={refCode}
-                    </span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(`https://fitgrowx.com/start?ref=${refCode}`);
-                        setRefCopied(true);
-                        setTimeout(() => setRefCopied(false), 2000);
-                      }}
-                      style={{ flexShrink: 0, padding: "7px 12px", borderRadius: 9, border: "none", background: refCopied ? "#DCFCE7" : ACCENT_SOFT, color: refCopied ? "#15803D" : ACCENT, font: `700 0.75rem/1 ${fd}`, cursor: "pointer", transition: "all .15s" }}
-                    >
-                      {refCopied ? "¡Copiado!" : "Copiar"}
-                    </button>
-                  </div>
-                  <p style={{ font: `400 0.75rem/1.5 ${fd}`, color: t3, margin: 0 }}>
-                    Cada gym que se registre con tu link y pague su primer mes te extiende la suscripción 1 mes automáticamente. Sin límite de referidos.
-                  </p>
-                </div>
-              ) : (
-                <p style={{ font: `400 0.8rem/1.5 ${fd}`, color: t3, margin: 0 }}>Cargando tu link...</p>
-              )}
-            </SectionCard>
           </div>
         )}
 

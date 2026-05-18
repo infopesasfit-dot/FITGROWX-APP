@@ -255,7 +255,10 @@ export default function ClasesPage() {
     const data = await res.json();
     setCancelLoading(false);
     if (!res.ok || data.error) { setCancelResult(`Error: ${data.error ?? "desconocido"}`); return; }
-    setCancelResult(`Clase cancelada. ${data.cancelled_reservas} reserva(s) liberadas, ${data.notified} WA enviado(s).`);
+    const waNote = data.notify_failed > 0
+      ? ` (${data.notify_failed} notificacion${data.notify_failed === 1 ? "" : "es"} WA no enviada${data.notify_failed === 1 ? "" : "s"} — WA desconectado)`
+      : "";
+    setCancelResult(`Clase cancelada. ${data.cancelled_reservas} reserva(s) liberadas, ${data.notified} WA enviado(s)${waNote}.`);
     // Remove cancelled reservas from local state
     setReservas(prev => ({
       ...prev,

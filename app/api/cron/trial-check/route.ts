@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const day15Cutoff = new Date();
   day15Cutoff.setDate(day15Cutoff.getDate() - 14);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "fitgrowx.app";
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
 
   async function sendTrialNotif(
     gym: { id: string; gym_settings: unknown },

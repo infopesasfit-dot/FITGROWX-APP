@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { getPlanNombre } from "@/lib/supabase-relations";
 import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -22,10 +23,11 @@ export async function POST(req: NextRequest) {
   const rawToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() ?? null;
 
   if (rawToken) {
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
     const { data: tokenRow } = await supabase
       .from("alumno_tokens")
       .select("alumno_id, gym_id, expires_at")
-      .eq("token", rawToken)
+      .eq("token", tokenHash)
       .maybeSingle<TokenRow>();
 
     if (tokenRow && tokenRow.gym_id === gym_id && new Date(tokenRow.expires_at) > new Date()) {

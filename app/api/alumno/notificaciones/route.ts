@@ -46,6 +46,6 @@ export async function PATCH(req: NextRequest) {
 
   if (!existing) return NextResponse.json({ error: "No encontrada." }, { status: 404 });
 
-  await supabase.from("alumno_notifications").update({ leida: true }).eq("id", id);
+  await supabase.from("alumno_notifications").update({ leida: true }).eq("id", id).eq("alumno_id", tokenRow.alumno_id);
   return NextResponse.json({ ok: true });
 }

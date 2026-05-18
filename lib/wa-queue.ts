@@ -40,7 +40,8 @@ export async function enqueueWABulk(messages: WAQueueItem[]): Promise<void> {
   });
 
   // ignoreDuplicates: si el dedup_key ya existe, no explota
-  await supabase
+  const { error } = await supabase
     .from("wa_queue")
     .upsert(rows, { onConflict: "dedup_key", ignoreDuplicates: true });
+  if (error) console.error("[wa-queue] upsert error:", error.message);
 }
