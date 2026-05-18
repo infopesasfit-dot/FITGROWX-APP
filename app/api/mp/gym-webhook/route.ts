@@ -130,18 +130,20 @@ async function registrarPago(
   paymentId: string,
   planNombre: string,
   today: string,
+  resultingExpiry: string,
 ): Promise<RegistrarPagoResult> {
   const { error } = await supabase.from("pagos").insert({
-    gym_id:      gymId,
-    alumno_id:   alumnoId,
-    amount:      monto,
-    date:        today,
-    method:      "mercadopago",
-    status:      "validado",
-    concepto:    "membresia",
-    descripcion: `Pago MP automático — ${planNombre}`,
-    notes:       `payment_id:${paymentId}`,
-    mp_payment_id: paymentId,
+    gym_id:          gymId,
+    alumno_id:       alumnoId,
+    amount:          monto,
+    date:            today,
+    method:          "mercadopago",
+    status:          "validado",
+    concepto:        "membresia",
+    descripcion:     `Pago MP automático — ${planNombre}`,
+    notes:           `payment_id:${paymentId}`,
+    mp_payment_id:   paymentId,
+    resulting_expiry: resultingExpiry,
   });
 
   if (!error) return "ok";
@@ -322,7 +324,7 @@ export async function POST(req: NextRequest) {
   // registrarPago hace INSERT con mp_payment_id (unique constraint).
   // Si el mismo payment_id llega dos veces, el segundo INSERT falla con código 23505
   // y devuelve "duplicado" → respondemos 200 sin tocar la membresía.
-  const resultadoPago = await registrarPago(gymId, alumnoId, payment.transaction_amount, paymentId, planNombre, today);
+  const resultadoPago = await registrarPago(gymId, alumnoId, payment.transaction_amount, paymentId, planNombre, today, nuevoVencimiento);
 
   if (resultadoPago === "error") {
     logWebhook(gymId, paymentId, "error", { amount: payment.transaction_amount, alumnoId, errorMsg: "registrarPago failed" });

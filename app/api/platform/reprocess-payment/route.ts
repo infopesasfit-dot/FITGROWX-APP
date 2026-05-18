@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
     date: today, method: "mercadopago", status: "validado", concepto: "membresia",
     descripcion: `Re-proceso manual — ${planNombre}`,
     notes: `payment_id:${payment_id}`, mp_payment_id: payment_id,
+    resulting_expiry: nuevoVenc,
   });
   const isDuplicate = pagoErr?.code === "23505";
   if (pagoErr && !isDuplicate) {
