@@ -35,27 +35,8 @@ export async function GET(req: NextRequest) {
 
   if (!keyRow) return NextResponse.json({ open: false }, { status: 401 });
 
-  const now = new Date().toISOString();
+  // Single atomic UPDATE via Postgres function — eliminates SELECT→UPDATE race
+  const { data } = await admin.rpc("consume_emergency_open", { p_gym_id: keyRow.gym_id });
 
-  // Atomically find and consume a pending, non-expired token
-  const { data: token } = await admin
-    .from("emergency_opens")
-    .select("id")
-    .eq("gym_id", keyRow.gym_id)
-    .is("consumed_at", null)
-    .gt("expires_at", now)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!token) return NextResponse.json({ open: false });
-
-  // Consume the token
-  await admin
-    .from("emergency_opens")
-    .update({ consumed_at: now })
-    .eq("id", token.id)
-    .is("consumed_at", null); // guard against race condition
-
-  return NextResponse.json({ open: true });
+  return NextResponse.json({ open: data != null });
 }
