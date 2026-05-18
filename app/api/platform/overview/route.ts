@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
+
+const PLAN_PRICE: Record<string, number> = Object.fromEntries(
+  FITGROWX_PLANS.map(p => [p.key, p.priceMonthly])
+);
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +45,9 @@ export async function GET() {
       .select("gym_id", { count: "exact", head: true })
       .not("wa_status", "in", '("active","qr")'),
 
-    sb.from("pagos")
-      .select("amount")
-      .eq("status", "validado")
-      .gte("date", monthStr)
-      .lte("date", todayStr),
+    sb.from("platform_accounts")
+      .select("monthly_value, subscription_plan")
+      .eq("status", "converted"),
 
     sb.from("platform_accounts")
       .select("id", { count: "exact", head: true })
@@ -80,7 +83,10 @@ export async function GET() {
       .gte("created_at", new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()),
   ]);
 
-  const mrr = (mrrRows.data ?? []).reduce((s, r) => s + (r.amount ?? 0), 0);
+  const mrr = (mrrRows.data ?? []).reduce((s, r) => {
+    const val = r.monthly_value ?? PLAN_PRICE[r.subscription_plan ?? ""] ?? 0;
+    return s + Number(val);
+  }, 0);
 
   return NextResponse.json({
     sistema: {
