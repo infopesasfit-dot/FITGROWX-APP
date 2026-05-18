@@ -822,37 +822,32 @@ export default function PlatformPage() {
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 24px 48px" }}>
-      <section style={{ ...shellCard, padding: "14px 20px", marginBottom: 16, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <span style={{ font: `700 0.78rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.01em", flexShrink: 0 }}>
-          FitGrowX <span style={{ color: "#F97316" }}>Platform</span>
-        </span>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {[
-            { key: "crm", label: "Clientes FitGrowX" },
-            { key: "cms", label: "CMS Bóveda" },
-            { key: "feedback", label: "Feedback" },
-            { key: "whatsapp", label: "WhatsApp" },
-            { key: "onboarding", label: "Onboarding" },
-          ].map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback" | "whatsapp" | "onboarding")}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.9)",
-                background: activeTab === tab.key ? "#111827" : "rgba(255,255,255,0.68)",
-                color: activeTab === tab.key ? "#FFFFFF" : "#475569",
-                font: `600 0.75rem/1 ${fd}`,
-                cursor: "pointer",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </section>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+        {[
+          { key: "crm", label: "Seller" },
+          { key: "cms", label: "CMS Bóveda" },
+          { key: "feedback", label: "Feedback" },
+          { key: "whatsapp", label: "WhatsApp" },
+          { key: "onboarding", label: "Onboarding" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback" | "whatsapp" | "onboarding")}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 999,
+              border: activeTab === tab.key ? "1.5px solid #111827" : "1px solid rgba(15,23,42,0.10)",
+              background: activeTab === tab.key ? "#111827" : "rgba(255,255,255,0.68)",
+              color: activeTab === tab.key ? "#FFFFFF" : "#475569",
+              font: `600 0.75rem/1 ${fd}`,
+              cursor: "pointer",
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
       {/* ── Overview strip — solo en el tab CRM (dash principal) ── */}
       {activeTab === "crm" && overview && (() => {

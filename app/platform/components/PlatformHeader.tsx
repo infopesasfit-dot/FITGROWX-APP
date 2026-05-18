@@ -38,9 +38,6 @@ export default function PlatformHeader() {
           <Link href="/platform" style={{ font: "700 0.82rem/1 'Inter', sans-serif", color: "#111827", letterSpacing: "-0.01em", textDecoration: "none" }}>
             FitGrowX Platform
           </Link>
-          <span style={{ padding: "2px 8px", borderRadius: 9999, background: "rgba(99,102,241,0.1)", font: "600 0.65rem/1 'Inter', sans-serif", color: "#6366f1" }}>
-            interno
-          </span>
         </div>
         <Link
           href="/platform/pulso"
