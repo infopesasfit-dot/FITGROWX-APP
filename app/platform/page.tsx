@@ -730,6 +730,7 @@ export default function PlatformPage() {
       const res = await fetch(url, { method: "DELETE" });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
       setAccounts(prev => prev.filter(a => a.id !== id));
+      setStats(prev => ({ ...prev, platformAccounts: Math.max(0, prev.platformAccounts - 1) }));
     } catch (e) {
       setFeedback(e instanceof Error ? e.message : "Error al eliminar.");
       resetFeedbackSoon();
@@ -745,6 +746,7 @@ export default function PlatformPage() {
       const res = await fetch(`/api/platform/leads?id=${id}`, { method: "DELETE" });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
       setLeads(prev => prev.filter(l => l.id !== id));
+      setStats(prev => ({ ...prev, platformLeads: Math.max(0, prev.platformLeads - 1) }));
     } catch (e) {
       setFeedback(e instanceof Error ? e.message : "Error al eliminar.");
       resetFeedbackSoon();
