@@ -54,34 +54,46 @@ async function insertAuditNotification(gymId: string, title: string, body: strin
 }
 
 export async function POST(req: NextRequest) {
-  const profile = await getAuthorizedProfile();
-  if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  try {
+    const profile = await getAuthorizedProfile();
+    if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const raw = await req.json();
-  const parsed = parseBody(createClassesSchema, raw);
-  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+    const raw = await req.json();
+    const parsed = parseBody(createClassesSchema, raw);
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
 
-  const safeRows = parsed.data.rows.map((row) => ({ ...row, gym_id: profile.gym_id }));
-  const { error } = await admin.from("gym_classes").insert(safeRows);
-  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
+    const safeRows = parsed.data.rows.map((row) => ({ ...row, gym_id: profile.gym_id }));
+    const { error } = await admin.from("gym_classes").insert(safeRows);
+    if (error) {
+      console.error("[classes POST] insert error:", JSON.stringify(error));
+      return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
+    }
 
-  const firstRow = safeRows[0];
-  const className =
-    typeof firstRow === "object" &&
-    firstRow !== null &&
-    "class_name" in firstRow &&
-    typeof firstRow.class_name === "string"
-      ? firstRow.class_name
-      : "Clase";
-  await insertAuditNotification(
-    profile.gym_id,
-    safeRows.length > 1 ? `Clases creadas: ${className}` : `Clase creada: ${className}`,
-    safeRows.length > 1
-      ? `${actorName(profile)} creó ${safeRows.length} clases nuevas de ${className}.`
-      : `${actorName(profile)} creó la clase ${className}.`,
-  );
+    const firstRow = safeRows[0];
+    const className =
+      typeof firstRow === "object" &&
+      firstRow !== null &&
+      "class_name" in firstRow &&
+      typeof firstRow.class_name === "string"
+        ? firstRow.class_name
+        : "Clase";
+    try {
+      await insertAuditNotification(
+        profile.gym_id,
+        safeRows.length > 1 ? `Clases creadas: ${className}` : `Clase creada: ${className}`,
+        safeRows.length > 1
+          ? `${actorName(profile)} creó ${safeRows.length} clases nuevas de ${className}.`
+          : `${actorName(profile)} creó la clase ${className}.`,
+      );
+    } catch (notifErr) {
+      console.error("[classes POST] notification error:", notifErr);
+    }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("[classes POST] unexpected error:", e);
+    return NextResponse.json({ error: sanitizeError(e) }, { status: 500 });
+  }
 }
 
 export async function PATCH(req: NextRequest) {

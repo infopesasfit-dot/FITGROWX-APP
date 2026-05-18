@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const MOTOR_URL = process.env.WA_MOTOR_URL ?? "";
 const MOTOR_KEY = process.env.WA_MOTOR_API_KEY ?? "";
-const BATCH = 12; // ~12 envíos × 4 s/envío ≈ 48 s < timeout de 60 s
+const BATCH = 50; // motor responde 202 inmediato — el delay anti-ban es interno al motor
 
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": MOTOR_KEY },
         body: JSON.stringify({ phone: item.phone, message: item.message }),
-        signal: AbortSignal.timeout(8_000),
+        signal: AbortSignal.timeout(3_000),
       });
 
       if (res.ok) {

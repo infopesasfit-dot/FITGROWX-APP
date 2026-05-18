@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendMonthlyDashboardReport } from "@/lib/monthly-dashboard-report-delivery";
+import { isCronAuthorized } from "@/lib/request-security";
 
 type GymTarget = {
   gym_id: string;
@@ -14,15 +16,8 @@ type GymBillingRow = {
   gym_status: string | null;
 };
 
-function isAuthorized(req: NextRequest) {
-  const headerAuth = req.headers.get("authorization");
-  const bearer = headerAuth?.startsWith("Bearer ") ? headerAuth.slice(7) : null;
-  const expected = process.env.CRON_SECRET ?? process.env.FITGROWX_ADMIN_SECRET;
-  return Boolean(expected && bearer === expected);
-}
-
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

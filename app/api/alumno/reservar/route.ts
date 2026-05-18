@@ -67,6 +67,8 @@ export async function POST(req: NextRequest) {
   const { error } = await supabase.from("reservas").insert({ gym_id, alumno_id, clase_id, fecha, estado: "confirmada" });
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "Ya tenés una reserva para esa clase y fecha." }, { status: 409 });
+    if (error.code === "P0001" && error.message.includes("CAPACITY_EXCEEDED"))
+      return NextResponse.json({ error: "La clase ya está completa para esa fecha." }, { status: 409 });
     return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const { cron, gym_id } = await req.json() as { cron: string; gym_id?: string };
 
   const waSecret  = process.env.WA_MOTOR_API_KEY ?? "";
-  const cronSecret = process.env.CRON_SECRET ?? process.env.FITGROWX_ADMIN_SECRET ?? "";
+  const cronSecret = process.env.CRON_SECRET ?? "";
   const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   let res: Response;

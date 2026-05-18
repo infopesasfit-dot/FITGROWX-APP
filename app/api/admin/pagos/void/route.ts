@@ -52,6 +52,9 @@ export async function POST(req: NextRequest) {
 
   // If not a membresia payment, no expiry rollback needed
   if (pago.concepto !== "membresia") {
+    const monthKey = new Date().toISOString().slice(0, 7);
+    void admin.from("dashboard_snapshots").delete()
+      .eq("gym_id", profile.gym_id).eq("month_key", monthKey);
     return NextResponse.json({ ok: true, new_expiry: null });
   }
 
@@ -104,6 +107,11 @@ export async function POST(req: NextRequest) {
     .eq("id", pago.alumno_id);
 
   if (updateErr) return NextResponse.json({ ok: false, error: updateErr.message }, { status: 500 });
+
+  // Invalidate dashboard snapshot
+  const monthKey = new Date().toISOString().slice(0, 7);
+  void admin.from("dashboard_snapshots").delete()
+    .eq("gym_id", profile.gym_id).eq("month_key", monthKey);
 
   // Activity log
   await admin.from("alumno_activity_log").insert({

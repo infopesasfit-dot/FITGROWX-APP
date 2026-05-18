@@ -99,7 +99,7 @@ async function enviarMensajeWA(gymId: string, phone: string, message: string): P
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": MOTOR_KEY },
       body: JSON.stringify({ phone: normalizePhone(phone), message }),
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(3000),
     });
   } catch (e) {
     console.error(`[gym-webhook] enviarMensajeWA gym=${gymId}:`, e instanceof Error ? e.message : e);
@@ -351,6 +351,10 @@ export async function POST(req: NextRequest) {
   // Solo llegamos acá la primera vez (resultadoPago === "ok")
   await extenderMembresia(alumnoId, today, nuevoVencimiento);
   // ─────────────────────────────────────────────────────────────────────────────
+
+  // Invalidate dashboard snapshot so next load reflects this payment
+  void supabase.from("dashboard_snapshots").delete()
+    .eq("gym_id", gymId).eq("month_key", today.slice(0, 7));
 
   logWebhook(gymId, paymentId, "processed", { amount: payment.transaction_amount, alumnoId });
   void logAlumnoActivity(alumnoId, gymId, "pago", `Pago $${payment.transaction_amount} via MercadoPago · ${planNombre} · vence ${nuevoVencimiento}`, "webhook_mp", { payment_id: paymentId, amount: payment.transaction_amount });

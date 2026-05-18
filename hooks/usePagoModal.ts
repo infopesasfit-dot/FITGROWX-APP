@@ -159,6 +159,13 @@ export function usePagoModal(
       return;
     }
 
+    // Invalidate dashboard snapshot so next load reflects this payment immediately
+    if (gymId) {
+      const monthKey = new Date().toISOString().slice(0, 7);
+      supabase.from("dashboard_snapshots").delete()
+        .eq("gym_id", gymId).eq("month_key", monthKey).then(() => {});
+    }
+
     if (isCuota && gymId && snapshot.phone) {
       supabase.from("prospectos")
         .update({ clase_gratis_status: "convertido", status: "contactado" })

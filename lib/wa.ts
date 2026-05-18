@@ -24,7 +24,7 @@ export async function sendWa(
       method:  "POST",
       headers: { "Content-Type": "application/json", "x-api-key": API_KEY() },
       body:    JSON.stringify({ phone, message }),
-      signal:  AbortSignal.timeout(opts?.timeout ?? 8000),
+      signal:  AbortSignal.timeout(opts?.timeout ?? 3000),
     });
 
     if (!res.ok) {

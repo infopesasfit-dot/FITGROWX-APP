@@ -564,6 +564,10 @@ export async function GET(req: NextRequest) {
       recordatorios = await enviarRecordatoriosProximos(gyms, todayStr, log);
     }
 
+    // Pruning: eliminar snapshots de meses anteriores al actual (fuego y olvido)
+    const currentMonthKey = todayStr.slice(0, 7);
+    void supabase.from("dashboard_snapshots").delete().lt("month_key", currentMonthKey);
+
     const enviados = venceHoy + followups + recordatorios;
     void supabase.from("cron_runs").insert({
       cron_name:   "vencimientos",

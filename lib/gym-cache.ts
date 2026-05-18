@@ -136,7 +136,7 @@ export async function prefetchDashboard(): Promise<void> {
   const from = `${y}-${String(m + 1).padStart(2, "0")}-01`;
   const lastDay = new Date(y, m + 1, 0).getDate();
   const to   = `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  const key  = `dashboard_${profile.gymId}_${from}`;
+  const key  = `dashboard_v2_${profile.gymId}_${from}`;
   if (getPageCache(key)) return; // still fresh, skip
   const res = await fetch(`/api/admin/dashboard?from=${from}&to=${to}`, { cache: "no-store" }).catch(() => null);
   if (!res?.ok) return;

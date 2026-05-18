@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
@@ -57,13 +58,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(REQUEST_ACCESS_RESPONSE);
   }
 
-  const token = crypto.randomUUID();
+  const token      = crypto.randomUUID();
+  const tokenHash  = createHash("sha256").update(token).digest("hex");
   const expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const { error: tokenErr } = await supabase.from("alumno_tokens").insert({
     alumno_id: alumno.id,
-    gym_id: alumno.gym_id,
-    token,
+    gym_id:    alumno.gym_id,
+    token:     tokenHash,
     expires_at,
   });
 
@@ -109,7 +111,7 @@ export async function POST(req: NextRequest) {
           "x-api-key": process.env.WA_MOTOR_API_KEY ?? "",
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(3000),
       });
       if (!waRes.ok) {
         console.error("[WA Motor] request-access → HTTP", waRes.status);

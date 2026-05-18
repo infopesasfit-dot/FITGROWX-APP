@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
 export function isCronAuthorized(req: NextRequest): boolean {
-  const bearer = req.headers.get("authorization")?.replace("Bearer ", "");
-  const expected = process.env.CRON_SECRET ?? process.env.FITGROWX_ADMIN_SECRET;
-  return Boolean(bearer && expected && bearer === expected);
+  const bearer   = req.headers.get("authorization")?.replace("Bearer ", "") ?? "";
+  const expected = process.env.CRON_SECRET ?? "";
+  if (!bearer || !expected) return false;
+  try {
+    const a = Buffer.from(bearer);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 export function cronUnauthorized() {

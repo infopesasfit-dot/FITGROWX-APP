@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
+function isAdminAuthorized(req: NextRequest): boolean {
+  const bearer   = req.headers.get("authorization")?.replace("Bearer ", "") ?? "";
+  const expected = process.env.FITGROWX_ADMIN_SECRET ?? "";
+  if (!bearer || !expected) return false;
+  try {
+    const a = Buffer.from(bearer);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch { return false; }
+}
+
 const ADMIN_EMAIL = process.env.FITGROWX_OWNER_EMAIL ?? "elianafrancoanahi@gmail.com";
 
 export async function POST(req: NextRequest) {
-  // Authorization: only the platform owner can use this
-  const authHeader = req.headers.get("authorization");
-  const adminKey = process.env.FITGROWX_ADMIN_SECRET;
-  if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
+  if (!isAdminAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -94,9 +103,7 @@ export async function POST(req: NextRequest) {
 
 // GET — quick info endpoint so the admin can verify the route is live
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization");
-  const adminKey = process.env.FITGROWX_ADMIN_SECRET;
-  if (!adminKey || authHeader !== `Bearer ${adminKey}`) {
+  if (!isAdminAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const supabase = getSupabaseAdminClient();
@@ -7,14 +8,15 @@ export async function POST(req: NextRequest) {
   const { token } = await req.json();
   if (!token) return NextResponse.json({ error: "Token requerido." }, { status: 400 });
 
-  const now = new Date().toISOString();
+  const tokenHash  = createHash("sha256").update(String(token)).digest("hex");
+  const now        = new Date().toISOString();
   const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
   // Fetch any non-expired token (used or not)
   const { data: tokenRow, error } = await supabase
     .from("alumno_tokens")
     .select("id, alumno_id, gym_id, used_at")
-    .eq("token", token)
+    .eq("token", tokenHash)
     .gt("expires_at", now)
     .single();
 
