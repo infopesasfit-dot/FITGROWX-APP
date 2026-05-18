@@ -8,7 +8,7 @@ import { ArrowRight, CheckCircle2, Eye, EyeOff, Lock, Mail } from "lucide-react"
 import { supabase } from "@/lib/supabase";
 import { LandingHeader } from "@/components/landing-header";
 
-type Screen = "form" | "setup" | "dashboard";
+type Screen = "form" | "verify" | "setup" | "dashboard";
 
 function GrainOverlay() {
   return (
@@ -58,6 +58,8 @@ function StartPageInner() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   useEffect(() => {
     const ref = searchParams.get("ref");
@@ -150,6 +152,14 @@ function StartPageInner() {
     }
   };
 
+  const handleResend = async () => {
+    if (!email || resendLoading) return;
+    setResendLoading(true);
+    await supabase.auth.resend({ type: "signup", email });
+    setResendLoading(false);
+    setResendSent(true);
+  };
+
   const handleGoogleSignIn = async () => {
     setAuthError(null);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -180,24 +190,20 @@ function StartPageInner() {
         if (signUpError) throw signUpError;
         if (!signUpData.user) throw new Error("No se pudo crear el usuario.");
 
-        const { error: gymSettingsError } = await supabase
-          .from("gym_settings")
-          .upsert({
-            gym_id: signUpData.user.id,
-            email,
-            onboarding_completed: false,
-          }, { onConflict: "gym_id" });
-        if (gymSettingsError) throw gymSettingsError;
-
-        if (signUpData.session?.access_token) {
-          const syncPayload: Record<string, string> = { email };
-          if (refCode)      syncPayload.refCode      = refCode;
-          if (resellerSlug) syncPayload.resellerSlug = resellerSlug;
-          await syncPlatformSignup(signUpData.session.access_token, syncPayload);
-          if (refCode)      localStorage.removeItem("fitgrowx_ref");
-          if (resellerSlug) localStorage.removeItem("fitgrowx_reseller");
-          fetch("/api/reseller/track", { method: "DELETE" }).catch(() => {});
+        if (!signUpData.session) {
+          // Email confirmation enabled: tell user to check inbox
+          setScreen("verify");
+          return;
         }
+
+        // Email confirmation disabled (legacy / local dev): proceed immediately
+        const syncPayload: Record<string, string> = { email };
+        if (refCode)      syncPayload.refCode      = refCode;
+        if (resellerSlug) syncPayload.resellerSlug = resellerSlug;
+        await syncPlatformSignup(signUpData.session.access_token, syncPayload);
+        if (refCode)      localStorage.removeItem("fitgrowx_ref");
+        if (resellerSlug) localStorage.removeItem("fitgrowx_reseller");
+        fetch("/api/reseller/track", { method: "DELETE" }).catch(() => {});
 
         router.push("/onboarding");
       }
@@ -504,6 +510,33 @@ function StartPageInner() {
                   </div>
                 </div>
               </div>
+            </div>
+          </section>
+        )}
+
+        {screen === "verify" && (
+          <section className="relative z-10 flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-6">
+            <div className="w-full max-w-md text-center">
+              <div className="text-5xl mb-6">📬</div>
+              <h2 className="text-2xl font-semibold tracking-[-0.04em] mb-3">Revisá tu email</h2>
+              <p className="text-[14px] text-white/45 leading-relaxed mb-2">
+                Te mandamos un link de confirmación a
+              </p>
+              <p className="text-[14px] font-semibold text-white/80 mb-8">{email}</p>
+              <p className="text-[13px] text-white/30 mb-6">
+                Hacé clic en el link del email para activar tu cuenta y empezar el setup.
+              </p>
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendLoading || resendSent}
+                className="text-[13px] text-[#FF6A00] hover:underline disabled:opacity-40 disabled:no-underline transition"
+              >
+                {resendSent ? "✓ Email reenviado" : resendLoading ? "Enviando..." : "¿No llegó? Reenviar email"}
+              </button>
+              <p className="mt-8 text-[12px] text-white/20">
+                Si usás Gmail, también revisá Spam y Promociones.
+              </p>
             </div>
           </section>
         )}

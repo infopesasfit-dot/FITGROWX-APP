@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-type ProfileSummary = { role: string | null };
+type ProfileSummary = { role: string | null; full_name: string | null };
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, full_name")
         .eq("id", user.id)
         .limit(1)
         .maybeSingle<ProfileSummary>();
@@ -50,6 +50,14 @@ export async function GET(request: NextRequest) {
           },
           body: JSON.stringify({ fullName, email: user.email ?? "" }),
         });
+
+        // New user — always send to onboarding to complete setup
+        return NextResponse.redirect(`${origin}/onboarding`);
+      }
+
+      // Existing user without onboarding done
+      if (!profile.full_name) {
+        return NextResponse.redirect(`${origin}/onboarding`);
       }
 
       return NextResponse.redirect(`${origin}/dashboard`);
