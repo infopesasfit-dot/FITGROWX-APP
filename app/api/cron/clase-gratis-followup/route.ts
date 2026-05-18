@@ -66,8 +66,12 @@ export async function GET(req: NextRequest) {
       // Day-before reminder: class is tomorrow, not yet reminded (step === 0)
       if (p.clase_gratis_status === "registrado" && diffDays === -1 && p.followup_step === 0) {
         const msgTemplate = fillTemplate(DEFAULT_MSG_REMINDER, p.full_name, gymName);
+        const sent = await sendWa(gym.gym_id, normalizePhone(p.phone!), msgTemplate, { route: "cron/clase-gratis-followup" });
+        if (!sent) {
+          log.push(`⚠ ${p.full_name} (${gymName}) — recordatorio WA falló, reintento próximo cron`);
+          continue;
+        }
         await supabase.from("prospectos").update({ followup_step: -1 }).eq("id", p.id);
-        void sendWa(gym.gym_id, normalizePhone(p.phone!), msgTemplate, { route: "cron/clase-gratis-followup" });
         logWASend(supabase, gym.gym_id, "clase_gratis", p.id, p.full_name);
         totalEnviados++;
         log.push(`🔔 ${p.full_name} (${gymName}) — recordatorio día anterior`);
@@ -128,10 +132,14 @@ export async function GET(req: NextRequest) {
       const message = fillTemplate(msgTemplateSanitized + paymentSuffix, p.full_name, gymName, reservarLink);
       const phone = normalizePhone(p.phone);
 
+      const sent = await sendWa(gym.gym_id, phone, message, { route: "cron/clase-gratis-followup" });
+      if (!sent) {
+        log.push(`⚠ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} WA falló, reintento próximo cron`);
+        continue;
+      }
       const updates: Record<string, unknown> = { followup_step: nextStep };
       if (nextStep === 3) updates.clase_gratis_status = "perdido";
       await supabase.from("prospectos").update(updates).eq("id", p.id);
-      void sendWa(gym.gym_id, phone, message, { route: "cron/clase-gratis-followup" });
       logWASend(supabase, gym.gym_id, "clase_gratis", p.id, p.full_name);
       totalEnviados++;
       log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} [${p.clase_gratis_status}] (día ${diffDays})`);

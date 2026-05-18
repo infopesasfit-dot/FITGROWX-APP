@@ -91,9 +91,9 @@ export async function POST(req: NextRequest) {
   const DEFAULT_MSG = `¡Hola [Nombre]! 👋\nIngresá a tu panel de *[Gym]* desde acá 👇\n\n[Link]\n\n_El acceso dura 30 días._`;
   const template = settings?.magiclink_msg?.trim() || DEFAULT_MSG;
   const message = template
-    .replace(/\[Nombre\]/g, alumno.full_name)
-    .replace(/\[Gym\]/g,    gymName)
-    .replace(/\[Link\]/g,   link);
+    .replace(/\[Nombre\]/g, alumno.full_name).replace(/\{nombre\}/gi, alumno.full_name)
+    .replace(/\[Gym\]/g,    gymName)          .replace(/\{gym\}/gi,    gymName)
+    .replace(/\[Link\]/g,   link)             .replace(/\{link\}/gi,   link);
 
   const phone = normalizePhone(alumno.phone);
   const motorUrl = process.env.WA_MOTOR_URL;

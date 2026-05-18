@@ -7,18 +7,26 @@ export async function POST(req: NextRequest) {
   const { token } = await req.json();
   if (!token) return NextResponse.json({ error: "Token requerido." }, { status: 400 });
 
-  // Consume the token and extend its expiry to 30 days so it works as a session token
+  const now = new Date().toISOString();
   const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Fetch any non-expired token (used or not)
   const { data: tokenRow, error } = await supabase
     .from("alumno_tokens")
-    .update({ used_at: new Date().toISOString(), expires_at: thirtyDays })
+    .select("id, alumno_id, gym_id, used_at")
     .eq("token", token)
-    .is("used_at", null)
-    .gt("expires_at", new Date().toISOString())
-    .select("id, alumno_id, gym_id")
+    .gt("expires_at", now)
     .single();
 
-  if (error || !tokenRow) return NextResponse.json({ error: "Enlace inválido, expirado o ya utilizado." }, { status: 401 });
+  if (error || !tokenRow) return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
+
+  // First use: mark and extend expiry so the token works as a 30-day session
+  if (!tokenRow.used_at) {
+    await supabase
+      .from("alumno_tokens")
+      .update({ used_at: now, expires_at: thirtyDays })
+      .eq("id", tokenRow.id);
+  }
 
   const { data: alumno } = await supabase
     .from("alumnos")

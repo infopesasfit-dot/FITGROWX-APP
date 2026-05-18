@@ -65,8 +65,9 @@ export async function POST(req: NextRequest) {
 
     const phone = normalizePhone(alumno.phone!);
 
+    const sent = await sendWa(gym_id, phone, message, { route: "cron/ausentes-trigger" });
+    if (!sent) continue;
     await supabase.from("alumnos").update({ ultima_notif_inactividad: new Date().toISOString() }).eq("id", alumno.id);
-    void sendWa(gym_id, phone, message, { route: "cron/ausentes-trigger" });
     enviados++;
   }
 

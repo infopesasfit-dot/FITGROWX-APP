@@ -253,16 +253,20 @@ async function notificarInasistentes(log: string[], todayStr: string): Promise<v
       }
     }
 
+    // Encolar en bulk con stagger anti-spam (dedup_key previene doble envío)
+    await enqueueWABulk(alumnos.map(alumno => ({
+      gymId,
+      phone:    normalizePhone(alumno.phone!),
+      message:  `¡Hola ${alumno.full_name}! 👋 Te extrañamos en *${gymName}*.\n\n¿Todo bien? Si necesitás algo, estamos acá. ¡Te esperamos! 💪`,
+      dedupKey: `inasistencia14d:${alumno.id}:${todayStr}`,
+    })));
+
     for (const alumno of alumnos) {
-      const msg = `¡Hola ${alumno.full_name}! 👋 Te extrañamos en *${gymName}*.\n\n¿Todo bien? Si necesitás algo, estamos acá. ¡Te esperamos! 💪`;
-      const ok  = await enviarMensajeWA(gymId, alumno.phone!, msg);
-      if (ok) {
-        const { error } = await supabase.from("alumnos")
-          .update({ notif_inasistencia_sent_at: todayStr })
-          .eq("id", alumno.id);
-        if (error) console.error(`[vencimientos] marcar inasistencia alumno=${alumno.id}:`, error.message);
-        log.push(`💪 ${alumno.full_name} (${gymName}) — inasistencia 14d`);
-      }
+      const { error } = await supabase.from("alumnos")
+        .update({ notif_inasistencia_sent_at: todayStr })
+        .eq("id", alumno.id);
+      if (error) console.error(`[vencimientos] marcar inasistencia alumno=${alumno.id}:`, error.message);
+      else log.push(`💪 ${alumno.full_name} (${gymName}) — inasistencia 14d (encolado)`);
     }
   }
 }
@@ -377,17 +381,16 @@ async function enviarFollowupsPostVencimiento(
           Gym:    gymName,
           Link:   link,
         });
-        // Marcar dedup antes de encolar para que el cron no re-encole en la próxima corrida
-        const { error: upErr } = await supabase.from("alumnos")
-          .update({ [columna]: alumno.next_expiration_date })
-          .eq("id", alumno.id);
-        if (upErr) { console.error(`[vencimientos] followup ${step} alumno=${alumno.id}:`, upErr.message); return; }
         await enqueueWABulk([{
           gymId:    gym.gym_id,
           phone:    alumno.phone!,
           message:  mensaje,
           dedupKey: `venc_${step}:${alumno.id}:${alumno.next_expiration_date}`,
         }]);
+        const { error: upErr } = await supabase.from("alumnos")
+          .update({ [columna]: alumno.next_expiration_date })
+          .eq("id", alumno.id);
+        if (upErr) { console.error(`[vencimientos] followup ${step} alumno=${alumno.id}:`, upErr.message); return; }
         logWASend(supabase, gym.gym_id, "vencimiento", alumno.id, alumno.full_name);
         void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", `Recordatorio vencimiento día ${diasVencido} encolado`);
         enviados++;
@@ -440,16 +443,16 @@ async function enviarNotificacionesVenceHoy(
         Gym:    gymName,
         Link:   link,
       });
-      const { error: upErr } = await supabase.from("alumnos")
-        .update({ notif_vence_hoy_para: todayStr })
-        .eq("id", alumno.id);
-      if (upErr) { console.error(`[vencimientos] vence-hoy alumno=${alumno.id}:`, upErr.message); continue; }
       await enqueueWABulk([{
         gymId:    gym.gym_id,
         phone:    alumno.phone!,
         message:  mensaje,
         dedupKey: `vence_hoy:${alumno.id}:${todayStr}`,
       }]);
+      const { error: upErr } = await supabase.from("alumnos")
+        .update({ notif_vence_hoy_para: todayStr })
+        .eq("id", alumno.id);
+      if (upErr) { console.error(`[vencimientos] vence-hoy alumno=${alumno.id}:`, upErr.message); continue; }
       logWASend(supabase, gym.gym_id, "vencimiento", alumno.id, alumno.full_name);
       void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", "Aviso de vencimiento hoy encolado");
       enviados++;
@@ -512,16 +515,16 @@ async function enviarRecordatoriosProximos(
         Link:   link,
       });
 
-      const { error: upErr } = await supabase.from("alumnos")
-        .update({ notif_vencimiento_para: alumno.next_expiration_date })
-        .eq("id", alumno.id);
-      if (upErr) { console.error(`[vencimientos] marcar notif alumno=${alumno.id}:`, upErr.message); continue; }
       await enqueueWABulk([{
         gymId:    gym.gym_id,
         phone:    alumno.phone!,
         message:  mensaje,
         dedupKey: `recordatorio:${alumno.id}:${alumno.next_expiration_date}`,
       }]);
+      const { error: upErr } = await supabase.from("alumnos")
+        .update({ notif_vencimiento_para: alumno.next_expiration_date })
+        .eq("id", alumno.id);
+      if (upErr) { console.error(`[vencimientos] marcar notif alumno=${alumno.id}:`, upErr.message); continue; }
       logWASend(supabase, gym.gym_id, "vencimiento", alumno.id, alumno.full_name);
       void logAlumnoActivity(alumno.id, gym.gym_id, "wa_enviado", `Recordatorio pre-vencimiento encolado · vence ${alumno.next_expiration_date}`);
       enviados++;

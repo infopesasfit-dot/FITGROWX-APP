@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { addOneMonth } from "@/lib/date-utils";
 import { sendWa } from "@/lib/wa";
 
@@ -83,7 +83,9 @@ export async function POST(req: NextRequest) {
   const template    = `id:${dataId};request-id:${xRequestId};ts:${ts}`;
   const expected    = createHmac("sha256", MP_WEBHOOK_SECRET).update(template).digest("hex");
   const received    = xSignature.split(";").find(p => p.startsWith("v1="))?.split("=")[1] ?? "";
-  if (received !== expected) {
+  const sigValid = received.length === expected.length &&
+    timingSafeEqual(Buffer.from(received, "hex"), Buffer.from(expected, "hex"));
+  if (!sigValid) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 

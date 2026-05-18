@@ -84,8 +84,12 @@ export async function GET(req: NextRequest) {
 
       const phone = normalizePhone(p.phone);
 
+      const sent = await sendWa(gym.gym_id, phone, message, { route: "cron/contactos-followup" });
+      if (!sent) {
+        log.push(`⚠ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} WA falló, reintento próximo cron`);
+        continue;
+      }
       await supabase.from("prospectos").update({ contactos_step: nextStep }).eq("id", p.id);
-      void sendWa(gym.gym_id, phone, message, { route: "cron/contactos-followup" });
       logWASend(supabase, gym.gym_id, "nuevo_contacto", p.id, p.full_name);
       totalEnviados++;
       log.push(`✓ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} (día ${diffDays})`);

@@ -15,17 +15,8 @@ export async function GET(req: NextRequest) {
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
 
-  // 'bulk' > 'high' alfabéticamente → order ASC pone 'high' primero ✓
-  const { data: pending } = await supabase
-    .from("wa_queue")
-    .select("id, gym_id, phone, message, priority, attempts")
-    .is("sent_at", null)
-    .is("failed_at", null)
-    .lte("scheduled_at", now)
-    .lt("attempts", 3)
-    .order("priority", { ascending: true })
-    .order("scheduled_at", { ascending: true })
-    .limit(BATCH);
+  // Atomic claim via FOR UPDATE SKIP LOCKED — concurrent cron runs get disjoint sets
+  const { data: pending } = await supabase.rpc("claim_wa_queue_batch", { p_batch: BATCH });
 
   if (!pending?.length) return NextResponse.json({ ok: true, sent: 0, log: ["Cola vacía"] });
 

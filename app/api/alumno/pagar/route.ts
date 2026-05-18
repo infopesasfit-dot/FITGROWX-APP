@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac } from "crypto";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
+
+const MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? process.env.CRON_SECRET ?? "";
 
 const supabase = getSupabaseAdminClient();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -73,7 +76,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No se pudo determinar el precio del plan." }, { status: 422 });
   }
 
-  const notificationUrl = `${APP_URL}/api/mp/gym-webhook?gym_id=${gym_id}`;
+  const wt = createHmac("sha256", MASTER_SECRET).update(gym_id).digest("hex").slice(0, 32);
+  const notificationUrl = `${APP_URL}/api/mp/gym-webhook?gym_id=${gym_id}&wt=${wt}`;
 
   const prefBody = {
     items: [
