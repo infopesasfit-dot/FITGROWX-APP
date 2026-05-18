@@ -232,18 +232,25 @@ async function notificarInasistentes(log: string[], todayStr: string): Promise<v
   for (const [gymId, alumnos] of porGym) {
     const [{ data: ownerRow }, { data: settingsRow }] = await Promise.all([
       supabase.from("profiles").select("phone").eq("gym_id", gymId).eq("role", "admin").maybeSingle(),
-      supabase.from("gym_settings").select("gym_name, whatsapp").eq("gym_id", gymId).maybeSingle(),
+      supabase.from("gym_settings").select("gym_name, whatsapp, notif_inasistencia_owner_sent_at").eq("gym_id", gymId).maybeSingle(),
     ]);
 
-    const ownerPhone = (ownerRow as { phone: string | null } | null)?.phone ?? null;
-    const gymName    = (settingsRow as { gym_name: string | null; whatsapp: string | null } | null)?.gym_name ?? "el gym";
-    const gymWaPhone = (settingsRow as { gym_name: string | null; whatsapp: string | null } | null)?.whatsapp ?? null;
+    const ownerPhone    = (ownerRow as { phone: string | null } | null)?.phone ?? null;
+    const settings      = settingsRow as { gym_name: string | null; whatsapp: string | null; notif_inasistencia_owner_sent_at: string | null } | null;
+    const gymName       = settings?.gym_name ?? "el gym";
+    const gymWaPhone    = settings?.whatsapp ?? null;
+    const ownerSentToday = settings?.notif_inasistencia_owner_sent_at === todayStr;
 
-    if (ownerPhone && !esMismoNumero(ownerPhone, gymWaPhone)) {
-      const lista  = alumnos.slice(0, 10).map(a => `• ${a.full_name}`).join("\n");
-      const extra  = alumnos.length > 10 ? `\n...y ${alumnos.length - 10} más.` : "";
+    if (ownerPhone && !esMismoNumero(ownerPhone, gymWaPhone) && !ownerSentToday) {
+      const lista    = alumnos.slice(0, 10).map(a => `• ${a.full_name}`).join("\n");
+      const extra    = alumnos.length > 10 ? `\n...y ${alumnos.length - 10} más.` : "";
       const msgDueno = `🔔 *Socios sin venir hace 14+ días*\n\n${lista}${extra}\n\nLes mandé un mensaje automático. Podés hacer seguimiento desde el dashboard.`;
-      await enviarMensajeWA(gymId, ownerPhone, msgDueno);
+      const enviado  = await enviarMensajeWA(gymId, ownerPhone, msgDueno);
+      if (enviado) {
+        await supabase.from("gym_settings")
+          .update({ notif_inasistencia_owner_sent_at: todayStr })
+          .eq("gym_id", gymId);
+      }
     }
 
     for (const alumno of alumnos) {
