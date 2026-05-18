@@ -114,6 +114,35 @@ export async function GET(req: NextRequest) {
   const thisMonthFrom = isoDate(startOfMonth(selectedStart));
   const thisMonthTo   = isoDate(endOfMonth(selectedStart));
   const isCurrentMonth = thisMonthFrom === isoDate(startOfMonth(today));
+  const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  const SNAPSHOT_TTL_MS = 10 * 60 * 1000;
+
+  // ── Fast path: serve from pre-computed snapshot ──────────────────────────
+  if (isCurrentMonth && !fromParam) {
+    const { data: snapRow } = await admin
+      .from("dashboard_snapshots")
+      .select("payload, computed_at")
+      .eq("gym_id", gymId)
+      .eq("month_key", currentMonthKey)
+      .maybeSingle();
+
+    if (snapRow && Date.now() - new Date(snapRow.computed_at).getTime() < SNAPSHOT_TTL_MS) {
+      const [{ count: asistHoy }, { data: liveSettings }] = await Promise.all([
+        admin.from("asistencias").select("id", { count: "exact", head: true })
+          .eq("gym_id", gymId).eq("fecha", todayStr),
+        admin.from("gym_settings").select("wa_status").eq("gym_id", gymId).maybeSingle(),
+      ]);
+      const payload = snapRow.payload as Record<string, unknown>;
+      const snap    = payload.snapshot as Record<string, unknown>;
+      return NextResponse.json({
+        ...payload,
+        fetchedAt: new Date().toISOString(),
+        waStatus:  (liveSettings?.wa_status ?? "unknown") as "active" | "disconnected" | "qr" | "unknown",
+        snapshot:  { ...snap, asistHoy: asistHoy ?? 0 },
+      });
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const prevMonthDate  = new Date(selectedStart.getFullYear(), selectedStart.getMonth() - 1, 1);
   const prevMonthFrom  = isoDate(startOfMonth(prevMonthDate));
@@ -408,7 +437,7 @@ export async function GET(req: NextRequest) {
 
   const lastCronRun = lastCronRunRows?.[0] as { ran_at: string; status: string; summary: string | null } | undefined;
 
-  return NextResponse.json({
+  const responseBody = {
     ok: true,
     ownerName: ownerDisplayRaw.split(" ")[0],
     gymName: gymDisplay,
@@ -462,5 +491,16 @@ export async function GET(req: NextRequest) {
         upcomingExpirations,
       },
     },
-  });
+  };
+
+  // ── Save snapshot for fast path on next load ─────────────────────────────
+  if (isCurrentMonth && !fromParam) {
+    void admin.from("dashboard_snapshots").upsert(
+      { gym_id: gymId, month_key: currentMonthKey, payload: responseBody, computed_at: new Date().toISOString() },
+      { onConflict: "gym_id,month_key" },
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  return NextResponse.json(responseBody);
 }
