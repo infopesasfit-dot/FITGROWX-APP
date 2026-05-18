@@ -161,10 +161,11 @@ export default function MembresiasPage() {
   const [loading,     setLoading]     = useState(true);
   const [drafts,      setDrafts]      = useState<Record<string, Draft>>({});
   const [promoDrafts, setPromoDrafts] = useState<Record<string, PromoDraft>>({});
-  const [dirty,       setDirty]       = useState<Set<string>>(new Set());
-  const [promoDirty,  setPromoDirty]  = useState<Set<string>>(new Set());
-  const [savingSet,   setSavingSet]   = useState<Set<string>>(new Set());
+  const [dirty,          setDirty]          = useState<Set<string>>(new Set());
+  const [promoDirty,     setPromoDirty]     = useState<Set<string>>(new Set());
+  const [savingSet,      setSavingSet]      = useState<Set<string>>(new Set());
   const [promoSavingSet, setPromoSavingSet] = useState<Set<string>>(new Set());
+  const [saveAttempted,  setSaveAttempted]  = useState<Set<string>>(new Set());
   const [advanced,    setAdvanced]    = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "ok" | "err" } | null>(null);
   const [alumnosPorPlan, setAlumnosPorPlan] = useState<Record<string, number>>({});
@@ -295,7 +296,12 @@ export default function MembresiasPage() {
   const saveCard = async (planId: string) => {
     const isNew = planId.startsWith("empty-");
     const draft = drafts[planId];
+    setSaveAttempted(prev => new Set(prev).add(planId));
     if (!draft?.nombre.trim()) { showToast("El nombre del plan es obligatorio.", "err"); return; }
+    if (draft.access_type === "clases_por_semana" && (!draft.classes_per_week || parseInt(draft.classes_per_week) < 1)) {
+      showToast("Indicá cuántas clases por semana permite este plan.", "err");
+      return;
+    }
 
     setSavingSet(prev => new Set(prev).add(planId));
 
@@ -617,26 +623,39 @@ export default function MembresiasPage() {
                           </div>
                         </div>
 
-                        {draft.access_type === "clases_por_semana" && (
-                          <div>
-                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 8 }}>Cantidad permitida</p>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <input
-                                className="inline-field no-spin"
-                                type="number"
-                                min={1}
-                                max={14}
-                                value={draft.classes_per_week}
-                                onChange={e => updateDraft(p.id, "classes_per_week", e.target.value.replace(/[^\d]/g, ""))}
-                                placeholder="2"
-                                style={{ ...inlineInput, width: 72, background: "#F2F2F7", padding: "10px 12px", margin: 0, font: `700 0.95rem/1 ${fd}`, color: t1, borderRadius: 10 }}
-                              />
-                              <span style={{ font: `500 0.76rem/1.4 ${fb}`, color: t2 }}>
-                                clases por semana
-                              </span>
+                        {draft.access_type === "clases_por_semana" && (() => {
+                          const weekInvalid = saveAttempted.has(p.id) && (!draft.classes_per_week || parseInt(draft.classes_per_week) < 1);
+                          return (
+                            <div>
+                              <p style={{ font: `500 0.65rem/1 ${fb}`, color: weekInvalid ? "#DC2626" : "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 8 }}>
+                                Cantidad permitida{weekInvalid ? " — requerido" : ""}
+                              </p>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <input
+                                  className="inline-field no-spin"
+                                  type="number"
+                                  min={1}
+                                  max={14}
+                                  value={draft.classes_per_week}
+                                  onChange={e => {
+                                    updateDraft(p.id, "classes_per_week", e.target.value.replace(/[^\d]/g, ""));
+                                    if (saveAttempted.has(p.id)) setSaveAttempted(prev => { const s = new Set(prev); s.delete(p.id); return s; });
+                                  }}
+                                  placeholder="2"
+                                  style={{ ...inlineInput, width: 72, background: weekInvalid ? "rgba(220,38,38,0.06)" : "#F2F2F7", padding: "10px 12px", margin: 0, font: `700 0.95rem/1 ${fd}`, color: t1, borderRadius: 10, border: weekInvalid ? "1.5px solid rgba(220,38,38,0.5)" : "1.5px solid transparent", outline: "none" }}
+                                />
+                                <span style={{ font: `500 0.76rem/1.4 ${fb}`, color: weekInvalid ? "#DC2626" : t2 }}>
+                                  clases por semana
+                                </span>
+                              </div>
+                              {weekInvalid && (
+                                <p style={{ font: `400 0.74rem/1 ${fb}`, color: "#DC2626", marginTop: 6 }}>
+                                  Ingresá un número mayor a 0
+                                </p>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
 
                       {/* Características */}
