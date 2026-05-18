@@ -16,6 +16,30 @@ const ADMIN_ONLY_ACTIONS = new Set(["session-delete", "session-reconnect", "qr-d
 
 const PLATFORM_SESSION_ID = "fitgrowx-platform";
 
+// Rate limits: [maxRequests, windowMs]
+const RATE_LIMITS: Record<string, [number, number]> = {
+  "qr-data":          [12,  10_000],
+  "session-status":   [20,  10_000],
+  "session-reconnect": [3,  60_000],
+  "session-delete":   [3,   60_000],
+  "send-message":     [30,  60_000],
+};
+
+const rl = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(key: string, action: string): boolean {
+  const [max, windowMs] = RATE_LIMITS[action] ?? [20, 10_000];
+  const now = Date.now();
+  const entry = rl.get(key);
+  if (!entry || now > entry.resetAt) {
+    rl.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= max) return false;
+  entry.count++;
+  return true;
+}
+
 export async function POST(req: NextRequest) {
   const motor = process.env.WA_MOTOR_URL;
   if (!motor) return NextResponse.json({ error: "Motor no configurado" }, { status: 503 });
@@ -53,6 +77,10 @@ export async function POST(req: NextRequest) {
     if (ADMIN_ONLY_ACTIONS.has(action) && callerRole !== "admin") {
       return NextResponse.json({ error: "Acción restringida a administradores." }, { status: 403 });
     }
+  }
+
+  if (!checkRateLimit(`${user.id}:${action}:${gymId}`, action)) {
+    return NextResponse.json({ error: "Demasiadas solicitudes. Esperá un momento." }, { status: 429 });
   }
 
   const headers = {
