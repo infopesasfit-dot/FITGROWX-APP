@@ -315,7 +315,7 @@ export default function MembresiasPage() {
         duracion_dias: parseInt(draft.duracion_dias) || 30,
         access_type:   draft.access_type,
         classes_per_week: draft.access_type === "clases_por_semana" ? (parseInt(draft.classes_per_week) || 0) : null,
-        active:        draft.active,
+        active:        draft.active ?? true,
         features:      featuresArr,
         destacado:     draft.destacado,
         accent_color:  (draft.accent_color || "").trim() || null,
