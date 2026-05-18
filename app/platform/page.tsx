@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowRight,
   Building2,
   CheckCircle,
@@ -218,6 +219,7 @@ export default function PlatformPage() {
   const [followupDays,   setFollowupDays]   = useState("3");
   const [contactingId,   setContactingId]   = useState<string | null>(null);
   const [deletingId,     setDeletingId]     = useState<string | null>(null);
+  const [deleteModal,    setDeleteModal]    = useState<{ id: string; company_name: string; auth_user_id: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -720,11 +722,12 @@ export default function PlatformPage() {
     }
   };
 
-  const deleteAccount = async (id: string, name: string) => {
-    if (!window.confirm(`¿Eliminar la cuenta "${name}"? Esta acción no se puede deshacer.`)) return;
+  const deleteAccount = async (id: string, name: string, permanent: boolean) => {
+    setDeleteModal(null);
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/platform/accounts?id=${id}`, { method: "DELETE" });
+      const url = `/api/platform/accounts?id=${id}${permanent ? "&permanent=true" : ""}`;
+      const res = await fetch(url, { method: "DELETE" });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
       setAccounts(prev => prev.filter(a => a.id !== id));
     } catch (e) {
@@ -1246,7 +1249,7 @@ export default function PlatformPage() {
                                   )}
                                   {/* Eliminar cuenta */}
                                   <button
-                                    onClick={() => deleteAccount(a.id, a.company_name)}
+                                    onClick={() => setDeleteModal({ id: a.id, company_name: a.company_name, auth_user_id: a.auth_user_id })}
                                     disabled={deletingId === a.id}
                                     title="Eliminar cuenta"
                                     style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.10)", color: "#EF4444", border: "none", cursor: "pointer" }}
@@ -2107,6 +2110,62 @@ export default function PlatformPage() {
       })()}
 
         </>
+      )}
+
+      {/* ── Modal: elegir tipo de borrado ── */}
+      {deleteModal && (
+        <div
+          onClick={() => setDeleteModal(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 18, padding: "28px 28px 24px", width: 340, boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <AlertTriangle size={18} color="#EF4444" />
+              <p style={{ font: `700 1rem/1.2 ${fd}`, color: "#111827", margin: 0 }}>Eliminar cuenta</p>
+            </div>
+            <p style={{ font: `400 0.84rem/1.55 ${fb}`, color: "#64748B", marginBottom: 22 }}>
+              <strong style={{ color: "#111827" }}>{deleteModal.company_name}</strong>
+              <br />¿Cómo querés eliminarla?
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                onClick={() => deleteAccount(deleteModal.id, deleteModal.company_name, false)}
+                style={{ padding: "11px 16px", borderRadius: 10, border: "1.5px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.06)", color: "#4F46E5", font: `600 0.88rem/1 ${fd}`, cursor: "pointer", textAlign: "left" }}
+              >
+                Borrar del CRM
+                <span style={{ display: "block", font: `400 0.76rem/1.4 ${fb}`, color: "#6366F1", marginTop: 3, opacity: 0.8 }}>
+                  Solo elimina el registro de la plataforma.
+                </span>
+              </button>
+
+              {deleteModal.auth_user_id && (
+                <button
+                  onClick={() => {
+                    if (!window.confirm(`⚠️ BORRADO PERMANENTE\n\n"${deleteModal.company_name}"\n\nEsto eliminará el gym, todos los alumnos, pagos, membresías y usuarios. No se puede deshacer.\n\n¿Continuar?`)) return;
+                    deleteAccount(deleteModal.id, deleteModal.company_name, true);
+                  }}
+                  style={{ padding: "11px 16px", borderRadius: 10, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#DC2626", font: `600 0.88rem/1 ${fd}`, cursor: "pointer", textAlign: "left" }}
+                >
+                  Borrado permanente
+                  <span style={{ display: "block", font: `400 0.76rem/1.4 ${fb}`, color: "#EF4444", marginTop: 3, opacity: 0.8 }}>
+                    Elimina el gym y todo su contenido (alumnos, pagos, membresías, usuarios).
+                  </span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setDeleteModal(null)}
+                style={{ padding: "9px 16px", borderRadius: 10, border: "1px solid rgba(148,163,184,0.3)", background: "transparent", color: "#64748B", font: `500 0.84rem/1 ${fd}`, cursor: "pointer" }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
