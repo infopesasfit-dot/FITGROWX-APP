@@ -31,7 +31,10 @@ export async function POST(req: NextRequest) {
   if (!key || !VALID_KEYS.has(key)) return NextResponse.json({ error: "key inválido" }, { status: 400 });
 
   const upsertData: Record<string, unknown> = { key, updated_at: new Date().toISOString() };
-  if (typeof body === "string" && body.trim()) upsertData.body = body.trim();
+  if (typeof body === "string") {
+    if (!body.trim()) return NextResponse.json({ error: "El cuerpo de la plantilla no puede estar vacío. Para desactivarla usá el toggle." }, { status: 400 });
+    upsertData.body = body.trim();
+  }
   if (typeof enabled === "boolean") upsertData.enabled = enabled;
 
   const { error } = await sb.from("platform_wa_templates").upsert(upsertData, { onConflict: "key" });
