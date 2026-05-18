@@ -10,7 +10,7 @@ const securityHeaders = [
   // No envía el Referer completo a dominios externos
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Desactiva APIs sensibles que no se usan
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
   // Protección XSS básica para browsers legacy
   { key: "X-XSS-Protection", value: "1; mode=block" },
 ];

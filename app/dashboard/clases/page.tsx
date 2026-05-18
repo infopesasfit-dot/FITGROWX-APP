@@ -89,10 +89,11 @@ export default function ClasesPage() {
   const [wodTimeCap,    setWodTimeCap]    = useState("15");
   const [wodAiLoading,  setWodAiLoading]  = useState(false);
   const [wodError,      setWodError]      = useState<string | null>(null);
-  const [cancelInstancia, setCancelInstancia] = useState<{ clase_id: string; fecha: string } | null>(null);
-  const [cancelMotivo,    setCancelMotivo]    = useState("");
-  const [cancelLoading,   setCancelLoading]   = useState(false);
-  const [cancelResult,    setCancelResult]    = useState<string | null>(null);
+  const [cancelInstancia,    setCancelInstancia]    = useState<{ clase_id: string; fecha: string } | null>(null);
+  const [cancelMotivo,       setCancelMotivo]       = useState("");
+  const [cancelLoading,      setCancelLoading]      = useState(false);
+  const [cancelResult,       setCancelResult]       = useState<string | null>(null);
+  const [cancelledInstances, setCancelledInstances] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getCachedProfile().then((profile) => { if (profile) setGymId(profile.gymId); });
@@ -117,12 +118,14 @@ export default function ClasesPage() {
       const d = new Date(today); d.setDate(d.getDate() + i); return d.toISOString().slice(0, 10);
     });
 
-    const [{ data }, { data: resData }] = await Promise.all([
+    const [{ data }, { data: resData }, { data: cancelData }] = await Promise.all([
       supabase.from("gym_classes")
         .select("id, class_name, day_of_week, start_time, max_capacity, event_type, notes, coach_name, event_date")
         .eq("gym_id", gid).order("day_of_week").order("start_time"),
       supabase.from("reservas")
         .select("clase_id").eq("gym_id", gid).eq("estado", "confirmada").in("fecha", dates),
+      supabase.from("class_cancellations")
+        .select("clase_id, fecha").eq("gym_id", gid).in("fecha", dates),
     ]);
 
     if (!data) { setLoading(false); return; }
@@ -131,6 +134,7 @@ export default function ClasesPage() {
     const rows = data.map(c => ({ ...c, event_type: (c.event_type ?? "regular") as "regular" | "especial", event_date: c.event_date ?? null, reservas_count: countMap[c.id] ?? 0 }));
     setClases(rows);
     setPageCache(`clases_${gid}`, rows);
+    setCancelledInstances(new Set((cancelData ?? []).map(r => `${r.clase_id}__${r.fecha}`)));
     setLoading(false);
   }, []);
 
@@ -259,6 +263,7 @@ export default function ClasesPage() {
       ? ` (${data.notify_failed} notificacion${data.notify_failed === 1 ? "" : "es"} WA no enviada${data.notify_failed === 1 ? "" : "s"} — WA desconectado)`
       : "";
     setCancelResult(`Clase cancelada. ${data.cancelled_reservas} reserva(s) liberadas, ${data.notified} WA enviado(s)${waNote}.`);
+    setCancelledInstances(prev => new Set([...prev, `${cancelInstancia.clase_id}__${cancelInstancia.fecha}`]));
     // Remove cancelled reservas from local state
     setReservas(prev => ({
       ...prev,
@@ -467,39 +472,52 @@ export default function ClasesPage() {
                           <div style={{ borderTop: "1px solid rgba(0,0,0,0.05)", background: "#F8FAFF", padding: "10px 14px" }}>
                             {loadingRes === c.id ? (
                               <p style={{ font: `400 0.75rem/1 ${fd}`, color: t2 }}>Cargando...</p>
-                            ) : res.length === 0 ? (
-                              <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#94A3B8" }}>Sin reservas en los próximos 7 días.</p>
-                            ) : (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {/* Group by date and show "Cancelar día" per date */}
-                                {Array.from(new Set(res.map(r => r.fecha))).sort().map(fecha => {
-                                  const alumnosDelDia = res.filter(r => r.fecha === fecha);
-                                  return (
-                                    <div key={fecha} style={{ border: "1px solid rgba(0,0,0,0.06)", borderRadius: 8, overflow: "hidden" }}>
-                                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: "rgba(0,0,0,0.02)" }}>
-                                        <span style={{ font: `600 0.72rem/1 ${fd}`, color: t2 }}>{fecha}</span>
-                                        <button
-                                          onClick={() => { setCancelInstancia({ clase_id: c.id, fecha }); setCancelMotivo(""); setCancelResult(null); }}
-                                          style={{ display: "flex", alignItems: "center", gap: 4, font: `600 0.68rem/1 ${fd}`, color: "#DC2626", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 6, padding: "3px 8px", cursor: "pointer" }}
-                                        >
-                                          <AlertTriangle size={10} /> Cancelar día
-                                        </button>
-                                      </div>
-                                      <div style={{ padding: "6px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
-                                        {alumnosDelDia.map(r => (
-                                          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.58rem/1 ${fd}`, color: "white", flexShrink: 0 }}>
-                                              {(r.alumnos?.full_name ?? "?").slice(0, 2).toUpperCase()}
-                                            </div>
-                                            <span style={{ font: `500 0.8rem/1 ${fd}`, color: t1 }}>{r.alumnos?.full_name ?? "—"}</span>
+                            ) : (() => {
+                              const today = new Date();
+                              const next7 = Array.from({ length: 7 }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() + i); return d.toISOString().slice(0, 10); });
+                              const cancelledForClass = next7.filter(f => cancelledInstances.has(`${c.id}__${f}`));
+                              const allDates = Array.from(new Set([...res.map(r => r.fecha), ...cancelledForClass])).sort();
+                              if (allDates.length === 0) return <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#94A3B8" }}>Sin reservas en los próximos 7 días.</p>;
+                              return (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                  {allDates.map(fecha => {
+                                    const isCancelled = cancelledInstances.has(`${c.id}__${fecha}`);
+                                    const alumnosDelDia = res.filter(r => r.fecha === fecha);
+                                    return (
+                                      <div key={fecha} style={{ border: `1px solid ${isCancelled ? "rgba(220,38,38,0.15)" : "rgba(0,0,0,0.06)"}`, borderRadius: 8, overflow: "hidden", background: isCancelled ? "rgba(220,38,38,0.02)" : "transparent" }}>
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 10px", background: isCancelled ? "rgba(220,38,38,0.04)" : "rgba(0,0,0,0.02)" }}>
+                                          <span style={{ font: `600 0.72rem/1 ${fd}`, color: isCancelled ? "#DC2626" : t2 }}>{fecha}</span>
+                                          {isCancelled ? (
+                                            <span style={{ display: "flex", alignItems: "center", gap: 3, font: `700 0.62rem/1 ${fd}`, color: "#DC2626", background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.25)", padding: "2px 8px", borderRadius: 9999 }}>
+                                              <AlertTriangle size={9} /> CANCELADA
+                                            </span>
+                                          ) : (
+                                            <button
+                                              onClick={() => { setCancelInstancia({ clase_id: c.id, fecha }); setCancelMotivo(""); setCancelResult(null); }}
+                                              style={{ display: "flex", alignItems: "center", gap: 4, font: `600 0.68rem/1 ${fd}`, color: "#DC2626", background: "rgba(220,38,38,0.07)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 6, padding: "3px 8px", cursor: "pointer" }}
+                                            >
+                                              <AlertTriangle size={10} /> Cancelar día
+                                            </button>
+                                          )}
+                                        </div>
+                                        {alumnosDelDia.length > 0 && (
+                                          <div style={{ padding: "6px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
+                                            {alumnosDelDia.map(r => (
+                                              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <div style={{ width: 24, height: 24, borderRadius: "50%", background: isCancelled ? "#94A3B8" : "#F97316", display: "flex", alignItems: "center", justifyContent: "center", font: `700 0.58rem/1 ${fd}`, color: "white", flexShrink: 0 }}>
+                                                  {(r.alumnos?.full_name ?? "?").slice(0, 2).toUpperCase()}
+                                                </div>
+                                                <span style={{ font: `500 0.8rem/1 ${fd}`, color: isCancelled ? "#94A3B8" : t1, textDecoration: isCancelled ? "line-through" : "none" }}>{r.alumnos?.full_name ?? "—"}</span>
+                                              </div>
+                                            ))}
                                           </div>
-                                        ))}
+                                        )}
                                       </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
