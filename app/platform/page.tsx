@@ -607,16 +607,27 @@ export default function PlatformPage() {
 
 
   const openGymDashboard = async (account: PlatformAccount) => {
-    if (!account.auth_user_id) return;
+    if (!account.auth_user_id) {
+      setFeedback("Esta cuenta no tiene usuario registrado todavía.");
+      resetFeedbackSoon();
+      return;
+    }
     setNavigatingToGymId(account.id);
     try {
       const { data } = await supabase.from("profiles").select("gym_id").eq("id", account.auth_user_id).single();
-      if (!data?.gym_id) { setNavigatingToGymId(null); return; }
+      if (!data?.gym_id) {
+        setNavigatingToGymId(null);
+        setFeedback("No se encontró un gym asociado a esta cuenta.");
+        resetFeedbackSoon();
+        return;
+      }
       setImpersonatedGym({ gym_id: data.gym_id, gym_name: account.company_name });
       invalidateProfile();
       router.push("/dashboard");
     } catch {
       setNavigatingToGymId(null);
+      setFeedback("Error al abrir el dashboard.");
+      resetFeedbackSoon();
     }
   };
 
@@ -1239,16 +1250,14 @@ export default function PlatformPage() {
                                     </button>
                                   )}
                                   {/* Ver dashboard */}
-                                  {a.auth_user_id && (
-                                    <button
-                                      onClick={() => openGymDashboard(a)}
-                                      disabled={navigatingToGymId === a.id}
-                                      title="Ver dashboard del gym"
-                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(37,99,235,0.10)", color: "#2563EB", border: "none", cursor: "pointer" }}
-                                    >
-                                      {navigatingToGymId === a.id ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <ExternalLink size={13} />}
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => openGymDashboard(a)}
+                                    disabled={navigatingToGymId === a.id}
+                                    title={a.auth_user_id ? "Ver dashboard del gym" : "Sin cuenta registrada"}
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: a.auth_user_id ? "rgba(37,99,235,0.10)" : "rgba(148,163,184,0.10)", color: a.auth_user_id ? "#2563EB" : "#94A3B8", border: "none", cursor: a.auth_user_id ? "pointer" : "default", opacity: a.auth_user_id ? 1 : 0.5 }}
+                                  >
+                                    {navigatingToGymId === a.id ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <ExternalLink size={13} />}
+                                  </button>
                                   {/* Eliminar cuenta */}
                                   <button
                                     onClick={() => setDeleteModal({ id: a.id, company_name: a.company_name, auth_user_id: a.auth_user_id })}
