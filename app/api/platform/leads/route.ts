@@ -29,3 +29,16 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+// DELETE /api/platform/leads?id=<uuid>
+export async function DELETE(req: NextRequest) {
+  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const id = req.nextUrl.searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id requerido." }, { status: 400 });
+
+  const { error } = await sb.from("platform_leads").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({ ok: true });
+}

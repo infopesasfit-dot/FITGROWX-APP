@@ -12,11 +12,14 @@ import {
   FolderOpen,
   Loader2,
   MessageCircle,
+  Phone,
   Plus,
   Search,
   Send,
   ShieldAlert,
   Smartphone,
+  Trash2,
+  UserCheck,
   Users,
   WifiOff,
   X,
@@ -208,6 +211,13 @@ function emptyState(title: string, body: string) {
 export default function PlatformPage() {
   const router = useRouter();
   const [navigatingToGymId, setNavigatingToGymId] = useState<string | null>(null);
+  const [tplDropdownId,  setTplDropdownId]  = useState<string | null>(null);
+  const [crmSendingId,   setCrmSendingId]   = useState<string | null>(null);
+  const [crmSentId,      setCrmSentId]      = useState<string | null>(null);
+  const [followupId,     setFollowupId]     = useState<string | null>(null);
+  const [followupDays,   setFollowupDays]   = useState("3");
+  const [contactingId,   setContactingId]   = useState<string | null>(null);
+  const [deletingId,     setDeletingId]     = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -405,6 +415,14 @@ export default function PlatformPage() {
     setVaultCategories((categoryRows ?? []) as VaultCategoryRow[]);
     setOnboardingRows((onboardingData ?? []) as { gym_id: string; gym_name: string | null; onboarding_completed: boolean | null; setup_alumnos: boolean | null; setup_planes: boolean | null; setup_landing: boolean | null; setup_whatsapp: boolean | null; setup_pagos: boolean | null }[]);
   };
+
+  // Close template dropdown on outside click
+  useEffect(() => {
+    if (!tplDropdownId) return;
+    const handler = () => setTplDropdownId(null);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [tplDropdownId]);
 
   useEffect(() => {
     let active = true;
@@ -633,6 +651,102 @@ export default function PlatformPage() {
       resetFeedbackSoon();
     } finally {
       setUpdatingLeadId(null);
+    }
+  };
+
+  const sendCrmWa = async (account: PlatformAccount, templateKey: string, templateBody: string) => {
+    if (!account.phone) return;
+    const sendId = `${account.id}:${templateKey}`;
+    setCrmSendingId(sendId);
+    setCrmSentId(null);
+    try {
+      const res = await fetch("/api/platform/crm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send-wa",
+          account_id: account.id,
+          phone: account.phone,
+          template_key: templateKey,
+          template_body: templateBody,
+          nombre: account.owner_name?.split(" ")[0] ?? account.company_name,
+        }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al enviar."); }
+      setCrmSentId(account.id);
+      setTplDropdownId(null);
+      setTimeout(() => setCrmSentId(null), 3000);
+    } catch (e) {
+      setFeedback(e instanceof Error ? e.message : "No se pudo enviar.");
+      resetFeedbackSoon();
+    } finally {
+      setCrmSendingId(null);
+    }
+  };
+
+  const markContacted = async (accountId?: string, leadId?: string) => {
+    setContactingId(accountId ?? leadId ?? null);
+    try {
+      const res = await fetch("/api/platform/crm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark-contacted", account_id: accountId, lead_id: leadId }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
+      await fetchPlatformData();
+    } catch (e) {
+      setFeedback(e instanceof Error ? e.message : "Error al marcar contactado.");
+      resetFeedbackSoon();
+    } finally {
+      setContactingId(null);
+    }
+  };
+
+  const saveFollowup = async (accountId: string) => {
+    const days = parseInt(followupDays, 10);
+    if (!days || days < 1) return;
+    try {
+      const res = await fetch("/api/platform/crm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set-followup", account_id: accountId, days }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
+      setFollowupId(null);
+      await fetchPlatformData();
+    } catch (e) {
+      setFeedback(e instanceof Error ? e.message : "Error al guardar seguimiento.");
+      resetFeedbackSoon();
+    }
+  };
+
+  const deleteAccount = async (id: string, name: string) => {
+    if (!window.confirm(`¿Eliminar la cuenta "${name}"? Esta acción no se puede deshacer.`)) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/platform/accounts?id=${id}`, { method: "DELETE" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
+      setAccounts(prev => prev.filter(a => a.id !== id));
+    } catch (e) {
+      setFeedback(e instanceof Error ? e.message : "Error al eliminar.");
+      resetFeedbackSoon();
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const deleteLead = async (id: string, name: string) => {
+    if (!window.confirm(`¿Eliminar el lead "${name}"? Esta acción no se puede deshacer.`)) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/platform/leads?id=${id}`, { method: "DELETE" });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
+      setLeads(prev => prev.filter(l => l.id !== id));
+    } catch (e) {
+      setFeedback(e instanceof Error ? e.message : "Error al eliminar.");
+      resetFeedbackSoon();
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -979,8 +1093,8 @@ export default function PlatformPage() {
                     new: "Nuevo", contacted: "Contactado", qualified: "Calificado", registered: "Registrado", lost: "Perdido",
                   };
 
-                  const colAccount = "minmax(0,2fr) 150px 110px 100px 120px 36px";
-                  const colLead    = "minmax(0,2fr) 130px minmax(0,1fr) 120px 36px";
+                  const colAccount = "minmax(0,2fr) 150px 110px 100px 120px 130px";
+                  const colLead    = "minmax(0,2fr) 130px minmax(0,1fr) 120px 130px";
                   const cols = isLeadView ? colLead : colAccount;
 
                   const headerStyle: React.CSSProperties = { font: `600 0.72rem/1 ${fb}`, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.1em" };
@@ -1070,29 +1184,80 @@ export default function PlatformPage() {
                                   <Clock3 size={12} color="#94A3B8" />
                                   <span style={{ font: `500 0.76rem/1.3 ${fb}`, color: "#475569" }}>{formatDate(a.next_follow_up_at)}</span>
                                 </div>
-                                {/* WA */}
-                                <div style={{ ...cellStyle, gap: 6 }}>
+                                {/* Acciones CRM */}
+                                <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 4 }}>
+                                  {/* Enviar template WA */}
                                   {a.phone ? (
-                                    <a href={`https://wa.me/${a.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title="Abrir WhatsApp" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 10, background: "rgba(37,211,102,0.12)", color: "#16A34A", textDecoration: "none" }}>
-                                      <MessageCircle size={15} />
-                                    </a>
+                                    <div style={{ position: "relative" }}>
+                                      <button
+                                        onClick={() => setTplDropdownId(tplDropdownId === a.id ? null : a.id)}
+                                        title="Enviar mensaje"
+                                        style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, background: crmSentId === a.id ? "rgba(34,197,94,0.15)" : "rgba(37,211,102,0.12)", color: crmSentId === a.id ? "#16A34A" : "#16A34A", border: "none", cursor: "pointer", font: `600 0.7rem/1 ${fd}`, whiteSpace: "nowrap" }}
+                                      >
+                                        {crmSentId === a.id ? <CheckCircle size={13} /> : <Send size={13} />}
+                                        {crmSentId === a.id ? "Enviado" : "Enviar"}
+                                      </button>
+                                      {tplDropdownId === a.id && (
+                                        <div style={{ position: "absolute", top: "100%", right: 0, zIndex: 50, marginTop: 4, background: "white", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.14)", border: "1px solid rgba(0,0,0,0.08)", padding: "6px 0", minWidth: 200 }}>
+                                          {Object.entries(platMsgTemplate).map(([key, body]) => {
+                                            const sendId = `${a.id}:${key}`;
+                                            const isSending = crmSendingId === sendId;
+                                            const labels: Record<string, string> = {
+                                              bienvenida: "👋 Bienvenida", activacion_d3: "⚡ Activación d3",
+                                              trial_vence: "⏰ Trial vence", trial_expirado: "🔴 Trial expirado",
+                                              primer_pago: "🎉 Primer pago", inactivo_7d: "😴 Inactivo 7d", reactivacion: "🔄 Reactivación",
+                                            };
+                                            return (
+                                              <button
+                                                key={key}
+                                                disabled={isSending}
+                                                onClick={() => sendCrmWa(a, key, body)}
+                                                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 14px", background: "none", border: "none", cursor: isSending ? "not-allowed" : "pointer", font: `500 0.78rem/1 ${fb}`, color: "#374151", textAlign: "left", opacity: isSending ? 0.6 : 1 }}
+                                              >
+                                                {isSending ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite", flexShrink: 0 }} /> : null}
+                                                {labels[key] ?? key}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
                                   ) : (
-                                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(148,163,184,0.10)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                      <MessageCircle size={15} color="#CBD5E1" />
+                                    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, background: "rgba(148,163,184,0.08)", font: `500 0.7rem/1 ${fd}`, color: "#CBD5E1" }}>
+                                      <Phone size={12} /> Sin tel.
                                     </div>
                                   )}
+                                  {/* Marcar contactado */}
+                                  {!["converted", "churned"].includes(a.status) && (
+                                    <button
+                                      onClick={() => markContacted(a.id)}
+                                      disabled={contactingId === a.id}
+                                      title="Marcar como contactado"
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.10)", color: "#6366f1", border: "none", cursor: "pointer" }}
+                                    >
+                                      {contactingId === a.id ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <UserCheck size={13} />}
+                                    </button>
+                                  )}
+                                  {/* Ver dashboard */}
                                   {a.auth_user_id && (
                                     <button
                                       onClick={() => openGymDashboard(a)}
                                       disabled={navigatingToGymId === a.id}
                                       title="Ver dashboard del gym"
-                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 10, background: "rgba(37,99,235,0.10)", color: "#2563EB", border: "none", cursor: "pointer" }}
+                                      style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(37,99,235,0.10)", color: "#2563EB", border: "none", cursor: "pointer" }}
                                     >
-                                      {navigatingToGymId === a.id
-                                        ? <Loader2 size={14} style={{ animation: "spin 0.7s linear infinite" }} />
-                                        : <ExternalLink size={14} />}
+                                      {navigatingToGymId === a.id ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <ExternalLink size={13} />}
                                     </button>
                                   )}
+                                  {/* Eliminar cuenta */}
+                                  <button
+                                    onClick={() => deleteAccount(a.id, a.company_name)}
+                                    disabled={deletingId === a.id}
+                                    title="Eliminar cuenta"
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.10)", color: "#EF4444", border: "none", cursor: "pointer" }}
+                                  >
+                                    {deletingId === a.id ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <Trash2 size={13} />}
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -1129,17 +1294,36 @@ export default function PlatformPage() {
                                 <Clock3 size={12} color="#94A3B8" />
                                 <span style={{ font: `500 0.76rem/1.3 ${fb}`, color: "#475569" }}>{formatDate(l.next_follow_up_at)}</span>
                               </div>
-                              {/* WA */}
-                              <div style={cellStyle}>
+                              {/* Acciones lead */}
+                              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                                 {l.phone ? (
-                                  <a href={`https://wa.me/${l.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title="Abrir WhatsApp" style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 34, height: 34, borderRadius: 10, background: "rgba(37,211,102,0.12)", color: "#16A34A", textDecoration: "none" }}>
-                                    <MessageCircle size={15} />
+                                  <a href={`https://wa.me/${l.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" title="Abrir WhatsApp" style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, background: "rgba(37,211,102,0.12)", color: "#16A34A", textDecoration: "none", font: `600 0.7rem/1 ${fd}`, whiteSpace: "nowrap" }}>
+                                    <MessageCircle size={13} /> WA
                                   </a>
                                 ) : (
-                                  <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(148,163,184,0.10)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                    <MessageCircle size={15} color="#CBD5E1" />
+                                  <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, background: "rgba(148,163,184,0.08)", font: `500 0.7rem/1 ${fd}`, color: "#CBD5E1" }}>
+                                    <Phone size={12} /> Sin tel.
                                   </div>
                                 )}
+                                {l.status === "new" && (
+                                  <button
+                                    onClick={() => markContacted(undefined, l.id)}
+                                    disabled={contactingId === l.id}
+                                    title="Marcar contactado"
+                                    style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.10)", color: "#6366f1", border: "none", cursor: "pointer" }}
+                                  >
+                                    {contactingId === l.id ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <UserCheck size={13} />}
+                                  </button>
+                                )}
+                                {/* Eliminar lead */}
+                                <button
+                                  onClick={() => deleteLead(l.id, l.business_name ?? l.full_name ?? "lead")}
+                                  disabled={deletingId === l.id}
+                                  title="Eliminar lead"
+                                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.10)", color: "#EF4444", border: "none", cursor: "pointer" }}
+                                >
+                                  {deletingId === l.id ? <Loader2 size={12} style={{ animation: "spin 0.7s linear infinite" }} /> : <Trash2 size={13} />}
+                                </button>
                               </div>
                             </div>
                           );
