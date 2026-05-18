@@ -603,27 +603,12 @@ export default function PlatformPage() {
   const updateAccountStatus = async (id: string, status: AccountStatus) => {
     try {
       setUpdatingAccountId(id);
-      const payload: {
-        status: AccountStatus;
-        converted_at?: string | null;
-        trial_starts_at?: string;
-        trial_ends_at?: string;
-      } = { status };
-
-      if (status === "converted") {
-        payload.converted_at = new Date().toISOString();
-      }
-
-      if (status === "trial_setup" || status === "trial_active") {
-        payload.trial_starts_at = new Date().toISOString();
-        payload.trial_ends_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      }
-
-      const { error: updateError } = await supabase
-        .from("platform_accounts")
-        .update(payload)
-        .eq("id", id);
-      if (updateError) throw updateError;
+      const res = await fetch("/api/platform/accounts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al actualizar."); }
       await fetchPlatformData();
     } catch (caughtError) {
       setFeedback(getErrorMessage(caughtError));
@@ -636,11 +621,12 @@ export default function PlatformPage() {
   const updateLeadStatus = async (id: string, status: LeadStatus) => {
     try {
       setUpdatingLeadId(id);
-      const { error: updateError } = await supabase
-        .from("platform_leads")
-        .update({ status })
-        .eq("id", id);
-      if (updateError) throw updateError;
+      const res = await fetch("/api/platform/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al actualizar."); }
       await fetchPlatformData();
     } catch (caughtError) {
       setFeedback(getErrorMessage(caughtError));
@@ -657,15 +643,12 @@ export default function PlatformPage() {
     try {
       setSavingCategory(true);
       setFeedback(null);
-      const title = categoryForm.title.trim();
-      const { error: insertError } = await supabase.from("vault_categories").insert({
-        title,
-        slug: slugify(title),
-        description: categoryForm.description.trim() || null,
-        sort_order: vaultCategories.length * 10 + 10,
-        is_active: true,
+      const res = await fetch("/api/platform/vault", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "category", title: categoryForm.title.trim(), description: categoryForm.description.trim() || null }),
       });
-      if (insertError) throw insertError;
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al crear."); }
       setCategoryForm({ title: "", description: "" });
       await fetchPlatformData();
       setFeedback("Categoría creada en el CMS.");
@@ -684,17 +667,19 @@ export default function PlatformPage() {
     try {
       setSavingResource(true);
       setFeedback(null);
-      const title = resourceForm.title.trim();
-      const { error: insertError } = await supabase.from("vault_resources").insert({
-        title,
-        slug: slugify(title),
-        description: resourceForm.description.trim() || null,
-        category_id: resourceForm.category_id,
-        format: resourceForm.format.trim() || null,
-        status: resourceForm.status,
-        content: [],
+      const res = await fetch("/api/platform/vault", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "resource",
+          title: resourceForm.title.trim(),
+          description: resourceForm.description.trim() || null,
+          category_id: resourceForm.category_id,
+          format: resourceForm.format.trim() || null,
+          status: resourceForm.status,
+        }),
       });
-      if (insertError) throw insertError;
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al crear."); }
       setResourceForm({
         title: "",
         description: "",
