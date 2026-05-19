@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Receipt, TrendingDown, Tag, Calendar, X, DollarSign } from "lucide-react";
+import { Plus, Receipt, TrendingDown, Tag, X } from "lucide-react";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -50,6 +50,10 @@ export default function EgresosPage() {
   const [saving, setSaving]       = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [gymId, setGymId]         = useState<string | null>(null);
+  const [daysSinceLastPayment, setDaysSinceLastPayment] = useState<number | null>(null);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderDays, setReminderDays] = useState(14);
+  const [enablingReminder, setEnablingReminder] = useState(false);
 
   const updateEgresosCache = useCallback((updater: (current: Egreso[]) => Egreso[]) => {
     setEgresos(prev => {
@@ -72,13 +76,30 @@ export default function EgresosPage() {
       else setLoading(true);
     }
 
-    const { data } = await supabase
-      .from("egresos").select("id, titulo, monto, categoria, metodo, fecha, gym_id")
-      .eq("gym_id", profile.gymId).order("fecha", { ascending: false }).limit(200);
+    const [egresoRes, settingsRes] = await Promise.all([
+      supabase.from("egresos").select("id, titulo, monto, categoria, metodo, fecha, gym_id")
+        .eq("gym_id", profile.gymId).order("fecha", { ascending: false }).limit(200),
+      supabase.from("gym_settings").select("staff_payment_reminder_enabled, staff_payment_reminder_days, last_staff_payment_registered_at")
+        .eq("gym_id", profile.gymId).maybeSingle(),
+    ]);
 
-    const rows = (data as Egreso[]) ?? [];
+    const rows = (egresoRes.data as Egreso[]) ?? [];
     setEgresos(rows);
     setPageCache(`egresos_${profile.gymId}`, rows);
+
+    if (settingsRes.data) {
+      setReminderEnabled(settingsRes.data.staff_payment_reminder_enabled ?? false);
+      setReminderDays(settingsRes.data.staff_payment_reminder_days ?? 14);
+
+      const lastSueldoEgreso = rows.find(e => e.categoria === "Sueldos");
+      if (lastSueldoEgreso) {
+        const daysSince = Math.floor((new Date().getTime() - new Date(lastSueldoEgreso.fecha).getTime()) / (1000 * 60 * 60 * 24));
+        setDaysSinceLastPayment(daysSince);
+      } else {
+        setDaysSinceLastPayment(null);
+      }
+    }
+
     setLoading(false);
   }, []);
 
@@ -130,6 +151,27 @@ export default function EgresosPage() {
     }
   };
 
+  const handleEnableReminders = async () => {
+    if (!gymId) return;
+    setEnablingReminder(true);
+    try {
+      const { error } = await supabase
+        .from("gym_settings")
+        .update({
+          staff_payment_reminder_enabled: true,
+          staff_payment_reminder_days: reminderDays,
+        })
+        .eq("gym_id", gymId);
+
+      if (error) throw error;
+      setReminderEnabled(true);
+    } catch (err) {
+      console.error("Error enabling reminders:", err);
+    } finally {
+      setEnablingReminder(false);
+    }
+  };
+
   const now = new Date();
   const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const totalMes  = egresos.filter(e => e.fecha.startsWith(mesActual)).reduce((s, e) => s + e.monto, 0);
@@ -159,6 +201,27 @@ export default function EgresosPage() {
           <Plus size={15} /> {isMobile ? "Nuevo" : "Nuevo Egreso"}
         </button>
       </div>
+
+      {/* Staff Payment Reminder Suggestion */}
+      {!reminderEnabled && daysSinceLastPayment !== null && daysSinceLastPayment >= 7 && (
+        <div style={{ ...card, padding: "14px 16px", background: "linear-gradient(135deg, rgba(249,115,22,0.08) 0%, rgba(249,115,22,0.02) 100%)", borderLeft: "4px solid #F97316" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ font: `600 0.875rem/1 ${fd}`, color: t1, marginBottom: 4 }}>⏰ Recordatorios de pagos de sueldos</p>
+              <p style={{ font: `400 0.8rem/1 ${fb}`, color: t2, marginBottom: 0 }}>Hace {daysSinceLastPayment} días que no registras pagos de sueldos. ¿Querés recordatorios automáticos cada {reminderDays} días?</p>
+            </div>
+            <button
+              onClick={handleEnableReminders}
+              disabled={enablingReminder}
+              style={{ background: "#F97316", color: "white", border: "none", padding: "8px 14px", borderRadius: 8, font: `600 0.8rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", opacity: enablingReminder ? 0.6 : 1 }}
+              onMouseEnter={e => !enablingReminder && (e.currentTarget.style.opacity = "0.9")}
+              onMouseLeave={e => !enablingReminder && (e.currentTarget.style.opacity = "1")}
+            >
+              {enablingReminder ? "Activando..." : "Activar"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* KPI row */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 14 }}>

@@ -3,6 +3,10 @@
 -- Pegar completo en el SQL Editor de Supabase y ejecutar.
 -- Todas usan IF NOT EXISTS / IF EXISTS → son idempotentes.
 -- ============================================================
+--
+-- 🆕 NUEVA MIGRACIÓN (2026-05-19): WA Metrics + Cooldowns
+--    Línea 620+: Validación ventana horaria, cooldowns, tracking de bloqueos
+-- ============================================================
 
 
 -- ── -1. 20260421_asistencias (tabla faltante + RLS correcto) ──
@@ -616,3 +620,217 @@ DO $$ BEGIN
       USING (bucket_id = 'comprobantes');
   END IF;
 END $$;
+
+-- ╔════════════════════════════════════════════════════════════════╗
+-- ║ 🔒 CRITICAL SAFETY LAYER (2026-05-19)                          ║
+-- ║    Opt-in tracking, bounce detection, gym rate limits          ║
+-- ╚════════════════════════════════════════════════════════════════╝
+
+-- ── 20260519_wa_critical_safety: Opt-in + rate limits ──
+ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS whatsapp_opted_in BOOLEAN DEFAULT TRUE;
+ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS whatsapp_opted_in_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS phone_is_invalid BOOLEAN DEFAULT FALSE;
+ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS phone_invalid_at TIMESTAMP WITH TIME ZONE;
+
+CREATE TABLE IF NOT EXISTS wa_gym_rate_limits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+  window_start TIMESTAMP WITH TIME ZONE NOT NULL,
+  message_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(gym_id, window_start)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_gym_rate_limits_window ON wa_gym_rate_limits(gym_id, window_start DESC);
+
+CREATE OR REPLACE FUNCTION check_gym_wa_rate_limit(p_gym_id UUID, p_limit INTEGER DEFAULT 100)
+RETURNS TABLE(allowed BOOLEAN, count_used INTEGER, limit_val INTEGER) AS $$
+DECLARE
+  v_window_start TIMESTAMP WITH TIME ZONE;
+  v_count INTEGER;
+BEGIN
+  v_window_start := DATE_TRUNC('minute', NOW());
+
+  INSERT INTO wa_gym_rate_limits (gym_id, window_start, message_count)
+  VALUES (p_gym_id, v_window_start, 0)
+  ON CONFLICT (gym_id, window_start) DO UPDATE
+  SET message_count = wa_gym_rate_limits.message_count + 1;
+
+  SELECT message_count INTO v_count
+  FROM wa_gym_rate_limits
+  WHERE gym_id = p_gym_id AND window_start = v_window_start;
+
+  RETURN QUERY SELECT (v_count <= p_limit), v_count, p_limit;
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION check_gym_wa_rate_limit TO authenticated;
+
+-- ── 20260519_wa_motor_events: Webhook events from WhatsApp motor ──
+CREATE TABLE IF NOT EXISTS wa_motor_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL, -- 'block_detected', 'invalid_phone', 'rate_limited', 'delivery_failed'
+  session TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  reason TEXT,
+  meta JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_motor_events_created ON wa_motor_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_wa_motor_events_type ON wa_motor_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_wa_motor_events_phone ON wa_motor_events(phone);
+
+-- ── 20260515_wa_mensajes_log: Base table for WhatsApp messaging ──
+CREATE TABLE IF NOT EXISTS wa_mensajes_log (
+  id       uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  gym_id   uuid NOT NULL,
+  tipo     text NOT NULL,
+  sent_at  timestamptz DEFAULT now() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS wa_mensajes_log_gym_sent
+  ON wa_mensajes_log(gym_id, sent_at DESC);
+
+-- ── 20260516_wa_mensajes_log_alumno: Add alumno tracking ──
+ALTER TABLE wa_mensajes_log
+  ADD COLUMN IF NOT EXISTS alumno_id   uuid REFERENCES alumnos(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS alumno_name text;
+
+-- ╔════════════════════════════════════════════════════════════════╗
+-- ║ 🆕 NUEVA MIGRACIÓN: WhatsApp Metrics + Cooldowns (2026-05-19) ║
+-- ║    Ventanas horarias, validación de bloqueos, tracking latencia║
+-- ╚════════════════════════════════════════════════════════════════╝
+
+-- ── 20260519_wa_metrics_tracking: WhatsApp metrics + cooldowns ──
+CREATE TABLE IF NOT EXISTS wa_contact_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+  alumno_id UUID NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
+  blocked_count INTEGER DEFAULT 0,
+  last_blocked_at TIMESTAMP WITH TIME ZONE,
+  cooldown_until TIMESTAMP WITH TIME ZONE,
+  last_message_at TIMESTAMP WITH TIME ZONE,
+  failed_count INTEGER DEFAULT 0,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(gym_id, alumno_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_contact_metrics_cooldown ON wa_contact_metrics(cooldown_until) WHERE cooldown_until IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS wa_platform_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+  period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+  total_sent INTEGER DEFAULT 0,
+  total_blocked INTEGER DEFAULT 0,
+  total_failed INTEGER DEFAULT 0,
+  avg_latency_ms INTEGER,
+  block_ratio DECIMAL(5, 2),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(period_start, period_end)
+);
+
+ALTER TABLE wa_mensajes_log ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+ALTER TABLE wa_mensajes_log ADD COLUMN IF NOT EXISTS latency_ms INTEGER;
+ALTER TABLE wa_mensajes_log ADD COLUMN IF NOT EXISTS motor_status_code INTEGER;
+ALTER TABLE wa_mensajes_log ADD COLUMN IF NOT EXISTS motor_error TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_wa_mensajes_log_status ON wa_mensajes_log(status);
+CREATE INDEX IF NOT EXISTS idx_wa_mensajes_log_sent_at ON wa_mensajes_log(sent_at DESC);
+
+DO $$ BEGIN
+  DROP FUNCTION IF EXISTS update_wa_contact_metrics_after_send() CASCADE;
+  DROP FUNCTION IF EXISTS mark_wa_contact_blocked() CASCADE;
+END $$;
+
+CREATE FUNCTION update_wa_contact_metrics_after_send()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.alumno_id IS NOT NULL AND NEW.gym_id IS NOT NULL THEN
+    INSERT INTO wa_contact_metrics (gym_id, alumno_id, last_message_at)
+    VALUES (NEW.gym_id, NEW.alumno_id, NEW.sent_at)
+    ON CONFLICT (gym_id, alumno_id) DO UPDATE
+    SET last_message_at = NEW.sent_at,
+        updated_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_wa_contact_metrics ON wa_mensajes_log;
+CREATE TRIGGER trg_update_wa_contact_metrics
+AFTER INSERT ON wa_mensajes_log
+FOR EACH ROW
+EXECUTE FUNCTION update_wa_contact_metrics_after_send();
+
+CREATE FUNCTION mark_wa_contact_blocked()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'blocked' AND NEW.alumno_id IS NOT NULL AND NEW.gym_id IS NOT NULL THEN
+    INSERT INTO wa_contact_metrics (gym_id, alumno_id, blocked_count, last_blocked_at, cooldown_until)
+    VALUES (NEW.gym_id, NEW.alumno_id, 1, NEW.sent_at, NOW() + INTERVAL '24 hours')
+    ON CONFLICT (gym_id, alumno_id) DO UPDATE
+    SET blocked_count = LEAST(wa_contact_metrics.blocked_count + 1, 999),
+        last_blocked_at = NEW.sent_at,
+        cooldown_until = CASE
+          WHEN (wa_contact_metrics.blocked_count + 1) >= 5 THEN NOW() + INTERVAL '30 days'
+          WHEN (wa_contact_metrics.blocked_count + 1) >= 3 THEN NOW() + INTERVAL '24 hours'
+          ELSE NOW() + INTERVAL '2 hours'
+        END,
+        updated_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_mark_wa_contact_blocked ON wa_mensajes_log;
+CREATE TRIGGER trg_mark_wa_contact_blocked
+AFTER INSERT ON wa_mensajes_log
+FOR EACH ROW
+EXECUTE FUNCTION mark_wa_contact_blocked();
+
+GRANT SELECT ON wa_contact_metrics TO postgres, authenticated;
+GRANT SELECT ON wa_platform_metrics TO postgres, authenticated;
+
+-- ── Staff Payment Reminders (2026-05-19) ──────────────────────────────────
+ALTER TABLE gym_settings
+ADD COLUMN IF NOT EXISTS staff_payment_reminder_enabled BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS staff_payment_reminder_days INTEGER DEFAULT 14,
+ADD COLUMN IF NOT EXISTS staff_payment_reminder_day_of_week INTEGER,
+ADD COLUMN IF NOT EXISTS last_staff_payment_reminder_sent_at TIMESTAMP,
+ADD COLUMN IF NOT EXISTS last_staff_payment_registered_at TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS staff_payment_reminders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+  sent_at TIMESTAMP NOT NULL DEFAULT now(),
+  completed_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_staff_payment_reminders_gym_id ON staff_payment_reminders(gym_id);
+CREATE INDEX IF NOT EXISTS idx_staff_payment_reminders_completed_at ON staff_payment_reminders(completed_at);
+
+-- Trigger to update last_staff_payment_registered_at when a "Sueldos" egreso is created
+CREATE OR REPLACE FUNCTION update_staff_payment_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.categoria = 'Sueldos' THEN
+    UPDATE gym_settings
+    SET last_staff_payment_registered_at = NEW.fecha::TIMESTAMP
+    WHERE gym_id = NEW.gym_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_staff_payment_timestamp ON egresos;
+CREATE TRIGGER trigger_staff_payment_timestamp
+AFTER INSERT ON egresos
+FOR EACH ROW
+EXECUTE FUNCTION update_staff_payment_timestamp();
+
+GRANT SELECT, INSERT, UPDATE ON staff_payment_reminders TO postgres, authenticated;
+GRANT INSERT, UPDATE ON wa_contact_metrics TO postgres, authenticated;
