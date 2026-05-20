@@ -4,6 +4,7 @@ import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getTodayDate } from "@/lib/date-utils";
 import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
+import { logAlumnoAction } from "@/lib/alumno-logging";
 
 const supabase = getSupabaseAdminClient();
 
@@ -72,12 +73,14 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabase.from("reservas").insert({ gym_id, alumno_id, clase_id, fecha, estado: "confirmada" }).select();
   if (error) {
+    await logAlumnoAction({ alumno_id, gym_id, action: "reserva_created", status: "error", error_msg: error.message });
     if (error.code === "23505") return NextResponse.json({ error: "Ya tenés una reserva para esa clase y fecha." }, { status: 409 });
     if (error.code === "P0001" && error.message.includes("CAPACITY_EXCEEDED"))
       return NextResponse.json({ error: "La clase ya está completa para esa fecha." }, { status: 409 });
     return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 
+  await logAlumnoAction({ alumno_id, gym_id, action: "reserva_created", status: "success", details: { clase_id, fecha } });
   return NextResponse.json({ ok: true });
 }
 
@@ -119,7 +122,12 @@ export async function DELETE(req: NextRequest) {
     .eq("gym_id", gymId)
     .eq("clase_id", clase_id)
     .eq("fecha", fecha);
-  if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
+  if (error) {
+    await logAlumnoAction({ alumno_id, gym_id: gymId, action: "reserva_cancelled", status: "error", error_msg: error.message });
+    return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
+  }
+
+  await logAlumnoAction({ alumno_id, gym_id: gymId, action: "reserva_cancelled", status: "success", details: { clase_id, fecha, tipo: estado } });
 
   if (estado === "cancelada_tarde") {
     return NextResponse.json({

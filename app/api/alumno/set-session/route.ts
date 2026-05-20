@@ -3,11 +3,13 @@ import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getPlanNombre } from "@/lib/supabase-relations";
 import { setAlumnoSessionCookie } from "@/lib/alumno-session";
+import { logAlumnoAction, getClientIpFromRequest } from "@/lib/alumno-logging";
 
 const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
   const { token } = await req.json();
+  const ip = await getClientIpFromRequest(req);
   if (!token) return NextResponse.json({ error: "Token requerido." }, { status: 400 });
 
   const tokenHash  = createHash("sha256").update(String(token)).digest("hex");
@@ -21,7 +23,10 @@ export async function POST(req: NextRequest) {
     .gt("expires_at", now)
     .single();
 
-  if (error || !tokenRow) return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
+  if (error || !tokenRow) {
+    await logAlumnoAction({ action: "login_failed", status: "error", error_msg: "Invalid token", ip_address: ip });
+    return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
+  }
 
   if (!tokenRow.used_at) {
     await supabase
@@ -35,6 +40,14 @@ export async function POST(req: NextRequest) {
     .select("id, dni, full_name, phone, status, plan_id, next_expiration_date, planes!plan_id(nombre, accent_color, precio)")
     .eq("id", tokenRow.alumno_id)
     .single();
+
+  await logAlumnoAction({
+    alumno_id: tokenRow.alumno_id,
+    gym_id: tokenRow.gym_id,
+    action: "login_success",
+    status: "success",
+    ip_address: ip,
+  });
 
   const res = NextResponse.json({
     ok: true,

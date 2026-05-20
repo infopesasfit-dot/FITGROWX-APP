@@ -3,6 +3,7 @@ import { createHmac } from "crypto";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
+import { logAlumnoAction } from "@/lib/alumno-logging";
 
 const MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? "";
 
@@ -118,9 +119,11 @@ export async function POST(req: NextRequest) {
   if (!mpRes.ok) {
     const err = await mpRes.text();
     console.error("[alumno/pagar] MP error:", err);
+    await logAlumnoAction({ alumno_id, gym_id, action: "pago_initiated", status: "error", error_msg: `MP error: ${mpRes.status}` });
     return NextResponse.json({ error: "No se pudo generar el link de pago." }, { status: 502 });
   }
 
   const mpData = await mpRes.json() as { init_point: string };
+  await logAlumnoAction({ alumno_id, gym_id, action: "pago_initiated", status: "success", details: { precio, plan: alumnoRow.planes?.nombre } });
   return NextResponse.json({ init_point: mpData.init_point });
 }
