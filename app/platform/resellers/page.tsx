@@ -143,6 +143,22 @@ export default function PlatformResellers() {
     void load();
   };
 
+  const handleDeleteReseller = async (id: string, name: string) => {
+    if (!confirm(`¿Borrar reseller "${name}"? Esta acción no se puede deshacer.`)) return;
+    const res = await fetch("/api/platform/resellers/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resellerId: id }),
+    });
+    const d = await res.json();
+    if (res.ok) {
+      showToast(`✅ Reseller "${name}" eliminado`);
+      void load();
+    } else {
+      showToast(`❌ Error: ${d.error ?? "No se pudo eliminar"}`);
+    }
+  };
+
   const tierColor = (tier: string) => tier === "franchise" ? "#F59E0B" : tier === "premium" ? "#818CF8" : t3;
   const statusColor = (s: string) => s === "active" ? "#22C55E" : "#EF4444";
 
@@ -484,6 +500,12 @@ export default function PlatformResellers() {
                         style={{ font: `500 0.72rem/1 ${fd}`, color: "#6366f1", background: "rgba(99,102,241,0.07)", border: "none", borderRadius: 7, padding: "5px 10px", cursor: "pointer" }}
                       >
                         {editId === r.id ? "Cancelar" : "Editar"}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReseller(r.id, r.name)}
+                        style={{ font: `500 0.72rem/1 ${fd}`, color: "#DC2626", background: "rgba(220,38,38,0.07)", border: "none", borderRadius: 7, padding: "5px 10px", cursor: "pointer" }}
+                      >
+                        Borrar
                       </button>
                     </td>
                   </tr>
