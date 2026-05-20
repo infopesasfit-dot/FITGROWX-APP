@@ -89,8 +89,9 @@ export async function POST(req: NextRequest) {
   const refLink    = `${appUrl}/start?reseller=${slug}`;
   const portalLink = `${appUrl}/reseller/portal`;
 
+  let waSent = true, waBlocked = false;
   if (phone) {
-    void sendWa(
+    const waResult = await sendWa(
       "fitgrowx-platform",
       phone,
       `🎉 *¡Bienvenido/a a la red FitGrowX, ${name.trim().split(" ")[0]}!*\n\n` +
@@ -102,7 +103,9 @@ export async function POST(req: NextRequest) {
       `Cualquier duda respondé este mensaje. ¡A crecer! 💪`,
       { route: "resellers/onboard" },
     );
+    waSent = waResult.ok ?? false;
+    waBlocked = waResult.blocked ?? false;
   }
 
-  return NextResponse.json({ reseller, slug, refLink });
+  return NextResponse.json({ reseller, slug, refLink, waSent, waBlocked });
 }

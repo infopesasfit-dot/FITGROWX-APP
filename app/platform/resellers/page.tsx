@@ -93,7 +93,12 @@ export default function PlatformResellers() {
     setOnboarding(null);
     if (!r.ok) { showToast(`❌ ${d.error ?? "Error"}`); return; }
     setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: "approved" } : a));
-    showToast(`✅ Reseller creado — WA enviado a ${app.name.split(" ")[0]} con su link y acceso`);
+    const waMsg = d.waSent
+      ? `✅ Reseller creado — WA enviado a ${app.name.split(" ")[0]} con su link y acceso`
+      : d.waBlocked
+      ? `⚠️ Reseller creado — WA número bloqueado (no se pudo enviar notificación)`
+      : `⚠️ Reseller creado — WSP de FitGrowX desconectado (notificación no enviada, pero cuenta lista)`;
+    showToast(waMsg);
     void load();
   };
 
