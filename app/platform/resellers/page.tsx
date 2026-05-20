@@ -462,7 +462,23 @@ export default function PlatformResellers() {
                       <span style={{ width: 7, height: 7, borderRadius: "50%", background: statusColor(r.status), display: "inline-block", marginRight: 5 }} />
                       <span style={{ font: `500 0.72rem/1 ${fd}`, color: t2 }}>{r.status === "active" ? "Activo" : "Pausado"}</span>
                     </td>
-                    <td style={{ padding: "13px 16px" }}>
+                    <td style={{ padding: "13px 16px", display: "flex", gap: 6 }}>
+                      <button
+                        onClick={async () => {
+                          const res = await fetch("/api/platform/resellers/resend-wa", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ resellerId: r.id }),
+                          });
+                          const d = await res.json();
+                          if (d.ok) showToast("✅ WA enviado a " + r.name.split(" ")[0]);
+                          else if (d.blocked) showToast("⚠️ Número bloqueado");
+                          else showToast("❌ Error: " + (d.message || "no se pudo enviar"));
+                        }}
+                        style={{ font: `500 0.72rem/1 ${fd}`, color: "#16A34A", background: "rgba(22,163,74,0.07)", border: "none", borderRadius: 7, padding: "5px 10px", cursor: "pointer" }}
+                      >
+                        Reenviar WA
+                      </button>
                       <button
                         onClick={() => { setEditId(editId === r.id ? null : r.id); setEditComm(String(r.commission_pct)); setEditTier(r.tier); setEditStatus(r.status); }}
                         style={{ font: `500 0.72rem/1 ${fd}`, color: "#6366f1", background: "rgba(99,102,241,0.07)", border: "none", borderRadius: 7, padding: "5px 10px", cursor: "pointer" }}
