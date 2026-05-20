@@ -503,15 +503,17 @@ export default function DashboardPage() {
     ];
     return (
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
-        {actions.map((a) => (
+        {actions.map((a) => {
+          const isCargaAlumno = a.label === "Cargar alumno";
+          return (
           <a
             key={a.label}
             href={a.href}
-            style={{ ...cardBase, display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", textDecoration: "none", color: "inherit", cursor: "pointer" }}
+            style={{ ...cardBase, display: "flex", alignItems: "center", gap: 12, padding: isCargaAlumno ? "10px 12px" : "14px 16px", textDecoration: "none", color: "inherit", cursor: "pointer" }}
             {...cardHover}
           >
-            <div style={{ width: 34, height: 34, borderRadius: 10, background: a.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {a.icon}
+            <div style={{ width: isCargaAlumno ? 28 : 34, height: isCargaAlumno ? 28 : 34, borderRadius: 10, background: a.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {React.cloneElement(a.icon, { size: isCargaAlumno ? 14 : 16 })}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ font: `600 0.82rem/1.2 ${fd}`, color: t1, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.label}</p>
@@ -521,7 +523,8 @@ export default function DashboardPage() {
               <kbd style={{ font: `700 0.62rem/1 ${fm}`, color: t3, background: "rgba(15,17,21,0.06)", border: "1px solid rgba(15,17,21,0.10)", borderRadius: 5, padding: "3px 6px", flexShrink: 0 }}>{a.shortcut}</kbd>
             )}
           </a>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -859,12 +862,14 @@ export default function DashboardPage() {
 
         {/* Bot de WhatsApp */}
         <section style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid rgba(15,17,21,0.07)" }}>
-            <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(37,211,102,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Send size={12} color="#16A34A" />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid rgba(15,17,21,0.07)", flexWrap: isMobile ? "wrap" : "nowrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(37,211,102,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Send size={12} color="#16A34A" />
+              </div>
+              <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, margin: 0 }}>Bot de WhatsApp</p>
+              <span style={{ font: `600 0.62rem/1 ${fm}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", borderRadius: 9999, padding: "3px 8px", flexShrink: 0 }}>● activo</span>
             </div>
-            <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Bot de WhatsApp</p>
-            <span style={{ font: `600 0.62rem/1 ${fm}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", borderRadius: 9999, padding: "3px 8px" }}>● activo</span>
             <span style={{ font: `400 0.74rem/1 ${fb}`, color: t3, marginLeft: "auto" }}>Lo que mandó hoy</span>
           </div>
           <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
