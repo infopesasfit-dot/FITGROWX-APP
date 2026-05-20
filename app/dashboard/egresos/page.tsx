@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Receipt, TrendingDown, Tag, X } from "lucide-react";
+import { Plus, Receipt, TrendingDown, Tag, X, DollarSign, Calendar } from "lucide-react";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";

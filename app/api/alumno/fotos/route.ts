@@ -51,8 +51,11 @@ export async function POST(req: NextRequest) {
   const alumno_id = formData.get("alumno_id") as string | null;
   const gym_id    = formData.get("gym_id")    as string | null;
   const fecha     = (formData.get("fecha")  as string | null) ?? new Date().toISOString().slice(0, 10);
-  const notas     = (formData.get("notas")  as string | null) ?? null;
+  let notas      = (formData.get("notas")  as string | null) ?? null;
   const privada   = formData.get("privada") !== "false"; // default true
+
+  if (notas && notas.length > 500) notas = notas.slice(0, 500);
+  if (notas) notas = notas.trim() || null;
 
   if (!file || !alumno_id || !gym_id) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
   if (file.size > 1_500_000) return NextResponse.json({ error: "La imagen pesa más de 1.5 MB. Intentá con una foto más chica." }, { status: 413 });
