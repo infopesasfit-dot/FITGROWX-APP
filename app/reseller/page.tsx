@@ -21,6 +21,36 @@ function calcTier(gyms: number) {
 
 function fmtARS(n: number) { return n.toLocaleString("es-AR", { maximumFractionDigits: 0 }); }
 
+function formatARPhone(phone: string): { formatted: string; valid: boolean; error?: string } {
+  if (!phone?.trim()) return { formatted: "", valid: false, error: "Teléfono requerido" };
+
+  const digits = phone.replace(/\D/g, "");
+
+  // Si empieza con 54, quitar el país
+  let normalized = digits;
+  if (normalized.startsWith("54")) normalized = normalized.slice(2);
+
+  // Debe tener 11 dígitos: 9 [2 dígitos área] [8 dígitos]
+  if (normalized.length !== 11) {
+    return { formatted: "", valid: false, error: `Debe tener 11 dígitos (tenés ${normalized.length})` };
+  }
+
+  // Validar que empiece con 9
+  if (!normalized.startsWith("9")) {
+    return { formatted: "", valid: false, error: "Los móviles deben empezar con 9" };
+  }
+
+  // Validar que el área sea válida (11, 221, 261, 341, 351, etc.)
+  const area = normalized.slice(1, 3);
+  if (!/^\d{2}$/.test(area)) {
+    return { formatted: "", valid: false, error: "Formato de área inválido" };
+  }
+
+  // Formatear a +54 9 XX XXXXXXXX
+  const formatted = `+54 9 ${area} ${normalized.slice(3)}`;
+  return { formatted, valid: true };
+}
+
 const PRO_PRICE = FITGROWX_PLANS.find(p => p.key === "crecimiento")?.priceMonthly ?? 65_000;
 
 /* ── Count-up hook ── */
@@ -95,11 +125,17 @@ export default function ResellerLanding() {
     if (!form.name.trim() || !form.email.trim() || !form.whatsapp.trim()) {
       setError("Nombre, email y WhatsApp son obligatorios."); return;
     }
+
+    const phoneValidation = formatARPhone(form.whatsapp);
+    if (!phoneValidation.valid) {
+      setError(phoneValidation.error ?? "Teléfono inválido"); return;
+    }
+
     setSending(true); setError(null);
     const r = await fetch("/api/reseller/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, whatsapp: phoneValidation.formatted }),
     });
     const d = await r.json();
     setSending(false);
@@ -339,7 +375,7 @@ export default function ResellerLanding() {
               {[
                 { label: "Nombre completo *",                     key: "name",         placeholder: "Ej: Martín Rodríguez",           type: "text" },
                 { label: "Email *",                               key: "email",        placeholder: "Ej: martin@gmail.com",           type: "email" },
-                { label: "WhatsApp *",                            key: "whatsapp",     placeholder: "Ej: 5491112345678",             type: "tel" },
+                { label: "WhatsApp *",                            key: "whatsapp",     placeholder: "Ej: +54 9 11 12345678 o 5491112345678",             type: "tel" },
                 { label: "Instagram / TikTok / comunidad",        key: "social_links", placeholder: "@tuusuario o nombre de tu comunidad", type: "text" },
               ].map(f => (
                 <div key={f.key}>

@@ -5,6 +5,13 @@ import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
+function validateARPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  let normalized = digits;
+  if (normalized.startsWith("54")) normalized = normalized.slice(2);
+  return normalized.length === 11 && normalized.startsWith("9");
+}
+
 export async function POST(req: NextRequest) {
   // 3 intentos por IP por hora
   if (!rateLimit(`reseller_apply:${getClientIp(req)}`, 3, 60 * 60 * 1000)) {
@@ -15,6 +22,10 @@ export async function POST(req: NextRequest) {
 
   if (!name?.trim() || !email?.trim() || !whatsapp?.trim()) {
     return NextResponse.json({ error: "Nombre, email y WhatsApp son requeridos" }, { status: 400 });
+  }
+
+  if (!validateARPhone(whatsapp)) {
+    return NextResponse.json({ error: "Teléfono argentino inválido (debe tener 11 dígitos)" }, { status: 400 });
   }
 
   // Prevent duplicate applications
