@@ -133,37 +133,72 @@ export async function POST(req: Request) {
         (expirationDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      if (diffDays !== 7) continue;
-
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: {
-              p256dh: sub.p256dh,
-              auth: sub.auth,
+      // Send reminder 7 days before
+      if (diffDays === 7) {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
             },
-          },
-          JSON.stringify({
-            title: `Tu membresía vence en 7 días 📅`,
-            body: `Renová ahora para seguir entrenando`,
-            icon: "/icon-192x192.png",
-            badge: "/badge-72x72.png",
-            tag: "payment-reminder",
-            data: {
-              url: "/alumno/panel?tab=perfil",
-            },
-          })
-        );
-        sentCount++;
-      } catch (err: any) {
-        if (err.statusCode === 410) {
-          await supabase
-            .from("push_subscriptions")
-            .delete()
-            .eq("alumno_id", sub.alumno_id);
+            JSON.stringify({
+              title: `Tu membresía vence en 7 días 📅`,
+              body: `Renová ahora para seguir entrenando`,
+              icon: "/icon-192x192.png",
+              badge: "/badge-72x72.png",
+              tag: "payment-reminder-7d",
+              data: {
+                url: "/alumno/panel?tab=perfil",
+              },
+            })
+          );
+          sentCount++;
+        } catch (err: any) {
+          if (err.statusCode === 410) {
+            await supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("alumno_id", sub.alumno_id);
+          }
+          failedCount++;
         }
-        failedCount++;
+      }
+
+      // Send expiration alert (same day or past)
+      if (diffDays <= 0) {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
+            },
+            JSON.stringify({
+              title: `⚠️ Tu membresía ${diffDays === 0 ? "vence hoy" : "venció"}`,
+              body: `Renueva tu membresía para seguir accediendo al gym`,
+              icon: "/icon-192x192.png",
+              badge: "/badge-72x72.png",
+              tag: "payment-expired",
+              data: {
+                url: "/alumno/panel?tab=perfil",
+              },
+            })
+          );
+          sentCount++;
+        } catch (err: any) {
+          if (err.statusCode === 410) {
+            await supabase
+              .from("push_subscriptions")
+              .delete()
+              .eq("alumno_id", sub.alumno_id);
+          }
+          failedCount++;
+        }
       }
     }
 

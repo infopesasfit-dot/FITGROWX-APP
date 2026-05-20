@@ -3,6 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendWa } from "@/lib/wa";
 import { normalizePhone } from "@/lib/phone";
+import { createAlumnoNotification } from "@/lib/alumno-notif";
+import { sendPushNotification, PushTemplates } from "@/lib/alumno-push-send";
 
 const admin = getSupabaseAdminClient();
 
@@ -95,6 +97,7 @@ export async function POST(req: NextRequest) {
 
   const notifications = (reservas ?? []).map(async (r) => {
     const alumno = Array.isArray(r.alumnos) ? r.alumnos[0] : r.alumnos;
+    const alumno_id = r.alumno_id;
     const phone = (alumno as { phone?: string | null })?.phone;
     if (!phone) { notifiedCount.fail++; return; }
 
@@ -117,6 +120,7 @@ export async function POST(req: NextRequest) {
       `¡Disculpas por las molestias! Nos vemos en la próxima. 💪`,
     ].join("\n");
 
+    // Send WhatsApp notification
     const sent = await sendWa(
       profile.gym_id,
       normalizePhone(phone),
@@ -124,6 +128,23 @@ export async function POST(req: NextRequest) {
       { route: "admin/clase/cancelar-instancia" },
     );
     sent ? notifiedCount.ok++ : notifiedCount.fail++;
+
+    // Send in-app notification
+    void createAlumnoNotification(admin, {
+      alumno_id,
+      gym_id: profile.gym_id,
+      type: "clase_cancelada",
+      title: "Clase cancelada 😔",
+      body: `${clase.class_name} del ${fechaLabel} a las ${hora}h fue cancelada.${motivoLine ? ` ${motivoLine}` : ""}`,
+      link: "/alumno/panel?tab=calendario",
+    });
+
+    // Send push notification
+    void sendPushNotification(
+      admin,
+      alumno_id,
+      PushTemplates.classCancelled(clase.class_name, fechaLabel, hora)
+    );
   });
 
   await Promise.allSettled(notifications);

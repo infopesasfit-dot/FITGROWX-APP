@@ -3,6 +3,7 @@ import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createAlumnoNotification } from "@/lib/alumno-notif";
+import { sendPushNotification, PushTemplates } from "@/lib/alumno-push-send";
 import { sanitizeError } from "@/lib/api-error";
 
 type StaffProfile = { gym_id: string | null; role: string | null };
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
 
   // Notify alumno only when staff/admin assigns (not when alumno edits their own)
   if (!tokenRow) {
+    // Send in-app notification
     void createAlumnoNotification(supabase, {
       alumno_id: alumno_id,
       gym_id:    gym_id,
@@ -63,6 +65,13 @@ export async function POST(req: NextRequest) {
       body:      nombre ? `Tu profe te asignó: ${nombre}` : "Tu profe actualizó tu rutina de entrenamiento.",
       link:      "/alumno/panel?tab=entrenamiento",
     });
+
+    // Send push notification
+    void sendPushNotification(
+      supabase,
+      alumno_id,
+      PushTemplates.routineAssigned(nombre || "tu nueva rutina")
+    );
   }
 
   return NextResponse.json({ ok: true });

@@ -41,29 +41,32 @@ export function PanelTabPerfil({
   if (!session) return null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp 0.22s ease" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, animation: "fadeUp 0.22s ease" }}>
       {/* Datos personales */}
       <div style={{ ...gc, padding: "18px 18px" }}>
         <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 12 }}>Perfil</p>
-        <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gap: 12 }}>
           <div>
-            <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>Nombre</p>
+            <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.02em", textTransform: "uppercase", marginBottom: 6 }}>Nombre</p>
             <p style={{ font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>{session.full_name}</p>
           </div>
           {session.dni && (
             <div>
-              <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>DNI</p>
+              <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.02em", textTransform: "uppercase", marginBottom: 6 }}>DNI</p>
               <p style={{ font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>...{session.dni.slice(-4)}</p>
             </div>
           )}
           {session.plan && (
             <div>
-              <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginBottom: 4 }}>Plan</p>
+              <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.02em", textTransform: "uppercase", marginBottom: 6 }}>Plan</p>
               <p style={{ font: `500 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>{session.plan}</p>
             </div>
           )}
         </div>
       </div>
+
+      {/* Divider */}
+      <div style={{ height: "1px", background: "rgba(255,255,255,0.04)" }} />
 
       {/* Fotos */}
       {fotosLoading ? (
@@ -111,6 +114,9 @@ export function PanelTabPerfil({
           </div>
         </div>
       )}
+
+      {/* Divider */}
+      <div style={{ height: "1px", background: "rgba(255,255,255,0.04)" }} />
 
       {/* Acciones */}
       <button

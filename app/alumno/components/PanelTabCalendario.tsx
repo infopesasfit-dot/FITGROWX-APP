@@ -55,7 +55,7 @@ export function PanelTabCalendario({
   const selectedDay = days7[selectedDayIdx];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, animation: "fadeUp 0.22s ease" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, animation: "fadeUp 0.22s ease" }}>
       {/* Weekly day slider */}
       <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
         <style>{`.day-scroll::-webkit-scrollbar{display:none}`}</style>
@@ -96,7 +96,7 @@ export function PanelTabCalendario({
           </div>
         );
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {dayClases.map(c => {
               const reserved = reservas.some(r => r.clase_id === c.id && r.fecha === selectedDay.iso);
               const busy = reservando === `${c.id}|${selectedDay.iso}`;
@@ -119,7 +119,7 @@ export function PanelTabCalendario({
                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                        <span style={{ font: `400 0.72rem/1 ${fd}`, color: isEspecial ? "rgba(245,158,11,0.7)" : "rgba(255,255,255,0.35)", letterSpacing: "0.04em" }}>{c.start_time.slice(0, 5)}h</span>
+                        <span style={{ font: `400 0.72rem/1 ${fd}`, color: isEspecial ? "rgba(245,158,11,0.6)" : "rgba(255,255,255,0.4)", letterSpacing: "0.04em" }}>{c.start_time.slice(0, 5)}h</span>
                         {isEspecial && (
                           <span style={{ font: `700 0.55rem/1 ${fd}`, color: "#D97706", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)", padding: "2px 7px", borderRadius: 9999, letterSpacing: "0.06em" }}>ESPECIAL</span>
                         )}
@@ -128,21 +128,21 @@ export function PanelTabCalendario({
                         )}
                       </div>
                       <p style={{ font: `600 1rem/1.1 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>{c.class_name}</p>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                         {c.coach_name && (
-                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.35)" }}>{c.coach_name}</span>
+                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.4)" }}>👤 {c.coach_name}</span>
                         )}
                         {!reserved && !isFull && (
-                          <span style={{ font: `400 0.72rem/1 ${fd}`, color: available <= 3 ? "#F97316" : "rgba(255,255,255,0.25)" }}>
+                          <span style={{ font: `500 0.72rem/1 ${fd}`, color: available <= 3 ? "#F97316" : "rgba(255,255,255,0.3)" }}>
                             {available} cupo{available !== 1 ? "s" : ""}
                           </span>
                         )}
                         {isFull && (
-                          <span style={{ font: `500 0.72rem/1 ${fd}`, color: "#EF4444" }}>Sin cupos</span>
+                          <span style={{ font: `600 0.72rem/1 ${fd}`, color: "#EF4444" }}>⚠️ Sin cupos</span>
                         )}
                       </div>
                       {c.notes && (
-                        <p style={{ font: `400 0.7rem/1.45 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>{c.notes}</p>
+                        <p style={{ font: `400 0.7rem/1.45 ${fd}`, color: "rgba(255,255,255,0.3)", marginTop: 8 }}>ℹ️ {c.notes}</p>
                       )}
                     </div>
                     <div style={{ flexShrink: 0 }}>
@@ -151,14 +151,14 @@ export function PanelTabCalendario({
                           onClick={() => handleReservar(c.id, selectedDay.iso)}
                           disabled={busy}
                           className="tap-active"
-                          style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.07)", color: "#EF4444", font: `500 0.72rem/1 ${fd}`, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.5 : 1, whiteSpace: "nowrap" }}
+                          style={{ padding: "9px 16px", borderRadius: 9, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#EF4444", font: `600 0.72rem/1 ${fd}`, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, whiteSpace: "nowrap", fontWeight: 600 }}
                         >
                           {busy ? "..." : "Cancelar"}
                         </button>
                       ) : isFull ? (
                         <button
                           disabled
-                          style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "transparent", color: "rgba(255,255,255,0.2)", font: `500 0.72rem/1 ${fd}`, cursor: "not-allowed", whiteSpace: "nowrap" }}
+                          style={{ padding: "9px 16px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.02)", color: "rgba(255,255,255,0.25)", font: `500 0.72rem/1 ${fd}`, cursor: "not-allowed", whiteSpace: "nowrap" }}
                         >
                           Lista de espera
                         </button>
@@ -167,7 +167,7 @@ export function PanelTabCalendario({
                           onClick={() => handleReservar(c.id, selectedDay.iso)}
                           disabled={busy}
                           className="tap-active"
-                          style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: isEspecial ? "#D97706" : "#F97316", color: "#FFFFFF", font: `600 0.72rem/1 ${fd}`, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.5 : 1, whiteSpace: "nowrap" }}
+                          style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: isEspecial ? "#D97706" : "#F97316", color: "#FFFFFF", font: `600 0.72rem/1 ${fd}`, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}
                         >
                           {busy ? "..." : "Reservar"}
                         </button>
@@ -183,23 +183,30 @@ export function PanelTabCalendario({
 
       {/* My upcoming reservations summary */}
       {misReservas.length > 0 && (
-        <div style={{ ...gc, padding: "13px 15px", marginTop: 4 }}>
-          <p style={{ font: `500 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Mis reservas esta semana</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {misReservas.map(c => (
-              <div key={`${c.id}|${c.day.iso}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <span style={{ font: `500 0.82rem/1 ${fd}`, color: "#FFFFFF" }}>{c.class_name}</span>
-                  <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>{c.day.label === "Hoy" ? "Hoy" : c.day.label} · {c.start_time.slice(0, 5)}h</span>
+        <div style={{ ...gc, padding: "16px 15px", marginTop: 4 }}>
+          <p style={{ font: `600 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>📅 Mis reservas esta semana</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {misReservas.map((c, idx) => (
+              <div key={`${c.id}|${c.day.iso}`}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <span style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF" }}>{c.class_name}</span>
+                    <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", marginLeft: 8 }}>
+                      {c.day.label === "Hoy" ? "Hoy" : c.day.label} · {c.start_time.slice(0, 5)}h
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleReservar(c.id, c.day.iso)}
+                    disabled={reservando === `${c.id}|${c.day.iso}`}
+                    className="tap-active"
+                    style={{ padding: "6px 12px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.08)", color: "#EF4444", font: `600 0.65rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", opacity: reservando === `${c.id}|${c.day.iso}` ? 0.6 : 1 }}
+                  >
+                    {reservando === `${c.id}|${c.day.iso}` ? "..." : "Cancelar"}
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleReservar(c.id, c.day.iso)}
-                  disabled={reservando === `${c.id}|${c.day.iso}`}
-                  className="tap-active"
-                  style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.05)", color: "#EF4444", font: `500 0.65rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap" }}
-                >
-                  {reservando === `${c.id}|${c.day.iso}` ? "..." : "Cancelar"}
-                </button>
+                {idx < misReservas.length - 1 && (
+                  <div style={{ height: "1px", background: "rgba(255,255,255,0.04)", marginTop: 10 }} />
+                )}
               </div>
             ))}
           </div>

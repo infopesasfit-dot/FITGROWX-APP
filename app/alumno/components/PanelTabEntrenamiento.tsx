@@ -82,7 +82,7 @@ export function PanelTabEntrenamiento({
   const items = isWod ? rutina.ejercicios.slice(1) : rutina.ejercicios;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: isCompactScreen ? 10 : 8, animation: "fadeUp 0.22s ease" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: isCompactScreen ? 12 : 10, animation: "fadeUp 0.22s ease" }}>
       <div style={{
         ...(isCompactScreen ? {
           background: "rgba(255,255,255,0.03)",
@@ -107,7 +107,7 @@ export function PanelTabEntrenamiento({
             <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>{wodMeta.time_cap} min</p>
           </div>
         ) : (
-          <span style={{ font: `500 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.32)", flexShrink: 0 }}>{items.length} ejercicios</span>
+          <span style={{ font: `600 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", flexShrink: 0, background: "rgba(255,255,255,0.04)", padding: "6px 12px", borderRadius: 9999 }}>💪 {items.length}</span>
         )}
       </div>
 

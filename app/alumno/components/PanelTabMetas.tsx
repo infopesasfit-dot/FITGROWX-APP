@@ -47,20 +47,20 @@ export function PanelTabMetas({
   const earnedCount = BADGES.filter(b => b.earned).length;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp 0.22s ease" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, animation: "fadeUp 0.22s ease" }}>
       {/* Insignias */}
       <div style={{ ...gc, padding: "18px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF" }}>Insignias</p>
-          <span style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>{earnedCount}/{BADGES.length}</span>
+          <p style={{ font: `600 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>🏅 Insignias</p>
+          <span style={{ font: `600 0.75rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.2)", padding: "4px 10px", borderRadius: 9999 }}>{earnedCount}/{BADGES.length}</span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {BADGES.map(b => (
             <div key={b.title} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, opacity: b.earned ? 1 : 0.22 }}>
               <div style={{ width: 44, height: 44, borderRadius: 14, background: b.earned ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.04)", border: `1px solid ${b.earned ? "rgba(249,115,22,0.3)" : "rgba(255,255,255,0.06)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
                 {b.emoji}
               </div>
-              <span style={{ font: `500 0.52rem/1.2 ${fd}`, color: b.earned ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.3)", textAlign: "center" }}>
+              <span style={{ font: `500 0.52rem/1.2 ${fd}`, color: b.earned ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.25)", textAlign: "center" }}>
                 {b.title}
               </span>
             </div>
@@ -72,7 +72,7 @@ export function PanelTabMetas({
       {(ranking.length > 0 || rankLoaded) && (
         <div style={{ ...gc, padding: "18px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <p style={{ font: `600 0.85rem/1 ${fd}`, color: "#FFFFFF" }}>Top del mes</p>
+            <p style={{ font: `600 0.9rem/1 ${fd}`, color: "#FFFFFF" }}>🔥 Top del mes</p>
             {myRankPos > 0 && (
               <span style={{ font: `500 0.65rem/1 ${fd}`, color: myRankPos <= 3 ? "#F97316" : "rgba(255,255,255,0.3)" }}>
                 #{myRankPos} en tu gym
@@ -84,18 +84,23 @@ export function PanelTabMetas({
               Nadie registró asistencias este mes aún.
             </p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {ranking.slice(0, 5).map(r => (
-                <div key={r.pos} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, background: r.isMe ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.02)" }}>
-                  <span style={{ font: `700 0.75rem/1 ${fd}`, color: r.pos <= 3 ? ["#FFD700", "#C0C0C0", "#CD7F32"][r.pos - 1] : "rgba(255,255,255,0.2)", width: 18, textAlign: "center" }}>
-                    {r.pos <= 3 ? ["🥇", "🥈", "🥉"][r.pos - 1] : `#${r.pos}`}
-                  </span>
-                  <span style={{ flex: 1, font: `${r.isMe ? "600" : "400"} 0.82rem/1 ${fd}`, color: r.isMe ? "#FFFFFF" : "rgba(255,255,255,0.55)" }}>
-                    {r.name}{r.isMe ? " (vos)" : ""}
-                  </span>
-                  <span style={{ font: `600 0.8rem/1 ${fd}`, color: r.isMe ? "#F97316" : "rgba(255,255,255,0.35)" }}>
-                    {r.count}
-                  </span>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {ranking.slice(0, 5).map((r, idx) => (
+                <div key={r.pos}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 8px", background: r.isMe ? "rgba(249,115,22,0.06)" : "transparent" }}>
+                    <span style={{ font: `700 0.75rem/1 ${fd}`, color: r.pos <= 3 ? ["#FFD700", "#C0C0C0", "#CD7F32"][r.pos - 1] : "rgba(255,255,255,0.25)", width: 18, textAlign: "center" }}>
+                      {r.pos <= 3 ? ["🥇", "🥈", "🥉"][r.pos - 1] : `#${r.pos}`}
+                    </span>
+                    <span style={{ flex: 1, font: `${r.isMe ? "600" : "400"} 0.82rem/1 ${fd}`, color: r.isMe ? "#FFFFFF" : "rgba(255,255,255,0.55)" }}>
+                      {r.name}{r.isMe ? " (vos)" : ""}
+                    </span>
+                    <span style={{ font: `600 0.8rem/1 ${fd}`, color: r.isMe ? "#F97316" : "rgba(255,255,255,0.35)" }}>
+                      {r.count}
+                    </span>
+                  </div>
+                  {idx < ranking.slice(0, 5).length - 1 && (
+                    <div style={{ height: "1px", background: "rgba(255,255,255,0.04)", margin: "0" }} />
+                  )}
                 </div>
               ))}
             </div>
@@ -108,8 +113,8 @@ export function PanelTabMetas({
         const latest = medidas[0];
         return (
           <div style={{ ...gc, padding: "18px 20px" }}>
-            <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginBottom: 8 }}>
-              Peso actual
+            <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
+              ⚖️ Peso actual
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
               <span style={{ font: `700 2.4rem/1 ${fd}`, color: "#FFFFFF" }}>{latest.peso_kg}</span>

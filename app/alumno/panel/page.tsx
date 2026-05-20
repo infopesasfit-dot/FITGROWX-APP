@@ -1073,7 +1073,7 @@ function AlumnoPanelInner() {
       <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "18px 16px 10px" : "28px 20px 16px", maxWidth: 520, margin: "0 auto" }}>
         {tab === "entrenamiento" && isCompactScreen ? (
           <div style={{ display: "grid", gap: 8 }}>
-            <p style={{ font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <p style={{ font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               Entrenamiento
             </p>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -1115,7 +1115,7 @@ function AlumnoPanelInner() {
       </div>
 
       {/* Content */}
-      <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "2px 12px 0" : "4px 16px 0", maxWidth: 520, margin: "0 auto" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "6px 12px 0" : "8px 16px 0", maxWidth: 520, margin: "0 auto" }}>
 
         {loading ? (
           <div style={{ textAlign: "center", paddingTop: 80 }}>
