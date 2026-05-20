@@ -337,7 +337,7 @@ describe("alumno-schemas", () => {
     it("validates correct plan data", () => {
       const data = {
         plan_id: "plan-123",
-        billingCycle: "monthly",
+        billing_cycle: "monthly",
       };
 
       expect(() => planSchema.parse(data)).not.toThrow();
@@ -346,7 +346,7 @@ describe("alumno-schemas", () => {
     it("accepts quarterly billing cycle", () => {
       const data = {
         plan_id: "plan-123",
-        billingCycle: "quarterly",
+        billing_cycle: "quarterly",
       };
 
       expect(() => planSchema.parse(data)).not.toThrow();
@@ -355,7 +355,7 @@ describe("alumno-schemas", () => {
     it("accepts annual billing cycle", () => {
       const data = {
         plan_id: "plan-123",
-        billingCycle: "annual",
+        billing_cycle: "annual",
       };
 
       expect(() => planSchema.parse(data)).not.toThrow();
@@ -364,7 +364,7 @@ describe("alumno-schemas", () => {
     it("rejects invalid billing cycle", () => {
       const data = {
         plan_id: "plan-123",
-        billingCycle: "weekly",
+        billing_cycle: "weekly",
       };
 
       expect(() => planSchema.parse(data)).toThrow();
@@ -373,7 +373,7 @@ describe("alumno-schemas", () => {
     it("rejects empty plan_id", () => {
       const data = {
         plan_id: "",
-        billingCycle: "monthly",
+        billing_cycle: "monthly",
       };
 
       expect(() => planSchema.parse(data)).toThrow();

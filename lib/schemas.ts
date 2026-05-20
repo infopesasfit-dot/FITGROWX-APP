@@ -79,11 +79,11 @@ export const createStaffSchema = z.object({
 
 // ─── Public: leads / prospectos ───────────────────────────────────────────────
 export const createLeadSchema = z.object({
-  gymId:          uuidField,
-  name:           z.string().min(1).max(LIMITS.lead_name).transform(s => s.trim()),
-  email:          emailField,
-  phone:          phoneField,
-  turnstileToken: z.string().optional(),
+  gym_id:          uuidField,
+  name:            z.string().min(1).max(LIMITS.lead_name).transform(s => s.trim()),
+  email:           emailField,
+  phone:           phoneField,
+  turnstile_token: z.string().optional(),
 });
 
 // ─── Public: reservar clase gratis ───────────────────────────────────────────
@@ -99,11 +99,11 @@ export const reservarClaseGratisSchema = z.object({
 
 // ─── Public: reservar clase ───────────────────────────────────────────────────
 export const reservaBookSchema = z.object({
-  classId:        uuidField,
-  leadName:       z.string().min(1).max(LIMITS.lead_name).transform(s => s.trim()),
-  leadPhone:      z.string().min(6).max(LIMITS.phone),
-  gymId:          uuidField,
-  turnstileToken: z.string().optional(),
+  class_id:        uuidField,
+  lead_name:       z.string().min(1).max(LIMITS.lead_name).transform(s => s.trim()),
+  lead_phone:      z.string().min(6).max(LIMITS.phone),
+  gym_id:          uuidField,
+  turnstile_token: z.string().optional(),
 });
 
 // ─── Alumno: rutina ───────────────────────────────────────────────────────────

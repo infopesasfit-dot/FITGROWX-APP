@@ -2,19 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { bookingFormToSchema } from "@/lib/api/mappers";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 
 export async function POST(req: NextRequest) {
-  const raw = await req.json();
+  const raw = await req.json() as any;
+  const mapped = bookingFormToSchema({
+    classId: raw.classId,
+    leadName: raw.leadName,
+    leadPhone: raw.leadPhone,
+    gymId: raw.gymId,
+    turnstileToken: raw.turnstileToken,
+  });
   const { reservaBookSchema, parseBody } = await import("@/lib/schemas");
-  const parsed = parseBody(reservaBookSchema, raw);
+  const parsed = parseBody(reservaBookSchema, mapped);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
 
-  const { classId, leadName, leadPhone, gymId, turnstileToken } = parsed.data;
+  const { class_id, lead_name, lead_phone, gym_id, turnstile_token } = parsed.data;
   const ip = getClientIp(req);
 
-  const cleanPhone = normalizePhone(String(leadPhone));
+  const cleanPhone = normalizePhone(String(lead_phone));
   if (cleanPhone.length < 8) {
     return NextResponse.json({ error: "Ingresá un teléfono válido." }, { status: 400 });
   }
@@ -32,7 +40,7 @@ export async function POST(req: NextRequest) {
 
   const reservationLimit = await applyRateLimit({
     namespace: "booking:phone",
-    identifier: `${classId}:${cleanPhone}`,
+    identifier: `${class_id}:${cleanPhone}`,
     windowMs: 30 * 60 * 1000,
     maxAttempts: 2,
   });
@@ -41,7 +49,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ya recibimos una reserva reciente para este número. Si necesitás ayuda, contactá al gym." }, { status: 429 });
   }
 
-  const turnstileResult = await verifyTurnstileToken(req, turnstileToken);
+  const turnstileResult = await verifyTurnstileToken(req, turnstile_token);
   if (!turnstileResult.ok) {
     return NextResponse.json({ error: turnstileResult.error }, { status: turnstileResult.status });
   }
@@ -52,7 +60,7 @@ export async function POST(req: NextRequest) {
   const { data: cls } = await supabase
     .from("gym_classes")
     .select("class_name, start_time, day_of_week, max_capacity")
-    .eq("id", classId)
+    .eq("id", class_id)
     .single();
 
   if (!cls) return NextResponse.json({ error: "Clase no encontrada" }, { status: 404 });
@@ -60,7 +68,7 @@ export async function POST(req: NextRequest) {
   const { count } = await supabase
     .from("class_reservations")
     .select("*", { count: "exact", head: true })
-    .eq("class_id", classId);
+    .eq("class_id", class_id);
 
   if ((count ?? 0) >= cls.max_capacity) {
     return NextResponse.json({ error: "La clase ya está completa" }, { status: 409 });
@@ -70,7 +78,7 @@ export async function POST(req: NextRequest) {
   const { data: existingReservation } = await supabase
     .from("class_reservations")
     .select("id")
-    .eq("class_id", classId)
+    .eq("class_id", class_id)
     .eq("lead_phone", cleanPhone)
     .maybeSingle();
 
@@ -80,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   const { error: insertError } = await supabase
     .from("class_reservations")
-    .insert({ class_id: classId, lead_name: leadName.trim(), lead_phone: cleanPhone });
+    .insert({ class_id: class_id, lead_name: lead_name.trim(), lead_phone: cleanPhone });
 
   if (insertError) {
     // Unique violation = reserva duplicada (race condition entre requests)
@@ -107,20 +115,20 @@ export async function POST(req: NextRequest) {
     const { data: existing } = await supabase
       .from("prospectos")
       .select("id, clase_gratis_date")
-      .eq("gym_id", gymId)
+      .eq("gym_id", gym_id)
       .eq("phone", cleanPhone)
       .maybeSingle();
 
     if (existing) {
       if (!existing.clase_gratis_date) {
         await supabase.from("prospectos")
-          .update({ clase_gratis_date: claseDateStr, clase_gratis_status: "registrado", full_name: leadName.trim() })
+          .update({ clase_gratis_date: claseDateStr, clase_gratis_status: "registrado", full_name: lead_name.trim() })
           .eq("id", existing.id);
       }
     } else {
       await supabase.from("prospectos").insert({
-        gym_id:              gymId,
-        full_name:           leadName.trim(),
+        gym_id:              gym_id,
+        full_name:           lead_name.trim(),
         phone:               cleanPhone,
         status:              "pendiente",
         contactos_step:      3, // saltea Nuevos Contactos, ya reservó clase
@@ -130,9 +138,9 @@ export async function POST(req: NextRequest) {
     }
 
     await supabase.from("notifications").insert([{
-      gym_id: gymId,
+      gym_id: gym_id,
       type:   "new_prospecto",
-      title:  `Nueva reserva: ${leadName.trim()}`,
+      title:  `Nueva reserva: ${lead_name.trim()}`,
       body:   `Clase de prueba el ${claseDateStr} · ${cleanPhone}`,
     }]);
   } catch (e) { console.error("[book] prospecto/notif upsert failed:", e instanceof Error ? e.message : e); }
@@ -142,8 +150,8 @@ export async function POST(req: NextRequest) {
     const days = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
     const hora = cls.start_time.slice(0, 5);
     const dia  = days[cls.day_of_week];
-    const msg  = `¡Hola ${leadName}! ✅ Tu reserva para *${cls.class_name}* el ${dia} a las ${hora}hs está confirmada. ¡Te esperamos! 💪`;
-    void sendWa(gymId, cleanPhone, msg, { route: "reserva/book" });
+    const msg  = `¡Hola ${lead_name}! ✅ Tu reserva para *${cls.class_name}* el ${dia} a las ${hora}hs está confirmada. ¡Te esperamos! 💪`;
+    void sendWa(gym_id, cleanPhone, msg, { route: "reserva/book" });
   }
 
   return NextResponse.json({ ok: true });

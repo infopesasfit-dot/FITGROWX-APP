@@ -61,7 +61,7 @@ export type PaymentInput = z.infer<typeof paymentSchema>;
 // Plan/Membership
 export const planSchema = z.object({
   plan_id: z.string().min(1, "Plan requerido"),
-  billingCycle: z.enum(["monthly", "quarterly", "annual"]),
+  billing_cycle: z.enum(["monthly", "quarterly", "annual"]),
 });
 
 export type PlanInput = z.infer<typeof planSchema>;

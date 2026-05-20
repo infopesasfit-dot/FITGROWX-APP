@@ -3,15 +3,23 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { createLeadSchema, parseBody } from "@/lib/schemas";
+import { leadFormToSchema } from "@/lib/api/mappers";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 
 export async function POST(req: NextRequest) {
-  const raw = await req.json();
-  const parsed = parseBody(createLeadSchema, raw);
+  const raw = await req.json() as any;
+  const mapped = leadFormToSchema({
+    gymId: raw.gymId,
+    name: raw.name,
+    email: raw.email,
+    phone: raw.phone,
+    turnstileToken: raw.turnstileToken,
+  });
+  const parsed = parseBody(createLeadSchema, mapped);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
 
-  const { gymId, name, phone, email: emailNormalized, turnstileToken } = parsed.data;
+  const { gym_id, name, phone, email: emailNormalized, turnstile_token } = parsed.data;
   const ip = getClientIp(req);
   const ipLimit = await applyRateLimit({
     namespace: "lead:ip",
@@ -26,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const identityLimit = await applyRateLimit({
     namespace: "lead:identity",
-    identifier: `${gymId}:${emailNormalized}`,
+    identifier: `${gym_id}:${emailNormalized}`,
     windowMs: 30 * 60 * 1000,
     maxAttempts: 2,
   });
@@ -35,7 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const turnstileResult = await verifyTurnstileToken(req, turnstileToken);
+  const turnstileResult = await verifyTurnstileToken(req, turnstile_token);
   if (!turnstileResult.ok) {
     return NextResponse.json({ error: turnstileResult.error }, { status: turnstileResult.status });
   }
@@ -45,13 +53,13 @@ export async function POST(req: NextRequest) {
   const { data: settings } = await supabase
     .from("gym_settings")
     .select("gym_name, lead_auto_welcome, contactos_msg_0, slug")
-    .eq("gym_id", gymId)
+    .eq("gym_id", gym_id)
     .maybeSingle();
 
   // Guardar lead en prospectos (upsert por email para evitar duplicados)
   const { error } = await supabase.from("prospectos").upsert(
     {
-      gym_id:         gymId,
+      gym_id:         gym_id,
       full_name:      name,
       phone:          phone ? normalizePhone(phone) : null,
       email:          emailNormalized,
@@ -69,7 +77,7 @@ export async function POST(req: NextRequest) {
   // Notificación: nuevo prospecto
   try {
     await supabase.from("notifications").insert([{
-      gym_id: gymId,
+      gym_id: gym_id,
       type: "new_prospecto",
       title: `Nuevo prospecto: ${name}`,
       body: emailNormalized ?? phone ?? null,
@@ -92,14 +100,14 @@ export async function POST(req: NextRequest) {
         .replace(/\{gym\}/gi, gymName)
         .replace(/\{link\}/gi, reservarLink ?? "");
 
-      void sendWa(gymId, normalizePhone(phone), msg, { route: "gym/lead" });
+      void sendWa(gym_id, normalizePhone(phone), msg, { route: "gym/lead" });
     }
 
     // Avanzar step siempre para que los follow-ups puedan correr
     try {
       await supabase.from("prospectos")
         .update({ contactos_step: 1 })
-        .eq("gym_id", gymId)
+        .eq("gym_id", gym_id)
         .eq("email", emailNormalized);
     } catch { /* non-fatal */ }
   }
