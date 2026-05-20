@@ -1,4 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+// TODO: Replace with Database types once SUPABASE_ACCESS_TOKEN is available
+// import type { Database } from "@/lib/database.types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cachedAdminClient: SupabaseClient<any> | null = null;

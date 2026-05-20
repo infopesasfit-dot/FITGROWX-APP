@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+// TODO: Replace with Database types once SUPABASE_ACCESS_TOKEN is available
+// import type { Database } from "@/lib/database.types";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
