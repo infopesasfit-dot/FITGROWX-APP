@@ -141,7 +141,9 @@
       "Bash(grep -n \"Authorization: \\\\`Bearer.*session\\\\.token\\\\`\" /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)",
       "Bash(git reset *)",
       "Bash(grep -n 'Authorization: `Bearer' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)",
-      "Bash(perl -i -pe 's/Authorization:\\\\s*`Bearer\\\\s*\\\\$\\\\{[^}]+\\\\.token\\\\}`//g; s/,\\\\s*},/,\\\\n    },/g' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)"
+      "Bash(perl -i -pe 's/Authorization:\\\\s*`Bearer\\\\s*\\\\$\\\\{[^}]+\\\\.token\\\\}`//g; s/,\\\\s*},/,\\\\n    },/g' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)",
+      "Bash(claude remote *)",
+      "Bash(claude remote-control *)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/.ssh",

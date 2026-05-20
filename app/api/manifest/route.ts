@@ -1,0 +1,89 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const type = searchParams.get("type") ?? "alumno";
+
+  if (type === "dashboard") {
+    return NextResponse.json({
+      id: "/dashboard",
+      name: "FitGrowX Admin",
+      short_name: "FitGrowX",
+      description: "Gestioná tu gimnasio desde el celular",
+      start_url: "/dashboard?pwa=1",
+      scope: "/dashboard/",
+      display: "standalone",
+      orientation: "portrait",
+      background_color: "#F8FAFC",
+      theme_color: "#2563EB",
+      categories: ["fitness", "business", "productivity"],
+      icons: [
+        {
+          src: "/images/logo-favicon-fitgrowx.png",
+          sizes: "192x192",
+          type: "image/png",
+          purpose: "any",
+        },
+        {
+          src: "/images/logo-favicon-fitgrowx.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable",
+        },
+      ],
+      shortcuts: [
+        {
+          name: "Alumnos",
+          url: "/dashboard/alumnos?pwa=1",
+          icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+        },
+        {
+          name: "Escáner QR",
+          url: "/dashboard/scanner?pwa=1",
+          icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+        },
+      ],
+    });
+  }
+
+  // Alumno (default)
+  return NextResponse.json({
+    id: "/alumno/panel",
+    name: "FitGrowX — Mi Panel",
+    short_name: "FitGrowX",
+    description: "Tu panel de membresía, rutinas y progreso",
+    start_url: "/alumno/panel?pwa=1",
+    scope: "/alumno/",
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#0A0A0A",
+    theme_color: "#F97316",
+    categories: ["fitness", "health"],
+    icons: [
+      {
+        src: "/images/logo-favicon-fitgrowx.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/images/logo-favicon-fitgrowx.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+    shortcuts: [
+      {
+        name: "Ver mis clases",
+        url: "/alumno/panel?tab=clases",
+        icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+      },
+      {
+        name: "Mi progreso",
+        url: "/alumno/panel?tab=metas",
+        icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+      },
+    ],
+  });
+}

@@ -14,12 +14,13 @@ export function DashboardPwaShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Inyectar <link rel="manifest"> dinámicamente para App Router (client layout)
     const existing = document.querySelector('link[rel="manifest"]');
-    if (!existing) {
-      const link = document.createElement("link");
-      link.rel = "manifest";
-      link.href = "/manifest-dashboard.json";
-      document.head.appendChild(link);
+    if (existing) {
+      existing.remove();
     }
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = "/api/manifest?type=dashboard";
+    document.head.appendChild(link);
 
     // Tags para iOS standalone
     const setMeta = (name: string, content: string) => {
