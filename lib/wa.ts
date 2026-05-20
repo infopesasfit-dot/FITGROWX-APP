@@ -6,19 +6,21 @@ const API_KEY   = () => process.env.WA_MOTOR_API_KEY ?? "";
 /**
  * Send a WhatsApp message via wa-server.
  * Logs errors to platform_logs. Returns true on success.
+ * Measures latency and captures motor status for metrics.
  */
 export async function sendWa(
   session: string,
   phone:   string,
   message: string,
   opts?: { route?: string; timeout?: number },
-): Promise<boolean> {
+): Promise<{ ok: boolean; latencyMs?: number; statusCode?: number; blocked?: boolean }> {
   const motorUrl = MOTOR_URL();
   if (!motorUrl) {
     void logger.warn("WA_MOTOR_URL not configured", { route: opts?.route ?? "wa" });
-    return false;
+    return { ok: false };
   }
 
+  const startTime = Date.now();
   try {
     const res = await fetch(`${motorUrl}/send/${session}`, {
       method:  "POST",
@@ -27,22 +29,25 @@ export async function sendWa(
       signal:  AbortSignal.timeout(opts?.timeout ?? 3000),
     });
 
+    const latencyMs = Date.now() - startTime;
+
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       void logger.error(`WA send failed [${res.status}]`, {
         route: opts?.route ?? "wa",
-        meta:  { session, phone: phone.slice(-4), status: res.status, body: body.slice(0, 200) },
+        meta:  { session, phone: phone.slice(-4), status: res.status, latency: latencyMs, body: body.slice(0, 200) },
       });
-      return false;
+      return { ok: false, latencyMs, statusCode: res.status, blocked: res.status === 403 };
     }
 
-    return true;
+    return { ok: true, latencyMs, statusCode: res.status };
   } catch (err) {
+    const latencyMs = Date.now() - startTime;
     void logger.error(`WA send error: ${String(err)}`, {
       route: opts?.route ?? "wa",
-      meta:  { session, phone: phone.slice(-4) },
+      meta:  { session, phone: phone.slice(-4), latency: latencyMs },
     });
-    return false;
+    return { ok: false, latencyMs };
   }
 }
 

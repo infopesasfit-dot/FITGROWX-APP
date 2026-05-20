@@ -28,6 +28,7 @@ import {
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { invalidateProfile, setImpersonatedGym } from "@/lib/gym-cache";
+import { WaHealthDashboard } from "@/components/wa-health-dashboard";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -1982,6 +1983,11 @@ export default function PlatformPage() {
               </div>
             </div>
           )}
+
+          {/* WhatsApp Health Dashboard */}
+          <section style={{ marginBottom: 28 }}>
+            <WaHealthDashboard />
+          </section>
 
           {/* ── Automatizaciones ── */}
           <section style={{ ...shellCard, padding: "26px 28px" }}>

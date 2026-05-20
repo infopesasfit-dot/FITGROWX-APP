@@ -134,7 +134,14 @@
       "Bash(open -a \"Google Chrome\" \"http://localhost:3000/platform/resellers\")",
       "Bash(open -a \"Google Chrome\" \"http://localhost:3000/platform/pulso\")",
       "Bash(open -a \"Google Chrome\" \"http://localhost:3000/platform/radar\")",
-      "Bash(awk 'NR>=1756' /Users/eliydan/Desktop/fitgrowx/app/platform/page.tsx)"
+      "Bash(awk 'NR>=1756' /Users/eliydan/Desktop/fitgrowx/app/platform/page.tsx)",
+      "Bash(npm list *)",
+      "Bash(sed -i \"\" 's/, headers: { Authorization: `Bearer \\\\${session\\\\.token}\\\\`/, credentials: \"include\"/g' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)",
+      "Bash(sed -i \"\" 's/, headers: { Authorization: `Bearer \\\\${s\\\\.token}\\\\`/, credentials: \"include\"/g' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)",
+      "Bash(grep -n \"Authorization: \\\\`Bearer.*session\\\\.token\\\\`\" /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)",
+      "Bash(git reset *)",
+      "Bash(grep -n 'Authorization: `Bearer' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)",
+      "Bash(perl -i -pe 's/Authorization:\\\\s*`Bearer\\\\s*\\\\$\\\\{[^}]+\\\\.token\\\\}`//g; s/,\\\\s*},/,\\\\n    },/g' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/alumno/panel/page.tsx)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/.ssh",

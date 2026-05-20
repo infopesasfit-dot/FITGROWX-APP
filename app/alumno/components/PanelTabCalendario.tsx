@@ -36,7 +36,7 @@ interface PanelTabCalendarioProps {
   clases: GymClass[];
   reservas: Reserva[];
   countsMap: Record<string, number>;
-  misReservas: Array<GymClass & Day>;
+  misReservas: Array<GymClass & { day: Day }>;
   reservando: string | null;
   handleReservar: (clase_id: string, fecha: string) => void;
 }
@@ -187,18 +187,18 @@ export function PanelTabCalendario({
           <p style={{ font: `500 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Mis reservas esta semana</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {misReservas.map(c => (
-              <div key={`${c.id}|${c.iso}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div key={`${c.id}|${c.day.iso}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
                   <span style={{ font: `500 0.82rem/1 ${fd}`, color: "#FFFFFF" }}>{c.class_name}</span>
-                  <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>{c.label === "Hoy" ? "Hoy" : c.label} · {c.start_time.slice(0, 5)}h</span>
+                  <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>{c.day.label === "Hoy" ? "Hoy" : c.day.label} · {c.start_time.slice(0, 5)}h</span>
                 </div>
                 <button
-                  onClick={() => handleReservar(c.id, c.iso)}
-                  disabled={reservando === `${c.id}|${c.iso}`}
+                  onClick={() => handleReservar(c.id, c.day.iso)}
+                  disabled={reservando === `${c.id}|${c.day.iso}`}
                   className="tap-active"
                   style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.05)", color: "#EF4444", font: `500 0.65rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap" }}
                 >
-                  {reservando === `${c.id}|${c.iso}` ? "..." : "Cancelar"}
+                  {reservando === `${c.id}|${c.day.iso}` ? "..." : "Cancelar"}
                 </button>
               </div>
             ))}

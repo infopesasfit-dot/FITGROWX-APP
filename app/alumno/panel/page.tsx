@@ -4,7 +4,13 @@ import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Dumbbell, User, Target, Lock, Eye, Bell } from "lucide-react";
 import { useWorkoutSession } from "@/hooks/useWorkoutSession";
-import { SessionExpiredModal } from "./components/SessionExpiredModal";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { SessionExpiredModal } from "../components/SessionExpiredModal";
+import { OfflineIndicator } from "../components/OfflineIndicator";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { PanelTabCalendario } from "../components/PanelTabCalendario";
+import { PanelTabEntrenamiento } from "../components/PanelTabEntrenamiento";
+import { analytics } from "@/lib/alumno-analytics";
 
 const fd = "'Inter', sans-serif";
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -259,6 +265,8 @@ function AlumnoPanelInner() {
   const { workoutSession, wsSyncing, initSession, markSerie, setSerieKg, finalizeWorkout, flushWorkoutSession, enqueueKg, flushKgQueue } =
     useWorkoutSession(session?.alumno_id ?? null, session?.gym_id ?? null, null);
 
+  const { isSyncing, syncedCount } = useOfflineSync();
+
   // Group pesos by exercise in chronological order
   const pesosPorEjercicio = useMemo(() => {
     const map = new Map<string, { peso: number; fecha: string }[]>();
@@ -292,6 +300,13 @@ function AlumnoPanelInner() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleTabChange = (newTab: "calendario" | "entrenamiento" | "metas" | "perfil") => {
+    setTab(newTab);
+    if (session?.alumno_id) {
+      analytics.trackTabView(session.alumno_id, newTab);
+    }
+  };
+
   // Load session from secure cookie
   useEffect(() => {
     fetch("/api/alumno/session", { credentials: "include" })
@@ -302,6 +317,7 @@ function AlumnoPanelInner() {
         const dismissKey = `fitgrowx_deuda_ok_${d.alumno_id}`;
         if (sessionStorage.getItem(dismissKey) === "1") setDeudaDismissed(true);
         setSession(d as Session);
+        analytics.trackLogin(d.alumno_id, d.gym_id);
         const pagoParam = searchParams.get("pago");
         if (pagoParam === "ok") showToast("✅ ¡Pago recibido! Tu membresía fue renovada.", true);
         if (pagoParam === "error") showToast("El pago no se completó. Intentá de nuevo.", false);
@@ -1108,336 +1124,40 @@ function AlumnoPanelInner() {
           <>
             {/* TAB — CALENDARIO */}
             {tab === "calendario" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, animation: "fadeUp 0.22s ease" }}>
-
-                {/* Weekly day slider */}
-                <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
-                  <style>{`.day-scroll::-webkit-scrollbar{display:none}`}</style>
-                  {days7.map((day, idx) => {
-                    const active = idx === selectedDayIdx;
-                    const hasCls = clases.some(c => c.day_of_week === day.dow);
-                    return (
-                      <button
-                        key={day.iso}
-                        onClick={() => setSelectedDayIdx(idx)}
-                        className="tap-active"
-                        style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: "10px 0", width: 52, borderRadius: 14, border: `1.5px solid ${active ? "#F97316" : "rgba(255,255,255,0.07)"}`, background: active ? "rgba(249,115,22,0.12)" : "rgba(255,255,255,0.03)", cursor: "pointer" }}
-                      >
-                        <span style={{ font: `500 0.6rem/1 ${fd}`, color: active ? "#F97316" : "rgba(255,255,255,0.3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                          {day.label === "Hoy" ? "HOY" : DAYS[day.dow].slice(0, 3).toUpperCase()}
-                        </span>
-                        <span style={{ font: `700 1.1rem/1 ${fd}`, color: active ? "#FFFFFF" : "rgba(255,255,255,0.45)" }}>
-                          {day.date.getDate()}
-                        </span>
-                        {hasCls && <div style={{ width: 4, height: 4, borderRadius: "50%", background: active ? "#F97316" : "rgba(255,255,255,0.15)" }} />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Day label */}
-                <p style={{ font: `600 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                  {selectedDay.label === "Hoy" ? `Hoy · ${DAYS_FULL[selectedDay.dow]}` : `${DAYS_FULL[selectedDay.dow]} ${selectedDay.date.getDate()}`}
-                </p>
-
-                {/* Class cards for selected day */}
-                {(() => {
-                  const dayClases = clases.filter(c => c.day_of_week === selectedDay.dow);
-                  if (dayClases.length === 0) return (
-                    <div style={{ ...gc, padding: "36px 24px", textAlign: "center" }}>
-                      <Calendar size={22} color="rgba(255,255,255,0.15)" strokeWidth={1.5} style={{ margin: "0 auto 14px" }} />
-                      <p style={{ font: `500 0.85rem/1.4 ${fd}`, color: "rgba(255,255,255,0.3)" }}>No hay clases este día.</p>
-                    </div>
-                  );
-                  return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {dayClases.map(c => {
-                        const reserved = reservas.some(r => r.clase_id === c.id && r.fecha === selectedDay.iso);
-                        const busy = reservando === `${c.id}|${selectedDay.iso}`;
-                        const count = countsMap[`${c.id}|${selectedDay.iso}`] ?? 0;
-                        const isFull = !reserved && count >= c.max_capacity;
-                        const available = c.max_capacity - count;
-                        const isEspecial = c.event_type === "especial";
-                        return (
-                          <div
-                            key={c.id}
-                            style={{
-                              background: isEspecial ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.04)",
-                              backdropFilter: "blur(20px)",
-                              WebkitBackdropFilter: "blur(20px)",
-                              border: `1px solid ${reserved ? "rgba(52,211,153,0.2)" : isEspecial ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.07)"}`,
-                              borderRadius: 14,
-                              padding: "14px 15px",
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
-                                  <span style={{ font: `400 0.72rem/1 ${fd}`, color: isEspecial ? "rgba(245,158,11,0.7)" : "rgba(255,255,255,0.35)", letterSpacing: "0.04em" }}>{c.start_time.slice(0, 5)}h</span>
-                                  {isEspecial && (
-                                    <span style={{ font: `700 0.55rem/1 ${fd}`, color: "#D97706", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)", padding: "2px 7px", borderRadius: 9999, letterSpacing: "0.06em" }}>ESPECIAL</span>
-                                  )}
-                                  {reserved && (
-                                    <span style={{ font: `600 0.55rem/1 ${fd}`, color: "#34D399", background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.2)", padding: "2px 7px", borderRadius: 9999, letterSpacing: "0.06em" }}>RESERVADO</span>
-                                  )}
-                                </div>
-                                <p style={{ font: `600 1rem/1.1 ${fd}`, color: "#FFFFFF", marginBottom: 4 }}>{c.class_name}</p>
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                  {c.coach_name && (
-                                    <span style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.35)" }}>{c.coach_name}</span>
-                                  )}
-                                  {!reserved && !isFull && (
-                                    <span style={{ font: `400 0.72rem/1 ${fd}`, color: available <= 3 ? "#F97316" : "rgba(255,255,255,0.25)" }}>
-                                      {available} cupo{available !== 1 ? "s" : ""}
-                                    </span>
-                                  )}
-                                  {isFull && (
-                                    <span style={{ font: `500 0.72rem/1 ${fd}`, color: "#EF4444" }}>Sin cupos</span>
-                                  )}
-                                </div>
-                                {c.notes && (
-                                  <p style={{ font: `400 0.7rem/1.45 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 6 }}>{c.notes}</p>
-                                )}
-                              </div>
-                              <div style={{ flexShrink: 0 }}>
-                                {reserved ? (
-                                  <button
-                                    onClick={() => handleReservar(c.id, selectedDay.iso)}
-                                    disabled={busy}
-                                    className="tap-active"
-                                    style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.07)", color: "#EF4444", font: `500 0.72rem/1 ${fd}`, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.5 : 1, whiteSpace: "nowrap" }}
-                                  >
-                                    {busy ? "..." : "Cancelar"}
-                                  </button>
-                                ) : isFull ? (
-                                  <button
-                                    disabled
-                                    style={{ padding: "8px 14px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.07)", background: "transparent", color: "rgba(255,255,255,0.2)", font: `500 0.72rem/1 ${fd}`, cursor: "not-allowed", whiteSpace: "nowrap" }}
-                                  >
-                                    Lista de espera
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleReservar(c.id, selectedDay.iso)}
-                                    disabled={busy}
-                                    className="tap-active"
-                                    style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: isEspecial ? "#D97706" : "#F97316", color: "#FFFFFF", font: `600 0.72rem/1 ${fd}`, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.5 : 1, whiteSpace: "nowrap" }}
-                                  >
-                                    {busy ? "..." : "Reservar"}
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-
-                {/* My upcoming reservations summary */}
-                {misReservas.length > 0 && (
-                  <div style={{ ...gc, padding: "13px 15px", marginTop: 4 }}>
-                    <p style={{ font: `500 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Mis reservas esta semana</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                      {misReservas.map(c => (
-                        <div key={`${c.id}|${c.day.iso}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <div>
-                            <span style={{ font: `500 0.82rem/1 ${fd}`, color: "#FFFFFF" }}>{c.class_name}</span>
-                            <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginLeft: 8 }}>{c.day.label === "Hoy" ? "Hoy" : c.day.label} · {c.start_time.slice(0, 5)}h</span>
-                          </div>
-                          <button
-                            onClick={() => handleReservar(c.id, c.day.iso)}
-                            disabled={reservando === `${c.id}|${c.day.iso}`}
-                            className="tap-active"
-                            style={{ padding: "5px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.05)", color: "#EF4444", font: `500 0.65rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap" }}
-                          >
-                            {reservando === `${c.id}|${c.day.iso}` ? "..." : "Cancelar"}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <PanelTabCalendario
+                days7={days7}
+                selectedDayIdx={selectedDayIdx}
+                setSelectedDayIdx={setSelectedDayIdx}
+                clases={clases}
+                reservas={reservas}
+                countsMap={countsMap}
+                misReservas={misReservas}
+                reservando={reservando}
+                handleReservar={handleReservar}
+              />
             )}
 
             {/* TAB — ENTRENAMIENTO */}
             {tab === "entrenamiento" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: isCompactScreen ? 10 : 8, animation: "fadeUp 0.22s ease" }}>
-                {rutina ? (() => {
-                  const isWod = !!(rutina.ejercicios[0]?._meta);
-                  const wodMeta = isWod ? rutina.ejercicios[0] : null;
-                  const items = isWod ? rutina.ejercicios.slice(1) : rutina.ejercicios;
-                  return (
-                  <>
-                    <div style={{
-                      ...(isCompactScreen ? {
-                        background: "rgba(255,255,255,0.03)",
-                        border: "1px solid rgba(255,255,255,0.06)",
-                        borderRadius: 18,
-                      } : gc),
-                      padding: isCompactScreen ? "14px 16px" : "16px 18px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                    }}>
-                      <div>
-                        <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
-                          {isWod ? "Tu WOD" : "Tu rutina"}
-                        </p>
-                        <h2 style={{ font: `700 ${isCompactScreen ? "1.04rem" : "1.2rem"}/1.1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.02em" }}>{rutina.nombre}</h2>
-                      </div>
-                      {isWod && wodMeta ? (
-                        <div style={{ textAlign: "right" }}>
-                          <span style={{ padding: "4px 10px", borderRadius: 9999, background: "rgba(99,102,241,0.18)", border: "1px solid rgba(99,102,241,0.25)", font: `700 0.7rem/1 ${fd}`, color: "#818cf8" }}>{wodMeta.modalidad}</span>
-                          <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 4 }}>{wodMeta.time_cap} min</p>
-                        </div>
-                      ) : (
-                        <span style={{ font: `500 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.32)", flexShrink: 0 }}>{items.length} ejercicios</span>
-                      )}
-                    </div>
-
-                    {isWod ? (
-                      // WOD: lista simple de movimientos
-                      <div style={{ ...(isCompactScreen ? { background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 18 } : gc), padding: "14px 16px" }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                          {items.map((m, i) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: isCompactScreen ? "12px 0" : "10px 0", borderBottom: i < items.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                              <p style={{ font: `500 ${isCompactScreen ? "0.98rem" : "0.9rem"}/1.3 ${fd}`, color: "#FFFFFF" }}>{m.nombre}</p>
-                              <span style={{ font: `700 ${isCompactScreen ? "0.95rem" : "0.88rem"}/1 ${fd}`, color: "#818cf8", flexShrink: 0 }}>{m.reps}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      // Gym: tabla con kg tracking
-                      items.map((ej, i) => {
-                        const lastPeso = latestPesoByExercise.get(ej.nombre);
-                        const saving = !!inlineSaving[ej.nombre];
-                        return (
-                          <div key={i} style={{
-                            ...(isCompactScreen ? {
-                              background: "rgba(255,255,255,0.03)",
-                              border: "1px solid rgba(255,255,255,0.06)",
-                              borderRadius: 18,
-                            } : gc),
-                            padding: isCompactScreen ? "16px 14px" : "15px 16px",
-                          }}>
-                            <div style={{ display: "grid", gap: 12, marginBottom: 14 }}>
-                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
-                                <p style={{ font: `600 ${isCompactScreen ? "1rem" : "0.95rem"}/1.2 ${fd}`, color: "#FFFFFF", marginBottom: 0, flex: 1 }}>{ej.nombre}</p>
-                                {lastPeso && (
-                                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                    <div style={{ display: "flex", alignItems: "baseline", gap: 3, justifyContent: "flex-end" }}>
-                                      <span style={{ font: `700 ${isCompactScreen ? "1.15rem" : "1.3rem"}/1 ${fd}`, color: "#FFFFFF" }}>{lastPeso.peso}</span>
-                                      <span style={{ font: `500 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>kg</span>
-                                    </div>
-                                    <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.22)", marginTop: 4 }}>último {lastPeso.fecha}</p>
-                                  </div>
-                                )}
-                              </div>
-                              <div style={{ display: "flex", gap: 8, alignItems: "stretch", flexWrap: "wrap" }}>
-                                  {[
-                                    { val: ej.series, label: "series" },
-                                    { val: ej.repeticiones, label: "reps" },
-                                    ...(ej.peso_sugerido ? [{ val: ej.peso_sugerido, label: "sug." }] : []),
-                                  ].map((item) => (
-                                    <div key={item.label} style={{ minWidth: 68, padding: "8px 10px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, textAlign: "center" }}>
-                                      <span style={{ font: `700 1rem/1 ${fd}`, color: "#FFFFFF" }}>{item.val}</span>
-                                      <p style={{ font: `500 0.56rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", letterSpacing: "0.07em", textTransform: "uppercase", marginTop: 4 }}>{item.label}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            {workoutSession?.series_log[ej.nombre] !== undefined && (
-                              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-                                <span style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.07em", minWidth: 42, flexShrink: 0 }}>Series</span>
-                                {Array.from({ length: ej.series }).map((_, idx) => {
-                                  const done = idx < (workoutSession.series_log[ej.nombre]?.completadas ?? 0);
-                                  return (
-                                    <button key={idx} onClick={() => markSerie(ej.nombre, idx)} style={{ width: 30, height: 30, borderRadius: "50%", border: done ? "none" : "1px solid rgba(255,255,255,0.18)", background: done ? "linear-gradient(135deg,#F97316,#EA580C)" : "rgba(255,255,255,0.06)", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", padding: 0 }}>
-                                      {done && <span style={{ color: "#fff", fontSize: "0.68rem", lineHeight: 1 }}>✓</span>}
-                                    </button>
-                                  );
-                                })}
-                                <span style={{ font: `600 0.72rem/1 ${fd}`, color: (workoutSession.series_log[ej.nombre]?.completadas ?? 0) === ej.series ? "#F97316" : "rgba(255,255,255,0.28)", marginLeft: 4 }}>
-                                  {workoutSession.series_log[ej.nombre]?.completadas ?? 0}/{ej.series}
-                                </span>
-                                {/* Rest timer buttons */}
-                                <div style={{ marginLeft: "auto", display: "flex", gap: 5 }}>
-                                  {([60, 90] as const).map(s => (
-                                    <button key={s} onClick={() => startRest(s)} style={{ height: 26, padding: "0 10px", borderRadius: 9999, background: restSeconds !== null && restTotal === s ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.05)", border: `1px solid ${restSeconds !== null && restTotal === s ? "rgba(249,115,22,0.4)" : "rgba(255,255,255,0.1)"}`, font: `600 0.65rem/1 ${fd}`, color: restSeconds !== null && restTotal === s ? "#F97316" : "rgba(255,255,255,0.35)", cursor: "pointer", whiteSpace: "nowrap" }}>
-                                      ⏱ {s}s
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            <div style={{ display: "grid", gridTemplateColumns: isCompactScreen ? "1fr" : "1fr auto", gap: 10, alignItems: "stretch", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 12 }}>
-                              <div style={{ position: "relative", flex: 1 }}>
-                                <input
-                                  type="number" step="0.5" min="0" placeholder="kg hoy"
-                                  value={inlineKg[ej.nombre] ?? ""}
-                                  onChange={e => setInlineKg(prev => ({ ...prev, [ej.nombre]: e.target.value }))}
-                                  onKeyDown={e => e.key === "Enter" && handleInlineKgSave(ej.nombre)}
-                                  inputMode="decimal"
-                                  style={{ width: "100%", minHeight: 48, padding: "0 44px 0 14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 14, font: `600 0.98rem/1 ${fd}`, color: "#FFFFFF", outline: "none", boxSizing: "border-box" }}
-                                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(249,115,22,0.55)")}
-                                  onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.10)")}
-                                />
-                                <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", pointerEvents: "none", letterSpacing: "0.05em" }}>KG</span>
-                              </div>
-                              <button
-                                onClick={() => handleInlineKgSave(ej.nombre)}
-                                disabled={saving || !inlineKg[ej.nombre]}
-                                style={{
-                                  minHeight: 48,
-                                  minWidth: isCompactScreen ? "100%" : 120,
-                                  padding: isCompactScreen ? "0 14px" : "0 16px",
-                                  background: saving || !inlineKg[ej.nombre] ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg, #F97316 0%, #EA580C 100%)",
-                                  border: "none",
-                                  borderRadius: 14,
-                                  color: saving || !inlineKg[ej.nombre] ? "rgba(255,255,255,0.22)" : "#FFFFFF",
-                                  font: `700 0.82rem/1 ${fd}`,
-                                  cursor: saving || !inlineKg[ej.nombre] ? "not-allowed" : "pointer",
-                                  whiteSpace: "nowrap",
-                                  letterSpacing: "0.03em",
-                                  transition: "all 0.15s",
-                                }}
-                              >
-                                {saving ? "Guardando..." : "Guardar kg"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                    {workoutSession && (
-                      workoutSession.completada ? (
-                        <div style={{ ...gc, padding: "16px 18px", textAlign: "center" }}>
-                          <p style={{ font: `700 0.92rem/1 ${fd}`, color: "#F97316" }}>Entrenamiento completado</p>
-                          <p style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", marginTop: 6 }}>Los datos están guardados{workoutSession.offline ? " (offline)" : ""}</p>
-                        </div>
-                      ) : (
-                        <button onClick={handleFinalize} disabled={wsSyncing} style={{ width: "100%", minHeight: 52, background: "linear-gradient(135deg,#F97316 0%,#EA580C 100%)", border: "none", borderRadius: 16, font: `700 0.9rem/1 ${fd}`, color: "#FFFFFF", cursor: wsSyncing ? "not-allowed" : "pointer", opacity: wsSyncing ? 0.6 : 1, letterSpacing: "0.03em", transition: "opacity 0.15s" }}>
-                          {wsSyncing ? "Guardando..." : "Finalizar entrenamiento"}
-                        </button>
-                      )
-                    )}
-                  </>
-                  );
-                })() : (
-                  <div style={{ ...gc, padding: "48px 24px", textAlign: "center" }}>
-                    <Dumbbell size={28} color="rgba(255,255,255,0.15)" strokeWidth={1.5} style={{ margin: "0 auto 16px" }} />
-                    <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", marginBottom: 6 }}>Sin rutina asignada</p>
-                    <p style={{ font: `400 0.78rem/1.5 ${fd}`, color: "rgba(255,255,255,0.3)" }}>Tu entrenador aun no configuro tu rutina.</p>
-                  </div>
-                )}
-              </div>
+              <PanelTabEntrenamiento
+                rutina={rutina}
+                workoutSession={workoutSession}
+                wsSyncing={wsSyncing}
+                isCompactScreen={isCompactScreen}
+                restSeconds={restSeconds}
+                restTotal={restTotal}
+                inlineKg={inlineKg}
+                inlineSaving={inlineSaving}
+                latestPesoByExercise={latestPesoByExercise}
+                markSerie={markSerie}
+                handleInlineKgSave={handleInlineKgSave}
+                setInlineKg={setInlineKg}
+                startRest={startRest}
+                handleFinalize={handleFinalize}
+              />
             )}
 
+            {/* TAB ENTRENAMIENTO MOVED TO EXTRACTED COMPONENT */}
             {/* TAB — METAS */}
             {tab === "metas" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 8, animation: "fadeUp 0.22s ease" }}>
@@ -1968,7 +1688,7 @@ function AlumnoPanelInner() {
         ] as const).map(({ key, label, Icon }) => {
           const active = tab === key;
           return (
-            <button key={key} onClick={() => setTab(key)} className="tap-active" style={{ flex: 1, minHeight: 52, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
+            <button key={key} onClick={() => handleTabChange(key)} className="tap-active" style={{ flex: 1, minHeight: 52, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
               <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
               <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>{label}</span>
               <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />
@@ -2001,7 +1721,7 @@ function AlumnoPanelInner() {
         ] as const).map(({ key, label, Icon }) => {
           const active = tab === key;
           return (
-            <button key={key} onClick={() => setTab(key)} className="tap-active" style={{ flex: 1, minHeight: 52, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
+            <button key={key} onClick={() => handleTabChange(key)} className="tap-active" style={{ flex: 1, minHeight: 52, background: "transparent", border: "none", borderRadius: 20, padding: "8px 6px 5px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
               <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
               <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>{label}</span>
               <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />
@@ -2346,14 +2066,19 @@ function AlumnoPanelInner() {
 
       {/* Session Expired Modal */}
       <SessionExpiredModal show={sessionExpired} />
+
+      {/* Offline Indicator */}
+      <OfflineIndicator isSyncing={isSyncing} syncedCount={syncedCount} />
     </div>
   );
 }
 
 export default function AlumnoPanelPage() {
   return (
-    <Suspense fallback={null}>
-      <AlumnoPanelInner />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={null}>
+        <AlumnoPanelInner />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
