@@ -509,6 +509,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             color: rgba(255,255,255,0.88) !important;
             background: rgba(255,255,255,0.05) !important;
           }
+          @keyframes notifBellPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+          }
+          .notif-bell-active {
+            animation: notifBellPulse 2s ease-in-out infinite;
+          }
         `}</style>
         <nav className="sb-nav" style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
           {(role === "staff" ? NAV_SECTIONS_STAFF : NAV_SECTIONS_ADMIN).map(({ section, items }) => (
@@ -718,12 +725,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* ── Notification Bell ── */}
             <div ref={notifRef} style={{ position: "relative" }}>
               <button
+                className={unreadCount > 0 ? "notif-bell-active" : ""}
                 onClick={handleOpenNotifs}
-                style={{ position: "relative", background: isMobile ? "rgba(255,255,255,0.06)" : "none", border: isMobile ? "1px solid rgba(255,255,255,0.08)" : "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.78)" : (isFlujosRoute ? "rgba(255,255,255,0.4)" : "#6B7280"), padding: isMobile ? "0 12px" : 5, minWidth: isMobile ? 44 : undefined, minHeight: 44, borderRadius: isMobile ? 14 : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}
+                style={{ position: "relative", background: isMobile ? "rgba(255,255,255,0.06)" : "none", border: isMobile ? "1px solid rgba(255,255,255,0.08)" : "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.78)" : (isFlujosRoute ? "rgba(255,255,255,0.4)" : "#6B7280"), padding: isMobile ? "0 12px" : 5, minWidth: isMobile ? 44 : undefined, minHeight: 44, borderRadius: isMobile ? 14 : undefined, display: "flex", alignItems: "center", justifyContent: "center", transformOrigin: "center" }}
               >
                 <Bell size={19} />
                 {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#1A1D23", borderRadius: "50%", border: `2px solid ${isMobile ? "#151515" : isFlujosRoute ? "#0D0F12" : "white"}` }} />
+                  <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#DC2626", borderRadius: "50%", border: `2px solid ${isMobile ? "#151515" : isFlujosRoute ? "#0D0F12" : "white"}`, boxShadow: "0 0 8px rgba(220, 38, 38, 0.5)" }} />
                 )}
               </button>
 
@@ -878,6 +886,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             background: "rgba(37,99,235,0.07)",
             borderBottom: "1px solid rgba(37,99,235,0.18)",
             flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
           }}>
             <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#2563EB" }}>
               Viendo dashboard de <strong>{impersonatedGym.gym_name}</strong> como plataforma
@@ -899,6 +908,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             background: "rgba(220,38,38,0.06)",
             borderBottom: "1px solid rgba(220,38,38,0.16)",
             flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <AlertTriangle size={13} color="#DC2626" />
@@ -929,6 +939,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             background: trialDaysLeft <= 2 ? "rgba(220,38,38,0.07)" : "rgba(217,119,6,0.07)",
             borderBottom: `1px solid ${trialDaysLeft <= 2 ? "rgba(220,38,38,0.18)" : "rgba(217,119,6,0.18)"}`,
             flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Clock size={13} color={trialDaysLeft <= 2 ? "#DC2626" : "#D97706"} />
@@ -960,6 +971,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             background: "rgba(249,115,22,0.06)",
             borderBottom: "1px solid rgba(249,115,22,0.15)",
             flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 14 }}>🎁</span>
