@@ -257,7 +257,7 @@ export default function DashboardPage() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const [sugerOpen, setSugerOpen] = useState(false);
-  const [metricSectionOpen, setMetricSectionOpen] = useState<Record<string, boolean>>({ Embudo: true, Fidelización: true, Eficiencia: true });
+  const [metricSectionOpen, setMetricSectionOpen] = useState<Record<string, boolean>>({ Embudo: false, Fidelización: false, Eficiencia: false });
   const realSnapshotRef = useRef<DashboardSnapshot | null>(null);
 
   const applySnapshot = useCallback((snapshot: DashboardSnapshot) => {
@@ -756,9 +756,9 @@ export default function DashboardPage() {
             <Icon size={14} />
           </div>
           <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{title}</p>
-          {isEmbudo && (
-            <span style={{ font: `600 0.62rem/1 ${fm}`, color: prospectos > 0 ? accentDeep : t3, background: prospectos > 0 ? "rgba(255,122,24,0.08)" : "rgba(15,17,21,0.05)", border: `1px solid ${prospectos > 0 ? "rgba(255,122,24,0.18)" : "rgba(15,17,21,0.08)"}`, borderRadius: 9999, padding: "3px 8px", whiteSpace: "nowrap" }}>
-              ● {prospectos} leads activos
+          {isEmbudo && prospectos > 0 && (
+            <span style={{ font: `600 0.62rem/1 ${fm}`, color: accentDeep, background: "rgba(255,122,24,0.08)", border: "1px solid rgba(255,122,24,0.18)", borderRadius: 9999, padding: "3px 8px", whiteSpace: "nowrap" }}>
+              ● {prospectos} lead{prospectos === 1 ? "" : "s"} activo{prospectos === 1 ? "" : "s"}
             </span>
           )}
           <span style={{ font: `400 0.74rem/1 ${fb}`, color: t3, marginLeft: "auto", whiteSpace: "nowrap" }}>{subtitle}</span>
