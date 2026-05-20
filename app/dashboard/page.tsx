@@ -501,7 +501,7 @@ export default function DashboardPage() {
       },
     ];
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
         {actions.map((a) => (
           <a
             key={a.label}
@@ -1015,7 +1015,7 @@ export default function DashboardPage() {
           <p style={{ font: `600 0.62rem/1 ${fm}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
           <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, marginBottom: 2 }}>Lo que FitGrowX hizo por vos</p>
           <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t3, marginBottom: 12 }}>El sistema trabajó mientras te ocupabas del gym.</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
             {[
               { icon: <Send size={13} />, value: mensajesAutoEnviados, label: "MENSAJES" },
               { icon: <CheckCircle size={13} />, value: renovacionesCount, label: "RENOVAC." },
@@ -1477,7 +1477,7 @@ export default function DashboardPage() {
       {renderMetricSection("Eficiencia")}
 
       {/* Nuevos socios + Balance neto */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(320px, 1fr)", gap: 20 }}>
         {/* Nuevos socios por mes */}
         <div style={{ ...cardBase, padding: "22px 22px 18px", background: whitePanel }} {...cardHover}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
@@ -1641,7 +1641,7 @@ export default function DashboardPage() {
       )}
 
       {loading && asistDiarias.length === 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 1fr)", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.35fr) minmax(320px, 1fr)", gap: 20 }}>
           <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}><Skel w={160} h={16} r={6} /><Skel w={200} h={12} r={5} /></div>
@@ -1676,7 +1676,7 @@ export default function DashboardPage() {
         const maxA = Math.max(...asistDiarias.map((d) => d.count), 1);
         const peakH = asistHoras.indexOf(Math.max(...asistHoras));
         return (
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(320px, 1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.35fr) minmax(320px, 1fr)", gap: 20 }}>
             <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }} {...cardHover}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
                 <div>
