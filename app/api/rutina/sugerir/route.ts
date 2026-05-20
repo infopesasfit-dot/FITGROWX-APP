@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { rutinaSugerirSchema } from "@/lib/schemas";
 import { applyRateLimit } from "@/lib/request-security";
+import { parseJson } from "@/lib/api/parse";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -12,17 +13,9 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  let raw: unknown;
-  try {
-    raw = await req.json();
-  } catch {
-    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
-  }
-
-  const parsed = rutinaSugerirSchema.safeParse(raw);
-  if (!parsed.success) {
-    const msg = parsed.error.issues[0]?.message ?? "Datos inválidos.";
-    return NextResponse.json({ error: msg }, { status: 400 });
+  const parseResult = await parseJson(req, rutinaSugerirSchema);
+  if (!parseResult.ok) {
+    return parseResult.response;
   }
 
   // Rate limit: 20 requests per hour per user
@@ -37,9 +30,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Límite de IA alcanzado. Reintentá en una hora." }, { status: 429 });
   }
 
-  const { objetivo, alumno_name, tipo, modalidad, time_cap } = parsed.data;
+  const { objetivo, alumno_name, tipo, modalidad, time_cap, notas } = parseResult.data;
   // Sanitize notas: max 500 chars, remove special characters
-  const rawNotas = parsed.data.notas?.trim() ?? "";
+  const rawNotas = notas?.trim() ?? "";
   const safeNotas = rawNotas.slice(0, 500).replace(/[{}]/g, "");
   const notasExtra = safeNotas ? `\nIndicaciones adicionales del coach: "${safeNotas}"` : "";
 
