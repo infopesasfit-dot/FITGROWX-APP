@@ -14,6 +14,7 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
+    "@tanstack/react-virtual": "^3.13.25",
     "@types/papaparse": "^5.5.2",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",

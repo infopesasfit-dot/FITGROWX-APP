@@ -180,7 +180,6 @@ export function LandingHeader(props: LandingHeaderProps) {
             height={150}
             className="relative z-10 h-8 w-auto object-contain lg:h-7.5"
             priority
-            unoptimized
           />
         </Link>
 

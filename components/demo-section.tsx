@@ -226,7 +226,6 @@ export function DemoSection() {
                   width={1240}
                   height={760}
                   className="h-auto w-full"
-                  priority
                 />
               </div>
             </div>

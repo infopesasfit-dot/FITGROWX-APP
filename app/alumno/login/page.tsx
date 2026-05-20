@@ -2,8 +2,24 @@
 
 import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { Archivo_Black, JetBrains_Mono } from "next/font/google";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+
+const archivoBlack = Archivo_Black({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-archivo-black",
+  display: "swap",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+});
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -159,7 +175,6 @@ function LoginContent() {
   if (status === "sent") {
     return (
       <div style={{ minHeight:"100svh", background:"#0a0a0a", display:"flex", flexDirection:"column", color:"#fff", fontFamily:FB }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@500;600;700&display=swap');`}</style>
         <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"0 32px", textAlign:"center", gap:24 }}>
           <div style={{ width:96, height:96, borderRadius:"50%", background:rgb(accent,0.18), color:accent, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:`0 0 0 1px ${rgb(accent,0.18)}, 0 20px 60px ${rgb(accent,0.18)}` }}>
             <IcoCheck size={44}/>
@@ -202,7 +217,15 @@ function LoginContent() {
 
         {/* Image clip — full bleed, only bottom corners rounded */}
         <div style={{ position:"absolute", inset:0, borderBottomLeftRadius:36, borderBottomRightRadius:36, overflow:"hidden" }}>
-          <img src={HERO} alt="" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(2px) saturate(0.85) brightness(0.78)", transform:"scale(1.06)" }}/>
+          <Image
+            src={HERO}
+            alt="Login background"
+            fill
+            priority
+            sizes="100vw"
+            style={{ objectFit:"cover", filter:"blur(2px) saturate(0.85) brightness(0.78)", transform:"scale(1.06)" }}
+            quality={85}
+          />
           {/* dark vignette */}
           <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, rgba(10,10,10,0.55) 0%, rgba(10,10,10,0) 30%, rgba(10,10,10,0) 50%, rgba(10,10,10,0.97) 100%)" }}/>
           {/* warm tint */}
