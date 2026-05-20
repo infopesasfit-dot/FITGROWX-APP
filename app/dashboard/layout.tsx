@@ -737,8 +737,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               {notifOpen && (
                 <div style={{
-                  position: "absolute", top: "calc(100% + 10px)", right: 0,
-                  width: isMobile ? "min(calc(100vw - 24px), 360px)" : 340,
+                  position: "fixed", top: isMobile ? "calc(100% + 16px)" : "auto", right: isMobile ? 12 : "auto",
+                  bottom: isMobile ? "auto" : "auto",
+                  width: isMobile ? "calc(100vw - 24px)" : 340,
+                  maxWidth: isMobile ? 360 : 340,
                   background: "#FFFFFF",
                   border: "1px solid rgba(0,0,0,0.08)",
                   borderRadius: 16,
@@ -747,14 +749,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   overflow: "hidden",
                   animation: "dropIn 0.16s cubic-bezier(0.34,1.56,0.64,1) both",
                 }}>
-                  <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ font: `700 0.875rem/1 ${fd}`, color: "#1A1D23" }}>Notificaciones</span>
+                  <div style={{ padding: isMobile ? "12px 14px 10px" : "14px 16px 10px", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ font: `700 ${isMobile ? "0.8rem" : "0.875rem"}/1 ${fd}`, color: "#1A1D23", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Notificaciones</span>
                     {notifs.length > 0 && (
-                      <span style={{ font: `500 0.72rem/1 ${fd}`, color: "#9CA3AF" }}>{notifs.length} total</span>
+                      <span style={{ font: `500 0.72rem/1 ${fd}`, color: "#9CA3AF", flexShrink: 0 }}>{notifs.length}</span>
                     )}
                   </div>
 
-                  <div style={{ maxHeight: 360, overflowY: "auto" }}>
+                  <div style={{ maxHeight: isMobile ? "calc(100vh - 140px)" : 360, overflowY: "auto" }}>
                     {notifs.length === 0 ? (
                       <div style={{ padding: "32px 16px", textAlign: "center" }}>
                         <Bell size={28} color="#D1D5DB" style={{ margin: "0 auto 10px", display: "block" }} />
@@ -763,7 +765,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     ) : (
                       notifs.map(n => (
                         <div key={n.id} style={{
-                          display: "flex", gap: 10, padding: "11px 16px",
+                          display: "flex", gap: isMobile ? 8 : 10, padding: isMobile ? "10px 12px" : "11px 16px",
                           borderBottom: "1px solid rgba(0,0,0,0.04)",
                           background: n.read ? "transparent" : "rgba(0,0,0,0.02)",
                           transition: "background 0.12s",
@@ -772,15 +774,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             {notifIconMap[n.type] ?? <Bell size={13} color="#6B7280" />}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, font: `600 0.82rem/1.2 ${fd}`, color: "#1A1D23" }}>{n.title}</p>
+                            <p style={{ margin: 0, font: `600 ${isMobile ? "0.75rem" : "0.82rem"}/1.2 ${fd}`, color: "#1A1D23", wordBreak: "break-word" }}>{n.title}</p>
                             {n.body && (
                               n.link
-                                ? <Link href={n.link} style={{ margin: "2px 0 0", display: "block", font: `400 0.75rem/1.4 ${fd}`, color: "#1A1D23", textDecoration: "underline" }}>{n.body}</Link>
-                                : <p style={{ margin: "2px 0 0", font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280" }}>{n.body}</p>
+                                ? <Link href={n.link} style={{ margin: "2px 0 0", display: "block", font: `400 0.75rem/1.4 ${fd}`, color: "#1A1D23", textDecoration: "underline", wordBreak: "break-word" }}>{n.body}</Link>
+                                : <p style={{ margin: "2px 0 0", font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280", wordBreak: "break-word" }}>{n.body}</p>
                             )}
-                            <p style={{ margin: "4px 0 0", font: `400 0.7rem/1 ${fd}`, color: "#9CA3AF" }}>{timeAgo(n.created_at)}</p>
+                            <p style={{ margin: "4px 0 0", font: `400 0.7rem/1 ${fd}`, color: "#9CA3AF", flexShrink: 0 }}>{timeAgo(n.created_at)}</p>
                           </div>
-                          {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#1A1D23", flexShrink: 0, marginTop: 6 }} />}
+                          {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#DC2626", flexShrink: 0, marginTop: 6 }} />}
                         </div>
                       ))
                     )}
