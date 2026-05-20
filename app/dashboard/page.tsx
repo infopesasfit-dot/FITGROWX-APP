@@ -257,6 +257,7 @@ export default function DashboardPage() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const [sugerOpen, setSugerOpen] = useState(false);
+  const [metricSectionOpen, setMetricSectionOpen] = useState<Record<string, boolean>>({ Embudo: true, Fidelización: true, Eficiencia: true });
   const realSnapshotRef = useRef<DashboardSnapshot | null>(null);
 
   const applySnapshot = useCallback((snapshot: DashboardSnapshot) => {
@@ -743,10 +744,14 @@ export default function DashboardPage() {
     const title    = isEmbudo ? "Captación de socios" : isFidel ? "Retención" : "Eficiencia";
     const subtitle = isEmbudo ? "Personas que llegaron y cuántas terminaron pagando" : isFidel ? "Quiénes renuevan y quiénes se van" : "Rendimiento del negocio";
 
+    const isOpen = metricSectionOpen[section] ?? true;
     return (
       <section style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: isMobile ? "14px 16px 12px" : "16px 20px 14px", borderBottom: "1px solid rgba(15,17,21,0.07)" }}>
+        <button
+          onClick={() => setMetricSectionOpen(prev => ({ ...prev, [section]: !prev[section] }))}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: isMobile ? "14px 16px 12px" : "16px 20px 14px", borderBottom: "1px solid rgba(15,17,21,0.07)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+        >
           <div style={{ width: 28, height: 28, borderRadius: 8, background: iconBg, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Icon size={14} />
           </div>
@@ -757,46 +762,51 @@ export default function DashboardPage() {
             </span>
           )}
           <span style={{ font: `400 0.74rem/1 ${fb}`, color: t3, marginLeft: "auto", whiteSpace: "nowrap" }}>{subtitle}</span>
-        </div>
+          <span style={{ font: `400 1rem/1 ${fd}`, color: t3, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>⌄</span>
+        </button>
         {/* Grid */}
-        {loading && sectionMetrics.length === 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-            {Array(cols * (isEmbudo ? 2 : 1)).fill(null).map((_, i) => (
-              <div key={i} style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-                <Skel w="30%" h={9} r={4} />
-                <Skel w="55%" h={10} r={4} />
-                <Skel w="40%" h={28} r={7} />
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <Skel w={64} h={22} r={6} />
-                  <Skel w={72} h={10} r={4} />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : sectionMetrics.length === 0 ? (
-          <div style={{ padding: "22px 20px", display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-            {Array(cols).fill(null).map((_, i) => (
-              <div key={i} style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 8, opacity: 0.45 }}>
-                <Skel w="40%" h={8} r={4} />
-                <Skel w="30%" h={28} r={7} />
-                <Skel w="55%" h={8} r={4} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-            {sectionMetrics.map((m, i) => {
-              const isRowLast = (i + 1) % cols === 0 || i === sectionMetrics.length - 1;
-              const isLastRow = i >= sectionMetrics.length - cols;
-              return (
-                <React.Fragment key={m.key}>
-                  <div style={{ borderBottom: !isLastRow && !isMobile ? "1px solid rgba(15,17,21,0.07)" : "none" }}>
-                    {renderMetricCell(m, i, isEmbudo, isRowLast)}
+        {isOpen && (
+          <>
+            {loading && sectionMetrics.length === 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                {Array(cols * (isEmbudo ? 2 : 1)).fill(null).map((_, i) => (
+                  <div key={i} style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <Skel w="30%" h={9} r={4} />
+                    <Skel w="55%" h={10} r={4} />
+                    <Skel w="40%" h={28} r={7} />
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <Skel w={64} h={22} r={6} />
+                      <Skel w={72} h={10} r={4} />
+                    </div>
                   </div>
-                </React.Fragment>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            ) : sectionMetrics.length === 0 ? (
+              <div style={{ padding: "22px 20px", display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                {Array(cols).fill(null).map((_, i) => (
+                  <div key={i} style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 8, opacity: 0.45 }}>
+                    <Skel w="40%" h={8} r={4} />
+                    <Skel w="30%" h={28} r={7} />
+                    <Skel w="55%" h={8} r={4} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                {sectionMetrics.map((m, i) => {
+                  const isRowLast = (i + 1) % cols === 0 || i === sectionMetrics.length - 1;
+                  const isLastRow = i >= sectionMetrics.length - cols;
+                  return (
+                    <React.Fragment key={m.key}>
+                      <div style={{ borderBottom: !isLastRow && !isMobile ? "1px solid rgba(15,17,21,0.07)" : "none" }}>
+                        {renderMetricCell(m, i, isEmbudo, isRowLast)}
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </section>
     );
