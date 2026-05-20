@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, createHash } from "crypto";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 type AuthProfile = { gym_id: string | null; role: string | null };
@@ -9,13 +9,13 @@ const admin = getSupabaseAdminClient();
 
 async function getGymId(): Promise<{ gymId: string } | { error: NextResponse }> {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return { error: NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 }) };
+  const user = await requireUser();
+  if (!user) return { error: NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 }) };
 
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle<AuthProfile>();
 
   if (!profile?.gym_id || profile.role !== "admin") {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { createStaffSchema, parseBody } from "@/lib/schemas";
 
 type AdminProfile = {
@@ -11,13 +11,13 @@ type AdminProfile = {
 const supabaseAdmin = getSupabaseAdminClient();
 
 async function getAdminGymId(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
+  const user = await requireUser();
+  if (!user) return null;
   const { data: profile } = await supabaseAdmin
-    .from("profiles").select("gym_id, role").eq("id", session.user.id).maybeSingle<AdminProfile>();
+    .from("profiles").select("gym_id, role").eq("id", user.id).maybeSingle<AdminProfile>();
   const profileRow = profile as AdminProfile | null;
   if (!profileRow || profileRow.role !== "admin") return null;
-  return { userId: session.user.id, gymId: profileRow.gym_id as string };
+  return { userId: user.id, gymId: profileRow.gym_id as string };
 }
 
 // GET — listar staff del gym

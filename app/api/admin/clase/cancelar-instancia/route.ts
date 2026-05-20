@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendWa } from "@/lib/wa";
 import { normalizePhone } from "@/lib/phone";
@@ -10,13 +10,13 @@ const admin = getSupabaseAdminClient();
 
 async function getAuthorizedProfile() {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
+  const user = await requireUser();
+  if (!user) return null;
 
   const { data: profile } = await admin
     .from("profiles")
     .select("id, gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle<{ id: string; gym_id: string | null; role: string | null }>();
 
   if (!profile?.gym_id || !["admin", "staff", "platform_owner"].includes(profile.role ?? "")) {

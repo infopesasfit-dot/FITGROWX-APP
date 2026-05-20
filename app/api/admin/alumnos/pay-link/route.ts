@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 
@@ -9,10 +9,10 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").
 
 export async function POST(req: NextRequest) {
   const sbUser = await createSupabaseServerClient();
-  const { data: { session } } = await sbUser.auth.getSession();
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: profile } = await sb.from("profiles").select("gym_id, role").eq("id", session.user.id).maybeSingle();
+  const { data: profile } = await sb.from("profiles").select("gym_id, role").eq("id", user.id).maybeSingle();
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? ""))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

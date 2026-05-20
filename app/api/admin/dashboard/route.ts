@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getPlanNombre, getRelationRecord } from "@/lib/supabase-relations";
 import { getTodayDate } from "@/lib/date-utils";
@@ -78,8 +78,8 @@ function averageMonthsFromCreated(rows: AlumnoMetricRow[]) {
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const admin = getSupabaseAdminClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) {
+  const user = await requireUser();
+  if (!user) {
     return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
   }
 
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role, full_name")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile?.gym_id || !["admin", "staff", "platform_owner"].includes(profile.role ?? "")) {
@@ -210,9 +210,9 @@ export async function GET(req: NextRequest) {
     profile.full_name?.trim() ||
     gymSettings?.owner_name?.trim() ||
     gymRow?.owner_name?.trim() ||
-    (session.user.user_metadata?.full_name as string | undefined)?.trim() ||
-    (session.user.user_metadata?.name as string | undefined)?.trim() ||
-    session.user.email?.split("@")[0] ||
+    (user.user_metadata?.full_name as string | undefined)?.trim() ||
+    (user.user_metadata?.name as string | undefined)?.trim() ||
+    user.email?.split("@")[0] ||
     "dueño";
   const gymDisplay =
     gymSettings?.gym_name?.trim() ||

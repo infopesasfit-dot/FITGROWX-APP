@@ -1,6 +1,6 @@
 import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createClassesSchema, patchClassSchema, parseBody } from "@/lib/schemas";
 
@@ -20,13 +20,13 @@ const admin = getSupabaseAdminClient();
 
 async function getAuthorizedProfile(): Promise<AuthorizedGymProfile | null> {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
+  const user = await requireUser();
+  if (!user) return null;
 
   const { data: profile } = await admin
     .from("profiles")
     .select("id, gym_id, role, full_name, email")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile || !profile.gym_id || !["admin", "staff", "platform_owner"].includes(profile.role ?? "")) {

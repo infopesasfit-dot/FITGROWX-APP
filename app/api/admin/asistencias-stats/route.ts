@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 
 type AdminProfile = {
   gym_id: string | null;
@@ -21,13 +21,13 @@ type AsistenciaTodayRow = {
 export async function GET(req: NextRequest) {
   const supabaseAdmin = getSupabaseAdminClient();
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return NextResponse.json({ ok: false }, { status: 401 });
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle<AdminProfile>();
 
   const profileRow = profile as AdminProfile | null;

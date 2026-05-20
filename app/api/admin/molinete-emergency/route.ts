@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const admin = getSupabaseAdminClient();
 
 async function getAuth(): Promise<{ gymId: string; userId: string } | null> {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
+  const user = await requireUser();
+  if (!user) return null;
 
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle<{ gym_id: string | null; role: string | null }>();
 
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? "")) return null;
-  return { gymId: profile.gym_id, userId: session.user.id };
+  return { gymId: profile.gym_id, userId: user.id };
 }
 
 // POST — admin triggers an emergency open (creates a 45-second token)

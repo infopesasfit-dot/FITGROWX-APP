@@ -1,19 +1,18 @@
 import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient, requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getTodayDate } from "@/lib/date-utils";
 
 const admin = getSupabaseAdminClient();
 
-async function getAdminGymId(req: NextRequest): Promise<string | null> {
-  const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
+async function getAdminGymId(): Promise<string | null> {
+  const user = await requireUser();
+  if (!user) return null;
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle();
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? "")) return null;
   return profile.gym_id;
@@ -21,7 +20,7 @@ async function getAdminGymId(req: NextRequest): Promise<string | null> {
 
 // POST /api/admin/alumnos/freeze  { alumno_id, dias }
 export async function POST(req: NextRequest) {
-  const gymId = await getAdminGymId(req);
+  const gymId = await getAdminGymId();
   if (!gymId) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const body = await req.json() as { alumno_id?: string; dias?: number };
@@ -56,7 +55,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/admin/alumnos/freeze  { alumno_id }
 export async function DELETE(req: NextRequest) {
-  const gymId = await getAdminGymId(req);
+  const gymId = await getAdminGymId();
   if (!gymId) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const body = await req.json() as { alumno_id?: string };

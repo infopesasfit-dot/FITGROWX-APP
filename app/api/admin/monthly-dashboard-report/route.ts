@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendMonthlyDashboardReport } from "@/lib/monthly-dashboard-report-delivery";
 
@@ -18,9 +18,9 @@ type BillingStatus = {
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const user = await requireUser();
 
-  if (!session?.user) {
+  if (!user) {
     return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
   }
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await admin
     .from("profiles")
     .select("id, gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle<AuthorizedProfile>();
 
   if (!profile || !profile.gym_id || !["admin", "platform_owner"].includes(profile.role ?? "")) {
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "El reporte mensual solo está disponible para gimnasios activos o con trial vigente." }, { status: 403 });
   }
 
-  const email = (gymSettings?.email ?? session.user.email ?? "").trim();
+  const email = (gymSettings?.email ?? user.email ?? "").trim();
   if (!email) {
     return NextResponse.json({ ok: false, error: "No hay email configurado para enviar el reporte." }, { status: 400 });
   }

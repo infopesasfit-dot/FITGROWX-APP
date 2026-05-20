@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const sb = getSupabaseAdminClient();
 
 async function getGymId(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return null;
-  const { data: profile } = await sb.from("profiles").select("gym_id").eq("id", session.user.id).maybeSingle();
+  const user = await requireUser();
+  if (!user) return null;
+  const { data: profile } = await sb.from("profiles").select("gym_id").eq("id", user.id).maybeSingle();
   return profile?.gym_id ?? null;
 }
 

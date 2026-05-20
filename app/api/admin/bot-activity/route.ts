@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getTodayDate } from "@/lib/date-utils";
 
@@ -14,14 +14,14 @@ const TIPO_LABEL: Record<string, string> = {
 
 export async function GET() {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return NextResponse.json({ ok: false }, { status: 401 });
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   const admin = getSupabaseAdminClient();
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle();
 
   if (!profile?.gym_id || !["admin", "staff", "platform_owner"].includes(profile.role ?? "")) {
