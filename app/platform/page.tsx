@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, memo } from "react";
+import dynamic from "next/dynamic";
 import {
   AlertTriangle,
   ArrowRight,
@@ -288,6 +289,12 @@ export default function PlatformPage() {
     atencion: { trialsRisk: number; trialsRiskList: { id: string; company_name: string; trial_ends_at: string }[]; inactivos7d: number; prospectosSinSeg: number; feedbackReciente7d: number };
   };
   const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const platWaProxy = async (action: string, extra?: Record<string, string>) => {
     return fetch("/api/wa/proxy", {
@@ -1943,6 +1950,40 @@ export default function PlatformPage() {
             >
               <Smartphone size={15} />
               {platWaStatus === "connected" ? "Reconectar QR" : "Conectar QR"}
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirm("¿Limpiar credenciales guardadas? Esto forzará un nuevo QR.")) return;
+                try {
+                  const res = await fetch("/api/whatsapp/wipe", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ gymId: "fitgrowx-platform" }),
+                  });
+                  if (res.ok) {
+                    alert("✅ Credenciales limpias. Escaneá el QR nuevamente.");
+                    setPlatWaStatus("unknown");
+                    setTimeout(() => { void platAttemptQr(0); }, 1000);
+                  } else {
+                    alert("❌ Error al limpiar credenciales");
+                  }
+                } catch (err) {
+                  alert("❌ Error: " + (err instanceof Error ? err.message : "desconocido"));
+                }
+              }}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 12,
+                border: "1px solid #FCA5A5",
+                background: "#FEF2F2",
+                color: "#B91C1C",
+                font: `600 0.85rem/1 ${fd}`,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              Limpiar credenciales
             </button>
           </section>
 
