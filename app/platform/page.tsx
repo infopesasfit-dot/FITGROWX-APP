@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, memo } from "react";
+import { useEffect, useMemo, useRef, useState, memo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import {
   AlertTriangle,
@@ -211,7 +211,7 @@ function emptyState(title: string, body: string) {
   );
 }
 
-export default function PlatformPage() {
+function PlatformPage() {
   const router = useRouter();
   const [navigatingToGymId, setNavigatingToGymId] = useState<string | null>(null);
   const [tplDropdownId,  setTplDropdownId]  = useState<string | null>(null);
@@ -240,6 +240,8 @@ export default function PlatformPage() {
   const [feedbackFilter, setFeedbackFilter] = useState<"pendientes" | "todos">("pendientes");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [crmSearch, setCrmSearch] = useState("");
+  const [crmSearchDebounced, setCrmSearchDebounced] = useState("");
+  const crmSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [crmFilter, setCrmFilter] = useState<"todos" | "leads" | "trial" | "riesgo" | "convertido" | "churn">("todos");
   const [updatingAccountId, setUpdatingAccountId] = useState<string | null>(null);
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
@@ -290,6 +292,8 @@ export default function PlatformPage() {
   };
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const lastFetchRef = useRef<number>(0);
+  const CACHE_TTL = 60_000;
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -367,42 +371,12 @@ export default function PlatformPage() {
       { count: platformLeadsCount, error: leadsCountError },
       { data: accountRows, error: accountRowsError },
       { data: leadRows, error: leadRowsError },
-      { data: resourceRows, error: resourceRowsError },
-      { data: categoryRows, error: categoryRowsError },
-      { data: feedbackData },
-      { data: onboardingData },
     ] = await Promise.all([
       supabase.from("vault_resources").select("*", { count: "exact", head: true }),
       supabase.from("platform_accounts").select("*", { count: "exact", head: true }),
       supabase.from("platform_leads").select("*", { count: "exact", head: true }),
-      supabase
-        .from("platform_accounts")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase
-        .from("platform_leads")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20),
-      supabase
-        .from("vault_resources")
-        .select("id, title, status, format, updated_at")
-        .order("updated_at", { ascending: false })
-        .limit(6),
-      supabase
-        .from("vault_categories")
-        .select("id, slug, title, description, is_active")
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("platform_feedback")
-        .select("id, gym_id, gym_name, email, message, created_at, resolved_at, resolved_by")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase
-        .from("gym_settings")
-        .select("gym_id, gym_name, onboarding_completed, setup_alumnos, setup_planes, setup_landing, setup_whatsapp, setup_pagos")
-        .order("gym_name", { ascending: true }),
+      supabase.from("platform_accounts").select("id,auth_user_id,company_name,owner_name,phone,status,subscription_plan,trial_ends_at,activation_score,next_follow_up_at,created_at").order("created_at", { ascending: false }).limit(20),
+      supabase.from("platform_leads").select("id,full_name,business_name,phone,status,source,next_follow_up_at,created_at").order("created_at", { ascending: false }).limit(20),
     ]);
 
     if (vaultCountError) throw vaultCountError;
@@ -410,8 +384,6 @@ export default function PlatformPage() {
     if (leadsCountError) throw leadsCountError;
     if (accountRowsError) throw accountRowsError;
     if (leadRowsError) throw leadRowsError;
-    if (resourceRowsError) throw resourceRowsError;
-    if (categoryRowsError) throw categoryRowsError;
 
     setStats({
       vaultResources: vaultResourcesCount ?? 0,
@@ -420,6 +392,24 @@ export default function PlatformPage() {
     });
     setAccounts((accountRows ?? []) as PlatformAccount[]);
     setLeads((leadRows ?? []) as PlatformLead[]);
+
+    fetchNonCriticalData();
+  };
+
+  const fetchNonCriticalData = async () => {
+    const [
+      { data: resourceRows, error: resourceRowsError },
+      { data: categoryRows, error: categoryRowsError },
+      { data: feedbackData },
+      { data: onboardingData },
+    ] = await Promise.all([
+      supabase.from("vault_resources").select("id, title, status, format, updated_at").order("updated_at", { ascending: false }).limit(6),
+      supabase.from("vault_categories").select("id, slug, title, description, is_active").order("sort_order", { ascending: true }),
+      supabase.from("platform_feedback").select("id, gym_id, gym_name, email, message, created_at, resolved_at, resolved_by").order("created_at", { ascending: false }).limit(100),
+      supabase.from("gym_settings").select("gym_id, gym_name, onboarding_completed, setup_alumnos, setup_planes, setup_landing, setup_whatsapp, setup_pagos").order("gym_name", { ascending: true }),
+    ]);
+
+    if (resourceRowsError || categoryRowsError) return;
     setVaultResources((resourceRows ?? []) as VaultResourceRow[]);
     setFeedbackRows((feedbackData ?? []) as FeedbackRow[]);
     setVaultCategories((categoryRows ?? []) as VaultCategoryRow[]);
@@ -433,6 +423,17 @@ export default function PlatformPage() {
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, [tplDropdownId]);
+
+  // Debounce CRM search
+  useEffect(() => {
+    if (crmSearchTimerRef.current) clearTimeout(crmSearchTimerRef.current);
+    crmSearchTimerRef.current = setTimeout(() => {
+      setCrmSearchDebounced(crmSearch);
+    }, 500);
+    return () => {
+      if (crmSearchTimerRef.current) clearTimeout(crmSearchTimerRef.current);
+    };
+  }, [crmSearch]);
 
   useEffect(() => {
     let active = true;
@@ -590,31 +591,30 @@ export default function PlatformPage() {
   }, [accounts, leads]);
 
   const filteredAccounts = useMemo(() => {
-    const term = crmSearch.trim().toLowerCase();
+    const term = crmSearchDebounced.trim().toLowerCase();
     if (!term) return accounts;
     return accounts.filter((account) =>
       [account.company_name, account.owner_name, account.subscription_plan, account.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term)),
     );
-  }, [accounts, crmSearch]);
+  }, [accounts, crmSearchDebounced]);
 
   const filteredLeads = useMemo(() => {
-    const term = crmSearch.trim().toLowerCase();
+    const term = crmSearchDebounced.trim().toLowerCase();
     if (!term) return leads;
     return leads.filter((lead) =>
       [lead.business_name, lead.full_name, lead.source, lead.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term)),
     );
-  }, [leads, crmSearch]);
+  }, [leads, crmSearchDebounced]);
 
-  const resetFeedbackSoon = () => {
+  const resetFeedbackSoon = useCallback(() => {
     window.setTimeout(() => setFeedback(null), 2600);
-  };
+  }, []);
 
-
-  const openGymDashboard = async (account: PlatformAccount) => {
+  const openGymDashboard = useCallback(async (account: PlatformAccount) => {
     if (!account.auth_user_id) {
       setFeedback("Esta cuenta no tiene usuario registrado todavía.");
       resetFeedbackSoon();
@@ -637,9 +637,9 @@ export default function PlatformPage() {
       setFeedback("Error al abrir el dashboard.");
       resetFeedbackSoon();
     }
-  };
+  }, [resetFeedbackSoon, router, supabase]);
 
-  const updateAccountStatus = async (id: string, status: AccountStatus) => {
+  const updateAccountStatus = useCallback(async (id: string, status: AccountStatus) => {
     try {
       setUpdatingAccountId(id);
       const res = await fetch("/api/platform/accounts", {
@@ -655,9 +655,9 @@ export default function PlatformPage() {
     } finally {
       setUpdatingAccountId(null);
     }
-  };
+  }, [fetchPlatformData, resetFeedbackSoon]);
 
-  const updateLeadStatus = async (id: string, status: LeadStatus) => {
+  const updateLeadStatus = useCallback(async (id: string, status: LeadStatus) => {
     try {
       setUpdatingLeadId(id);
       const res = await fetch("/api/platform/leads", {
@@ -673,9 +673,9 @@ export default function PlatformPage() {
     } finally {
       setUpdatingLeadId(null);
     }
-  };
+  }, [fetchPlatformData, resetFeedbackSoon]);
 
-  const sendCrmWa = async (account: PlatformAccount, templateKey: string, templateBody: string) => {
+  const sendCrmWa = useCallback(async (account: PlatformAccount, templateKey: string, templateBody: string) => {
     if (!account.phone) return;
     const sendId = `${account.id}:${templateKey}`;
     setCrmSendingId(sendId);
@@ -703,9 +703,9 @@ export default function PlatformPage() {
     } finally {
       setCrmSendingId(null);
     }
-  };
+  }, [resetFeedbackSoon]);
 
-  const markContacted = async (accountId?: string, leadId?: string) => {
+  const markContacted = useCallback(async (accountId?: string, leadId?: string) => {
     setContactingId(accountId ?? leadId ?? null);
     try {
       const res = await fetch("/api/platform/crm", {
@@ -721,9 +721,9 @@ export default function PlatformPage() {
     } finally {
       setContactingId(null);
     }
-  };
+  }, [fetchPlatformData, resetFeedbackSoon]);
 
-  const saveFollowup = async (accountId: string) => {
+  const saveFollowup = useCallback(async (accountId: string) => {
     const days = parseInt(followupDays, 10);
     if (!days || days < 1) return;
     try {
@@ -739,9 +739,9 @@ export default function PlatformPage() {
       setFeedback(e instanceof Error ? e.message : "Error al guardar seguimiento.");
       resetFeedbackSoon();
     }
-  };
+  }, [fetchPlatformData, resetFeedbackSoon, followupDays]);
 
-  const deleteAccount = async (id: string, name: string, permanent: boolean) => {
+  const deleteAccount = useCallback(async (id: string, name: string, permanent: boolean) => {
     setDeleteModal(null);
     setDeletingId(id);
     try {
@@ -756,9 +756,9 @@ export default function PlatformPage() {
     } finally {
       setDeletingId(null);
     }
-  };
+  }, [resetFeedbackSoon]);
 
-  const deleteLead = async (id: string, name: string) => {
+  const deleteLead = useCallback(async (id: string, name: string) => {
     if (!window.confirm(`¿Eliminar el lead "${name}"? Esta acción no se puede deshacer.`)) return;
     setDeletingId(id);
     try {
@@ -772,9 +772,9 @@ export default function PlatformPage() {
     } finally {
       setDeletingId(null);
     }
-  };
+  }, [resetFeedbackSoon]);
 
-  const handleCategorySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleCategorySubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!categoryForm.title.trim()) return;
 
@@ -796,9 +796,9 @@ export default function PlatformPage() {
     } finally {
       setSavingCategory(false);
     }
-  };
+  }, [fetchPlatformData, resetFeedbackSoon, categoryForm]);
 
-  const handleResourceSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleResourceSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!resourceForm.title.trim() || !resourceForm.category_id) return;
 
@@ -833,7 +833,7 @@ export default function PlatformPage() {
     } finally {
       setSavingResource(false);
     }
-  };
+  }, [fetchPlatformData, resetFeedbackSoon, resourceForm, vaultCategories]);
 
   useEffect(() => {
     if (!resourceForm.category_id && vaultCategories.length > 0) {
@@ -2228,3 +2228,5 @@ export default function PlatformPage() {
     </div>
   );
 }
+
+export default memo(PlatformPage);

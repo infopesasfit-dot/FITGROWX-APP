@@ -95,7 +95,8 @@
       "Bash(sips -z 32 32 logo-favicon-fitgrowx.png --out favicon-temp.png)",
       "Bash(mv public/images/favicon.ico public/favicon.ico)",
       "Bash(rm public/images/favicon-temp.png)",
-      "Bash(rm public/images/logo-favicon-fitgrowx-1024.png)"
+      "Bash(rm public/images/logo-favicon-fitgrowx-1024.png)",
+      "WebFetch(domain:gemini.google.com)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",
