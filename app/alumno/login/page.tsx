@@ -131,6 +131,15 @@ function LoginContent() {
   const gymName  = (gym?.gym_name ?? "GYM").toUpperCase();
   const slug     = gym?.slug ?? gymSlug;
 
+  // Adaptive font size based on gym name length
+  const getGymNameFontSize = () => {
+    const len = gymName.length;
+    if (len <= 10) return "clamp(48px, 22vw, 108px)";  // Short names: full size
+    if (len <= 20) return "clamp(36px, 18vw, 85px)";   // Medium names: medium size
+    if (len <= 30) return "clamp(28px, 14vw, 65px)";   // Long names: smaller
+    return "clamp(20px, 10vw, 48px)";                  // Very long names: minimal
+  };
+
   const submit = async () => {
     if (!isValid || status !== "idle") return;
     setStatus("loading"); setErrMsg(null);
@@ -225,7 +234,19 @@ function LoginContent() {
             <span style={{ width:22, height:1.5, background:accent, boxShadow:`0 0 8px ${accent}`, flexShrink:0 }}/>
             <span style={{ fontFamily:FM, fontSize:10, letterSpacing:"0.28em", textTransform:"uppercase", fontWeight:600, color:"rgba(255,255,255,0.55)" }}>EST · 2018</span>
           </div>
-          <div style={{ fontFamily:FD, fontSize:"clamp(68px, 22vw, 108px)", lineHeight:0.86, letterSpacing:"-0.045em", textTransform:"uppercase", color:"#fff", textShadow:"0 6px 30px rgba(0,0,0,0.7)", marginLeft:-4 }}>
+          <div style={{
+            fontFamily:FD,
+            fontSize:getGymNameFontSize(),
+            lineHeight:0.86,
+            letterSpacing:"-0.045em",
+            textTransform:"uppercase",
+            color:"#fff",
+            textShadow:"0 6px 30px rgba(0,0,0,0.7)",
+            marginLeft:-4,
+            overflow:"hidden",
+            wordBreak:"break-word",
+            maxWidth:"100%"
+          }}>
             {gymName}
           </div>
           <div style={{ fontSize:14, color:"rgba(255,255,255,0.62)", lineHeight:1.5, marginTop:20, marginLeft:2, fontFamily:FM, letterSpacing:"0.01em" }}>
