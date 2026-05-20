@@ -21,33 +21,51 @@ function calcTier(gyms: number) {
 
 function fmtARS(n: number) { return n.toLocaleString("es-AR", { maximumFractionDigits: 0 }); }
 
-function formatARPhone(phone: string): { formatted: string; valid: boolean; error?: string } {
+const COUNTRIES = [
+  { code: "AR", name: "Argentina", flag: "🇦🇷", countryCode: "+54", digits: 11, pattern: /^9\d{10}$/, placeholder: "+54 9 11 12345678" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾", countryCode: "+598", digits: 9, pattern: /^(9\d{7}|[1-9]\d{7})$/, placeholder: "+598 9 1234567" },
+  { code: "CL", name: "Chile", flag: "🇨🇱", countryCode: "+56", digits: 9, pattern: /^(9\d{8})$/, placeholder: "+56 9 12345678" },
+];
+
+function formatPhoneByCountry(phone: string, country: string): { formatted: string; valid: boolean; error?: string } {
   if (!phone?.trim()) return { formatted: "", valid: false, error: "Teléfono requerido" };
 
+  const countryInfo = COUNTRIES.find(c => c.code === country);
+  if (!countryInfo) return { formatted: "", valid: false, error: "País inválido" };
+
   const digits = phone.replace(/\D/g, "");
-
-  // Si empieza con 54, quitar el país
   let normalized = digits;
-  if (normalized.startsWith("54")) normalized = normalized.slice(2);
 
-  // Debe tener 11 dígitos: 9 [2 dígitos área] [8 dígitos]
-  if (normalized.length !== 11) {
-    return { formatted: "", valid: false, error: `Debe tener 11 dígitos (tenés ${normalized.length})` };
+  // Si empieza con el código del país, remover
+  if (normalized.startsWith(countryInfo.countryCode.replace("+", ""))) {
+    normalized = normalized.slice(countryInfo.countryCode.replace("+", "").length);
   }
 
-  // Validar que empiece con 9
-  if (!normalized.startsWith("9")) {
-    return { formatted: "", valid: false, error: "Los móviles deben empezar con 9" };
+  // Validar cantidad de dígitos
+  if (normalized.length !== countryInfo.digits) {
+    return { formatted: "", valid: false, error: `${countryInfo.name}: debe tener ${countryInfo.digits} dígitos (tenés ${normalized.length})` };
   }
 
-  // Validar que el área sea válida (11, 221, 261, 341, 351, etc.)
-  const area = normalized.slice(1, 3);
-  if (!/^\d{2}$/.test(area)) {
-    return { formatted: "", valid: false, error: "Formato de área inválido" };
+  // Validar patrón
+  if (!countryInfo.pattern.test(normalized)) {
+    return { formatted: "", valid: false, error: `${countryInfo.name}: formato inválido` };
   }
 
-  // Formatear a +54 9 XX XXXXXXXX
-  const formatted = `+54 9 ${area} ${normalized.slice(3)}`;
+  // Formatear según país
+  let formatted = "";
+  if (country === "AR") {
+    const area = normalized.slice(1, 3);
+    formatted = `${countryInfo.countryCode} 9 ${area} ${normalized.slice(3)}`;
+  } else if (country === "UY") {
+    if (normalized.startsWith("9")) {
+      formatted = `${countryInfo.countryCode} 9 ${normalized.slice(1)}`;
+    } else {
+      formatted = `${countryInfo.countryCode} ${normalized}`;
+    }
+  } else if (country === "CL") {
+    formatted = `${countryInfo.countryCode} 9 ${normalized.slice(1)}`;
+  }
+
   return { formatted, valid: true };
 }
 
@@ -106,11 +124,12 @@ const PROOF = [
 const EMPTY = { name: "", email: "", whatsapp: "", colleague_count: "", social_links: "", motivation: "" };
 
 export default function ResellerLanding() {
-  const [gyms,    setGyms]    = useState(10);
-  const [form,    setForm]    = useState(EMPTY);
-  const [sending, setSending] = useState(false);
-  const [sent,    setSent]    = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [gyms,      setGyms]      = useState(10);
+  const [form,      setForm]      = useState(EMPTY);
+  const [country,   setCountry]   = useState("AR");
+  const [sending,   setSending]   = useState(false);
+  const [sent,      setSent]      = useState(false);
+  const [error,     setError]     = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
 
   const tier           = calcTier(gyms);
@@ -126,7 +145,7 @@ export default function ResellerLanding() {
       setError("Nombre, email y WhatsApp son obligatorios."); return;
     }
 
-    const phoneValidation = formatARPhone(form.whatsapp);
+    const phoneValidation = formatPhoneByCountry(form.whatsapp, country);
     if (!phoneValidation.valid) {
       setError(phoneValidation.error ?? "Teléfono inválido"); return;
     }
@@ -135,7 +154,7 @@ export default function ResellerLanding() {
     const r = await fetch("/api/reseller/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, whatsapp: phoneValidation.formatted }),
+      body: JSON.stringify({ ...form, whatsapp: phoneValidation.formatted, country }),
     });
     const d = await r.json();
     setSending(false);
@@ -375,7 +394,46 @@ export default function ResellerLanding() {
               {[
                 { label: "Nombre completo *",                     key: "name",         placeholder: "Ej: Martín Rodríguez",           type: "text" },
                 { label: "Email *",                               key: "email",        placeholder: "Ej: martin@gmail.com",           type: "email" },
-                { label: "WhatsApp *",                            key: "whatsapp",     placeholder: "Ej: +54 9 11 12345678 o 5491112345678",             type: "tel" },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 7 }}>{f.label}</label>
+                  <input
+                    type={f.type}
+                    value={form[f.key as keyof typeof form]}
+                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    placeholder={f.placeholder}
+                    style={{ width: "100%", padding: "13px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 12, font: `300 0.92rem/1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.01em" }}
+                  />
+                </div>
+              ))}
+
+              {/* País */}
+              <div>
+                <label style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 7 }}>País *</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {COUNTRIES.map(c => (
+                    <button key={c.code} type="button" onClick={() => setCountry(c.code)}
+                      style={{ flex: 1, padding: "13px 16px", background: country === c.code ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${country === c.code ? ORANGE : "rgba(255,255,255,0.09)"}`, borderRadius: 12, font: `500 0.9rem/1 ${FS}`, color: "#FFFFFF", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                      <span style={{ fontSize: "1.4rem" }}>{c.flag}</span>
+                      <span>{c.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* WhatsApp */}
+              <div>
+                <label style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 7 }}>WhatsApp *</label>
+                <input
+                  type="tel"
+                  value={form.whatsapp}
+                  onChange={e => setForm(p => ({ ...p, whatsapp: e.target.value }))}
+                  placeholder={COUNTRIES.find(c => c.code === country)?.placeholder}
+                  style={{ width: "100%", padding: "13px 16px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 12, font: `300 0.92rem/1 ${FS}`, color: "#FFFFFF", letterSpacing: "-0.01em" }}
+                />
+              </div>
+
+              {[
                 { label: "Instagram / TikTok / comunidad",        key: "social_links", placeholder: "@tuusuario o nombre de tu comunidad", type: "text" },
               ].map(f => (
                 <div key={f.key}>

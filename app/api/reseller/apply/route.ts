@@ -5,11 +5,23 @@ import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
 
-function validateARPhone(phone: string): boolean {
+const COUNTRY_RULES: Record<string, { digits: number; pattern: RegExp }> = {
+  AR: { digits: 11, pattern: /^9\d{10}$/ },
+  UY: { digits: 9, pattern: /^(9\d{7}|[1-9]\d{7})$/ },
+  CL: { digits: 9, pattern: /^9\d{8}$/ },
+};
+
+function validatePhoneByCountry(phone: string, country: string): boolean {
+  const rule = COUNTRY_RULES[country];
+  if (!rule) return false;
   const digits = phone.replace(/\D/g, "");
   let normalized = digits;
-  if (normalized.startsWith("54")) normalized = normalized.slice(2);
-  return normalized.length === 11 && normalized.startsWith("9");
+  // Quitar código de país si está presente
+  const countryCodes: Record<string, string> = { AR: "54", UY: "598", CL: "56" };
+  if (normalized.startsWith(countryCodes[country])) {
+    normalized = normalized.slice(countryCodes[country].length);
+  }
+  return normalized.length === rule.digits && rule.pattern.test(normalized);
 }
 
 export async function POST(req: NextRequest) {
@@ -18,14 +30,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Demasiados intentos. Esperá un rato." }, { status: 429 });
   }
 
-  const { name, email, whatsapp, colleague_count, social_links, motivation } = await req.json();
+  const { name, email, whatsapp, colleague_count, social_links, motivation, country } = await req.json();
 
   if (!name?.trim() || !email?.trim() || !whatsapp?.trim()) {
     return NextResponse.json({ error: "Nombre, email y WhatsApp son requeridos" }, { status: 400 });
   }
 
-  if (!validateARPhone(whatsapp)) {
-    return NextResponse.json({ error: "Teléfono argentino inválido (debe tener 11 dígitos)" }, { status: 400 });
+  const countryCode = country || "AR";
+  if (!validatePhoneByCountry(whatsapp, countryCode)) {
+    return NextResponse.json({ error: `Teléfono inválido para ${countryCode}` }, { status: 400 });
   }
 
   // Prevent duplicate applications
@@ -50,6 +63,7 @@ export async function POST(req: NextRequest) {
     colleague_count: colleague_count ?? null,
     social_links:    social_links?.trim() || null,
     motivation:      motivation?.trim() || null,
+    country:         countryCode,
   });
 
   // Notify admin
