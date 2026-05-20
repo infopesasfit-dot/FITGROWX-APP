@@ -123,12 +123,14 @@ export default function OnboardingPage() {
       if (gymId) {
         const rawPhone = values.phone.trim().replace(/\D/g, "");
         const fullPhone = rawPhone ? `${countryCode.replace("+", "")}${rawPhone}` : null;
+        const slug = values.gymName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || null;
         const { error: e } = await supabase.from("gym_settings").upsert(
           {
             gym_id: gymId,
             owner_name: values.name.trim() || null,
             gym_name: values.gymName.trim() || null,
             whatsapp: fullPhone,
+            slug,
             onboarding_completed: true,
           },
           { onConflict: "gym_id" }
