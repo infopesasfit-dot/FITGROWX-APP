@@ -24,7 +24,20 @@ function fmtARS(n: number) { return n.toLocaleString("es-AR", { maximumFractionD
 const COUNTRIES = [
   { code: "AR", name: "Argentina", flag: "🇦🇷", countryCode: "+54", digits: 11, pattern: /^9\d{10}$/, placeholder: "+54 9 11 12345678" },
   { code: "UY", name: "Uruguay", flag: "🇺🇾", countryCode: "+598", digits: 9, pattern: /^(9\d{7}|[1-9]\d{7})$/, placeholder: "+598 9 1234567" },
-  { code: "CL", name: "Chile", flag: "🇨🇱", countryCode: "+56", digits: 9, pattern: /^(9\d{8})$/, placeholder: "+56 9 12345678" },
+  { code: "CL", name: "Chile", flag: "🇨🇱", countryCode: "+56", digits: 9, pattern: /^9\d{8}$/, placeholder: "+56 9 12345678" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴", countryCode: "+57", digits: 10, pattern: /^(3\d{9})$/, placeholder: "+57 3001234567" },
+  { code: "MX", name: "México", flag: "🇲🇽", countryCode: "+52", digits: 10, pattern: /^[1-9]\d{9}$/, placeholder: "+52 5512345678" },
+  { code: "PE", name: "Perú", flag: "🇵🇪", countryCode: "+51", digits: 9, pattern: /^9\d{8}$/, placeholder: "+51 912345678" },
+  { code: "EC", name: "Ecuador", flag: "🇪🇨", countryCode: "+593", digits: 9, pattern: /^[0-9]\d{8}$/, placeholder: "+593 912345678" },
+  { code: "BO", name: "Bolivia", flag: "🇧🇴", countryCode: "+591", digits: 8, pattern: /^[67]\d{7}$/, placeholder: "+591 70123456" },
+  { code: "PY", name: "Paraguay", flag: "🇵🇾", countryCode: "+595", digits: 9, pattern: /^9\d{8}$/, placeholder: "+595 961234567" },
+  { code: "BR", name: "Brasil", flag: "🇧🇷", countryCode: "+55", digits: 10, pattern: /^[1-9]\d{8,9}$/, placeholder: "+55 11987654321" },
+  { code: "VE", name: "Venezuela", flag: "🇻🇪", countryCode: "+58", digits: 10, pattern: /^[2-4]\d{9}$/, placeholder: "+58 4121234567" },
+  { code: "CU", name: "Cuba", flag: "🇨🇺", countryCode: "+53", digits: 8, pattern: /^[5]\d{7}$/, placeholder: "+53 51234567" },
+  { code: "DO", name: "Rep. Dominicana", flag: "🇩🇴", countryCode: "+1-809", digits: 10, pattern: /^(809|829|849)\d{7}$/, placeholder: "+1-809 1234567" },
+  { code: "CR", name: "Costa Rica", flag: "🇨🇷", countryCode: "+506", digits: 8, pattern: /^[2-9]\d{7}$/, placeholder: "+506 87654321" },
+  { code: "PA", name: "Panamá", flag: "🇵🇦", countryCode: "+507", digits: 8, pattern: /^[0-9]\d{7}$/, placeholder: "+507 61234567" },
+  { code: "ES", name: "España", flag: "🇪🇸", countryCode: "+34", digits: 9, pattern: /^[6-9]\d{8}$/, placeholder: "+34 612345678" },
 ];
 
 function formatPhoneByCountry(phone: string, country: string): { formatted: string; valid: boolean; error?: string } {
@@ -410,12 +423,12 @@ export default function ResellerLanding() {
               {/* País */}
               <div>
                 <label style={{ font: `500 0.62rem/1 ${FS}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", display: "block", marginBottom: 7 }}>País *</label>
-                <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                   {COUNTRIES.map(c => (
                     <button key={c.code} type="button" onClick={() => setCountry(c.code)}
-                      style={{ flex: 1, padding: "13px 16px", background: country === c.code ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${country === c.code ? ORANGE : "rgba(255,255,255,0.09)"}`, borderRadius: 12, font: `500 0.9rem/1 ${FS}`, color: "#FFFFFF", cursor: "pointer", transition: "all 0.15s", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                      <span style={{ fontSize: "1.4rem" }}>{c.flag}</span>
-                      <span>{c.name}</span>
+                      style={{ padding: "10px 8px", background: country === c.code ? "rgba(249,115,22,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${country === c.code ? ORANGE : "rgba(255,255,255,0.09)"}`, borderRadius: 10, font: `500 0.75rem/1.2 ${FS}`, color: "#FFFFFF", cursor: "pointer", transition: "all 0.15s", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                      <span style={{ fontSize: "1.6rem" }}>{c.flag}</span>
+                      <span>{c.code}</span>
                     </button>
                   ))}
                 </div>

@@ -9,6 +9,19 @@ const COUNTRY_RULES: Record<string, { digits: number; pattern: RegExp }> = {
   AR: { digits: 11, pattern: /^9\d{10}$/ },
   UY: { digits: 9, pattern: /^(9\d{7}|[1-9]\d{7})$/ },
   CL: { digits: 9, pattern: /^9\d{8}$/ },
+  CO: { digits: 10, pattern: /^3\d{9}$/ },
+  MX: { digits: 10, pattern: /^[1-9]\d{9}$/ },
+  PE: { digits: 9, pattern: /^9\d{8}$/ },
+  EC: { digits: 9, pattern: /^[0-9]\d{8}$/ },
+  BO: { digits: 8, pattern: /^[67]\d{7}$/ },
+  PY: { digits: 9, pattern: /^9\d{8}$/ },
+  BR: { digits: 10, pattern: /^[1-9]\d{8,9}$/ },
+  VE: { digits: 10, pattern: /^[2-4]\d{9}$/ },
+  CU: { digits: 8, pattern: /^5\d{7}$/ },
+  DO: { digits: 10, pattern: /^(809|829|849)\d{7}$/ },
+  CR: { digits: 8, pattern: /^[2-9]\d{7}$/ },
+  PA: { digits: 8, pattern: /^[0-9]\d{7}$/ },
+  ES: { digits: 9, pattern: /^[6-9]\d{8}$/ },
 };
 
 function validatePhoneByCountry(phone: string, country: string): boolean {
@@ -17,11 +30,16 @@ function validatePhoneByCountry(phone: string, country: string): boolean {
   const digits = phone.replace(/\D/g, "");
   let normalized = digits;
   // Quitar código de país si está presente
-  const countryCodes: Record<string, string> = { AR: "54", UY: "598", CL: "56" };
-  if (normalized.startsWith(countryCodes[country])) {
-    normalized = normalized.slice(countryCodes[country].length);
+  const countryCodes: Record<string, string> = {
+    AR: "54", UY: "598", CL: "56", CO: "57", MX: "52", PE: "51", EC: "593",
+    BO: "591", PY: "595", BR: "55", VE: "58", CU: "53", DO: "1809",
+    CR: "506", PA: "507", ES: "34"
+  };
+  const cc = countryCodes[country];
+  if (cc && normalized.startsWith(cc)) {
+    normalized = normalized.slice(cc.length);
   }
-  return normalized.length === rule.digits && rule.pattern.test(normalized);
+  return rule.pattern.test(normalized);
 }
 
 export async function POST(req: NextRequest) {
