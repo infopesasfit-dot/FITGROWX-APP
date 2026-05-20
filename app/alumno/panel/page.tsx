@@ -267,8 +267,6 @@ function AlumnoPanelInner() {
   const { workoutSession, wsSyncing, initSession, markSerie, setSerieKg, finalizeWorkout, flushWorkoutSession, enqueueKg, flushKgQueue } =
     useWorkoutSession(session?.alumno_id ?? null, session?.gym_id ?? null, null);
 
-  const { isSyncing, syncedCount } = useOfflineSync();
-
   // Group pesos by exercise in chronological order
   const pesosPorEjercicio = useMemo(() => {
     const map = new Map<string, { peso: number; fecha: string }[]>();
@@ -379,6 +377,14 @@ function AlumnoPanelInner() {
       setPesos(d.pesos ?? []);
     }
   }, []);
+
+  const handleSyncComplete = useCallback(async () => {
+    if (session) {
+      await fetchBootstrap(session, false);
+    }
+  }, [session, fetchBootstrap]);
+
+  const { isSyncing, syncedCount } = useOfflineSync(handleSyncComplete);
 
   const fetchPesos = useCallback(async (s: Session) => {
     const r = await fetch(`/api/alumno/pesos?alumno_id=${s.alumno_id}`, {

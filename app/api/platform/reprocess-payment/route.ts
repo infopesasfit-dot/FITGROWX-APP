@@ -21,7 +21,10 @@ function calcExpiry(current: string | null, periodo: string, duracionDias: numbe
     const d = new Date(base); d.setDate(d.getDate() + duracionDias); return d.toISOString().slice(0, 10);
   }
   const MESES: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
-  if (MESES[periodo]) return addMonths(base, MESES[periodo]).toISOString().slice(0, 10);
+  const months = MESES[periodo.toLowerCase()];
+  if (months && months > 0) return addMonths(base, months).toISOString().slice(0, 10);
+  // Fallback: 30 días (con log para debugging)
+  console.warn(`[calcExpiry] Período inválido "${periodo}", usando fallback 30 días`);
   const d = new Date(base); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10);
 }
 

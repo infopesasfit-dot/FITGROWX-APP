@@ -1,13 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { offlineStore } from "@/lib/alumno-offline";
 
-export function useOfflineSync() {
+export function useOfflineSync(onSyncComplete?: () => void | Promise<void>) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncedCount, setSyncedCount] = useState(0);
+  const syncCallbackRef = useRef(onSyncComplete);
 
-  const syncQueue = async () => {
+  useEffect(() => {
+    syncCallbackRef.current = onSyncComplete;
+  }, [onSyncComplete]);
+
+  const syncQueue = useCallback(async () => {
     if (isSyncing || !navigator.onLine) return;
 
     setIsSyncing(true);
@@ -37,8 +42,12 @@ export function useOfflineSync() {
     }
 
     setSyncedCount(successCount);
+    // Llamar callback después de sincronizar (para recargar datos)
+    if (successCount > 0 && syncCallbackRef.current) {
+      await syncCallbackRef.current();
+    }
     setIsSyncing(false);
-  };
+  }, [isSyncing]);
 
   useEffect(() => {
     const handleOnline = () => {

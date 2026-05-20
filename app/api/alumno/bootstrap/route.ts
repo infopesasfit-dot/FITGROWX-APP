@@ -6,32 +6,33 @@ import { getTodayDate } from "@/lib/date-utils";
 const supabase = getSupabaseAdminClient();
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const alumno_id = searchParams.get("alumno_id");
-  const gym_id = searchParams.get("gym_id");
-  const includeTraining = searchParams.get("include") === "training";
+  try {
+    const { searchParams } = new URL(req.url);
+    const alumno_id = searchParams.get("alumno_id");
+    const gym_id = searchParams.get("gym_id");
+    const includeTraining = searchParams.get("include") === "training";
 
-  if (!alumno_id || !gym_id) {
-    return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
-  }
+    if (!alumno_id || !gym_id) {
+      return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+    }
 
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
-    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
-  }
+    const tokenRow = await getValidAlumnoToken(req);
+    if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
+      return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+    }
 
-  const today = new Date();
-  const dates = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
+    const today = new Date();
+    const dates = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
 
-  const todayStr = getTodayDate();
-  const monthStart = `${todayStr.slice(0, 7)}-01`;
+    const todayStr = getTodayDate();
+    const monthStart = `${todayStr.slice(0, 7)}-01`;
 
-  const baseQueries = await Promise.all([
+    const baseQueries = await Promise.all([
     supabase
       .from("gym_classes")
       .select("id, class_name, day_of_week, start_time, max_capacity, event_type, notes, coach_name")
@@ -123,4 +124,15 @@ export async function GET(req: NextRequest) {
     rutina: rutinaRes.data ?? null,
     pesos: pesosRes.data ?? [],
   });
+  } catch (error) {
+    console.error("[bootstrap] Error loading alumno data:", error);
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    return NextResponse.json(
+      {
+        error: "No pudimos cargar tus datos. Por favor, probá de nuevo.",
+        details: process.env.NODE_ENV === "development" ? message : undefined,
+      },
+      { status: 500 }
+    );
+  }
 }
