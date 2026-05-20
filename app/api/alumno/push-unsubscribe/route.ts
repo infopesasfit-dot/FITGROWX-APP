@@ -1,23 +1,39 @@
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const supabase = getSupabaseAdminClient();
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { alumno_id } = await req.json();
-
-    if (!alumno_id) {
-      return Response.json({ error: "Missing alumno_id" }, { status: 400 });
+    const tokenRow = await getValidAlumnoToken(req);
+    if (!tokenRow) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
 
-    await supabase.from("push_subscriptions").delete().eq("alumno_id", alumno_id);
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+    }
 
-    return Response.json({ ok: true });
+    const { alumno_id } = raw as Record<string, unknown>;
+
+    if (typeof alumno_id !== "string") {
+      return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
+    }
+
+    // Verify ownership: alumno_id from request must match token's alumno_id
+    if (alumno_id !== tokenRow.alumno_id) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+    }
+
+    await supabase.from("push_subscriptions").delete().eq("alumno_id", tokenRow.alumno_id);
+
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[push-unsubscribe]", err);
-    return Response.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "Error del servidor." }, { status: 500 });
   }
 }

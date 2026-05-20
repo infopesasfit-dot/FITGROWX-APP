@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { rutinaSugerirSchema } from "@/lib/schemas";
+import { applyRateLimit } from "@/lib/request-security";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -10,9 +12,36 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const { objetivo, alumno_name, notas, tipo, modalidad, time_cap } = await req.json();
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+  }
 
-  const notasExtra = notas?.trim() ? `\nIndicaciones adicionales del coach: "${notas}"` : "";
+  const parsed = rutinaSugerirSchema.safeParse(raw);
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? "Datos inválidos.";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  // Rate limit: 20 requests per hour per user
+  const limit = await applyRateLimit({
+    namespace: "ai:rutina",
+    identifier: user.id,
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 20,
+  });
+
+  if (!limit.allowed) {
+    return NextResponse.json({ error: "Límite de IA alcanzado. Reintentá en una hora." }, { status: 429 });
+  }
+
+  const { objetivo, alumno_name, tipo, modalidad, time_cap } = parsed.data;
+  // Sanitize notas: max 500 chars, remove special characters
+  const rawNotas = parsed.data.notas?.trim() ?? "";
+  const safeNotas = rawNotas.slice(0, 500).replace(/[{}]/g, "");
+  const notasExtra = safeNotas ? `\nIndicaciones adicionales del coach: "${safeNotas}"` : "";
 
   if (tipo === "wod") {
     const mod = modalidad ?? "AMRAP";

@@ -96,7 +96,12 @@
       "Bash(mv public/images/favicon.ico public/favicon.ico)",
       "Bash(rm public/images/favicon-temp.png)",
       "Bash(rm public/images/logo-favicon-fitgrowx-1024.png)",
-      "WebFetch(domain:gemini.google.com)"
+      "WebFetch(domain:gemini.google.com)",
+      "Bash(grep -E \"route\\\\.ts|\\\\.ts$\")",
+      "Bash(chmod +x /tmp/fix-getsession.sh)",
+      "Bash(/tmp/fix-getsession.sh)",
+      "Bash(git checkout *)",
+      "Bash(grep -E \"route\\\\.ts$\")"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",

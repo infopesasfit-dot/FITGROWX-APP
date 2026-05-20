@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit } from "@/lib/request-security";
-import * as XLSX from "xlsx";
 
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
@@ -48,6 +47,7 @@ export async function GET(req: NextRequest) {
   ]);
 
   if (format === "xlsx") {
+    const XLSX = await import("xlsx");
     const wb = XLSX.utils.book_new();
     const dateStr = new Date().toISOString().slice(0, 10);
 

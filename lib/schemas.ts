@@ -128,6 +128,41 @@ export const pesoEntrySchema = z.object({
   notas:     z.string().max(300).optional().nullable(),
 });
 
+// ─── Alumno: push subscriptions ────────────────────────────────────────────────
+export const pushSubscribeSchema = z.object({
+  alumno_id: uuidField,
+  subscription: z.object({
+    endpoint: z.string().url("Endpoint inválido."),
+    keys: z.object({
+      p256dh: z.string().min(1, "p256dh requerido."),
+      auth: z.string().min(1, "auth requerido."),
+    }),
+  }),
+});
+
+export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
+
+// ─── WhatsApp: send message ───────────────────────────────────────────────────
+export const whatsappSendSchema = z.object({
+  gym_id: uuidField,
+  phone: z.string().min(5, "Teléfono inválido.").max(20, "Teléfono muy largo."),
+  message: z.string().min(1, "Mensaje obligatorio.").max(4096, "Mensaje muy largo."),
+});
+
+export type WhatsappSendInput = z.infer<typeof whatsappSendSchema>;
+
+// ─── IA: rutina sugerir ────────────────────────────────────────────────────────
+export const rutinaSugerirSchema = z.object({
+  objetivo: z.string().min(1, "Objetivo requerido.").max(100, "Objetivo muy largo.").optional().nullable(),
+  alumno_name: z.string().max(100, "Nombre muy largo.").optional().nullable(),
+  notas: z.string().max(500, "Notas muy largas.").optional().nullable(),
+  tipo: z.enum(["wod", "rutina"]).optional(),
+  modalidad: z.string().max(50).optional().nullable(),
+  time_cap: z.string().max(20).optional().nullable(),
+});
+
+export type RutinaSugerirInput = z.infer<typeof rutinaSugerirSchema>;
+
 // ─── Helper: parsear y devolver 400 si falla ─────────────────────────────────
 export function parseBody<T>(
   schema: z.ZodSchema<T>,

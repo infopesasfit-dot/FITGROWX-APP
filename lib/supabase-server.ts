@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { NextResponse } from "next/server";
 
 export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
@@ -24,4 +25,15 @@ export async function createSupabaseServerClient() {
       },
     },
   );
+}
+
+export async function requireUser() {
+  const supabase = await createSupabaseServerClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return null;
+  }
+
+  return user;
 }

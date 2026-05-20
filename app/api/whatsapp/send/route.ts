@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { whatsappSendSchema } from "@/lib/schemas";
+import { applyRateLimit } from "@/lib/request-security";
 
 type AuthorizedProfile = {
   gym_id: string | null;
@@ -16,23 +18,34 @@ function maskPhone(phone: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { gym_id, phone, message } = await req.json();
   const requestId = crypto.randomUUID().slice(0, 8);
   const endpoint = "/api/whatsapp/send";
-  const phoneRef = typeof phone === "string" ? maskPhone(phone) : "unknown";
-  const messageLength = typeof message === "string" ? message.length : 0;
+
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error json request_id=${requestId}`);
+    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+  }
+
+  const parsed = whatsappSendSchema.safeParse(raw);
+  if (!parsed.success) {
+    const msg = parsed.error.issues[0]?.message ?? "Datos inválidos.";
+    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error validation request_id=${requestId} reason=${msg}`);
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const { gym_id, phone, message } = parsed.data;
+  const phoneRef = maskPhone(phone);
+  const messageLength = message.length;
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error auth request_id=${requestId} gym_id=${gym_id ?? "missing"} phone=${phoneRef} reason=unauthenticated`);
+    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error auth request_id=${requestId} gym_id=${gym_id} phone=${phoneRef} reason=unauthenticated`);
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
-
-  if (!gym_id || !phone || !message) {
-    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error validation request_id=${requestId} gym_id=${gym_id ?? "missing"} phone=${phoneRef}`);
-    return NextResponse.json({ error: "gym_id, phone y message son requeridos" }, { status: 400 });
   }
 
   const { data: profile, error: profileError } = await supabaseAdmin
@@ -50,6 +63,19 @@ export async function POST(req: NextRequest) {
   if (!allowed) {
     console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error authz request_id=${requestId} gym_id=${gym_id} phone=${phoneRef} reason=gym_mismatch`);
     return NextResponse.json({ error: "No autorizado para este gimnasio" }, { status: 403 });
+  }
+
+  // Rate limit by gym_id: 20 requests per minute
+  const limit = await applyRateLimit({
+    namespace: "wa:send",
+    identifier: gym_id,
+    windowMs: 60_000,
+    maxAttempts: 20,
+  });
+
+  if (!limit.allowed) {
+    console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error ratelimit request_id=${requestId} gym_id=${gym_id} phone=${phoneRef}`);
+    return NextResponse.json({ error: "Límite de solicitudes excedido. Reintentá en un momento." }, { status: 429 });
   }
 
   const baseUrl = process.env.WA_MOTOR_URL;
