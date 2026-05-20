@@ -996,7 +996,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: isFlujosRoute ? "12px 12px 12px" : (isMobile ? "12px 10px calc(96px + env(safe-area-inset-bottom, 0px))" : "20px 20px 28px"), display: "flex", flexDirection: "column", gap: isFlujosRoute ? 10 : (isMobile ? 14 : 18), background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "transparent", overflowX: "hidden", overflow: isFlujosRoute ? "hidden" : (isMobile ? "hidden" : undefined), minWidth: 0 }}>
+        <main style={{ flex: 1, padding: isFlujosRoute ? "12px 12px 12px" : (isMobile ? "12px 10px calc(96px + env(safe-area-inset-bottom, 0px))" : "20px 20px 28px"), display: "flex", flexDirection: "column", gap: isFlujosRoute ? 10 : (isMobile ? 14 : 18), background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "transparent", overflowX: "hidden", minWidth: 0 }}>
 
           {/* ── Sub-nav shortcut bar (Atraer Clientes) ── */}
           {ATTRACT_ROUTES.some(r => pathname.startsWith(r)) && (
