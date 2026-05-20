@@ -24,6 +24,18 @@ export async function POST() {
   const auth = await getAuth();
   if (!auth) return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
 
+  // Check if gym has any molinete keys configured
+  const { data: keys } = await admin
+    .from("molinete_api_keys")
+    .select("id")
+    .eq("gym_id", auth.gymId)
+    .is("revoked_at", null)
+    .limit(1);
+
+  if (!keys || keys.length === 0) {
+    return NextResponse.json({ ok: false, error: "no_molinete", message: "No hay molinete configurado. Generá una API key en Configuración > Equipo para habilitar esta función." }, { status: 400 });
+  }
+
   // Expire any previous unconsumed tokens for this gym to avoid stacking
   await admin
     .from("emergency_opens")

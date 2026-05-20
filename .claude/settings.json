@@ -86,7 +86,8 @@
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx show 74cde1f:app/platform/page.tsx)",
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx diff)",
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx add app/platform/components/PlatformHeader.tsx app/platform/page.tsx)",
-      "Bash(git -C /Users/eliydan/Desktop/fitgrowx add app/dashboard/membresias/page.tsx)"
+      "Bash(git -C /Users/eliydan/Desktop/fitgrowx add app/dashboard/membresias/page.tsx)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",

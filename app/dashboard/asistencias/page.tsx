@@ -82,6 +82,7 @@ export default function AsistenciasPage() {
   const [ausentesLoaded, setAusentesLoaded] = useState(false);
   const [emergencyLoading, setEmergencyLoading] = useState(false);
   const [emergencyStatus, setEmergencyStatus] = useState<"idle" | "pending" | "consumed" | "expired" | "error">("idle");
+  const [molineteModalOpen, setMolineteModalOpen] = useState(false);
   const emergencyPollRef = useState<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -326,7 +327,16 @@ export default function AsistenciasPage() {
 
     const res = await fetch("/api/admin/molinete-emergency", { method: "POST" });
     setEmergencyLoading(false);
-    if (!res.ok) { setEmergencyStatus("error"); return; }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as { error?: string; message?: string };
+      if (data.error === "no_molinete") {
+        setMolineteModalOpen(true);
+        return;
+      }
+      setEmergencyStatus("error");
+      return;
+    }
 
     setEmergencyStatus("pending");
 
@@ -374,6 +384,65 @@ export default function AsistenciasPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* Modal: No molinete configurado */}
+      {molineteModalOpen && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 50,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "20px"
+        }}>
+          <div style={{
+            background: "#FFFFFF", borderRadius: 16,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            padding: "32px 24px", maxWidth: 420, width: "100%"
+          }}>
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: "50%",
+                background: "rgba(220,38,38,0.1)", margin: "0 auto 16px",
+                display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                <Unlock size={32} color="#DC2626" />
+              </div>
+              <h2 style={{ font: `700 1.25rem/1.2 ${fd}`, color: "#1A1D23", margin: "0 0 12px" }}>
+                Molinete no configurado
+              </h2>
+              <p style={{ font: `400 0.9rem/1.5 ${fb}`, color: "#6B7280", margin: 0 }}>
+                No hay API keys de molinete generadas. Necesitás crear una para habilitar la función de apertura de puerta.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <button
+                onClick={() => { setMolineteModalOpen(false); router.push("/dashboard/ajustes?tab=equipo"); }}
+                style={{
+                  padding: "12px 16px", borderRadius: 12, border: "none",
+                  background: "#FF7A18", color: "white", font: `600 0.9rem/1 ${fd}`,
+                  cursor: "pointer", width: "100%", transition: "background 0.2s"
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "#E65A00"}
+                onMouseLeave={e => e.currentTarget.style.background = "#FF7A18"}
+              >
+                Ir a Configuración
+              </button>
+              <button
+                onClick={() => setMolineteModalOpen(false)}
+                style={{
+                  padding: "12px 16px", borderRadius: 12, border: "1px solid #E5E7EB",
+                  background: "transparent", color: "#6B7280", font: `600 0.9rem/1 ${fd}`,
+                  cursor: "pointer", width: "100%", transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#F9FAFB"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
