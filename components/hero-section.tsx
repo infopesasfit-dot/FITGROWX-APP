@@ -1,21 +1,16 @@
 "use client";
 
-import { motion, type Variants } from "framer-motion";
 import { ArrowRight, ChevronRight } from "lucide-react";
 
-const EASE: [number, number, number, number] = [0.16, 1, 0.3, 1];
-const SPRING_FAST = { stiffness: 400, damping: 25 };
-
-const fadeUp = (delay = 0): Variants => ({
-  hidden: { opacity: 0, y: 22 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.78, ease: EASE, delay } },
+const getFadeUpStyle = (delay: number): React.CSSProperties => ({
+  animation: `fadeUp 0.78s cubic-bezier(0.16, 1, 0.3, 1) ${delay}s both`,
 });
 
 function PrimaryButton() {
   return (
-    <motion.a
+    <a
       href="/start"
-      className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-8 py-[0.9rem] text-sm font-semibold text-white"
+      className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-8 py-[0.9rem] text-sm font-semibold text-white transition-all duration-300 ease-out hover:scale-[1.02] active:scale-[0.98]"
       style={{
         background: "linear-gradient(180deg, #ff7a1a 0%, #ff6000 55%, #e05000 100%)",
         boxShadow:
@@ -24,29 +19,19 @@ function PrimaryButton() {
           "0 6px 28px rgba(255,96,0,0.28), " +
           "0 2px 8px rgba(255,96,0,0.18)",
       }}
-      whileHover={{
-        scale: 1.02,
-        boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.34), " +
-          "inset 0 -1px 0 rgba(0,0,0,0.22), " +
-          "0 12px 36px rgba(255,96,0,0.35), " +
-          "0 4px 10px rgba(255,96,0,0.22)",
-      }}
-      whileTap={{ scale: 0.98 }}
-      transition={SPRING_FAST}
     >
       <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
       Empezar prueba gratis
       <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-    </motion.a>
+    </a>
   );
 }
 
 function GhostButton() {
   return (
-    <motion.a
+    <a
       href="#demo"
-      className="group inline-flex items-center justify-center gap-2 rounded-full px-8 py-[0.9rem] text-sm font-medium text-white/55 backdrop-blur-md transition-colors duration-300 hover:text-white/80"
+      className="group inline-flex items-center justify-center gap-2 rounded-full px-8 py-[0.9rem] text-sm font-medium text-white/55 backdrop-blur-md transition-all duration-300 hover:text-white/80 hover:scale-[1.015] active:scale-[0.985]"
       style={{
         background: "rgba(255,255,255,0.045)",
         border: "1px solid rgba(255,255,255,0.10)",
@@ -54,9 +39,12 @@ function GhostButton() {
           "inset 0 1px 0 rgba(255,255,255,0.07), " +
           "inset 0 -1px 0 rgba(0,0,0,0.12)",
       }}
-      whileHover={{ scale: 1.015, background: "rgba(255,255,255,0.075)" }}
-      whileTap={{ scale: 0.985 }}
-      transition={SPRING_FAST}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "rgba(255,255,255,0.075)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = "rgba(255,255,255,0.045)";
+      }}
     >
       <span
         className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-full"
@@ -64,13 +52,20 @@ function GhostButton() {
       />
       Ver cómo se ve
       <ArrowRight className="h-4 w-4 opacity-35 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-60" />
-    </motion.a>
+    </a>
   );
 }
 
 export function HeroSection() {
   return (
-    <section className="relative w-full overflow-hidden pb-24 pt-20 text-center lg:pb-32 lg:pt-32">
+    <>
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(22px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      <section className="relative w-full overflow-hidden pb-24 pt-20 text-center lg:pb-32 lg:pt-32">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -111,18 +106,16 @@ export function HeroSection() {
       />
 
       <div className="relative mx-auto max-w-5xl px-6 lg:px-10">
-        <motion.div variants={fadeUp(0)} initial={false} animate="visible">
+        <div style={getFadeUpStyle(0)}>
           <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
             Para dueños de gym que quieren cobrar sin perseguir
           </span>
-        </motion.div>
+        </div>
 
-        <motion.h1
+        <h1
           className="relative z-10 mx-auto mt-10 max-w-4xl text-[2.2rem] font-semibold leading-[1.05] tracking-[-0.055em] sm:text-[3.4rem] lg:text-[4.8rem]"
-          variants={fadeUp(0.12)}
-          initial={false}
-          animate="visible"
+          style={getFadeUpStyle(0.12)}
         >
           <span
             className="bg-clip-text text-transparent"
@@ -140,41 +133,36 @@ export function HeroSection() {
           >
             sin que lo supieras?
           </span>
-        </motion.h1>
+        </h1>
 
-        <motion.p
+        <p
           className="mx-auto mt-8 max-w-2xl text-base font-light leading-relaxed tracking-tight text-white/40 lg:text-lg"
-          variants={fadeUp(0.24)}
-          initial={false}
-          animate="visible"
+          style={getFadeUpStyle(0.24)}
         >
           FitGrowX te avisa antes de que se vaya cada uno.{" "}
           <span className="font-medium text-white/70">
             Automático, por WhatsApp, sin que tengas que acordarte.
           </span>
-        </motion.p>
+        </p>
 
-        <motion.div
+        <div
           className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
-          variants={fadeUp(0.34)}
-          initial={false}
-          animate="visible"
+          style={getFadeUpStyle(0.34)}
         >
           <PrimaryButton />
           <GhostButton />
-        </motion.div>
+        </div>
 
-        <motion.div
+        <div
           className="mt-8 flex flex-wrap items-center justify-center gap-3 text-[11px] uppercase tracking-[0.15em] text-white/26"
-          variants={fadeUp(0.4)}
-          initial={false}
-          animate="visible"
+          style={getFadeUpStyle(0.4)}
         >
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">30 días gratis</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Sin tarjeta</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Setup simple</span>
-        </motion.div>
+        </div>
       </div>
     </section>
+    </>
   );
 }
