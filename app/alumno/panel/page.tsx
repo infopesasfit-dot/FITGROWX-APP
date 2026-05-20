@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, Dumbbell, User, Target, Lock, Eye, Bell } from "lucide-react";
 import { useWorkoutSession } from "@/hooks/useWorkoutSession";
+import { SessionExpiredModal } from "./components/SessionExpiredModal";
 
 const fd = "'Inter', sans-serif";
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -253,6 +254,7 @@ function AlumnoPanelInner() {
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const [restTotal,   setRestTotal]   = useState(60);
   const restRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const { workoutSession, wsSyncing, initSession, markSerie, setSerieKg, finalizeWorkout, flushWorkoutSession, enqueueKg, flushKgQueue } =
     useWorkoutSession(session?.alumno_id ?? null, session?.gym_id ?? null, null);
@@ -328,7 +330,7 @@ function AlumnoPanelInner() {
       return;
     }
     if (r.status === 401) {
-      router.replace("/alumno/login");
+      setSessionExpired(true);
       return;
     }
     if (r.status >= 500) { setApiDown(true); return; }
@@ -2341,6 +2343,9 @@ function AlumnoPanelInner() {
           {toast.msg}
         </div>
       )}
+
+      {/* Session Expired Modal */}
+      <SessionExpiredModal show={sessionExpired} />
     </div>
   );
 }
