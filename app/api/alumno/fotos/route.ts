@@ -2,6 +2,7 @@ import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
 
 const BUCKET = "progreso-fotos";
 const SIGNED_URL_TTL = 60 * 60 * 6; // 6 hours
@@ -47,8 +48,13 @@ export async function POST(req: NextRequest) {
   try { formData = await req.formData(); }
   catch { return NextResponse.json({ error: "Formato inválido." }, { status: 400 }); }
 
-  const file     = formData.get("file")     as File   | null;
   const alumno_id = formData.get("alumno_id") as string | null;
+  if (alumno_id) {
+    const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60 * 1000, maxAttempts: 10 });
+    if (!rateLimit.allowed) return rateLimit.response!;
+  }
+
+  const file     = formData.get("file")     as File   | null;
   const gym_id    = formData.get("gym_id")    as string | null;
   const fecha     = (formData.get("fecha")  as string | null) ?? new Date().toISOString().slice(0, 10);
   let notas      = (formData.get("notas")  as string | null) ?? null;
@@ -103,6 +109,9 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
   }
   if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+
+  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
+  if (!rateLimit.allowed) return rateLimit.response!;
 
   // Verify ownership before update
   const { data: existing } = await supabase

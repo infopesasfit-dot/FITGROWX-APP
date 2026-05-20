@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
 
 const supabase = getSupabaseAdminClient();
 
@@ -30,6 +31,9 @@ export async function POST(req: NextRequest) {
   if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
     return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
   }
+
+  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60 * 1000, maxAttempts: 30 });
+  if (!rateLimit.allowed) return rateLimit.response!;
 
   const { data, error } = await supabase
     .from("progreso_pesos")

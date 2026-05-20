@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getTodayDate } from "@/lib/date-utils";
+import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
 
 const supabase = getSupabaseAdminClient();
 
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
   if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
     return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
   }
+
+  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
+  if (!rateLimit.allowed) return rateLimit.response!;
 
   const { data: clase } = await supabase.from("gym_classes").select("max_capacity, class_name, gym_id").eq("id", clase_id).single();
   if (!clase) return NextResponse.json({ error: "Clase no encontrada." }, { status: 404 });
@@ -83,6 +87,9 @@ export async function DELETE(req: NextRequest) {
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+
+  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
+  if (!rateLimit.allowed) return rateLimit.response!;
 
   const gymId = tokenRow.gym_id;
 
