@@ -19,24 +19,15 @@ function AuthInner() {
   useEffect(() => {
     if (!token) return;
 
-    fetch("/api/alumno/verify-token", {
+    fetch("/api/alumno/set-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
+      credentials: "include",
     })
       .then(r => r.json())
       .then(data => {
         if (!data.ok) { setError(data.error ?? "Error al verificar."); setStatus("error"); return; }
-        localStorage.setItem("fitgrowx_alumno", JSON.stringify({
-          alumno_id:   data.alumno.id,
-          gym_id:      data.gym_id,
-          full_name:   data.alumno.full_name,
-          status:      data.alumno.status,
-          plan:        getPlanNombre(data.alumno.planes),
-          expiration:  data.alumno.next_expiration_date ?? null,
-          dni:         data.alumno.dni ?? null,
-          token,
-        }));
         router.replace("/alumno/panel");
       })
       .catch(() => { setError("Error de conexión."); setStatus("error"); });

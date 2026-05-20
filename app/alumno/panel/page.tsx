@@ -291,37 +291,23 @@ function AlumnoPanelInner() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Load session + refresh from server
+  // Load session from secure cookie
   useEffect(() => {
-    const raw = localStorage.getItem("fitgrowx_alumno");
-    if (!raw) { router.replace("/alumno/login"); return; }
-    let parsed: Session;
-    try { parsed = JSON.parse(raw); } catch { router.replace("/alumno/login"); return; }
-    if (!parsed.token) { router.replace("/alumno/login"); return; }
-    const dismissKey = `fitgrowx_deuda_ok_${parsed.alumno_id}`;
-    if (sessionStorage.getItem(dismissKey) === "1") setDeudaDismissed(true);
-    setSession(parsed);
-    const pagoParam = searchParams.get("pago");
-    fetch(`/api/alumno/me?alumno_id=${parsed.alumno_id}`, {
-      headers: { Authorization: `Bearer ${parsed.token}` },
-    })
+    fetch("/api/alumno/session", { credentials: "include" })
       .then(async r => {
-        if (r.status === 401) {
-          localStorage.removeItem("fitgrowx_alumno");
-          router.replace("/alumno/login");
-          return;
-        }
+        if (r.status === 401) { router.replace("/alumno/login"); return; }
+        if (!r.ok) { setApiDown(true); return; }
         const d = await r.json();
-        if (d.error) return;
-        const fresh: Session = { alumno_id: d.alumno_id, gym_id: d.gym_id, full_name: d.full_name, status: d.status, plan: d.plan, expiration: d.expiration, dni: d.dni ?? null, deuda_pendiente: d.deuda_pendiente ?? 0, token: parsed.token };
-        localStorage.setItem("fitgrowx_alumno", JSON.stringify(fresh));
-        setSession(fresh);
+        const dismissKey = `fitgrowx_deuda_ok_${d.alumno_id}`;
+        if (sessionStorage.getItem(dismissKey) === "1") setDeudaDismissed(true);
+        setSession(d as Session);
+        const pagoParam = searchParams.get("pago");
         if (pagoParam === "ok") showToast("✅ ¡Pago recibido! Tu membresía fue renovada.", true);
         if (pagoParam === "error") showToast("El pago no se completó. Intentá de nuevo.", false);
         if (pagoParam === "pendiente") showToast("Pago pendiente de acreditación.", true);
         if (pagoParam) router.replace("/alumno/panel");
       })
-      .catch(() => {});
+      .catch(() => { setApiDown(true); });
   }, [router, searchParams]);
 
   useEffect(() => {
@@ -343,7 +329,6 @@ function AlumnoPanelInner() {
       return;
     }
     if (r.status === 401) {
-      localStorage.removeItem("fitgrowx_alumno");
       router.replace("/alumno/login");
       return;
     }
@@ -806,7 +791,7 @@ function AlumnoPanelInner() {
     if (!showQR || checkinMode !== "scan") stopScan();
   }, [showQR, checkinMode, stopScan]);
 
-  const logout = () => { localStorage.removeItem("fitgrowx_alumno"); router.replace("/alumno/login"); };
+  const logout = async () => { await fetch("/api/alumno/logout", { method: "POST", credentials: "include" }); router.replace("/alumno/login"); };
 
   const days7 = useMemo(() => getNext7Days(), []);
   const latestPesoByExercise = useMemo(() => {

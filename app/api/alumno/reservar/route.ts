@@ -41,7 +41,9 @@ export async function POST(req: NextRequest) {
     .eq("gym_id", gym_id)
     .maybeSingle();
 
-  const plan = Array.isArray(alumno?.planes) ? alumno?.planes[0] : alumno?.planes;
+  const planes = alumno?.planes;
+  const plan = Array.isArray(planes) ? planes?.[0] : planes;
+  if (!plan) return NextResponse.json({ error: "El alumno no tiene un plan asignado." }, { status: 422 });
   const accessType = typeof plan?.access_type === "string" ? plan.access_type : "libre";
   const classesPerWeek = typeof plan?.classes_per_week === "number" ? plan.classes_per_week : null;
 
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
   const { count } = await supabase.from("reservas").select("id", { count: "exact", head: true }).eq("clase_id", clase_id).eq("fecha", fecha).eq("estado", "confirmada");
   if ((count ?? 0) >= clase.max_capacity) return NextResponse.json({ error: "La clase ya está completa para esa fecha." }, { status: 409 });
 
-  const { error } = await supabase.from("reservas").insert({ gym_id, alumno_id, clase_id, fecha, estado: "confirmada" });
+  const { error } = await supabase.from("reservas").insert({ gym_id, alumno_id, clase_id, fecha, estado: "confirmada" }).select();
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "Ya tenés una reserva para esa clase y fecha." }, { status: 409 });
     if (error.code === "P0001" && error.message.includes("CAPACITY_EXCEEDED"))

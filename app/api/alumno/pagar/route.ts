@@ -4,7 +4,11 @@ import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
 
-const MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? process.env.CRON_SECRET ?? "";
+const MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? "";
+
+if (!MASTER_SECRET) {
+  throw new Error("MP_WEBHOOK_SECRET no configurado. La API pagar no puede inicializar.");
+}
 
 const supabase = getSupabaseAdminClient();
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

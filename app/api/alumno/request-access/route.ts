@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
   const { dni } = await req.json();
   const dniClean = String(dni ?? "").replace(/\D/g, "");
   if (!dniClean) return NextResponse.json({ error: "DNI requerido." }, { status: 400 });
-  if (dniClean.length < 7 || dniClean.length > 10) {
-    return NextResponse.json({ error: "Ingresá un DNI válido." }, { status: 400 });
+  if (dniClean.length < 7 || dniClean.length > 8) {
+    return NextResponse.json({ error: "Ingresá un DNI válido (7 u 8 dígitos)." }, { status: 400 });
   }
 
   const ipLimit = await applyRateLimit({

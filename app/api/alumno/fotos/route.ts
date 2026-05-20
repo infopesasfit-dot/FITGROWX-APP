@@ -60,6 +60,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
   }
 
+  const allowedMimes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedMimes.includes(file.type)) {
+    return NextResponse.json({ error: "Solo se aceptan imágenes JPG, PNG o WebP." }, { status: 400 });
+  }
+
   const ext = file.type.includes("png") ? "png" : file.type.includes("webp") ? "webp" : "jpg";
   const storagePath = `${gym_id}/${alumno_id}/${Date.now()}.${ext}`;
   const bytes = await file.arrayBuffer();

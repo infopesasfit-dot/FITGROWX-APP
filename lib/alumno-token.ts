@@ -12,9 +12,15 @@ export function getAlumnoBearerToken(req: NextRequest) {
   return req.headers.get("authorization")?.replace("Bearer ", "") ?? null;
 }
 
+export function getAlumnoCookieToken(req: NextRequest) {
+  const cookieHeader = req.headers.get("cookie") ?? "";
+  const match = cookieHeader.match(/fitgrowx_token=([^;]+)/);
+  return match?.[1] ?? null;
+}
+
 export async function getValidAlumnoToken(req: NextRequest): Promise<AlumnoTokenRow | null> {
   const supabase = getSupabaseAdminClient();
-  const token = getAlumnoBearerToken(req);
+  const token = getAlumnoBearerToken(req) ?? getAlumnoCookieToken(req);
   if (!token) return null;
 
   const tokenHash = createHash("sha256").update(String(token)).digest("hex");
