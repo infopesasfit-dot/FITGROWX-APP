@@ -29,7 +29,7 @@ self.addEventListener("fetch", (e) => {
   }
 
   // Cache-first: imágenes e iconos públicos
-  if (url.pathname.startsWith("/images/") || url.pathname === "/manifest-dashboard.json") {
+  if (url.pathname.startsWith("/images/") || url.pathname === "/manifest-dashboard.json" || url.pathname === "/favicon.ico") {
     e.respondWith(cacheFirst(request));
     return;
   }
@@ -83,3 +83,43 @@ async function networkFirstWithCache(request) {
     );
   }
 }
+
+self.addEventListener("push", (event) => {
+  if (!event.data) {
+    console.log("[SW] Push received but no data");
+    return;
+  }
+
+  try {
+    const data = event.data.json();
+    event.waitUntil(
+      self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: data.icon || "/images/logo-192x192.png",
+        badge: data.badge || "/images/logo-192x192.png",
+        tag: data.tag || "notification",
+        data: data.data || {},
+      })
+    );
+  } catch (err) {
+    console.error("[SW] Error processing push:", err);
+  }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const url = event.notification.data?.url || "/dashboard";
+  event.waitUntil(
+    clients.matchAll({ type: "window" }).then((clientList) => {
+      for (let client of clientList) {
+        if (client.url === url && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
+});

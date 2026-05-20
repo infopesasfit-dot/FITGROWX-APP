@@ -87,7 +87,15 @@
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx diff)",
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx add app/platform/components/PlatformHeader.tsx app/platform/page.tsx)",
       "Bash(git -C /Users/eliydan/Desktop/fitgrowx add app/dashboard/membresias/page.tsx)",
-      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(cp logo-favicon-fitgrowx.png logo-favicon-fitgrowx-1024.png)",
+      "Bash(sips -z 192 192 logo-favicon-fitgrowx.png --out logo-192x192.png)",
+      "Bash(sips -z 512 512 logo-favicon-fitgrowx.png --out logo-512x512.png)",
+      "Bash(sips -z 192 192 logo-favicon-fitgrowx.png --out logo-192x192-maskable.png)",
+      "Bash(sips -z 32 32 logo-favicon-fitgrowx.png --out favicon-temp.png)",
+      "Bash(mv public/images/favicon.ico public/favicon.ico)",
+      "Bash(rm public/images/favicon-temp.png)",
+      "Bash(rm public/images/logo-favicon-fitgrowx-1024.png)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",

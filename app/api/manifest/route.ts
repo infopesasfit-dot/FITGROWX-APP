@@ -19,14 +19,20 @@ export async function GET(req: NextRequest) {
       categories: ["fitness", "business", "productivity"],
       icons: [
         {
-          src: "/images/logo-favicon-fitgrowx.png",
+          src: "/images/logo-192x192.png",
           sizes: "192x192",
           type: "image/png",
           purpose: "any",
         },
         {
-          src: "/images/logo-favicon-fitgrowx.png",
+          src: "/images/logo-512x512.png",
           sizes: "512x512",
+          type: "image/png",
+          purpose: "any",
+        },
+        {
+          src: "/images/logo-192x192-maskable.png",
+          sizes: "192x192",
           type: "image/png",
           purpose: "maskable",
         },
@@ -35,12 +41,12 @@ export async function GET(req: NextRequest) {
         {
           name: "Alumnos",
           url: "/dashboard/alumnos?pwa=1",
-          icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+          icons: [{ src: "/images/logo-192x192.png", sizes: "192x192" }],
         },
         {
           name: "Escáner QR",
           url: "/dashboard/scanner?pwa=1",
-          icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+          icons: [{ src: "/images/logo-192x192.png", sizes: "192x192" }],
         },
       ],
     });
@@ -61,14 +67,20 @@ export async function GET(req: NextRequest) {
     categories: ["fitness", "health"],
     icons: [
       {
-        src: "/images/logo-favicon-fitgrowx.png",
+        src: "/images/logo-192x192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/images/logo-favicon-fitgrowx.png",
+        src: "/images/logo-512x512.png",
         sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/images/logo-192x192-maskable.png",
+        sizes: "192x192",
         type: "image/png",
         purpose: "maskable",
       },
@@ -77,12 +89,12 @@ export async function GET(req: NextRequest) {
       {
         name: "Ver mis clases",
         url: "/alumno/panel?tab=clases",
-        icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+        icons: [{ src: "/images/logo-192x192.png", sizes: "192x192" }],
       },
       {
         name: "Mi progreso",
         url: "/alumno/panel?tab=metas",
-        icons: [{ src: "/images/logo-favicon-fitgrowx.png", sizes: "96x96" }],
+        icons: [{ src: "/images/logo-192x192.png", sizes: "192x192" }],
       },
     ],
   });
