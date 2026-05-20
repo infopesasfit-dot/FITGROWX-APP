@@ -17,8 +17,7 @@ interface Session {
   plan:            string | null;
   expiration:      string | null;
   dni:             string | null;
-  deuda_pendiente: number;
-  token?:          string | null;
+  deuda_pendiente?: number;
 }
 
 interface GymClass {
@@ -256,7 +255,7 @@ function AlumnoPanelInner() {
   const restRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { workoutSession, wsSyncing, initSession, markSerie, setSerieKg, finalizeWorkout, flushWorkoutSession, enqueueKg, flushKgQueue } =
-    useWorkoutSession(session?.alumno_id ?? null, session?.gym_id ?? null, session?.token ?? null);
+    useWorkoutSession(session?.alumno_id ?? null, session?.gym_id ?? null, null);
 
   // Group pesos by exercise in chronological order
   const pesosPorEjercicio = useMemo(() => {
@@ -322,7 +321,7 @@ function AlumnoPanelInner() {
     let r: Response;
     try {
       r = await fetch(`/api/alumno/bootstrap?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}${suffix}`, {
-        headers: { Authorization: `Bearer ${s.token}` },
+        credentials: "include",
       });
     } catch {
       setApiDown(true);
@@ -363,7 +362,7 @@ function AlumnoPanelInner() {
 
   const fetchPesos = useCallback(async (s: Session) => {
     const r = await fetch(`/api/alumno/pesos?alumno_id=${s.alumno_id}`, {
-      headers: { Authorization: `Bearer ${s.token}` },
+      credentials: "include",
     });
     const d = await r.json();
     setPesos(d.pesos ?? []);
@@ -372,7 +371,7 @@ function AlumnoPanelInner() {
   const fetchMedidas = useCallback(async (s: Session) => {
     setMedLoading(true);
     const r = await fetch(`/api/alumno/medidas?alumno_id=${s.alumno_id}`, {
-      headers: { Authorization: `Bearer ${s.token}` },
+      credentials: "include",
     }).catch(() => null);
     if (r?.ok) {
       const d = await r.json();
@@ -383,7 +382,7 @@ function AlumnoPanelInner() {
 
   const fetchRanking = useCallback(async (s: Session) => {
     const r = await fetch(`/api/alumno/ranking?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}`, {
-      headers: { Authorization: `Bearer ${s.token}` },
+      credentials: "include",
     }).catch(() => null);
     if (r?.ok) {
       const d = await r.json();
@@ -431,9 +430,9 @@ function AlumnoPanelInner() {
   }, [session, tab, rankLoaded, fetchRanking]);
 
   useEffect(() => {
-    if (!session?.token || hitosChecked) return;
+    if (!session || hitosChecked) return;
     setHitosChecked(true);
-    fetch("/api/alumno/hitos", { headers: { Authorization: `Bearer ${session.token}` } })
+    fetch("/api/alumno/hitos", { credentials: "include" })
       .then(r => r.ok ? r.json() : { hitos: [] })
       .then(d => { if (d.hitos?.length) setPendingHitos(d.hitos); })
       .catch(() => {});
@@ -443,7 +442,7 @@ function AlumnoPanelInner() {
     if (tab !== "metas" || !session || fotos.length > 0 || fotosLoading) return;
     setFotosLoading(true);
     fetch(`/api/alumno/fotos?alumno_id=${session.alumno_id}`, {
-      headers: { Authorization: `Bearer ${session.token}` },
+      credentials: "include",
     })
       .then(r => r.ok ? r.json() : { fotos: [] })
       .then(d => setFotos(d.fotos ?? []))
@@ -454,7 +453,7 @@ function AlumnoPanelInner() {
 
   const fetchNotifications = useCallback(async (s: Session) => {
     const r = await fetch("/api/alumno/notificaciones", {
-      headers: { Authorization: `Bearer ${s.token}` },
+      credentials: "include",
     }).catch(() => null);
     if (r?.ok) {
       const d = await r.json();
@@ -473,7 +472,8 @@ function AlumnoPanelInner() {
     if (!session || notifs.every(n => n.leida)) return;
     fetch("/api/alumno/notificaciones", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+      headers: { "Content-Type": "application/json",
+    },
       body: JSON.stringify({ all: true }),
     }).then(() => setNotifs(prev => prev.map(n => ({ ...n, leida: true })))).catch(() => {});
   };
@@ -513,7 +513,8 @@ function AlumnoPanelInner() {
     if (medCintura.trim()) body.cintura_cm = parseFloat(medCintura);
     const r = await fetch("/api/alumno/medidas", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+      headers: { "Content-Type": "application/json",
+    },
       body: JSON.stringify(body),
     });
     const d = await r.json();
@@ -547,7 +548,8 @@ function AlumnoPanelInner() {
             }
           }
         }
-        const res = await fetch("/api/alumno/reservar", { method: "DELETE", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ alumno_id: session.alumno_id, clase_id, fecha }) });
+        const res = await fetch("/api/alumno/reservar", { method: "DELETE", headers: { "Content-Type": "application/json",
+    }, body: JSON.stringify({ alumno_id: session.alumno_id, clase_id, fecha }) });
         const d = await res.json();
         if (d.ok) {
           setReservas(prev => prev.filter(r => !(r.clase_id === clase_id && r.fecha === fecha)));
@@ -555,7 +557,8 @@ function AlumnoPanelInner() {
         }
         else showToast(d.error ?? "Error.", false);
       } else {
-        const res = await fetch("/api/alumno/reservar", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` }, body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, clase_id, fecha }) });
+        const res = await fetch("/api/alumno/reservar", { method: "POST", headers: { "Content-Type": "application/json",
+    }, body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, clase_id, fecha }) });
         const d = await res.json();
         if (d.ok) { setReservas(prev => [...prev, { clase_id, fecha }]); showToast("Reserva confirmada!"); }
         else showToast(d.error ?? "Error.", false);
@@ -576,7 +579,8 @@ function AlumnoPanelInner() {
     try {
       const res = await fetch("/api/alumno/pesos", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        headers: { "Content-Type": "application/json",
+    },
         body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, ejercicio, peso: kgNum, notas: null }),
       });
       const d = await res.json();
@@ -631,7 +635,7 @@ function AlumnoPanelInner() {
     try {
       const res = await fetch("/api/alumno/fotos", {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.token}` },
+        credentials: "include",
         body: fd,
       });
       const d = await res.json();
@@ -650,7 +654,8 @@ function AlumnoPanelInner() {
     try {
       const res = await fetch("/api/alumno/fotos", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        headers: { "Content-Type": "application/json",
+    },
         body: JSON.stringify({ foto_id: fotoId, alumno_id: session.alumno_id, privada: next }),
       });
       if (!res.ok) setFotos(prev => prev.map(f => f.id === fotoId ? { ...f, privada: privadaActual } : f));
@@ -697,7 +702,8 @@ function AlumnoPanelInner() {
     try {
       const res = await fetch("/api/alumno/checkin-publico", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        headers: { "Content-Type": "application/json",
+    },
         body: JSON.stringify({ gym_id: session.gym_id }),
       });
       const d = await res.json();
@@ -769,7 +775,8 @@ function AlumnoPanelInner() {
           try {
             const res = await fetch("/api/alumno/checkin-publico", {
               method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+              headers: { "Content-Type": "application/json",
+    },
               body: JSON.stringify({ gym_id: gymIdFromQR }),
             });
             const d = await res.json();
@@ -810,7 +817,8 @@ function AlumnoPanelInner() {
     try {
       const res = await fetch("/api/alumno/pagar", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        headers: { "Content-Type": "application/json",
+    },
         body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id }),
       });
       const d = await res.json();
@@ -842,7 +850,7 @@ function AlumnoPanelInner() {
     try {
       const r = await fetch("/api/alumno/guest-pass", {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.token}` },
+        credentials: "include",
       });
       const d = await r.json();
       if (r.ok && d.passUrl) {

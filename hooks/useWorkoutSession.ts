@@ -74,16 +74,17 @@ export function useWorkoutSession(alumnoId: string | null, gymId: string | null,
   }, [key]);
 
   const syncToServer = useCallback(async (s: WorkoutSession): Promise<boolean> => {
-    if (!alumnoId || !gymId || !token) return false;
+    if (!alumnoId || !gymId) return false;
     try {
       const res = await fetch("/api/alumno/workout-log", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ alumno_id: alumnoId, gym_id: gymId, fecha, rutina_nombre: s.rutina_nombre, series_log: s.series_log, completada: s.completada, offline: s.offline }),
       });
       return res.ok;
     } catch { return false; }
-  }, [alumnoId, gymId, token, fecha]);
+  }, [alumnoId, gymId, fecha]);
 
   const finalizeWorkout = useCallback(async (): Promise<boolean> => {
     if (!workoutSession || !key) return false;
@@ -117,7 +118,7 @@ export function useWorkoutSession(alumnoId: string | null, gymId: string | null,
   }, [alumnoId]);
 
   const flushKgQueue = useCallback(async () => {
-    if (!alumnoId || !token) return;
+    if (!alumnoId) return;
     const qk  = kgqKey(alumnoId);
     const q: KgQueueItem[] = readLS(qk) ?? [];
     if (!q.length) return;
@@ -127,14 +128,15 @@ export function useWorkoutSession(alumnoId: string | null, gymId: string | null,
       try {
         const res = await fetch("/api/alumno/pesos", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ alumno_id: item.alumno_id, gym_id: item.gym_id, ejercicio: item.ejercicio, peso: item.peso, notas: null }),
         });
         if (res.ok) ok.push(i);
       } catch {}
     }
     writeLS(qk, q.filter((_, i) => !ok.includes(i)));
-  }, [alumnoId, token]);
+  }, [alumnoId]);
 
   return { workoutSession, wsSyncing, initSession, markSerie, setSerieKg, finalizeWorkout, flushWorkoutSession, enqueueKg, flushKgQueue };
 }
