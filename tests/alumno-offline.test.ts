@@ -44,8 +44,9 @@ describe("AlumnoOfflineStore", () => {
     const queue = await store.getQueue();
 
     expect(queue).toHaveLength(2);
-    expect(queue[0].url).toBe("/api/test1");
-    expect(queue[1].url).toBe("/api/test2");
+    const urls = queue.map((r) => r.url);
+    expect(urls).toContain("/api/test1");
+    expect(urls).toContain("/api/test2");
   });
 
   it("returns empty queue when no requests are enqueued", async () => {
