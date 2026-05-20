@@ -1442,6 +1442,135 @@ function AlumnoPanelInner() {
         </div>
       )}
 
+      {/* Mobile Bottom Navigation */}
+      <div style={{
+        position: "fixed",
+        bottom: isCompactScreen ? 0 : 20,
+        left: isCompactScreen ? 0 : "50%",
+        right: isCompactScreen ? 0 : "auto",
+        transform: isCompactScreen ? "none" : "translateX(-50%)",
+        zIndex: 100,
+        width: isCompactScreen ? "100%" : "92%",
+        maxWidth: 520,
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "center",
+        backdropFilter: "blur(40px)",
+        WebkitBackdropFilter: "blur(40px)",
+        background: "rgba(18,18,24,0.92)",
+        border: `1px solid rgba(255,255,255,0.07)`,
+        borderRadius: isCompactScreen ? "0" : "28px",
+        padding: isCompactScreen ? "8px 0 env(safe-area-inset-bottom)" : "6px 6px 8px",
+        boxShadow: isCompactScreen ? "none" : "0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
+        gap: 0,
+      }}>
+        {/* Left tabs */}
+        {([
+          { key: "calendario", label: "Clases", Icon: Calendar },
+          { key: "entrenamiento", label: "Entrena", Icon: Dumbbell },
+        ] as const).map(({ key, label, Icon }) => {
+          const active = tab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => handleTabChange(key)}
+              className="tap-active"
+              style={{
+                flex: 1,
+                minHeight: 52,
+                background: "transparent",
+                border: "none",
+                borderRadius: 20,
+                padding: "8px 6px 5px",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+              }}
+            >
+              <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
+              <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>
+                {label}
+              </span>
+              <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />
+            </button>
+          );
+        })}
+
+        {/* QR center */}
+        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", margin: "0 3px" }}>
+          <button
+            onClick={() => { setCheckinMode("qr"); setCheckinResult(null); setShowQR(true); }}
+            className="tap-active"
+            style={{
+              position: "relative",
+              bottom: isCompactScreen ? 8 : 16,
+              width: isCompactScreen ? 54 : 62,
+              height: isCompactScreen ? 54 : 62,
+              background: "rgba(12,12,18,0.98)",
+              border: "1px solid rgba(249,115,22,0.4)",
+              borderRadius: 20,
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+              animation: "qrPulse 3s ease-in-out infinite",
+            }}
+          >
+            <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
+              <path d="M4 11V5a1 1 0 0 1 1-1h6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M17 4h6a1 1 0 0 1 1 1v6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M4 17v6a1 1 0 0 0 1 1h6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
+              <path d="M17 24h6a1 1 0 0 0 1-1v-6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="14" cy="14" r="2" fill="#F97316" />
+            </svg>
+            <span style={{ font: `700 0.4rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.18em" }}>
+              SCAN
+            </span>
+          </button>
+          <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#F97316", opacity: 0.5, marginTop: isCompactScreen ? -12 : -18 }} />
+        </div>
+
+        {/* Right tabs */}
+        {([
+          { key: "metas", label: "Metas", Icon: Target },
+          { key: "perfil", label: "Perfil", Icon: User },
+        ] as const).map(({ key, label, Icon }) => {
+          const active = tab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => handleTabChange(key)}
+              className="tap-active"
+              style={{
+                flex: 1,
+                minHeight: 52,
+                background: "transparent",
+                border: "none",
+                borderRadius: 20,
+                padding: "8px 6px 5px",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+              }}
+            >
+              <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
+              <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>
+                {label}
+              </span>
+              <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />
+            </button>
+          );
+        })}
+      </div>
+
       {/* Session Expired Modal */}
       <SessionExpiredModal show={sessionExpired} />
 
