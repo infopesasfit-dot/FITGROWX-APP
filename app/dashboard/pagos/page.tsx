@@ -760,7 +760,7 @@ export default function PagosPage() {
             {
               label: "Transferencias Pendientes",
               value: loading ? "—" : String(pendientes.length),
-              icon: <Clock size={16} color="white" />,
+              icon: <Wallet size={16} color="white" />,
               sub: pendientes.length > 0 ? "Requieren validación" : "Todo al día ✓",
               warn: pendientes.length > 0,
               action: () => jumpToSection("pendientes", "pagos-pendientes"),
