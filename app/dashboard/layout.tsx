@@ -645,7 +645,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
           {gymSlug && (
             <a
-              href={`/alumno/preview?slug=${gymSlug}`}
+              href={`/gym/${gymSlug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="sb-item"
