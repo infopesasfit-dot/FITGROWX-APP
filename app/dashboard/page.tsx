@@ -12,6 +12,7 @@ import { QuickActions } from "@/app/dashboard/components/QuickActions";
 import { Filters } from "@/app/dashboard/components/Filters";
 import { initials, fmt, last5Months, metricDelta, formatMetricValue, getMetricTag, buildDonutSegments } from "@/lib/dashboard-helpers";
 import { DashboardMetric, DashboardAlerts, DashboardSnapshot, RecenteAlumno, PlanDist } from "@/lib/dashboard-types";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 const accent = "#FF7A18";
 const accentDeep = "#E65A00";
@@ -113,7 +114,7 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const gymIdRef = useRef<string | null>(null);
   const userIdRef = useRef<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const isDesktop = useIsDesktop();
   const [ownerName, setOwnerName] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<Date | null>(null);
   const [lastCronRun, setLastCronRun] = useState<{ ran_at: string; status: string; summary: string | null } | null>(null);
@@ -121,13 +122,6 @@ export default function DashboardPage() {
   const [botActivity, setBotActivity] = useState<{ msgHoy: number; vencHoy: number; pagosHoyCount: number; feed: { ts: string; tipo: "wa" | "pago"; label: string; name: string }[] } | null>(null);
   const [gymName, setGymName] = useState("tu gym");
   const [greetPhase, setGreetPhase] = useState<"hola" | "exit" | "welcome">("hola");
-
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   const [activosCount,      setActivosCount]      = useState(0);
   const [totalCount,        setTotalCount]        = useState(0);
@@ -389,8 +383,8 @@ export default function DashboardPage() {
   const pageShell: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
-    gap: isMobile ? 16 : 22,
-    padding: isMobile ? "4px 0 0" : "4px 0 8px",
+    gap: isDesktop ? 22 : 16,
+    padding: isDesktop ? "4px 0 8px" : "4px 0 0",
     position: "relative",
   };
 
@@ -460,7 +454,7 @@ export default function DashboardPage() {
     return (
       <a
         href={href}
-        style={{ ...cardBase, padding: isMobile ? "18px 16px" : "20px 18px", background: whitePanel, cursor: href ? "pointer" : "default", display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}
+        style={{ ...cardBase, padding: isDesktop ? "20px 18px" : "18px 16px", background: whitePanel, cursor: href ? "pointer" : "default", display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}
         {...cardHover}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
@@ -470,7 +464,7 @@ export default function DashboardPage() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 8 }}>
-          <span style={{ font: `600 ${isMobile ? "1.55rem" : "1.875rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.025em" }}>{value}</span>
+          <span style={{ font: `600 ${isDesktop ? "1.875rem" : "1.55rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.025em" }}>{value}</span>
         </div>
         <p style={{ font: `400 0.72rem/1.4 ${fb}`, color: t2, marginTop: "auto" }}>{hint}</p>
       </a>
@@ -480,16 +474,16 @@ export default function DashboardPage() {
   const renderMetricInfo = (metric: DashboardMetric) => (
     <div
       style={{ position: "relative", display: "inline-flex" }}
-      onMouseEnter={() => { if (!isMobile) setActiveInfo({ title: metric.label, body: metric.tooltip }); }}
-      onMouseLeave={() => { if (!isMobile) setActiveInfo(null); }}
+      onMouseEnter={() => { if (isDesktop) setActiveInfo({ title: metric.label, body: metric.tooltip }); }}
+      onMouseLeave={() => { if (isDesktop) setActiveInfo(null); }}
     >
       <button
-        onClick={() => { if (isMobile) setActiveInfo({ title: metric.label, body: metric.tooltip }); }}
+        onClick={() => { if (!isDesktop) setActiveInfo({ title: metric.label, body: metric.tooltip }); }}
         style={{ width: 22, height: 22, borderRadius: "50%", border: "1px solid rgba(17,24,39,0.08)", background: "#FFFFFF", color: t3, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
       >
         <CircleHelp size={13} />
       </button>
-      {!isMobile && activeInfo?.title === metric.label && (
+      {isDesktop && activeInfo?.title === metric.label && (
         <div style={{ position: "absolute", left: "50%", bottom: "calc(100% + 8px)", transform: "translateX(-50%)", width: 220, padding: "10px 12px", borderRadius: 14, background: "#17181B", color: "white", boxShadow: "0 20px 40px rgba(0,0,0,0.18)", zIndex: 20 }}>
           <p style={{ font: `700 0.72rem/1 ${fd}`, marginBottom: 5 }}>{metric.label}</p>
           <p style={{ font: `500 0.68rem/1.45 ${fb}`, color: "rgba(255,255,255,0.75)" }}>{metric.tooltip}</p>
@@ -505,14 +499,14 @@ export default function DashboardPage() {
     const deltaText = delta == null ? "Sin datos" : delta === 0 ? "Sin cambios" : `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}%`;
     const deltaColor = delta == null ? t3 : delta === 0 ? t3 : isPositive ? statusPositive : statusNegative;
     return (
-      <div key={metric.key} style={{ padding: isMobile ? "14px 12px" : "18px 20px", display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
+      <div key={metric.key} style={{ padding: isDesktop ? "18px 20px" : "14px 12px", display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
         {showStep && <span style={{ font: `500 0.62rem/1 ${fm}`, color: t3, letterSpacing: "0.06em" }}>0{idx + 1}</span>}
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
             <p style={{ font: `600 0.64rem/1 ${fm}`, color: t3, textTransform: "uppercase", letterSpacing: "0.12em" }}>{metric.label}</p>
             {metric.tooltip && renderMetricInfo(metric)}
           </div>
-          <p style={{ font: `700 ${isMobile ? "1.4rem" : "1.75rem"}/0.94 ${fd}`, color: t1, letterSpacing: "-0.04em" }}>{formatMetricValue(metric)}</p>
+          <p style={{ font: `700 ${isDesktop ? "1.75rem" : "1.4rem"}/0.94 ${fd}`, color: t1, letterSpacing: "-0.04em" }}>{formatMetricValue(metric)}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto" }}>
           <span style={{ font: `700 0.62rem/1 ${fm}`, letterSpacing: "0.07em", padding: "4px 8px", borderRadius: 6, background: tag.green ? "rgba(22,163,74,0.10)" : "rgba(255,122,24,0.10)", color: tag.green ? "#15803D" : accentDeep }}>
@@ -520,7 +514,7 @@ export default function DashboardPage() {
           </span>
           <span style={{ font: `500 0.68rem/1 ${fb}`, color: deltaColor, whiteSpace: "nowrap" }}>{deltaText}</span>
         </div>
-        {!isLast && !isMobile && (
+        {!isLast && isDesktop && (
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1, background: "rgba(15,17,21,0.07)" }} />
         )}
       </div>
@@ -531,7 +525,7 @@ export default function DashboardPage() {
     const sectionMetrics = metrics.filter((m) => m.section === section);
     const isEmbudo = section === "Embudo";
     const isFidel  = section === "Fidelización";
-    const cols = isEmbudo ? (isMobile ? 1 : 2) : (isMobile ? 1 : 3);
+    const cols = isEmbudo ? (isDesktop ? 2 : 1) : (isDesktop ? 3 : 1);
     const Icon = isEmbudo ? Megaphone : Zap;
     const iconColor = isEmbudo ? accentDeep : isFidel ? "#16A34A" : "#6366F1";
     const iconBg   = isEmbudo ? "rgba(255,122,24,0.10)" : isFidel ? "rgba(22,163,74,0.10)" : "rgba(111,99,232,0.10)";
@@ -544,7 +538,7 @@ export default function DashboardPage() {
         {/* Header */}
         <button
           onClick={() => setMetricSectionOpen(prev => ({ ...prev, [section]: !prev[section] }))}
-          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: isMobile ? "14px 16px 12px" : "16px 20px 14px", borderBottom: "1px solid rgba(15,17,21,0.07)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: isDesktop ? "16px 20px 14px" : "14px 16px 12px", borderBottom: "1px solid rgba(15,17,21,0.07)", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
         >
           <div style={{ width: 28, height: 28, borderRadius: 8, background: iconBg, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Icon size={14} />
@@ -592,7 +586,7 @@ export default function DashboardPage() {
                   const isLastRow = i >= sectionMetrics.length - cols;
                   return (
                     <React.Fragment key={m.key}>
-                      <div style={{ borderBottom: !isLastRow && !isMobile ? "1px solid rgba(15,17,21,0.07)" : "none" }}>
+                      <div style={{ borderBottom: !isLastRow && isDesktop ? "1px solid rgba(15,17,21,0.07)" : "none" }}>
                         {renderMetricCell(m, i, isEmbudo, isRowLast)}
                       </div>
                     </React.Fragment>
@@ -652,7 +646,7 @@ export default function DashboardPage() {
 
         {/* Bot de WhatsApp */}
         <section style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid rgba(15,17,21,0.07)", flexWrap: isMobile ? "wrap" : "nowrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid rgba(15,17,21,0.07)", flexWrap: isDesktop ? "nowrap" : "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(37,211,102,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Send size={12} color="#16A34A" />
@@ -693,7 +687,7 @@ export default function DashboardPage() {
   };
 
   /* ─────────── MOBILE LAYOUT ─────────── */
-  if (isMobile) return (
+  if (!isDesktop) return (
     <>
     <div style={pageShell}>
       <style>{`
@@ -792,7 +786,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <QuickActions isMobile={isMobile} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions isMobile={!isDesktop} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       {!loading && (
         <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} {...cardHover}>
@@ -820,7 +814,7 @@ export default function DashboardPage() {
           <p style={{ font: `600 0.62rem/1 ${fm}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
           <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, marginBottom: 2 }}>Lo que FitGrowX hizo por vos</p>
           <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t3, marginBottom: 12 }}>El sistema trabajó mientras te ocupabas del gym.</p>
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
             {[
               { icon: <Send size={13} />, value: mensajesAutoEnviados, label: "MENSAJES" },
               { icon: <CheckCircle size={13} />, value: renovacionesCount, label: "RENOVAC." },
@@ -1211,7 +1205,7 @@ export default function DashboardPage() {
         </a>
       )}
 
-      <QuickActions isMobile={isMobile} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions isMobile={!isDesktop} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {/* A cobrar — feature card */}
@@ -1282,7 +1276,7 @@ export default function DashboardPage() {
       {renderMetricSection("Eficiencia")}
 
       {/* Nuevos socios + Balance neto */}
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.5fr) minmax(320px, 1fr)", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.5fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
         {/* Nuevos socios por mes */}
         <div style={{ ...cardBase, padding: "22px 22px 18px", background: whitePanel }} {...cardHover}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
@@ -1446,7 +1440,7 @@ export default function DashboardPage() {
       )}
 
       {loading && asistDiarias.length === 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.35fr) minmax(320px, 1fr)", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.35fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
           <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}><Skel w={160} h={16} r={6} /><Skel w={200} h={12} r={5} /></div>
@@ -1481,7 +1475,7 @@ export default function DashboardPage() {
         const maxA = Math.max(...asistDiarias.map((d) => d.count), 1);
         const peakH = asistHoras.indexOf(Math.max(...asistHoras));
         return (
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.35fr) minmax(320px, 1fr)", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.35fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
             <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }} {...cardHover}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
                 <div>

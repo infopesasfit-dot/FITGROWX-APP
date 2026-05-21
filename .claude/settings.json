@@ -101,7 +101,10 @@
       "Bash(chmod +x /tmp/fix-getsession.sh)",
       "Bash(/tmp/fix-getsession.sh)",
       "Bash(git checkout *)",
-      "Bash(grep -E \"route\\\\.ts$\")"
+      "Bash(grep -E \"route\\\\.ts$\")",
+      "Bash(grep \"style={{ ...cardBase }}\" /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)",
+      "Bash(chmod +x /tmp/analyze_cardbase.sh)",
+      "Bash(/tmp/analyze_cardbase.sh)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",
