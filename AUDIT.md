@@ -113,6 +113,26 @@ it('calls onEnterDemo when Ver demo button clicked', () => {
 
 ---
 
+## Paso D — Audit final
+
+**Variables verificadas ACTIVAS (no eliminadas):**
+
+- **fetchedAt** (línea 109): Usado en `fetchedAtLabel` IIFE para calcular tiempo desde última actualización
+  - Líneas 382-383: Se lee el estado para calcular diferencia de minutos
+  - Líneas 723, 1049: `fetchedAtLabel` se pasa al componente `Filters` 
+  - Texto resultante: "Actualizado hace X min" en header del dashboard
+  - ✅ **VIVO — No eliminar**
+
+- **gymName** (línea 113): Usado en JSX para mostrar nombre del gym en header
+  - Línea 718: Render en versión mobile (`color: "#7A3E13"`)
+  - Línea 1042: Render en versión desktop (`color: "#8A4516"`)
+  - Texto: `{gymName}` en header del dashboard
+  - ✅ **VIVO — No eliminar**
+
+**Sin deletes en este paso.** El refactor del Bloque 2 dejó `page.tsx` sin código muerto.
+
+---
+
 ## ✅ Completado
 
 - **Paso A (Error boundary redesign):** error.tsx con card blanca + DinoSVG (WCAG AA contrast)
@@ -153,4 +173,4 @@ it('calls onEnterDemo when Ver demo button clicked', () => {
   - Replaced `<a>` with `<Link>` from next/link
   - Removed `sugerOpen` state from page.tsx (now internal to component)
   - page.tsx: 1318 líneas (reducción de 71 líneas de IIFE)
-  - **🎉 Bloque 2 — Paso C COMPLETADO. Paso D (cleanup/refactoring) pendiente.**
+  - **🎉 Bloque 2 — Pasos A-D COMPLETADOS.**
