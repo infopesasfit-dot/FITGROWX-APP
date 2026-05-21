@@ -137,6 +137,15 @@ export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
         <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 16, alignItems: isDesktop ? "flex-end" : "center" }}>
           <div style={{ flexShrink: 0, transition: "opacity 0.2s ease" }}>
             <DinoSVG state={current.dinoState} pixelSize={isDesktop ? 9 : 6} />
+            {!isDesktop && (
+              <div style={{
+                width: 90,
+                height: 3,
+                background: "rgba(15,17,21,0.15)",
+                borderRadius: 999,
+                margin: "4px auto 0",
+              }} />
+            )}
           </div>
           <div
             style={{
