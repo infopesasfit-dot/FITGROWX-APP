@@ -617,6 +617,31 @@
 
 ---
 
+### Paso C 2/4: AutomationStats ✅ COMPLETADO
+**Fecha:** 2026-05-21
+**Tarea:** Extraer AutomationStats (móvil + desktop) a componente reusable
+**Enfoque:** Mantener 2 versiones DENTRO del componente (useIsDesktop decisión interna), no responsive unificado
+**Archivos creados:**
+- `/app/dashboard/components/AutomationStats.tsx` (111 líneas)
+- `/tests/AutomationStats.test.tsx` (156 líneas, 17 tests ✅)
+
+**Cambios:**
+- Centralizado MONTH_NAMES en `/lib/dashboard-helpers.ts` (export)
+- Creada función `renderAutomationStats()` en page.tsx para evitar duplicación
+- Reemplazadas 2 instancias inline (mobile l.789 + desktop l.1175) con 1 función compartida
+- Props finales: 5 (mensajesAutoEnviados, renovacionesCount, recuperadosCount, recuperadosRevenue, selectedMonth)
+
+**Impacto:**
+- page.tsx: 1484 → 1435 líneas (-49)
+- Código duplicado eliminado: 57 líneas (24 mobile + 33 desktop)
+- Tests: 17/17 PASSED ✅
+- Build: PASSED ✅
+- No regresiones: verified
+
+**Próximo:** Paso C 3/4 — OnboardingProgress
+
+---
+
 ## 12. 🔮 MEJORAS FUTURAS (no urgentes)
 
 ### ViewportContext Optimization
