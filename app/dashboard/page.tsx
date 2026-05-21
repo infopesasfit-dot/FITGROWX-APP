@@ -7,12 +7,12 @@ import {
 } from "lucide-react";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { supabase } from "@/lib/supabase";
-import { OnboardingModal, DinoSVG, getDinoState } from "@/app/dashboard/components/OnboardingModal";
+import { OnboardingModal, DinoSVG } from "@/app/dashboard/components/OnboardingModal";
 import { QuickActions } from "@/app/dashboard/components/QuickActions";
 import { Filters } from "@/app/dashboard/components/Filters";
 import { OwnerPhoneAlert } from "@/app/dashboard/components/OwnerPhoneAlert";
 import { AutomationStats } from "@/app/dashboard/components/AutomationStats";
-import { initials, fmt, last5Months, metricDelta, formatMetricValue, getMetricTag, buildDonutSegments, MONTH_NAMES } from "@/lib/dashboard-helpers";
+import { initials, fmt, last5Months, metricDelta, formatMetricValue, getMetricTag, buildDonutSegments, MONTH_NAMES, getDinoState } from "@/lib/dashboard-helpers";
 import { DashboardMetric, DashboardAlerts, DashboardSnapshot, RecenteAlumno, PlanDist } from "@/lib/dashboard-types";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 

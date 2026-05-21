@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, ArrowRight, ArrowLeft, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { getDinoState } from "@/lib/dashboard-helpers";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 
@@ -67,12 +68,6 @@ export function DinoSVG({
       </div>
     </>
   );
-}
-
-export function getDinoState(completedCount: number): "flaco" | "normal" | "jacked" {
-  if (completedCount <= 1) return "flaco";
-  if (completedCount <= 3) return "normal";
-  return "jacked";
 }
 
 interface DialogStep {

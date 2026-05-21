@@ -7,6 +7,7 @@ import {
   formatMetricValue,
   getMetricTag,
   buildDonutSegments,
+  getDinoState,
 } from "./dashboard-helpers";
 import { DashboardMetric } from "./dashboard-types";
 
@@ -248,6 +249,32 @@ describe("dashboard-helpers", () => {
       expect(segments[0].pct).toBe(70);
       expect(segments[1].pct).toBe(20);
       expect(segments[2].pct).toBe(10);
+    });
+  });
+
+  describe("getDinoState", () => {
+    it("returns flaco for 0 completed tasks", () => {
+      expect(getDinoState(0)).toBe("flaco");
+    });
+
+    it("returns flaco for 1 completed task", () => {
+      expect(getDinoState(1)).toBe("flaco");
+    });
+
+    it("returns normal for 2-3 completed tasks", () => {
+      expect(getDinoState(2)).toBe("normal");
+      expect(getDinoState(3)).toBe("normal");
+    });
+
+    it("returns jacked for 4 or more completed tasks", () => {
+      expect(getDinoState(4)).toBe("jacked");
+      expect(getDinoState(5)).toBe("jacked");
+      expect(getDinoState(100)).toBe("jacked");
+    });
+
+    it("handles edge cases: negative and very high values", () => {
+      expect(getDinoState(-5)).toBe("flaco");
+      expect(getDinoState(-100)).toBe("flaco");
     });
   });
 });

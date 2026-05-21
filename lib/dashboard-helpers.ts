@@ -102,3 +102,13 @@ export function buildDonutSegments(slices: { value: number; color: string }[]): 
     return { dasharray, dashoffset, color: d.color, pct: Math.round(fraction * 100) };
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Onboarding helpers
+// ─────────────────────────────────────────────────────────────────────────
+
+export function getDinoState(completedCount: number): "flaco" | "normal" | "jacked" {
+  if (completedCount <= 1) return "flaco";
+  if (completedCount <= 3) return "normal";
+  return "jacked";
+}
