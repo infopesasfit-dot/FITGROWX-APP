@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useIsDesktop } from "./useIsDesktop";
 
 describe("useIsDesktop", () => {
