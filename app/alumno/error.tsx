@@ -1,17 +1,24 @@
 "use client";
 
+import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
+
 export default function AlumnoError({ reset }: { error: Error; reset: () => void }) {
   return (
     <div style={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "#09090b", padding: "0 24px",
+      background: "#f5f5f5", padding: "0 24px",
     }}>
-      <div style={{ textAlign: "center", maxWidth: 360 }}>
-        <div style={{ fontSize: 40, marginBottom: 16 }}>😅</div>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#fff", letterSpacing: "-0.03em", marginBottom: 8 }}>
+      <div className="dashboard-card" style={{
+        maxWidth: 380, width: "100%", padding: "40px 32px",
+        textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+      }}>
+        <div style={{ marginBottom: 8 }}>
+          <DinoSVG state="flaco" pixelSize={5} />
+        </div>
+        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#101114", letterSpacing: "-0.03em", marginBottom: 4 }}>
           Algo salió mal
         </h2>
-        <p style={{ color: "rgba(255,255,255,0.38)", fontSize: "0.82rem", lineHeight: 1.6, marginBottom: 24 }}>
+        <p style={{ color: "#515765", fontSize: "0.82rem", lineHeight: 1.6, marginBottom: 24 }}>
           No pudimos cargar tu panel. Podés reintentar o pedirle al gimnasio el link de acceso nuevamente.
         </p>
         <button

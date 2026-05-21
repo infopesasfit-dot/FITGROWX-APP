@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
 
 export default function DashboardError({ error, reset }: { error: Error; reset: () => void }) {
   const isAuth = error?.message?.toLowerCase().includes("auth") || error?.message?.toLowerCase().includes("session");
@@ -10,20 +11,22 @@ export default function DashboardError({ error, reset }: { error: Error; reset: 
       minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center",
       padding: "0 24px",
     }}>
-      <div style={{
-        background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: 24, padding: "40px 36px", maxWidth: 400, width: "100%", textAlign: "center",
+      <div className="dashboard-card" style={{
+        padding: "40px 36px", maxWidth: 420, width: "100%", textAlign: "center",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
       }}>
-        <div style={{ fontSize: 40, marginBottom: 16 }}>{isAuth ? "🔒" : "⚡"}</div>
-        <h2 style={{ fontSize: "1.2rem", fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 8, color: "#fff" }}>
-          {isAuth ? "Sesión expirada" : "Error al cargar"}
+        <div style={{ marginBottom: 8 }}>
+          <DinoSVG state="flaco" pixelSize={5} />
+        </div>
+        <h2 style={{ fontSize: "1.2rem", fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 4, color: "#101114" }}>
+          {isAuth ? "🔒 Sesión expirada" : "Error al cargar"}
         </h2>
-        <p style={{ color: "rgba(255,255,255,0.38)", fontSize: "0.82rem", lineHeight: 1.6, marginBottom: 24 }}>
+        <p style={{ color: "#515765", fontSize: "0.82rem", lineHeight: 1.6, marginBottom: 24 }}>
           {isAuth
             ? "Tu sesión expiró. Iniciá sesión nuevamente para continuar."
             : "No pudimos cargar esta sección. Podés reintentar o volver al panel."}
         </p>
-        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", width: "100%" }}>
           {isAuth ? (
             <Link
               href="/start?login=1"
@@ -51,8 +54,8 @@ export default function DashboardError({ error, reset }: { error: Error; reset: 
                 href="/dashboard"
                 style={{
                   padding: "10px 22px", borderRadius: 9999, textDecoration: "none",
-                  border: "1px solid rgba(255,255,255,0.12)", background: "transparent",
-                  color: "rgba(255,255,255,0.6)", fontWeight: 500, fontSize: "0.82rem",
+                  background: "transparent", color: "#98A1B2",
+                  fontWeight: 500, fontSize: "0.82rem", cursor: "pointer",
                 }}
               >
                 Volver al panel
