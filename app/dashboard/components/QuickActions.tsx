@@ -6,16 +6,12 @@ interface QuickActionsProps {
   asistHoy: number;
   alerts: { upcomingExpirations: any[] };
   accentDeep: string;
-  cardBase: React.CSSProperties;
-  cardHover: { onMouseEnter: (e: React.MouseEvent<HTMLElement>) => void; onMouseLeave: (e: React.MouseEvent<HTMLElement>) => void };
 }
 
 export function QuickActions({
   asistHoy,
   alerts,
   accentDeep,
-  cardBase,
-  cardHover,
 }: QuickActionsProps) {
   const isDesktop = useIsDesktop();
   const actions = [
@@ -61,8 +57,8 @@ export function QuickActions({
           <a
             key={a.label}
             href={a.href}
+            className="dashboard-card"
             style={{
-              ...cardBase,
               display: "flex",
               alignItems: "center",
               gap: 12,
@@ -71,7 +67,6 @@ export function QuickActions({
               color: "inherit",
               cursor: "pointer",
             }}
-            {...cardHover}
           >
             <div
               style={{

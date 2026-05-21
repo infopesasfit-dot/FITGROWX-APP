@@ -17,14 +17,6 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 const accent = "#FF7A18";
 const accentDeep = "#E65A00";
 
-const cardBase: React.CSSProperties = {
-  background: "#FFFFFF",
-  borderRadius: 16,
-  border: "1px solid rgba(15,17,21,0.07)",
-  boxShadow: "0 1px 0 rgba(15,17,21,0.04), 0 2px 8px rgba(15,17,21,0.05)",
-  transition: "box-shadow 0.2s ease, transform 0.2s ease",
-};
-
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
 const PLAN_COLORS = ["#1A1D23", "#374151", "#6B7280", "#9CA3AF", "#D1D5DB", "#E5E7EB"];
@@ -364,16 +356,6 @@ export default function DashboardPage() {
   const donutSegments  = buildDonutSegments(donutSlices);
   const totalDonut     = planDist.reduce((s, p) => s + p.count, 0);
 
-  const hoverOn  = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.boxShadow = "0 1px 0 rgba(15,17,21,0.04), 0 6px 20px rgba(15,17,21,0.08)";
-    e.currentTarget.style.transform = "translateY(-2px)";
-  };
-  const hoverOff = (e: React.MouseEvent<HTMLElement>) => {
-    e.currentTarget.style.boxShadow = cardBase.boxShadow ?? "";
-    e.currentTarget.style.transform = "none";
-  };
-
-
   const pageShell: React.CSSProperties = {
     display: "flex",
     flexDirection: "column",
@@ -382,13 +364,7 @@ export default function DashboardPage() {
     position: "relative",
   };
 
-  const cardHover = {
-    onMouseEnter: hoverOn,
-    onMouseLeave: hoverOff,
-  };
-
   const orangeGlow = "linear-gradient(135deg, rgba(255,122,24,0.98) 0%, rgba(255,154,61,0.94) 46%, rgba(230,90,0,0.96) 100%)";
-  const whitePanel = "#FFFFFF";
   const shellBg = "linear-gradient(180deg, #FFFDF9 0%, #FFF7EF 100%)";
   const chipBg = "rgba(255,122,24,0.10)";
   const softBorder = "1px solid rgba(17,24,39,0.06)";
@@ -448,8 +424,8 @@ export default function DashboardPage() {
     return (
       <a
         href={href}
-        style={{ ...cardBase, padding: isDesktop ? "20px 18px" : "18px 16px", background: whitePanel, cursor: href ? "pointer" : "default", display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}
-        {...cardHover}
+        className="dashboard-card" style={{ padding: isDesktop ? "20px 18px" : "18px 16px", cursor: href ? "pointer" : "default", display: "flex", flexDirection: "column", textDecoration: "none", color: "inherit" }}
+        
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
           <span style={{ font: `600 0.615rem/1 var(--font-family-body)`, color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</span>
@@ -528,7 +504,7 @@ export default function DashboardPage() {
 
     const isOpen = metricSectionOpen[section] ?? true;
     return (
-      <section style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
+      <section className="dashboard-card" style={{ overflow: "hidden" }}>
         {/* Header */}
         <button
           onClick={() => setMetricSectionOpen(prev => ({ ...prev, [section]: !prev[section] }))}
@@ -608,7 +584,7 @@ export default function DashboardPage() {
     return (
       <>
         {/* Últimas altas */}
-        <section style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
+        <section className="dashboard-card" style={{ overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid rgba(15,17,21,0.07)" }}>
             <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(99,102,241,0.10)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Users size={13} />
@@ -639,7 +615,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Bot de WhatsApp */}
-        <section style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
+        <section className="dashboard-card" style={{ overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px", borderBottom: "1px solid rgba(15,17,21,0.07)", flexWrap: isDesktop ? "nowrap" : "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(37,211,102,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -780,10 +756,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} />
 
       {!loading && (
-        <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} {...cardHover}>
+        <a href="/dashboard/alumnos" className="dashboard-card" style={{ padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 38, height: 38, borderRadius: 14, background: morososCount > 0 ? "rgba(234,88,12,0.12)" : "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <CreditCard size={17} color={morososCount > 0 ? "#EA580C" : "#15803D"} />
@@ -804,7 +780,7 @@ export default function DashboardPage() {
       {renderPulsoPanel()}
 
       {!loading && (
-        <div style={{ ...cardBase, padding: "16px 14px", background: "#FFFFFF", border: "1px solid rgba(15,17,21,0.07)" }}>
+        <div className="dashboard-card" style={{ padding: "16px 14px" }}>
           <p style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
           <p style={{ font: `700 0.84rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 2 }}>Lo que FitGrowX hizo por vos</p>
           <p style={{ font: `400 0.68rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 12 }}>El sistema trabajó mientras te ocupabas del gym.</p>
@@ -833,7 +809,7 @@ export default function DashboardPage() {
       {renderMetricSection("Eficiencia")}
 
       {/* Nuevos socios – mobile */}
-      <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
+      <div className="dash-card dashboard-card" style={{ padding: "18px 16px", background: "#FFFFFF" }} >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
           <p style={{ font: `700 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Nuevos socios por mes</p>
           <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: "#16A34A", background: "rgba(22,163,74,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● +{captacion5[captacion5.length - 1]} este mes</span>
@@ -884,7 +860,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Balance neto – mobile */}
-      <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
+      <div className="dash-card dashboard-card" style={{ padding: "18px 16px", background: "#FFFFFF" }} >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <p style={{ font: `700 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Balance neto</p>
@@ -951,7 +927,7 @@ export default function DashboardPage() {
         const peakH = asistHoras.indexOf(Math.max(...asistHoras));
         return (
           <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 12 }}>
-            <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
+            <div className="dash-card dashboard-card" style={{ padding: "18px 16px", background: "#FFFFFF" }} >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
                 <div>
                   <p style={{ font: `800 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>Asistencia diaria</p>
@@ -972,7 +948,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
+            <div className="dash-card dashboard-card" style={{ padding: "18px 16px", background: "#FFFFFF" }} >
               <p style={{ font: `800 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>Cuándo viene la gente</p>
               <p style={{ font: `500 0.7rem/1.45 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 16 }}>El horario con más movimiento.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1006,7 +982,7 @@ export default function DashboardPage() {
         if (!hasAlerts) items.push({ iconBg: "rgba(34,197,94,0.12)", title: "Todo en orden", desc: "Sin alertas pendientes.", href: "/dashboard" });
         const isOpen = sugerOpen || hasAlerts;
         return (
-          <div style={{ ...cardBase, background: "#FFFFFF", overflow: "hidden" }}>
+          <div className="dashboard-card" style={{ overflow: "hidden" }}>
             <button
               onClick={() => setSugerOpen(v => !v)}
               style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
@@ -1129,7 +1105,7 @@ export default function DashboardPage() {
         const nextTask  = tasks.find(t => !setup[t.key]);
         const dinoState = getDinoState(done);
         return (
-          <div style={{ ...cardBase, padding: "14px 18px" }}>
+          <div className="dashboard-card" style={{ padding: "14px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
               <div style={{ flexShrink: 0, lineHeight: 0 }}>
                 <DinoSVG state={dinoState} pixelSize={3} />
@@ -1199,7 +1175,7 @@ export default function DashboardPage() {
         </a>
       )}
 
-      <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {/* A cobrar — feature card */}
@@ -1232,7 +1208,7 @@ export default function DashboardPage() {
       {renderPulsoPanel()}
 
       {!loading && (
-        <div style={{ ...cardBase, padding: "22px 24px", background: "#FFFFFF", border: "1px solid rgba(15,17,21,0.07)" }}>
+        <div className="dashboard-card" style={{ padding: "22px 24px" }}>
           <p style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
           <p style={{ font: `700 1rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 3 }}>Lo que FitGrowX hizo por vos</p>
           <p style={{ font: `400 0.74rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 18 }}>El sistema trabajó mientras te ocupabas del gym.</p>
@@ -1272,7 +1248,7 @@ export default function DashboardPage() {
       {/* Nuevos socios + Balance neto */}
       <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.5fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
         {/* Nuevos socios por mes */}
-        <div style={{ ...cardBase, padding: "22px 22px 18px", background: whitePanel }} {...cardHover}>
+        <div className="dashboard-card" style={{ padding: "22px 22px 18px" }} >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <p style={{ font: `700 1rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Nuevos socios por mes</p>
@@ -1333,7 +1309,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Balance neto con barras */}
-        <div style={{ ...cardBase, padding: "22px 22px 18px", background: whitePanel }} {...cardHover}>
+        <div className="dashboard-card" style={{ padding: "22px 22px 18px" }} >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <p style={{ font: `700 1rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Balance neto</p>
@@ -1402,7 +1378,7 @@ export default function DashboardPage() {
 
       {/* Sugerencias del sistema */}
       {!loading && (
-        <div style={{ ...cardBase, padding: "20px 22px", background: whitePanel }}>
+        <div className="dashboard-card" style={{ padding: "20px 22px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ font: `500 0.76rem/1 var(--font-family-display)`, color: "#6366F1" }}>✦</span>
@@ -1435,7 +1411,7 @@ export default function DashboardPage() {
 
       {loading && asistDiarias.length === 0 && (
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.35fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
-          <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }}>
+          <div className="dashboard-card" style={{ padding: "24px 24px 20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}><Skel w={160} h={16} r={6} /><Skel w={200} h={12} r={5} /></div>
               <Skel w={72} h={30} r={9999} />
@@ -1448,7 +1424,7 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-          <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }}>
+          <div className="dashboard-card" style={{ padding: "24px 22px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}><Skel w={140} h={16} r={6} /><Skel w={180} h={12} r={5} /></div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {[45,70,90,60,30,85,55,75,40,65,50].map((pct, i) => (
@@ -1470,7 +1446,7 @@ export default function DashboardPage() {
         const peakH = asistHoras.indexOf(Math.max(...asistHoras));
         return (
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.35fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
-            <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }} {...cardHover}>
+            <div className="dashboard-card" style={{ padding: "24px 24px 20px" }} >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
                 <div>
                   <p style={{ font: `800 1.02rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 6 }}>Asistencia diaria</p>
@@ -1491,7 +1467,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }} {...cardHover}>
+            <div className="dashboard-card" style={{ padding: "24px 22px" }} >
               <p style={{ font: `800 1.02rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 6 }}>Cuándo viene la gente</p>
               <p style={{ font: `500 0.76rem/1.5 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 18 }}>El horario con más movimiento.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
