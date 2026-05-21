@@ -139,12 +139,22 @@ export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
             <DinoSVG state={current.dinoState} pixelSize={isDesktop ? 9 : 6} />
             {!isDesktop && (
               <div style={{
-                width: 90,
-                height: 3,
-                background: "rgba(15,17,21,0.15)",
-                borderRadius: 999,
-                margin: "4px auto 0",
-              }} />
+                display: "flex",
+                gap: 2,
+                justifyContent: "center",
+                margin: "-2px auto 0"
+              }}>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 6,
+                      height: 4,
+                      background: "#1A1A1A"
+                    }}
+                  />
+                ))}
+              </div>
             )}
           </div>
           <div
