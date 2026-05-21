@@ -110,7 +110,8 @@
       "Bash(sed -i 's/\\\\${fm}/var\\(--font-family-body\\)/g' app/dashboard/page.tsx)",
       "Bash(node -e ' *)",
       "Bash(node)",
-      "Bash(perl -pi -e 's/\\\\{\\\\.\\\\.\\\\.\\\\cardHover\\\\}//g' \"app/dashboard/page.tsx\")"
+      "Bash(perl -pi -e 's/\\\\{\\\\.\\\\.\\\\.\\\\cardHover\\\\}//g' \"app/dashboard/page.tsx\")",
+      "Bash(awk '/\\\\/\\\\* ─────────── MOBILE LAYOUT/,/\\\\/\\\\* ─────────── DESKTOP LAYOUT/' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",

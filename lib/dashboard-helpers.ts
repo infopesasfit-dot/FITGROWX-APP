@@ -21,6 +21,8 @@ export function fmt(n: number): string {
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
+export const MONTH_NAMES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
 export function last5Months(referenceDate: Date = new Date()): { key: string; label: string }[] {
   return Array.from({ length: 5 }, (_, i) => {
     const d = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - (4 - i), 1);
