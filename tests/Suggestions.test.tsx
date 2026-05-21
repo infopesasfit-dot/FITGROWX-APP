@@ -6,7 +6,7 @@ import { buildSuggestionItems } from "@/lib/dashboard-helpers";
 describe("buildSuggestionItems", () => {
   it("returns up to 3 items when setup incomplete + alerts present", () => {
     const setup = { alumnos: true, planes: true, landing: false, whatsapp: false, pagos: true };
-    const items = buildSuggestionItems(setup, 2, [{ id: "1" }, { id: "2" }]);
+    const items = buildSuggestionItems(setup, 2, [{ id: "1", full_name: "John", next_expiration_date: null }, { id: "2", full_name: "Jane", next_expiration_date: null }]);
     expect(items.length).toBeLessThanOrEqual(3);
     expect(items.some((i) => i.key === "landing")).toBe(true);
     expect(items.some((i) => i.key === "whatsapp")).toBe(true);
@@ -22,7 +22,7 @@ describe("buildSuggestionItems", () => {
 
   it("respects max 3 items limit", () => {
     const setup = { alumnos: true, planes: true, landing: false, whatsapp: false, pagos: true };
-    const items = buildSuggestionItems(setup, 5, [{ id: "1" }, { id: "2" }, { id: "3" }]);
+    const items = buildSuggestionItems(setup, 5, [{ id: "1", full_name: "John", next_expiration_date: null }, { id: "2", full_name: "Jane", next_expiration_date: null }, { id: "3", full_name: "Bob", next_expiration_date: null }]);
     expect(items.length).toBeLessThanOrEqual(3);
   });
 
@@ -35,13 +35,13 @@ describe("buildSuggestionItems", () => {
 
   it("includes expirations item when length > 0 and items.length < 3", () => {
     const setup = { alumnos: true, planes: true, landing: true, whatsapp: true, pagos: true };
-    const items = buildSuggestionItems(setup, 0, [{ id: "1" }, { id: "2" }]);
+    const items = buildSuggestionItems(setup, 0, [{ id: "1", full_name: "John", next_expiration_date: null }, { id: "2", full_name: "Jane", next_expiration_date: null }]);
     expect(items.some((i) => i.key === "expirations")).toBe(true);
   });
 
   it("verifies each item has correct key", () => {
     const setup = { alumnos: true, planes: true, landing: false, whatsapp: false, pagos: true };
-    const items = buildSuggestionItems(setup, 2, [{ id: "1" }]);
+    const items = buildSuggestionItems(setup, 2, [{ id: "1", full_name: "John", next_expiration_date: null }]);
     const validKeys = ["landing", "whatsapp", "morosos", "expirations", "ok"];
     items.forEach((item) => {
       expect(validKeys).toContain(item.key);

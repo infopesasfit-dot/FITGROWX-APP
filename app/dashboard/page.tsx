@@ -17,7 +17,7 @@ import { Filters } from "@/app/dashboard/components/Filters";
 import { OwnerPhoneAlert } from "@/app/dashboard/components/OwnerPhoneAlert";
 import { AutomationStats } from "@/app/dashboard/components/AutomationStats";
 import { initials, fmt, last5Months, metricDelta, formatMetricValue, getMetricTag, buildDonutSegments, MONTH_NAMES, getDinoState } from "@/lib/dashboard-helpers";
-import { DashboardMetric, DashboardAlerts, DashboardSnapshot, RecenteAlumno, PlanDist } from "@/lib/dashboard-types";
+import { DashboardMetric, DashboardAlerts, DashboardSnapshot, RecenteAlumno, PlanDist, SetupFlags } from "@/lib/dashboard-types";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 const accent = "#FF7A18";
@@ -139,7 +139,7 @@ export default function DashboardPage() {
   const [metrics,           setMetrics]           = useState<DashboardMetric[]>([]);
   const [alerts,            setAlerts]            = useState<DashboardAlerts>({ inactiveCount: 0, inactiveNames: [], upcomingExpirations: [] });
   const [activeInfo,        setActiveInfo]        = useState<{ title: string; body: string } | null>(null);
-  const [setup, setSetup] = useState<{ alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null>(null);
+  const [setup, setSetup] = useState<SetupFlags | null>(null);
   const [planLabel, setPlanLabel] = useState<string | null>(null);
   const [ownerPhoneMissing, setOwnerPhoneMissing] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);

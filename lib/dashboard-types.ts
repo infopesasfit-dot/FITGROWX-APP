@@ -26,6 +26,14 @@ export interface DashboardAlerts {
   upcomingExpirations: { id: string; full_name: string; next_expiration_date: string | null }[];
 }
 
+export interface SetupFlags {
+  alumnos: boolean;
+  planes: boolean;
+  landing: boolean;
+  whatsapp: boolean;
+  pagos: boolean;
+}
+
 export interface DashboardSnapshot {
   activosCount: number;
   totalCount: number;

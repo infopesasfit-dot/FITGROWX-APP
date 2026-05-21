@@ -1,11 +1,12 @@
 "use client";
 
+import type { SetupFlags } from "@/lib/dashboard-types";
 import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
 import { getDinoState } from "@/lib/dashboard-helpers";
 
 interface OnboardingMobileBannerProps {
   demoMode: boolean;
-  setup: { alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null;
+  setup: SetupFlags | null;
   onOpenModal: () => void;
 }
 

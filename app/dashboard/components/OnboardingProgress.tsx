@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { SetupFlags } from "@/lib/dashboard-types";
 import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
 import { getDinoState } from "@/lib/dashboard-helpers";
 
@@ -8,7 +9,7 @@ const ACCENT_BAR = "#FF7A18";
 
 interface OnboardingProgressProps {
   demoMode: boolean;
-  setup: { alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null;
+  setup: SetupFlags | null;
   onEnterDemo: () => void;
 }
 

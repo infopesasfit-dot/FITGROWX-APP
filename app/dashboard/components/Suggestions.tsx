@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Megaphone, Send, BadgeAlert, Clock, CheckCircle } from "lucide-react";
 import { buildSuggestionItems } from "@/lib/dashboard-helpers";
 import type { SuggestionItem } from "@/lib/dashboard-helpers";
+import type { SetupFlags, DashboardAlerts } from "@/lib/dashboard-types";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 interface SuggestionsProps {
-  setup: { alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null;
+  setup: SetupFlags | null;
   morososCount: number;
-  upcomingExpirations: unknown[];
+  upcomingExpirations: DashboardAlerts["upcomingExpirations"];
   loading: boolean;
 }
 

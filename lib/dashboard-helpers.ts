@@ -1,4 +1,4 @@
-import { DashboardMetric } from "./dashboard-types";
+import { DashboardMetric, DashboardAlerts, SetupFlags } from "./dashboard-types";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Formatting helpers
@@ -128,9 +128,9 @@ export interface SuggestionItem {
 }
 
 export function buildSuggestionItems(
-  setup: { alumnos: boolean; planes: boolean; landing: boolean; whatsapp: boolean; pagos: boolean } | null,
+  setup: SetupFlags | null,
   morososCount: number,
-  upcomingExpirations: unknown[]
+  upcomingExpirations: DashboardAlerts["upcomingExpirations"]
 ): SuggestionItem[] {
   const items: SuggestionItem[] = [];
 
