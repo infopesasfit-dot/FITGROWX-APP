@@ -104,7 +104,13 @@
       "Bash(grep -E \"route\\\\.ts$\")",
       "Bash(grep \"style={{ ...cardBase }}\" /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)",
       "Bash(chmod +x /tmp/analyze_cardbase.sh)",
-      "Bash(/tmp/analyze_cardbase.sh)"
+      "Bash(/tmp/analyze_cardbase.sh)",
+      "Bash(sed -i 's/\\\\${fd}/var\\(--font-family-display\\)/g' app/dashboard/page.tsx)",
+      "Bash(sed -i 's/\\\\${fb}/var\\(--font-family-display\\)/g' app/dashboard/page.tsx)",
+      "Bash(sed -i 's/\\\\${fm}/var\\(--font-family-body\\)/g' app/dashboard/page.tsx)",
+      "Bash(node -e ' *)",
+      "Bash(node)",
+      "Bash(perl -pi -e 's/\\\\{\\\\.\\\\.\\\\.\\\\cardHover\\\\}//g' \"app/dashboard/page.tsx\")"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",

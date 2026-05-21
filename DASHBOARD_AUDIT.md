@@ -640,4 +640,26 @@
 **Estimado de Esfuerzo:** 1.5h (crear context, actualizar imports, verificar tests)  
 **Risk:** Low (no cambios de comportamiento, solo reorganización)
 
+### Alert Colors Semantic CSS Variables
+**Status:** Pending (cuando aparezca segundo tipo de alert)  
+**Current State:** OwnerPhoneAlert usa colores hardcodeados:
+- `#111827` (text principal)
+- `#1F2937` (text secundario)
+- `rgba(234,179,8,0.07)` (background warning)
+- `rgba(234,179,8,0.25)` (border warning)
+
+**Problema:** Colores hardcodeados en componente. Actualmente 1 alert → tolerable. Si agregamos 2+ tipos (error, success, info), código se repite.
+
+**Solución:** Crear CSS vars semánticas en `:root`:
+```css
+--color-alert-warning-bg: rgba(234,179,8,0.07);
+--color-alert-warning-border: rgba(234,179,8,0.25);
+--color-alert-text: #111827;
+--color-alert-text-secondary: #1F2937;
+```
+
+**Cuándo migrar:** Cuando agregues 2º tipo de alert  
+**Estimado de Esfuerzo:** 30min (crear vars, actualizar OwnerPhoneAlert, revisar otros alerts)  
+**Risk:** Low (puro refactor cosmético)
+
 ---
