@@ -333,83 +333,88 @@ function AjustesContent() {
       const userIdVal = cachedProfile.userId;
       setGymId(gymIdVal);
 
-      const [{ data: authData }, { data: profile }, { data: settings }, { data: cuentas }] = await Promise.all([
-        supabase.auth.getUser(),
-        supabase
-          .from("profiles")
-          .select("gym_id, phone, gyms(trial_expires_at, is_subscription_active, plan_type, subscription_expires_at)")
-          .eq("id", userIdVal)
-          .maybeSingle(),
-        supabase
-          .from("gym_settings")
-          .select("gym_name, logo_url, accent_color, landing_title, landing_desc, slug, mp_access_token, payment_info")
-          .eq("gym_id", gymIdVal)
-          .maybeSingle(),
-        supabase
-          .from("gym_cuentas")
-          .select("id")
-          .eq("gym_id", gymIdVal)
-          .eq("tipo", "mercadopago")
-          .eq("activa", true)
-          .limit(1),
-      ]);
-
-      setEmail(authData.user?.email ?? "");
-      setOwnerUserId(userIdVal);
-      if ((profile as { phone?: string | null } | null)?.phone) setOwnerPhone((profile as { phone?: string | null }).phone!);
-      if (settings?.gym_name) setGymName(settings.gym_name);
-      if (settings?.slug) {
-        setSlug(settings.slug);
-        setSavedSlug(settings.slug);
-      } else {
-        // Auto-generate and persist slug for gyms that don't have one yet
-        const base = (settings?.gym_name ?? "gym")
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[̀-ͯ]/g, "")
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "")
-          .slice(0, 40) || "gym";
-        let candidate = base;
-        let n = 2;
-        for (;;) {
-          const { data: taken } = await supabase
+      try {
+        const [{ data: authData }, { data: profile }, { data: settings }, { data: cuentas }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase
+            .from("profiles")
+            .select("gym_id, phone, gyms(trial_expires_at, is_subscription_active, plan_type, subscription_expires_at)")
+            .eq("id", userIdVal)
+            .maybeSingle(),
+          supabase
             .from("gym_settings")
-            .select("gym_id")
-            .eq("slug", candidate)
-            .neq("gym_id", gymIdVal)
-            .maybeSingle();
-          if (!taken) break;
-          candidate = `${base}-${n++}`;
+            .select("gym_name, logo_url, accent_color, landing_title, landing_desc, slug, mp_access_token, payment_info")
+            .eq("gym_id", gymIdVal)
+            .maybeSingle(),
+          supabase
+            .from("gym_cuentas")
+            .select("id")
+            .eq("gym_id", gymIdVal)
+            .eq("tipo", "mercadopago")
+            .eq("activa", true)
+            .limit(1),
+        ]);
+
+        setEmail(authData.user?.email ?? "");
+        setOwnerUserId(userIdVal);
+        if ((profile as { phone?: string | null } | null)?.phone) setOwnerPhone((profile as { phone?: string | null }).phone!);
+        if (settings?.gym_name) setGymName(settings.gym_name);
+        if (settings?.slug) {
+          setSlug(settings.slug);
+          setSavedSlug(settings.slug);
+        } else {
+          // Auto-generate and persist slug for gyms that don't have one yet
+          const base = (settings?.gym_name ?? "gym")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[̀-ͯ]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .slice(0, 40) || "gym";
+          let candidate = base;
+          let n = 2;
+          for (;;) {
+            const { data: taken } = await supabase
+              .from("gym_settings")
+              .select("gym_id")
+              .eq("slug", candidate)
+              .neq("gym_id", gymIdVal)
+              .maybeSingle();
+            if (!taken) break;
+            candidate = `${base}-${n++}`;
+          }
+          setSlug(candidate);
+          await supabase
+            .from("gym_settings")
+            .upsert({ gym_id: gymIdVal, slug: candidate }, { onConflict: "gym_id" });
+          setSavedSlug(candidate);
         }
-        setSlug(candidate);
-        await supabase
-          .from("gym_settings")
-          .upsert({ gym_id: gymIdVal, slug: candidate }, { onConflict: "gym_id" });
-        setSavedSlug(candidate);
+        if (settings?.logo_url) setLogoUrl(settings.logo_url);
+        if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
+        if (settings?.payment_info) setPaymentInfo(settings.payment_info);
+        setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
+
+        const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
+        if (gym) {
+          setIsSubscriptionActive(Boolean(gym.is_subscription_active));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setSubscriptionExpiresAt((gym as any).subscription_expires_at ?? null);
+          if (gym.trial_expires_at) {
+            setTrialExpiresAt(gym.trial_expires_at);
+            const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
+            const left = Math.max(0, Math.ceil(diff / 86_400_000));
+            setTrialDaysLeft(left);
+            setIsTrial(!gym.is_subscription_active && left > 0);
+          }
+        }
+
+        void loadLastMonthlyReport(gymIdVal);
+      } catch (err) {
+        console.error("Error loading gym settings:", err);
       }
-      if (settings?.logo_url) setLogoUrl(settings.logo_url);
-      if (settings?.mp_access_token) setMpToken(settings.mp_access_token);
-      if (settings?.payment_info) setPaymentInfo(settings.payment_info);
-      setHasMercadoPagoLink(Boolean(cuentas && cuentas.length > 0));
+
       fetch("/api/gym/webhook-url").then(r => r.json()).then(d => { if (d.url) setWebhookUrl(d.url); }).catch(() => {});
       loadMolineteKeys();
-
-      const gym = Array.isArray(profile?.gyms) ? profile?.gyms[0] : profile?.gyms;
-      if (gym) {
-        setIsSubscriptionActive(Boolean(gym.is_subscription_active));
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setSubscriptionExpiresAt((gym as any).subscription_expires_at ?? null);
-        if (gym.trial_expires_at) {
-          setTrialExpiresAt(gym.trial_expires_at);
-          const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
-          const left = Math.max(0, Math.ceil(diff / 86_400_000));
-          setTrialDaysLeft(left);
-          setIsTrial(!gym.is_subscription_active && left > 0);
-        }
-      }
-
-      void loadLastMonthlyReport(gymIdVal);
 
       fetch("/api/admin/staff")
         .then((response) => response.json())
