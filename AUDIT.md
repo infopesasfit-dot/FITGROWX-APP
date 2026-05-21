@@ -87,3 +87,18 @@ it('calls onEnterDemo when Ver demo button clicked', () => {
   - Touch target 44px+ (12px padding per accessibility guidelines)
   - Pluralization: "1 cosa" vs "N cosas"
   - **Próximo paso:** Integrar en page.tsx (SOLO en mobile)
+
+- **Paso C 4/4 (Suggestions component extraction):** ✅ Complete (commit c6b679b)
+  - Files: 
+    - `/app/dashboard/components/Suggestions.tsx` (174 líneas)
+    - `/lib/dashboard-helpers.ts` — new `buildSuggestionItems()` + `SuggestionItem` interface with typed `key` field
+    - `/tests/Suggestions.test.tsx` (7 tests)
+  - Mobile variant: accordion with chevron ⌄, no lucide icons
+  - Desktop variant: always expanded with lucide icons (Megaphone, Send, BadgeAlert, Clock, CheckCircle)
+  - Icon mapping by stable `key` field (not title)
+  - WhatsApp href: `/dashboard/ajustes?tab=conexiones` (corrected)
+  - Unified title: "Sugerencias" in both viewports
+  - Replaced `<a>` with `<Link>` from next/link
+  - Removed `sugerOpen` state from page.tsx (now internal to component)
+  - page.tsx: 1318 líneas (reducción de 71 líneas de IIFE)
+  - **🎉 Bloque 2 — Paso C COMPLETADO. Paso D (cleanup/refactoring) pendiente.**
