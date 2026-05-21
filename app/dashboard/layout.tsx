@@ -470,7 +470,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Logo + collapse/close toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40, position: "relative", zIndex: 1 }}>
           {(isMobile || !collapsed) && (
-            <div style={{ flexShrink: 0 }}>
+            <Link href="/dashboard" style={{ flexShrink: 0, textDecoration: "none", color: "inherit", cursor: "pointer" }}>
               {gymDisplayName
                 ? <span style={{ font: `800 1.05rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", fontStyle: "italic" }}>
                     {gymDisplayName.split(" ").slice(0, -1).join(" ")}{gymDisplayName.split(" ").length > 1 ? " " : ""}
@@ -478,7 +478,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </span>
                 : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} style={{ height: 36, width: "auto", objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} priority unoptimized />
               }
-            </div>
+            </Link>
           )}
           <button
             onClick={() => isMobile ? setMobileNavOpen(false) : setCollapsed(c => !c)}
