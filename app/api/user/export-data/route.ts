@@ -3,10 +3,10 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit } from "@/lib/request-security";
 
-type AlumnoRow = { full_name?: string; phone?: string; email?: string; status?: string; planes?: { nombre?: string }; next_expiration_date?: string; created_at?: string };
-type PagoRow = { date?: string; alumnos?: { full_name?: string }; alumno_id?: string; amount?: number; method?: string; status?: string; concepto?: string };
-type AsistenciaRow = { alumnos?: { full_name?: string }; alumno_id?: string; fecha?: string };
-type RutinaRow = { alumnos?: { full_name?: string }; alumno_id?: string; nombre?: string; ejercicios?: Array<{ nombre?: string; name?: string }> | Record<string, unknown>; updated_at?: string };
+type AlumnoRow = { id?: any; full_name?: any; phone?: any; email?: any; status?: any; planes?: any; next_expiration_date?: any; created_at?: any };
+type PagoRow = { id?: any; date?: any; alumnos?: any; alumno_id?: any; amount?: any; method?: any; status?: any; concepto?: any };
+type AsistenciaRow = { id?: any; alumnos?: any; alumno_id?: any; fecha?: any };
+type RutinaRow = { id?: any; alumnos?: any; alumno_id?: any; nombre?: any; ejercicios?: any; updated_at?: any };
 type PlanRow = { nombre?: string; precio?: number; periodo?: string; duracion_dias?: string };
 type ProspectoRow = { full_name?: string; phone?: string; email?: string; status?: string; created_at?: string };
 type EgresoRow = { fecha?: string; concepto?: string; categoria?: string; monto?: number };
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       Teléfono: a.phone ?? "",
       Email: a.email ?? "",
       Estado: a.status ?? "",
-      Plan: a.planes?.nombre ?? "",
+      Plan: a.planes?.[0]?.nombre ?? "",
       Vencimiento: a.next_expiration_date ?? "",
       "Fecha de alta": a.created_at ? a.created_at.slice(0, 10) : "",
     }));

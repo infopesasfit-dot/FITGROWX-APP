@@ -8,14 +8,14 @@ import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 
 // Next.js fonts - applied via CSS variables globally
-Archivo_Black({
+const archivoBlack = Archivo_Black({
   subsets: ["latin"],
   weight: "400",
   variable: "--font-archivo-black",
   display: "swap",
 });
 
-JetBrains_Mono({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   variable: "--font-jetbrains-mono",

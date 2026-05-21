@@ -7,7 +7,7 @@ interface FiltersProps {
   fetchedAtLabel: string | null;
   waBadge: { text: string; color: string; bg: string; border: string; dot: string; href: string | null } | null;
   cronSyncLabel: { text: string; stale: boolean };
-  lastCronRun: { summary?: string } | null;
+  lastCronRun: { summary?: string | null } | null;
   fb: string;
   t1: string;
   t2: string;
