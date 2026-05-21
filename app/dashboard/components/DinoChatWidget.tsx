@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Send, Loader2 } from "lucide-react";
-import { DinoSVG } from "./OnboardingModal";
+import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 

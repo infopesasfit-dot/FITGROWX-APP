@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { supabase } from "@/lib/supabase";
-import { OnboardingModal, DinoSVG } from "@/app/dashboard/components/OnboardingModal";
+import { OnboardingModal } from "@/app/dashboard/components/OnboardingModal";
+import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
 import { QuickActions } from "@/app/dashboard/components/QuickActions";
 import { Filters } from "@/app/dashboard/components/Filters";
 import { OwnerPhoneAlert } from "@/app/dashboard/components/OwnerPhoneAlert";
