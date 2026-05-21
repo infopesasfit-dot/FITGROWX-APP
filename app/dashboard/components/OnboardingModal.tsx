@@ -37,7 +37,7 @@ const STEPS: DialogStep[] = [
   },
   {
     label: "Paso 3 · Publicá tu landing",
-    text: "Tu landing es tu vidriera digital 🌐\n\nCualquiera puede encontrar tu gym, dejar sus datos y agendar una clase de prueba. Sin que vos hagas nada.",
+    text: "Tu landing es tu local digital 🌐\n\nCualquiera puede encontrar tu gym, dejar sus datos y agendar una clase de prueba. Sin que vos hagas nada.",
     href: "/dashboard/landing",
     cta: "Configurar Landing",
     dinoState: "normal",
@@ -57,7 +57,7 @@ const STEPS: DialogStep[] = [
     dinoState: "jacked",
   },
   {
-    text: "¡LISTO! ¡Estoy JACKED! 💪\n\nTu gym está configurado y listo para crecer. El checklist en el dashboard te muestra cómo evoluciono a medida que completás los pasos.",
+    text: "¡LISTO! ¡Estoy EN FORMA! 💪\n\nTu gym está configurado y listo para crecer. El checklist en el dashboard te muestra cómo evoluciono a medida que completás los pasos.",
     dinoState: "jacked",
   },
 ];

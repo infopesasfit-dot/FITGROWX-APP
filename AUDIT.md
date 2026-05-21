@@ -2,6 +2,20 @@
 
 ## 🔮 Mejoras futuras
 
+### Refactor de arquitectura: Rama mobile/desktop duplicada (Paso C 3.5)
+**Contexto:** El dashboard tiene dos returns separados (`if (!isDesktop)` + fallback desktop) que duplican componentes compartidos como OnboardingModal, OnboardingProgress, y otros elementos que no cambian entre ramas.
+
+**Acción requerida:** 
+Refactor candidato (Bloque 7): unificar en un único árbol JSX con condicionales internos en lugar de dos returns paralelos. Esto:
+- Elimina duplicación (DRY)
+- Reduce deuda de mantenimiento
+- Mejora readability
+
+**Archivos afectados:**
+- `/app/dashboard/page.tsx` (estructura del componente)
+
+---
+
 ### Discrepancia de tokens de marca (Paso C 3.3)
 **Contexto:** Durante la extracción de `OnboardingProgress`, se descubrió:
 - `page.tsx` línea 20: `const accent = "#FF7A18"` (naranja claro)

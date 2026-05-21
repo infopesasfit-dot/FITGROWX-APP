@@ -9,6 +9,7 @@ import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { supabase } from "@/lib/supabase";
 import { OnboardingModal } from "@/app/dashboard/components/OnboardingModal";
 import { OnboardingProgress } from "@/app/dashboard/components/OnboardingProgress";
+import { OnboardingMobileBanner } from "@/app/dashboard/components/OnboardingMobileBanner";
 import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
 import { QuickActions } from "@/app/dashboard/components/QuickActions";
 import { Filters } from "@/app/dashboard/components/Filters";
@@ -31,7 +32,7 @@ function Skel({ w, h, r = 7 }: { w?: number | string; h: number; r?: number }) {
 }
 function SkelLight({ w, h, r = 7 }: { w?: number | string; h: number; r?: number }) {
   return (
-    <div style={{ width: w ?? "100%", height: h, borderRadius: r, flexShrink: 0, background: "linear-gradient(90deg,rgba(255,255,255,0.15) 25%,rgba(255,255,255,0.30) 50%,rgba(255,255,255,0.15) 75%)", backgroundSize: "400% 100%", animation: "skelShimmer 1.6s ease infinite" }} />
+    <span style={{ display: "inline-block", width: w ?? "100%", height: h, borderRadius: r, flexShrink: 0, background: "linear-gradient(90deg,rgba(255,255,255,0.15) 25%,rgba(255,255,255,0.30) 50%,rgba(255,255,255,0.15) 75%)", backgroundSize: "400% 100%", animation: "skelShimmer 1.6s ease infinite" }} />
   );
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -768,6 +769,10 @@ export default function DashboardPage() {
       <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} />
 
       {!loading && (
+        <OnboardingMobileBanner demoMode={demoMode} setup={setup} onOpenModal={() => setOnboardingOpen(true)} />
+      )}
+
+      {!loading && (
         <a href="/dashboard/alumnos" className="dashboard-card" style={{ padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 38, height: 38, borderRadius: 14, background: morososCount > 0 ? "rgba(234,88,12,0.12)" : "rgba(34,197,94,0.14)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -1009,6 +1014,10 @@ export default function DashboardPage() {
         </div>
       </div>
     )}
+    <OnboardingModal
+      open={onboardingOpen}
+      onClose={() => { localStorage.setItem("onboarding_dismissed", "1"); setOnboardingOpen(false); }}
+    />
     </>
   );
 
