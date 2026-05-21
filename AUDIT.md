@@ -65,3 +65,11 @@ it('calls onEnterDemo when Ver demo button clicked', () => {
   - Tests: 4 (render, null cases, href)
   - page.tsx: 1378 líneas (reducción de 64 líneas de IIFE)
   - Cambio: <a> → <Link> for SPA navigation
+
+- **Paso C 3.4 (OnboardingMobileBanner component):** ✅ Complete (commit 4b8a96c)
+  - File: `/app/dashboard/components/OnboardingMobileBanner.tsx` (68 líneas)
+  - Tests: 4 (render, null cases, callback)
+  - Mobile-only banner (mutually exclusive with OnboardingProgress)
+  - Touch target 44px+ (12px padding per accessibility guidelines)
+  - Pluralization: "1 cosa" vs "N cosas"
+  - **Próximo paso:** Integrar en page.tsx (SOLO en mobile)
