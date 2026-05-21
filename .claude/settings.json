@@ -111,7 +111,12 @@
       "Bash(node -e ' *)",
       "Bash(node)",
       "Bash(perl -pi -e 's/\\\\{\\\\.\\\\.\\\\.\\\\cardHover\\\\}//g' \"app/dashboard/page.tsx\")",
-      "Bash(awk '/\\\\/\\\\* ─────────── MOBILE LAYOUT/,/\\\\/\\\\* ─────────── DESKTOP LAYOUT/' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)"
+      "Bash(awk '/\\\\/\\\\* ─────────── MOBILE LAYOUT/,/\\\\/\\\\* ─────────── DESKTOP LAYOUT/' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(awk '/if \\\\\\(!isDesktop\\\\\\) return \\\\\\(/ {start=NR} start && /^\\\\s*return \\\\\\(/ && NR>start+2 {print NR\": return\"; exit}' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)",
+      "Bash(awk 'NR==668 {depth=0} NR>=668 {if \\(/return \\\\\\(/\\) depth++; if \\(/^\\\\s*\\\\\\)\\\\s*$/ && depth>0\\) {depth--; if \\(depth==0\\) {print NR\": closing mobile return\"; exit}}}' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)",
+      "Bash(awk '/if \\\\\\(!isDesktop\\\\\\) return \\\\\\(/{flag=1} flag && /OwnerPhoneAlert/{print NR\": \"$0; exit}' /Users/eliydan/Desktop/Proyectos/fitgrowx/app/dashboard/page.tsx)"
     ],
     "additionalDirectories": [
       "/Users/eliydan/Desktop/wa-server",

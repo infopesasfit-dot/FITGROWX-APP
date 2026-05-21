@@ -3,13 +3,14 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import {
   Users, CreditCard, Zap,
-  Send, CircleHelp, BadgeAlert, Activity, Clock, UserPlus, ClipboardList, Megaphone, CheckCircle, RefreshCw,
+  Send, CircleHelp, BadgeAlert, Activity, Clock, UserPlus, ClipboardList, Megaphone, RefreshCw,
 } from "lucide-react";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { supabase } from "@/lib/supabase";
 import { OnboardingModal } from "@/app/dashboard/components/OnboardingModal";
 import { OnboardingProgress } from "@/app/dashboard/components/OnboardingProgress";
 import { OnboardingMobileBanner } from "@/app/dashboard/components/OnboardingMobileBanner";
+import { Suggestions } from "@/app/dashboard/components/Suggestions";
 import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
 import { QuickActions } from "@/app/dashboard/components/QuickActions";
 import { Filters } from "@/app/dashboard/components/Filters";
@@ -143,7 +144,6 @@ export default function DashboardPage() {
   const [ownerPhoneMissing, setOwnerPhoneMissing] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
-  const [sugerOpen, setSugerOpen] = useState(false);
   const [metricSectionOpen, setMetricSectionOpen] = useState<Record<string, boolean>>({ Embudo: false, Fidelización: false, Eficiencia: false });
   const realSnapshotRef = useRef<DashboardSnapshot | null>(null);
 
@@ -964,46 +964,7 @@ export default function DashboardPage() {
         );
       })()}
 
-      {!loading && (() => {
-        const items: { iconBg: string; title: string; desc: string; href: string }[] = [];
-        if (!setup?.landing) items.push({ iconBg: "rgba(255,122,24,0.12)", title: "Subí tu landing page", desc: "Sin landing no podemos atraer leads.", href: "/dashboard/landing" });
-        if (!setup?.whatsapp) items.push({ iconBg: "rgba(34,197,94,0.12)", title: "Activá recordatorios automáticos", desc: "Reduce hasta 18% la mora.", href: "/dashboard/configuracion" });
-        if (morososCount > 0) items.push({ iconBg: "rgba(239,68,68,0.10)", title: `${morososCount} ${morososCount === 1 ? "socio con cuota impaga" : "socios con cuotas impagas"}`, desc: "Contactalos para reducir la deuda.", href: "/dashboard/alumnos" });
-        if (alerts.upcomingExpirations.length > 0 && items.length < 3) items.push({ iconBg: "rgba(99,102,241,0.12)", title: `${alerts.upcomingExpirations.length} socios vencen pronto`, desc: "Avisales antes para mejorar retención.", href: "/dashboard/alumnos" });
-        const hasAlerts = items.length > 0;
-        if (!hasAlerts) items.push({ iconBg: "rgba(34,197,94,0.12)", title: "Todo en orden", desc: "Sin alertas pendientes.", href: "/dashboard" });
-        const isOpen = sugerOpen || hasAlerts;
-        return (
-          <div className="dashboard-card" style={{ overflow: "hidden" }}>
-            <button
-              onClick={() => setSugerOpen(v => !v)}
-              style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ font: `500 0.8rem/1 var(--font-family-display)`, color: "#6366F1" }}>✦</span>
-                <p style={{ font: `700 0.9rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Sugerencias</p>
-                {hasAlerts && <span style={{ font: `700 0.6rem/1 var(--font-family-body)`, color: "#DC2626", background: "rgba(220,38,38,0.10)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9999, padding: "2px 7px" }}>{items.length}</span>}
-              </div>
-              <span style={{ font: `400 1rem/1 var(--font-family-display)`, color: "var(--color-text-3)", transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>⌄</span>
-            </button>
-            {isOpen && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 1, borderTop: "1px solid rgba(15,17,21,0.07)" }}>
-                {items.slice(0, 3).map((s, i) => (
-                  <a key={i} href={s.href} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: i % 2 === 0 ? "#FAFAFA" : "#FFFFFF", textDecoration: "none" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 9, background: s.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, color: "var(--color-text-2)" }}>›</span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ font: `600 0.82rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 3 }}>{s.title}</p>
-                      <p style={{ font: `400 0.7rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)" }}>{s.desc}</p>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      <Suggestions setup={setup} morososCount={morososCount} upcomingExpirations={alerts.upcomingExpirations} loading={loading} />
 
     </div>
     {activeInfo && (
@@ -1262,38 +1223,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Sugerencias del sistema */}
-      {!loading && (
-        <div className="dashboard-card" style={{ padding: "20px 22px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ font: `500 0.76rem/1 var(--font-family-display)`, color: "#6366F1" }}>✦</span>
-              <p style={{ font: `700 0.96rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Sugerencias del sistema</p>
-            </div>
-            <span style={{ font: `400 0.72rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}>basadas en tu data</span>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {((): { icon: React.ReactNode; iconBg: string; title: string; desc: string; href: string }[] => {
-              const items: { icon: React.ReactNode; iconBg: string; title: string; desc: string; href: string }[] = [];
-              if (!setup?.landing) items.push({ icon: <Megaphone size={14} />, iconBg: "rgba(255,122,24,0.12)", title: "Subí tu landing page", desc: "Te falta 1 paso del Quick Start. Sin landing no podemos atraer leads.", href: "/dashboard/landing" });
-              if (!setup?.whatsapp) items.push({ icon: <Send size={14} />, iconBg: "rgba(34,197,94,0.12)", title: "Activá recordatorios 3 días antes", desc: "Reduce hasta 18% la mora histórica.", href: "/dashboard/configuracion" });
-              if (morososCount > 0) items.push({ icon: <BadgeAlert size={14} />, iconBg: "rgba(239,68,68,0.10)", title: `${morososCount} ${morososCount === 1 ? "socio con cuota impaga" : "socios con cuotas impagas"}`, desc: "Contactalos hoy para reducir la deuda acumulada.", href: "/dashboard/alumnos" });
-              if (alerts.upcomingExpirations.length > 0 && items.length < 3) items.push({ icon: <Clock size={14} />, iconBg: "rgba(99,102,241,0.12)", title: `${alerts.upcomingExpirations.length} socios vencen pronto`, desc: "Avisales antes de que venza para mejorar la retención.", href: "/dashboard/alumnos" });
-              if (items.length === 0) items.push({ icon: <CheckCircle size={14} />, iconBg: "rgba(34,197,94,0.12)", title: "Todo en orden", desc: "Tu gym está bien configurado y sin alertas pendientes.", href: "/dashboard" });
-              return items.slice(0, 3);
-            })().map((s, i) => (
-              <a key={i} href={s.href} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid rgba(15,17,21,0.06)", textDecoration: "none", cursor: "pointer" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: s.iconBg, color: "var(--color-text-1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{s.icon}</div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ font: `600 0.84rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 3 }}>{s.title}</p>
-                  <p style={{ font: `400 0.72rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)" }}>{s.desc}</p>
-                </div>
-                <span style={{ color: "var(--color-text-3)", fontSize: 14, flexShrink: 0 }}>›</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+      <Suggestions setup={setup} morososCount={morososCount} upcomingExpirations={alerts.upcomingExpirations} loading={loading} />
 
       {loading && asistDiarias.length === 0 && (
         <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.35fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
