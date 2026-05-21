@@ -28,6 +28,7 @@ export function OfflineIndicator({ isSyncing, syncedCount }: OfflineIndicatorPro
 
   useEffect(() => {
     if (syncedCount && syncedCount > 0) {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       setShowSynced(true);
       const timer = setTimeout(() => setShowSynced(false), 3000);
       return () => clearTimeout(timer);

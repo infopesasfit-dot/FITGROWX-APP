@@ -1453,7 +1453,7 @@ export default function PagosPage() {
                   <input type="number" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="0"
                     style={{ ...inputStyle, paddingLeft: 28, font: `700 1.1rem/1 ${fd}` }} />
                 </div>
-                {grupalMode && <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 4 }}>Usá "Dividir en partes iguales" o ingresá montos individuales arriba.</p>}
+                {grupalMode && <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3, marginTop: 4 }}>Usá &quot;Dividir en partes iguales&quot; o ingresá montos individuales arriba.</p>}
               </div>
 
               {!grupalMode && <div style={{ display: "grid", gap: 10 }}>

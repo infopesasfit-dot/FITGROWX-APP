@@ -45,6 +45,7 @@ export function DashboardPwaShell({ children }: { children: React.ReactNode }) {
     if (localStorage.getItem("fitgrowx_owner_pwa_dismissed")) return;
 
     const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     setIsIos(ios);
 
     if (ios) {

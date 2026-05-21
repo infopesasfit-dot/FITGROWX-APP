@@ -102,7 +102,9 @@ export default function PlatformResellers() {
     void load();
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, [load]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (tab === "postulaciones" && !appsLoaded) void loadApps(); }, [tab, appsLoaded, loadApps]);
 
   const handleCreate = async () => {

@@ -84,6 +84,7 @@ export default function RadarPage() {
     setLoading(false);
   }, [fetchHealth, fetchRadar]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     refresh();
     const id = setInterval(refresh, 30_000);

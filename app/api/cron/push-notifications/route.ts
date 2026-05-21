@@ -59,7 +59,6 @@ export async function POST(req: Request) {
     // Send class reminders (24 hours before)
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowDateStr = tomorrow.toISOString().slice(0, 10);
 
     const { data: classes } = await supabase
       .from("gym_classes")
@@ -106,8 +105,9 @@ export async function POST(req: Request) {
               })
             );
             sentCount++;
-          } catch (err: any) {
-            if (err.statusCode === 410) {
+          } catch (err: unknown) {
+            const error = err as { statusCode?: number };
+            if (error?.statusCode === 410) {
               // Subscription expired, delete it
               await supabase
                 .from("push_subscriptions")
@@ -156,8 +156,9 @@ export async function POST(req: Request) {
             })
           );
           sentCount++;
-        } catch (err: any) {
-          if (err.statusCode === 410) {
+        } catch (err: unknown) {
+          const error = err as { statusCode?: number };
+          if (error?.statusCode === 410) {
             await supabase
               .from("push_subscriptions")
               .delete()
@@ -190,8 +191,9 @@ export async function POST(req: Request) {
             })
           );
           sentCount++;
-        } catch (err: any) {
-          if (err.statusCode === 410) {
+        } catch (err: unknown) {
+          const error = err as { statusCode?: number };
+          if (error?.statusCode === 410) {
             await supabase
               .from("push_subscriptions")
               .delete()

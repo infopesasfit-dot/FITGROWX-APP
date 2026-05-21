@@ -7,8 +7,16 @@ import { leadFormToSchema } from "@/lib/api/mappers";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 
+interface LeadFormInput {
+  gymId: unknown;
+  name: unknown;
+  email: unknown;
+  phone: unknown;
+  turnstileToken: unknown;
+}
+
 export async function POST(req: NextRequest) {
-  const raw = await req.json() as any;
+  const raw = await req.json() as unknown as LeadFormInput;
   const mapped = leadFormToSchema({
     gymId: raw.gymId,
     name: raw.name,

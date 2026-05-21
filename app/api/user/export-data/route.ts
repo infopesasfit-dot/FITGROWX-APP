@@ -3,6 +3,14 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit } from "@/lib/request-security";
 
+type AlumnoRow = { full_name?: string; phone?: string; email?: string; status?: string; planes?: { nombre?: string }; next_expiration_date?: string; created_at?: string };
+type PagoRow = { date?: string; alumnos?: { full_name?: string }; alumno_id?: string; amount?: number; method?: string; status?: string; concepto?: string };
+type AsistenciaRow = { alumnos?: { full_name?: string }; alumno_id?: string; fecha?: string };
+type RutinaRow = { alumnos?: { full_name?: string }; alumno_id?: string; nombre?: string; ejercicios?: Array<{ nombre?: string; name?: string }> | Record<string, unknown>; updated_at?: string };
+type PlanRow = { nombre?: string; precio?: number; periodo?: string; duracion_dias?: string };
+type ProspectoRow = { full_name?: string; phone?: string; email?: string; status?: string; created_at?: string };
+type EgresoRow = { fecha?: string; concepto?: string; categoria?: string; monto?: number };
+
 export async function GET(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -52,21 +60,21 @@ export async function GET(req: NextRequest) {
     const dateStr = new Date().toISOString().slice(0, 10);
 
     // ── Alumnos ──────────────────────────────────────────────────────────────
-    const alumnosRows = (alumnos ?? []).map((a: any) => ({
+    const alumnosRows = (alumnos ?? []).map((a: AlumnoRow) => ({
       Nombre: a.full_name ?? "",
       Teléfono: a.phone ?? "",
       Email: a.email ?? "",
       Estado: a.status ?? "",
-      Plan: (a.planes as any)?.nombre ?? "",
+      Plan: a.planes?.nombre ?? "",
       Vencimiento: a.next_expiration_date ?? "",
       "Fecha de alta": a.created_at ? a.created_at.slice(0, 10) : "",
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(alumnosRows), "Alumnos");
 
     // ── Pagos ─────────────────────────────────────────────────────────────────
-    const pagosRows = (pagos ?? []).map((p: any) => ({
+    const pagosRows = (pagos ?? []).map((p: PagoRow) => ({
       Fecha: p.date ?? "",
-      Alumno: (p.alumnos as any)?.full_name ?? p.alumno_id ?? "",
+      Alumno: p.alumnos?.full_name ?? p.alumno_id ?? "",
       Monto: p.amount ?? 0,
       Método: p.method ?? "",
       Estado: p.status ?? "",
@@ -75,23 +83,23 @@ export async function GET(req: NextRequest) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pagosRows), "Pagos");
 
     // ── Asistencias ───────────────────────────────────────────────────────────
-    const asistenciasRows = (asistencias ?? []).map((a: any) => ({
-      Alumno: (a.alumnos as any)?.full_name ?? a.alumno_id ?? "",
+    const asistenciasRows = (asistencias ?? []).map((a: AsistenciaRow) => ({
+      Alumno: a.alumnos?.full_name ?? a.alumno_id ?? "",
       Fecha: a.fecha ?? "",
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(asistenciasRows.length ? asistenciasRows : [{ Alumno: "", Fecha: "" }]), "Asistencias");
 
     // ── Rutinas ───────────────────────────────────────────────────────────────
-    const rutinasRows = (rutinas ?? []).map((r: any) => ({
-      Alumno: (r.alumnos as any)?.full_name ?? r.alumno_id ?? "",
+    const rutinasRows = (rutinas ?? []).map((r: RutinaRow) => ({
+      Alumno: r.alumnos?.full_name ?? r.alumno_id ?? "",
       "Nombre rutina": r.nombre ?? "",
-      Ejercicios: Array.isArray(r.ejercicios) ? r.ejercicios.map((e: any) => e.nombre ?? e.name ?? JSON.stringify(e)).join(", ") : JSON.stringify(r.ejercicios ?? []),
+      Ejercicios: Array.isArray(r.ejercicios) ? r.ejercicios.map((e: Record<string, unknown>) => (e.nombre as string | undefined) ?? (e.name as string | undefined) ?? JSON.stringify(e)).join(", ") : JSON.stringify(r.ejercicios ?? []),
       "Última actualización": r.updated_at ? r.updated_at.slice(0, 10) : "",
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rutinasRows.length ? rutinasRows : [{ Alumno: "", "Nombre rutina": "", Ejercicios: "", "Última actualización": "" }]), "Rutinas");
 
     // ── Planes ────────────────────────────────────────────────────────────────
-    const planesRows = (planes ?? []).map((p: any) => ({
+    const planesRows = (planes ?? []).map((p: PlanRow) => ({
       Nombre: p.nombre ?? "",
       Precio: p.precio ?? 0,
       Período: p.periodo ?? "",
@@ -100,7 +108,7 @@ export async function GET(req: NextRequest) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(planesRows.length ? planesRows : [{ Nombre: "", Precio: 0, Período: "", "Duración (días)": "" }]), "Planes");
 
     // ── Prospectos ────────────────────────────────────────────────────────────
-    const prospectosRows = (prospectos ?? []).map((p: any) => ({
+    const prospectosRows = (prospectos ?? []).map((p: ProspectoRow) => ({
       Nombre: p.full_name ?? "",
       Teléfono: p.phone ?? "",
       Email: p.email ?? "",
@@ -110,7 +118,7 @@ export async function GET(req: NextRequest) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prospectosRows.length ? prospectosRows : [{ Nombre: "", Teléfono: "", Email: "", Estado: "", Fecha: "" }]), "Prospectos");
 
     // ── Egresos ───────────────────────────────────────────────────────────────
-    const egresosRows = (egresos ?? []).map((e: any) => ({
+    const egresosRows = (egresos ?? []).map((e: EgresoRow) => ({
       Fecha: e.fecha ?? "",
       Concepto: e.concepto ?? "",
       Categoría: e.categoria ?? "",

@@ -6,8 +6,16 @@ import { bookingFormToSchema } from "@/lib/api/mappers";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 
+interface BookingFormInput {
+  classId: unknown;
+  leadName: unknown;
+  leadPhone: unknown;
+  gymId: unknown;
+  turnstileToken: unknown;
+}
+
 export async function POST(req: NextRequest) {
-  const raw = await req.json() as any;
+  const raw = await req.json() as unknown as BookingFormInput;
   const mapped = bookingFormToSchema({
     classId: raw.classId,
     leadName: raw.leadName,

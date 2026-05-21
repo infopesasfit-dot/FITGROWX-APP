@@ -21,6 +21,7 @@ function PreviewInner() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     if (!slug) { setLoading(false); return; }
     (async () => {
       const { data } = await supabase

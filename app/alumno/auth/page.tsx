@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { getPlanNombre } from "@/lib/supabase-relations";
 
 const fd = "'Inter', sans-serif";
 

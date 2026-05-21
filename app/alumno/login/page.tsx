@@ -7,14 +7,15 @@ import { Archivo_Black, JetBrains_Mono } from "next/font/google";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 
-const archivoBlack = Archivo_Black({
+// Next.js fonts - applied via CSS variables globally
+Archivo_Black({
   subsets: ["latin"],
   weight: "400",
   variable: "--font-archivo-black",
   display: "swap",
 });
 
-const jetBrainsMono = JetBrains_Mono({
+JetBrains_Mono({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   variable: "--font-jetbrains-mono",
@@ -114,6 +115,7 @@ function LoginContent() {
     const ua = navigator.userAgent;
     const isIos = /iphone|ipad|ipod/i.test(ua) && !("MSStream" in window);
     const isSafari = /safari/i.test(ua) && !/chrome|fxios|crios/i.test(ua);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     if (isIos && isSafari) { setShowIosHint(true); return; }
     // Android / Chrome
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

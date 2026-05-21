@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ZodSchema } from "zod";
+import { ZodSchema, ZodError } from "zod";
 
 interface ValidationState {
   errors: Record<string, string>;
@@ -17,16 +17,17 @@ export function useFormValidation<T>(schema: ZodSchema) {
   });
 
   const validate = useCallback(
-    (data: any): data is T => {
+    (data: unknown): data is T => {
       try {
         schema.parse(data);
         setState({ errors: {}, isValid: true, isDirty: true });
         return true;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const error = err instanceof ZodError ? err : null;
         const errors: Record<string, string> = {};
 
-        if (err.issues) {
-          for (const issue of err.issues) {
+        if (error?.issues) {
+          for (const issue of error.issues) {
             const path = issue.path.join(".");
             errors[path] = issue.message;
           }
