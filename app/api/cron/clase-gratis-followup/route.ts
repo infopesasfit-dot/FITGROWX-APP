@@ -4,6 +4,7 @@ import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
 import { sendWa } from "@/lib/wa";
+import { ensureGymBranding } from "@/lib/messaging-helpers";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,9 +25,9 @@ function fillTemplate(template: string, nombre: string, gym: string, link = ""):
 
 const DEFAULT_MSG_REMINDER = `¡Hola {nombre}! 👋 Te recordamos que *mañana* es tu clase de prueba en *{gym}*. ¡Te esperamos! 💪\n\n📍 Si no podés venir, avisanos para reagendar.`;
 const DEFAULT_MSG_0 = `¡Hola {nombre}! 💪 ¿Cómo te fue en la clase de hoy en *{gym}*? ¡Esperamos que la hayas disfrutado! Cualquier pregunta, escribinos.`;
-const DEFAULT_MSG_2 = `¡Hola {nombre}! 👋 Ya pasaron un par de días desde tu clase de prueba en *{gym}*. ¿Qué te pareció? Si querés arrancar, te dejamos la info acá 👇\n\n{link}`;
-const DEFAULT_MSG_5 = `{nombre}, ¡tu clase de prueba en *{gym}* fue hace 5 días! 🎯 Este es el momento. Arrancá acá 👇\n\n{link}`;
-const DEFAULT_MSG_NOSHOW = `Hola {nombre} 👋 Vimos que no pudiste venir a tu clase de prueba en *{gym}*. ¿Querés reagendar? Elegí tu día acá 👇\n\n{link}`;
+const DEFAULT_MSG_2 = `Hola {nombre}, soy del staff de {gym}. ¿Cómo te fue con la clase? Cualquier consulta avisame.`;
+const DEFAULT_MSG_5 = `Hola {nombre}, soy del staff de {gym}. ¿Te animás a probar otra clase esta semana? Te puedo ayudar a elegir.`;
+const DEFAULT_MSG_NOSHOW = `Hola {nombre}, soy del staff de {gym}. Vi que no pudiste venir a tu clase. ¿Querés reagendar?`;
 
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
@@ -117,11 +118,12 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
+      const msgTemplateBranded = ensureGymBranding(msgTemplate, gymName);
       const reservarLink = gym.slug ? `${APP_URL}/gym/${gym.slug}/reservar` : "";
       // Remove {link} placeholder lines when gym has no slug
       const msgTemplateSanitized = reservarLink
-        ? msgTemplate
-        : msgTemplate.replace(/\n*\{link\}/g, "").replace(/\{link\}\n*/g, "");
+        ? msgTemplateBranded
+        : msgTemplateBranded.replace(/\n*\{link\}/g, "").replace(/\{link\}\n*/g, "");
       const paymentSuffix = p.clase_gratis_status === "asistio"
         ? gym.payment_info
           ? `\n\n💳 *Precios y planes:*\n${gym.payment_info}`

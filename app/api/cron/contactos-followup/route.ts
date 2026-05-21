@@ -4,6 +4,7 @@ import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
 import { sendWa } from "@/lib/wa";
+import { ensureGymBranding } from "@/lib/messaging-helpers";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,8 +13,8 @@ const supabase = createClient(
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
 
-const DEFAULT_MSG_1 = `¡Hola {nombre}! 👋 ¿Pudiste ver la info que te mandamos? Agendá tu clase de prueba en *{gym}* acá 👇\n\n{link}`;
-const DEFAULT_MSG_3 = `Hola {nombre}, último mensajito 🙌 Si en algún momento querés conocer *{gym}*, podés reservar tu clase de prueba acá 👇\n\n{link}`;
+const DEFAULT_MSG_1 = `Hola {nombre}, soy del staff de {gym}. Vi que dejaste tus datos en la landing. ¿Cuándo te conviene probar una clase?`;
+const DEFAULT_MSG_3 = `Hola {nombre}, soy del staff de {gym}. ¿Te quedan dudas sobre cómo entrenamos? Cualquier cosa pregúntame.`;
 
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest) {
 
       if (!msgTemplate || nextStep === null) continue;
 
+      const msgTemplateBranded = ensureGymBranding(msgTemplate, gymName);
       const reservarLink = gym.slug ? `${APP_URL}/gym/${gym.slug}/reservar` : null;
       const paymentSuffix = gym.payment_info
         ? `\n\n💳 *Precios y planes:*\n${gym.payment_info}`
@@ -77,7 +79,7 @@ export async function GET(req: NextRequest) {
           ? `\n\n💳 Podés pagar online con MercadoPago al reservar.`
           : "";
 
-      const message = (msgTemplate + paymentSuffix)
+      const message = (msgTemplateBranded + paymentSuffix)
         .replace(/\{nombre\}/g, p.full_name)
         .replace(/\{gym\}/g, gymName)
         .replace(/\{link\}/g, reservarLink ?? `Escribinos para coordinar`);

@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { logger } from "@/lib/logger";
 import { sendWa as sendWaLib } from "@/lib/wa";
+import { ensureGymBranding } from "@/lib/messaging-helpers";
 
 const ROUTE = "/api/alumno/send-welcome";
 
@@ -17,13 +18,13 @@ function fill(template: string, nombre: string, gym: string, link = "") {
 const supabase = getSupabaseAdminClient();
 
 const DEFAULT_WELCOME =
-  `¡Hola {nombre}! 👋 Te registramos en *{gym}*. 🎉\n\nDesde acá podés ver tu membresía, tu QR y más 👇\n\n{link}\n\n_El acceso dura 30 días._`;
+  `Hola {nombre}, soy del staff de {gym}. Te paso el link para que entres a la app:\n\n{link}\n\nCualquier duda escribime.`;
 
 const DEFAULT_APP_MSG =
-  `En la app también encontrás 📱\n\n🏋️ Tu rutina personalizada\n📊 Registros de cargas\n📅 Tus clases y reservas\n✅ Historial de asistencias\n\n¡Cualquier consulta estamos acá!`;
+  `¡Bienvenido a {gym}, {nombre}! 💪 Ya podés acceder a la app desde acá:\n\n{link}`;
 
 const DEFAULT_RENEWAL =
-  `¡Hola {nombre}! 💪 Tu cuota en *{gym}* está al día.\n\nIngresá a tu panel desde acá 👇\n\n{link}\n\n_El acceso dura 30 días._`;
+  `Hola {nombre}, te recordamos que tu cuota de {gym} vence en {dias} días ({fecha}). Si querés renovarla, avisanos por acá.`;
 
 // type: "welcome" → nuevo alumno, "renewal" → renovó cuota
 export async function POST(req: NextRequest) {
@@ -102,18 +103,21 @@ export async function POST(req: NextRequest) {
   }
 
   if (type === "renewal") {
-    const msg = fill(settings?.renewal_msg?.trim() || DEFAULT_RENEWAL, alumno.full_name, gymName, link);
+    const template = ensureGymBranding(settings?.renewal_msg?.trim() || DEFAULT_RENEWAL, gymName);
+    const msg = fill(template, alumno.full_name, gymName, link);
     await sendWA(msg, "renewal");
     return NextResponse.json({ ok: true });
   }
 
   // welcome: msg 1 (link) → 3s → msg 2 (app explanation)
-  const msg1 = fill(settings?.magiclink_msg?.trim() || DEFAULT_WELCOME, alumno.full_name, gymName, link);
+  const template1 = ensureGymBranding(settings?.magiclink_msg?.trim() || DEFAULT_WELCOME, gymName);
+  const msg1 = fill(template1, alumno.full_name, gymName, link);
   await sendWA(msg1, "welcome-link");
 
   if (settings?.bienvenida_app_msg !== "") {
     await new Promise(r => setTimeout(r, 3000));
-    const msg2 = fill(settings?.bienvenida_app_msg?.trim() || DEFAULT_APP_MSG, alumno.full_name, gymName);
+    const template2 = ensureGymBranding(settings?.bienvenida_app_msg?.trim() || DEFAULT_APP_MSG, gymName);
+    const msg2 = fill(template2, alumno.full_name, gymName);
     await sendWA(msg2, "welcome-app");
   }
 

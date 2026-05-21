@@ -6,6 +6,7 @@ import { logWASend } from "@/lib/wa-log";
 import { logAlumnoActivity } from "@/lib/alumno-log";
 import { enqueueWABulk } from "@/lib/wa-queue";
 import { getTodayDate } from "@/lib/date-utils";
+import { ensureGymBranding } from "@/lib/messaging-helpers";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -334,8 +335,8 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
 
 // ── Bloque 4: Follow-ups post-vencimiento (día 3 y día 7) ────────────────────
 
-const MSG_D3 = `¡Hola [Nombre]! 👋 Tu membresía en *[Gym]* venció hace 3 días. Renovála para retomar tu entrenamiento 💪\n\n👉 [Link]`;
-const MSG_D7 = `[Nombre], tu membresía en *[Gym]* lleva una semana vencida 😔 Si necesitás retomar, estamos acá. Renovála acá 👇\n\n👉 [Link]`;
+const MSG_D3 = `Hola [Nombre], soy del staff de [Gym]. Te recuerdo que tu cuota vence el [Fecha]. Si querés renovar, avisame.`;
+const MSG_D7 = `Hola [Nombre], soy del staff de [Gym]. Tu cuota vence dentro de una semana ([Fecha]). ¿Querés que te ayude a renovar?`;
 
 async function enviarFollowupsPostVencimiento(
   gyms: GymSettings[],
@@ -376,7 +377,8 @@ async function enviarFollowupsPostVencimiento(
         yaEnviado: string | null,
       ) => {
         if (yaEnviado === alumno.next_expiration_date) return;
-        const mensaje = fillTemplate(templateBase + paymentSuffix, {
+        const templateBranded = ensureGymBranding(templateBase, gymName);
+        const mensaje = fillTemplate(templateBranded + paymentSuffix, {
           Nombre: alumno.full_name,
           Gym:    gymName,
           Link:   link,

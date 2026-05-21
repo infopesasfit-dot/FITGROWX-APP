@@ -642,6 +642,28 @@
 
 ---
 
+## 🚨 Bugs visuales detectados
+
+### Asistencias hoy duplicado
+
+Aparece DOS VECES en /dashboard:
+- KPI card chica (arriba): "0 asistencias hoy · Resumen del día"
+- Card grande (abajo): "ASISTENCIAS HOY · 0 · Ocupación del día"
+
+Mismo dato, layouts distintos.
+
+Pendiente decisión de UX para Bloque 3 (split daily/reportes):
+
+Patrón 1 (recomendado): separar info de acción
+- Bloque chico = solo acciones (Cargar alumno, Cargar egreso, etc)
+- Bloque grande = solo métricas del día (Asistencias, Vencimientos, A cobrar, Socios activos)
+
+Patrón 2 (mínimo): eliminar duplicados manteniendo layout actual
+
+Decidir cuando se haga split daily/reportes con cabeza fresca.
+
+---
+
 ## 12. 🔮 MEJORAS FUTURAS (no urgentes)
 
 ### ViewportContext Optimization

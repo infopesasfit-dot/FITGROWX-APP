@@ -3,11 +3,12 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
+import { ensureGymBranding } from "@/lib/messaging-helpers";
 
 const supabase = getSupabaseAdminClient();
 
 const DEFAULT_MSG =
-  "💪 {nombre}, tu profe cargó tu rutina en *{gym}*. Podés verla desde acá 👇\n\n{link}";
+  "Hola {nombre}, soy del staff de {gym}. Te subimos una rutina nueva a la app. Entrá acá para verla:\n\n{link}";
 
 export async function POST(req: NextRequest) {
   const sessionClient = await createSupabaseServerClient();
@@ -71,7 +72,8 @@ export async function POST(req: NextRequest) {
     return `${proto}://${host}`;
   })()).replace(/\/$/, "");
 
-  const msg = DEFAULT_MSG
+  const template = ensureGymBranding(DEFAULT_MSG, gymName);
+  const msg = template
     .replace(/\{nombre\}/gi, alumno.full_name.split(" ")[0])
     .replace(/\{gym\}/gi, gymName)
     .replace(/\{link\}/gi, `${baseUrl}/alumno/auth?token=${token}`);
