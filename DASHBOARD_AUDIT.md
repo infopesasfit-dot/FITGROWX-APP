@@ -688,3 +688,25 @@
 **Risk:** Low (puro refactor cosmético)
 
 ---
+
+## 🔮 Mejoras futuras
+
+### Métricas mobile: texto descriptivo truncado (Paso D / Bloque 4)
+**Contexto:** Las secciones de métricas (Embudo, Fidelización, Eficiencia) en mobile muestran título + descripción en row (lado a lado), lo que causa que el texto descriptivo se corte a mitad (ej: "Personas que llegaron y cuántas terminaron pagand...").
+
+**Problema:** 
+- Layout row no funciona en pantallas chicas
+- Texto truncado sin tooltip = UX confusa
+- Usuario no puede leer el significado completo de la métrica
+
+**Propuesta:**
+1. **Stack vertical en mobile:** Título arriba, descripción debajo (flex-direction: column)
+2. **O truncar con tooltip:** Mantener row pero agregar title attribute o popover con texto completo
+3. **O reducir ancho:** Ajustar fuente/padding en mobile para que quepaTipos de métrica afectadas:
+- Embudo (leads → trial → member)
+- Fidelización (churn, retention, LTV)
+- Eficiencia (CAC, ROI, efficiency)
+
+**Cuándo:** Paso D (Mobile Dashboard Redesign) o Bloque 4  
+**Estimado de Esfuerzo:** 1-2h (responsive layout o tooltip implementation + testing)  
+**Risk:** Low (puro CSS/layout, no cambios de datos)
