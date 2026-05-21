@@ -1,3 +1,10 @@
+/**
+ * ⚠️ WIP — No usado todavía.
+ * Creado prematuramente en Bloque 0 del refactor de dashboard.
+ * Se va a integrar en Bloque 6 cuando movamos charts full-size a /reportes.
+ * Si llegaste acá y no estás haciendo Bloque 6, no toques este archivo.
+ */
+
 import React from "react";
 
 interface CompactChartsProps {
