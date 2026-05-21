@@ -5,6 +5,7 @@ import { X, ArrowRight, ArrowLeft, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getDinoState } from "@/lib/dashboard-helpers";
 import { DinoSVG } from "@/app/dashboard/components/DinoSVG";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 
@@ -70,6 +71,7 @@ interface OnboardingModalProps {
 export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
   const [step, setStep] = useState(0);
   const router = useRouter();
+  const isDesktop = useIsDesktop();
 
   if (!open) return null;
 
@@ -96,7 +98,7 @@ export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
         style={{
           background: "#FFFFFF", borderRadius: 28,
           width: "100%", maxWidth: 500,
-          padding: "24px 24px 20px", position: "relative",
+          padding: isDesktop ? "24px 24px 20px" : "20px 18px 16px", position: "relative",
           boxShadow: "0 32px 80px rgba(0,0,0,0.22)",
           display: "flex", flexDirection: "column", gap: 18,
         }}
@@ -132,9 +134,9 @@ export function OnboardingModal({ open, onClose }: OnboardingModalProps) {
         </div>
 
         {/* Dino + speech bubble */}
-        <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
+        <div style={{ display: "flex", flexDirection: isDesktop ? "row" : "column", gap: 16, alignItems: isDesktop ? "flex-end" : "center" }}>
           <div style={{ flexShrink: 0, transition: "opacity 0.2s ease" }}>
-            <DinoSVG state={current.dinoState} pixelSize={9} />
+            <DinoSVG state={current.dinoState} pixelSize={isDesktop ? 9 : 6} />
           </div>
           <div
             style={{
