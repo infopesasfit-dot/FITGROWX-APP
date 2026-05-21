@@ -148,7 +148,7 @@ describe("Alumno Panel Interactions", () => {
 
   describe("Workout Session Interaction", () => {
     it("marks series completion with proper state update", () => {
-      const seriesLog = {
+      const seriesLog: Record<string, { completadas: number; total: number; kg_usado: number }> = {
         "Press de pecho": {
           completadas: 0,
           total: 4,
@@ -174,11 +174,11 @@ describe("Alumno Panel Interactions", () => {
     });
 
     it("allows kg input for exercises", () => {
-      const seriesLog = {
+      const seriesLog: Record<string, { completadas: number; total: number; kg_usado: number | null }> = {
         "Press de pecho": {
           completadas: 0,
           total: 4,
-          kg_usado: null as number | null,
+          kg_usado: null,
         },
       };
 

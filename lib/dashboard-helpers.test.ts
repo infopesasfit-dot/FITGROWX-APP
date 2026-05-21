@@ -117,7 +117,9 @@ describe("dashboard-helpers", () => {
       label: "Test",
       section: "Eficiencia",
       tooltip: "",
+      value: null,
       previous: null,
+      format: "number",
       accent: "soft",
     };
 
@@ -154,9 +156,11 @@ describe("dashboard-helpers", () => {
 
   describe("getMetricTag", () => {
     const baseMeta: DashboardMetric = {
+      key: "test",
       label: "Test",
       section: "Eficiencia",
       tooltip: "",
+      value: null,
       previous: null,
       accent: "soft",
       format: "number",

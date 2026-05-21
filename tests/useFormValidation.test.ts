@@ -63,7 +63,7 @@ describe("useFormValidation", () => {
 
     const { result } = renderHook(() => useFormValidation(singleFieldSchema));
 
-    let emailError: string | null;
+    let emailError: string | null = null;
     act(() => {
       emailError = result.current.validateField("email", "invalid");
     });
@@ -78,7 +78,7 @@ describe("useFormValidation", () => {
 
     const { result } = renderHook(() => useFormValidation(singleFieldSchema));
 
-    let error: string | null;
+    let error: string | null = null;
     act(() => {
       error = result.current.validateField("email", "valid@example.com");
     });
