@@ -1,8 +1,8 @@
 import React from "react";
 import { Activity, ClipboardList, Clock, UserPlus } from "lucide-react";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 interface QuickActionsProps {
-  isMobile: boolean;
   asistHoy: number;
   alerts: { upcomingExpirations: any[] };
   t1: string;
@@ -16,7 +16,6 @@ interface QuickActionsProps {
 }
 
 export function QuickActions({
-  isMobile,
   asistHoy,
   alerts,
   t1,
@@ -28,6 +27,7 @@ export function QuickActions({
   cardBase,
   cardHover,
 }: QuickActionsProps) {
+  const isDesktop = useIsDesktop();
   const actions = [
     {
       icon: <Activity size={16} color={t2} />,
@@ -64,7 +64,7 @@ export function QuickActions({
   ];
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+    <div style={{ display: "grid", gridTemplateColumns: !isDesktop ? "1fr" : "1fr 1fr", gap: 10 }}>
       {actions.map((a) => {
         const isCargaAlumno = a.label === "Cargar alumno";
         return (

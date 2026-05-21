@@ -786,7 +786,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <QuickActions isMobile={!isDesktop} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       {!loading && (
         <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} {...cardHover}>
@@ -1205,7 +1205,7 @@ export default function DashboardPage() {
         </a>
       )}
 
-      <QuickActions isMobile={!isDesktop} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {/* A cobrar — feature card */}
