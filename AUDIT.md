@@ -39,6 +39,58 @@ Luego migrar todos los hardcodes a CSS vars.
 
 ---
 
+## 🎯 Features pendientes (próximo sprint)
+
+### gymName: integración en 3 lugares
+
+**Contexto:** El modal de bienvenida pre-dashboard ya captura `gymName`. La fuente de verdad está allá. Necesita propagarse a 3 ubicaciones:
+
+**1. Sidebar logo clickeable**
+- Envolver `"{gymName}"` + logo en `<Link href="/dashboard">` para que sea atajo al inicio
+- Componente: probablemente `/app/dashboard/Sidebar.tsx` o similar
+- Ventaja: uno-click volver al dashboard desde cualquier página
+
+**2. Magic link del alumno via WhatsApp**
+- El mensaje que recibe el alumno con el link debe incluir el nombre del gym
+- Formato esperado: `"Accedé a {gymName}: [link]"`
+- Pasar `gymName` al template del mensaje en la función que envía el WhatsApp
+- Archivo probable: `/api/alumno/send-welcome` o similar
+
+**3. Email de bienvenida (si existe)**
+- Mismo patrón: `"Bienvenido a {gymName}"`
+
+**Archivos a revisar:**
+- Sidebar/layout donde se muestra gym name
+- Funciones de envío de WhatsApp en `/api/`
+- Templates de mensajes
+
+---
+
+### Modal de bienvenida pre-dashboard — verificación de lead capture
+
+**Contexto:** Existen DOS modales distintos en el dashboard:
+
+1. **Modal de bienvenida pre-dashboard** (anterior a dashboard page.tsx)
+   - Captura: nombre del gym + teléfono del dueño
+   - Propósito: gate de primer login + lead capture
+   - Estado: ¿Bloqueante? ¿Se puede saltar?
+
+2. **OnboardingModal con Rex** (refactoreado en Paso C 4/4)
+   - NO captura data
+   - Propósito: guía visual educativa de 5 pasos onboarding
+   - Estado: ✅ Completo
+
+**Verificaciones pendientes (NO bugs confirmados):**
+- ¿El modal de bienvenida pre-dashboard es realmente bloqueante (no se puede saltar)?
+- ¿Dónde guardan los datos capturados? (gym_settings, profiles, leads table?)
+- ¿Sirve también como mecanismo de lead capture? Si el gym abandona después de este paso, ¿quedan datos para outreach manual?
+
+**Archivos a revisar:**
+- Modal pre-dashboard (probablemente en `/app/` raíz, no en `/app/dashboard/`)
+- Lógica de guardado de datos capturados
+
+---
+
 ## 📋 Deuda menor
 
 ### Test faltante: onEnterDemo callback
