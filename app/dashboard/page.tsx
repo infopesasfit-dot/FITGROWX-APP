@@ -721,6 +721,11 @@ export default function DashboardPage() {
           <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
           <p style={{ font: `500 0.8rem/1.55 var(--font-family-display)`, color: "var(--color-text-2)", marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
           <Filters compact selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
+
+          {!loading && (
+            <OnboardingMobileBanner demoMode={demoMode} setup={setup} onOpenModal={() => setOnboardingOpen(true)} />
+          )}
+
           <div style={{ marginTop: 16, padding: "18px 16px 16px", borderRadius: 16, background: "linear-gradient(135deg, #1A1D24 0%, #0E0F12 100%)", color: "white", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 1px 0 rgba(15,17,21,0.04), 0 2px 8px rgba(15,17,21,0.05)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
               <div>
@@ -767,10 +772,6 @@ export default function DashboardPage() {
       </div>
 
       <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} />
-
-      {!loading && (
-        <OnboardingMobileBanner demoMode={demoMode} setup={setup} onOpenModal={() => setOnboardingOpen(true)} />
-      )}
 
       {!loading && (
         <a href="/dashboard/alumnos" className="dashboard-card" style={{ padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} >
