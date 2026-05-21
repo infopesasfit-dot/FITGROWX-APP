@@ -8,6 +8,8 @@ import {
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
 import { supabase } from "@/lib/supabase";
 import { OnboardingModal, DinoSVG, getDinoState } from "@/app/dashboard/components/OnboardingModal";
+import { QuickActions } from "@/app/dashboard/components/QuickActions";
+import { Filters } from "@/app/dashboard/components/Filters";
 
 const accent = "#FF7A18";
 const accentDeep = "#E65A00";
@@ -466,68 +468,7 @@ export default function DashboardPage() {
     ];
   }, [hour, asistHoy, alerts.upcomingExpirations.length, prospectos]);
 
-  const renderQuickActions = () => {
-    const actions = [
-      {
-        icon: <Activity size={16} color={t2} />,
-        iconBg: "rgba(15,17,21,0.06)",
-        label: `${asistHoy} asistencia${asistHoy !== 1 ? "s" : ""} hoy`,
-        hint: "Resumen del día",
-        href: "/dashboard/asistencias",
-        shortcut: null,
-      },
-      {
-        icon: <ClipboardList size={16} color={t2} />,
-        iconBg: "rgba(15,17,21,0.06)",
-        label: "Cargar egreso",
-        hint: "Gasto del día",
-        href: "/dashboard/egresos",
-        shortcut: null,
-      },
-      {
-        icon: <Clock size={16} color={alerts.upcomingExpirations.length > 0 ? "#16A34A" : "#16A34A"} />,
-        iconBg: "rgba(22,163,74,0.10)",
-        label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} vencen pronto` : "Sin vencimientos",
-        hint: alerts.upcomingExpirations.length > 0 ? "Contactalos antes que venzan" : "Todo al día",
-        href: "/dashboard/alumnos",
-        shortcut: null,
-      },
-      {
-        icon: <UserPlus size={16} color={accentDeep} />,
-        iconBg: "rgba(255,122,24,0.12)",
-        label: "Cargar alumno",
-        hint: "Atajo · A",
-        href: "/dashboard/alumnos",
-        shortcut: "A",
-      },
-    ];
-    return (
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
-        {actions.map((a) => {
-          const isCargaAlumno = a.label === "Cargar alumno";
-          return (
-          <a
-            key={a.label}
-            href={a.href}
-            style={{ ...cardBase, display: "flex", alignItems: "center", gap: 12, padding: isCargaAlumno ? "10px 12px" : "14px 16px", textDecoration: "none", color: "inherit", cursor: "pointer" }}
-            {...cardHover}
-          >
-            <div style={{ width: isCargaAlumno ? 28 : 34, height: isCargaAlumno ? 28 : 34, borderRadius: 10, background: a.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              {React.cloneElement(a.icon, { size: isCargaAlumno ? 14 : 16 })}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ font: `600 0.82rem/1.2 ${fd}`, color: t1, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.label}</p>
-              <p style={{ font: `500 0.68rem/1.3 ${fm}`, color: t3, margin: 0 }}>{a.hint}</p>
-            </div>
-            {a.shortcut && (
-              <kbd style={{ font: `700 0.62rem/1 ${fm}`, color: t3, background: "rgba(15,17,21,0.06)", border: "1px solid rgba(15,17,21,0.10)", borderRadius: 5, padding: "3px 6px", flexShrink: 0 }}>{a.shortcut}</kbd>
-            )}
-          </a>
-          );
-        })}
-      </div>
-    );
-  };
+  // QuickActions moved to /app/dashboard/components/QuickActions.tsx
 
   const donutSlices    = planDist.map((p, i) => ({ value: p.count, color: PLAN_COLORS[i % PLAN_COLORS.length] }));
   const donutSegments  = buildDonutSegments(donutSlices);
@@ -597,46 +538,7 @@ export default function DashboardPage() {
     return { text: `Sincronizado ${timeAgo}`, stale };
   })();
 
-  const renderFilters = (compact = false) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 2, background: "#F5F7FA", borderRadius: compact ? 14 : 16, padding: 4, border: "1px solid rgba(17,24,39,0.06)" }}>
-        <button
-          onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
-          style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, fontSize: 14 }}
-        >‹</button>
-        <span style={{ font: `700 ${compact ? "0.72rem" : "0.76rem"}/1 ${fb}`, color: t1, minWidth: compact ? 110 : 130, textAlign: "center", padding: "0 4px" }}>
-          {MONTH_NAMES[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
-        </span>
-        <button
-          onClick={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))}
-          disabled={isCurrentMonth}
-          style={{ width: compact ? 28 : 32, height: compact ? 28 : 32, borderRadius: compact ? 9 : 10, border: "none", background: "transparent", cursor: isCurrentMonth ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: isCurrentMonth ? t3 : t2, fontSize: 14 }}
-        >›</button>
-      </div>
-      {fetchedAtLabel && !compact && (
-        <span style={{ font: `400 0.68rem/1 ${fb}`, color: t3, whiteSpace: "nowrap" }}>{fetchedAtLabel}</span>
-      )}
-      {waBadge && (
-        waBadge.href ? (
-          <a href={waBadge.href} style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 0.68rem/1 ${fb}`, color: waBadge.color, background: waBadge.bg, border: `1px solid ${waBadge.border}`, borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap", textDecoration: "none", cursor: "pointer" }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: waBadge.dot, flexShrink: 0 }} />
-            {waBadge.text}
-          </a>
-        ) : (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 0.68rem/1 ${fb}`, color: waBadge.color, background: waBadge.bg, border: `1px solid ${waBadge.border}`, borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap" }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: waBadge.dot, flexShrink: 0 }} />
-            {waBadge.text}
-          </span>
-        )
-      )}
-      {!compact && (
-        <span title={lastCronRun?.summary ?? undefined} style={{ display: "inline-flex", alignItems: "center", gap: 4, font: `500 0.68rem/1 ${fb}`, color: cronSyncLabel.stale ? "#DC2626" : "#16A34A", background: cronSyncLabel.stale ? "rgba(220,38,38,0.07)" : "rgba(22,163,74,0.07)", border: `1px solid ${cronSyncLabel.stale ? "rgba(220,38,38,0.18)" : "rgba(22,163,74,0.18)"}`, borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap", cursor: lastCronRun?.summary ? "help" : "default" }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: cronSyncLabel.stale ? "#DC2626" : "#16A34A", flexShrink: 0 }} />
-          {cronSyncLabel.text}
-        </span>
-      )}
-    </div>
-  );
+  // Filters moved to /app/dashboard/components/Filters.tsx
 
   const renderKpiCard = (
     label: string,
@@ -956,7 +858,7 @@ export default function DashboardPage() {
           </div>
           <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
           <p style={{ font: `500 0.8rem/1.55 ${fb}`, color: t2, marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
-          {renderFilters(true)}
+          <Filters compact selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} fb={fb} t1={t1} t2={t2} t3={t3} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
           <div style={{ marginTop: 16, padding: "18px 16px 16px", borderRadius: 16, background: "linear-gradient(135deg, #1A1D24 0%, #0E0F12 100%)", color: "white", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 1px 0 rgba(15,17,21,0.04), 0 2px 8px rgba(15,17,21,0.05)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
               <div>
@@ -1002,7 +904,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {renderQuickActions()}
+      <QuickActions isMobile={isMobile} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       {!loading && (
         <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} {...cardHover}>
@@ -1335,7 +1237,7 @@ export default function DashboardPage() {
           <p style={{ font: `500 0.86rem/1.6 ${fb}`, color: t2, maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          {renderFilters(false)}
+          <Filters selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} fb={fb} t1={t1} t2={t2} t3={t3} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
         </div>
       </div>
 
@@ -1421,7 +1323,7 @@ export default function DashboardPage() {
         </a>
       )}
 
-      {renderQuickActions()}
+      <QuickActions isMobile={isMobile} asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {/* A cobrar — feature card */}
