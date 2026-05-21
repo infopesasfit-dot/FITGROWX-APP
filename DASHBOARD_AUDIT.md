@@ -614,3 +614,30 @@
 **Acción:** Marcado como WIP en el archivo. Se va a integrar en Bloque 6 cuando movamos full-size charts a /reportes.
 **Impacto:** Net +52 líneas en Bloque 0 vs. +16 planeado. Recuperables en Bloque 6.
 **Lección:** Separar "unificación" (Bloque 0) de "creación de compactas" (Bloque 6) en futuros refactors.
+
+---
+
+## 12. 🔮 MEJORAS FUTURAS (no urgentes)
+
+### ViewportContext Optimization
+**Status:** Pending (re-evaluate en Bloque 7)  
+**Current State:** 2 componentes usan `useIsDesktop()` hook:
+- `/app/dashboard/page.tsx` (1 listener)
+- `/app/dashboard/components/QuickActions.tsx` (1 listener)
+
+**Problema:** Cada instancia del hook = nuevo resize listener. Actualmente manejable (2 listeners, cada uno con cleanup). Si escalamos a 10+ componentes, el costo de múltiples listeners y re-renders acumulados puede impactar performance.
+
+**Solución:** Crear `ViewportContext` + `useViewport()` hook que:
+1. Define resize listener UNA VEZ en el context provider
+2. Todos los consumidores usan `useViewport()` sin crear listeners adicionales
+3. Contexto se monta en layout.tsx (nivel superior)
+
+**Cuándo migrar:**
+- ✅ Actual: 2 componentes → hook actual es fine
+- 🟡 Umbral: 5-7 componentes → considerar migración
+- 🔴 Urgente: 10+ componentes → migración recomendada
+
+**Estimado de Esfuerzo:** 1.5h (crear context, actualizar imports, verificar tests)  
+**Risk:** Low (no cambios de comportamiento, solo reorganización)
+
+---

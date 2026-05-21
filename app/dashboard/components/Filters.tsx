@@ -8,10 +8,6 @@ interface FiltersProps {
   waBadge: { text: string; color: string; bg: string; border: string; dot: string; href: string | null } | null;
   cronSyncLabel: { text: string; stale: boolean };
   lastCronRun: { summary?: string | null } | null;
-  fb: string;
-  t1: string;
-  t2: string;
-  t3: string;
   onPrevMonth: () => void;
   onNextMonth: () => void;
 }
@@ -24,10 +20,6 @@ export function Filters({
   waBadge,
   cronSyncLabel,
   lastCronRun,
-  fb,
-  t1,
-  t2,
-  t3,
   onPrevMonth,
   onNextMonth,
 }: FiltersProps) {
@@ -48,13 +40,13 @@ export function Filters({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: t2,
+            color: "var(--color-text-2)",
             fontSize: 14,
           }}
         >
           ‹
         </button>
-        <span style={{ font: `700 ${compact ? "0.72rem" : "0.76rem"}/1 ${fb}`, color: t1, minWidth: compact ? 110 : 130, textAlign: "center", padding: "0 4px" }}>
+        <span style={{ font: `700 ${compact ? "0.72rem" : "0.76rem"}/1 var(--font-family-display)`, color: "var(--color-text-1)", minWidth: compact ? 110 : 130, textAlign: "center", padding: "0 4px" }}>
           {MONTH_NAMES[selectedMonth.getMonth()]} {selectedMonth.getFullYear()}
         </span>
         <button
@@ -70,7 +62,7 @@ export function Filters({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: isCurrentMonth ? t3 : t2,
+            color: isCurrentMonth ? "var(--color-text-3)" : "var(--color-text-2)",
             fontSize: 14,
           }}
         >
@@ -78,7 +70,7 @@ export function Filters({
         </button>
       </div>
 
-      {fetchedAtLabel && !compact && <span style={{ font: `400 0.68rem/1 ${fb}`, color: t3, whiteSpace: "nowrap" }}>{fetchedAtLabel}</span>}
+      {fetchedAtLabel && !compact && <span style={{ font: `400 0.68rem/1 var(--font-family-display)`, color: "var(--color-text-3)", whiteSpace: "nowrap" }}>{fetchedAtLabel}</span>}
 
       {waBadge &&
         (waBadge.href ? (
@@ -88,7 +80,7 @@ export function Filters({
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              font: `500 0.68rem/1 ${fb}`,
+              font: `500 0.68rem/1 var(--font-family-display)`,
               color: waBadge.color,
               background: waBadge.bg,
               border: `1px solid ${waBadge.border}`,
@@ -108,7 +100,7 @@ export function Filters({
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              font: `500 0.68rem/1 ${fb}`,
+              font: `500 0.68rem/1 var(--font-family-display)`,
               color: waBadge.color,
               background: waBadge.bg,
               border: `1px solid ${waBadge.border}`,
@@ -129,7 +121,7 @@ export function Filters({
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
-            font: `500 0.68rem/1 ${fb}`,
+            font: `500 0.68rem/1 var(--font-family-display)`,
             color: cronSyncLabel.stale ? "#DC2626" : "#16A34A",
             background: cronSyncLabel.stale ? "rgba(220,38,38,0.07)" : "rgba(22,163,74,0.07)",
             border: `1px solid ${cronSyncLabel.stale ? "rgba(220,38,38,0.18)" : "rgba(22,163,74,0.18)"}`,

@@ -5,11 +5,6 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 interface QuickActionsProps {
   asistHoy: number;
   alerts: { upcomingExpirations: any[] };
-  t1: string;
-  t2: string;
-  t3: string;
-  fd: string;
-  fm: string;
   accentDeep: string;
   cardBase: React.CSSProperties;
   cardHover: { onMouseEnter: (e: React.MouseEvent<HTMLElement>) => void; onMouseLeave: (e: React.MouseEvent<HTMLElement>) => void };
@@ -18,11 +13,6 @@ interface QuickActionsProps {
 export function QuickActions({
   asistHoy,
   alerts,
-  t1,
-  t2,
-  t3,
-  fd,
-  fm,
   accentDeep,
   cardBase,
   cardHover,
@@ -30,7 +20,7 @@ export function QuickActions({
   const isDesktop = useIsDesktop();
   const actions = [
     {
-      icon: <Activity size={16} color={t2} />,
+      icon: <Activity size={16} color="var(--color-text-2)" />,
       iconBg: "rgba(15,17,21,0.06)",
       label: `${asistHoy} asistencia${asistHoy !== 1 ? "s" : ""} hoy`,
       hint: "Resumen del día",
@@ -38,7 +28,7 @@ export function QuickActions({
       shortcut: null as string | null,
     },
     {
-      icon: <ClipboardList size={16} color={t2} />,
+      icon: <ClipboardList size={16} color="var(--color-text-2)" />,
       iconBg: "rgba(15,17,21,0.06)",
       label: "Cargar egreso",
       hint: "Gasto del día",
@@ -98,16 +88,16 @@ export function QuickActions({
               {React.cloneElement(a.icon, { size: isCargaAlumno ? 14 : 16 })}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ font: `600 0.82rem/1.2 ${fd}`, color: t1, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <p style={{ font: `600 0.82rem/1.2 var(--font-family-display)`, color: "var(--color-text-1)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {a.label}
               </p>
-              <p style={{ font: `500 0.68rem/1.3 ${fm}`, color: t3, margin: 0 }}>{a.hint}</p>
+              <p style={{ font: `500 0.68rem/1.3 var(--font-family-body)`, color: "var(--color-text-3)", margin: 0 }}>{a.hint}</p>
             </div>
             {a.shortcut && (
               <kbd
                 style={{
-                  font: `700 0.62rem/1 ${fm}`,
-                  color: t3,
+                  font: `700 0.62rem/1 var(--font-family-body)`,
+                  color: "var(--color-text-3)",
                   background: "rgba(15,17,21,0.06)",
                   border: "1px solid rgba(15,17,21,0.10)",
                   borderRadius: 5,

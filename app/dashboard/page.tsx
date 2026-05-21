@@ -16,12 +16,6 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 const accent = "#FF7A18";
 const accentDeep = "#E65A00";
-const fd = "var(--font-inter, 'Inter', sans-serif)";
-const fb = "var(--font-inter, 'Inter', sans-serif)";
-const fm = "var(--font-mono, 'JetBrains Mono', monospace)";
-const t1 = "#101114";
-const t2 = "#515765";
-const t3 = "#98A1B2";
 
 const cardBase: React.CSSProperties = {
   background: "#FFFFFF",
@@ -458,15 +452,15 @@ export default function DashboardPage() {
         {...cardHover}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
-          <span style={{ font: `600 0.615rem/1 ${fm}`, color: t3, textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</span>
+          <span style={{ font: `600 0.615rem/1 var(--font-family-body)`, color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{label}</span>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: iconBg, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {icon}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 8 }}>
-          <span style={{ font: `600 ${isDesktop ? "1.875rem" : "1.55rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.025em" }}>{value}</span>
+          <span style={{ font: `600 ${isDesktop ? "1.875rem" : "1.55rem"}/1 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.025em" }}>{value}</span>
         </div>
-        <p style={{ font: `400 0.72rem/1.4 ${fb}`, color: t2, marginTop: "auto" }}>{hint}</p>
+        <p style={{ font: `400 0.72rem/1.4 var(--font-family-display)`, color: "var(--color-text-2)", marginTop: "auto" }}>{hint}</p>
       </a>
     );
   };
@@ -479,14 +473,14 @@ export default function DashboardPage() {
     >
       <button
         onClick={() => { if (!isDesktop) setActiveInfo({ title: metric.label, body: metric.tooltip }); }}
-        style={{ width: 22, height: 22, borderRadius: "50%", border: "1px solid rgba(17,24,39,0.08)", background: "#FFFFFF", color: t3, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
+        style={{ width: 22, height: 22, borderRadius: "50%", border: "1px solid rgba(17,24,39,0.08)", background: "#FFFFFF", color: "var(--color-text-3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}
       >
         <CircleHelp size={13} />
       </button>
       {isDesktop && activeInfo?.title === metric.label && (
         <div style={{ position: "absolute", left: "50%", bottom: "calc(100% + 8px)", transform: "translateX(-50%)", width: 220, padding: "10px 12px", borderRadius: 14, background: "#17181B", color: "white", boxShadow: "0 20px 40px rgba(0,0,0,0.18)", zIndex: 20 }}>
-          <p style={{ font: `700 0.72rem/1 ${fd}`, marginBottom: 5 }}>{metric.label}</p>
-          <p style={{ font: `500 0.68rem/1.45 ${fb}`, color: "rgba(255,255,255,0.75)" }}>{metric.tooltip}</p>
+          <p style={{ font: `700 0.72rem/1 var(--font-family-display)`, marginBottom: 5 }}>{metric.label}</p>
+          <p style={{ font: `500 0.68rem/1.45 var(--font-family-display)`, color: "rgba(255,255,255,0.75)" }}>{metric.tooltip}</p>
         </div>
       )}
     </div>
@@ -497,22 +491,22 @@ export default function DashboardPage() {
     const isPositive = metric.key === "cac" ? (delta ?? 0) <= 0 : metric.key === "churn" ? (delta ?? 0) <= 0 : (delta ?? 0) >= 0;
     const tag = getMetricTag(metric);
     const deltaText = delta == null ? "Sin datos" : delta === 0 ? "Sin cambios" : `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)}%`;
-    const deltaColor = delta == null ? t3 : delta === 0 ? t3 : isPositive ? statusPositive : statusNegative;
+    const deltaColor = delta == null ? "var(--color-text-3)" : delta === 0 ? "var(--color-text-3)" : isPositive ? statusPositive : statusNegative;
     return (
       <div key={metric.key} style={{ padding: isDesktop ? "18px 20px" : "14px 12px", display: "flex", flexDirection: "column", gap: 10, position: "relative" }}>
-        {showStep && <span style={{ font: `500 0.62rem/1 ${fm}`, color: t3, letterSpacing: "0.06em" }}>0{idx + 1}</span>}
+        {showStep && <span style={{ font: `500 0.62rem/1 var(--font-family-body)`, color: "var(--color-text-3)", letterSpacing: "0.06em" }}>0{idx + 1}</span>}
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-            <p style={{ font: `600 0.64rem/1 ${fm}`, color: t3, textTransform: "uppercase", letterSpacing: "0.12em" }}>{metric.label}</p>
+            <p style={{ font: `600 0.64rem/1 var(--font-family-body)`, color: "var(--color-text-3)", textTransform: "uppercase", letterSpacing: "0.12em" }}>{metric.label}</p>
             {metric.tooltip && renderMetricInfo(metric)}
           </div>
-          <p style={{ font: `700 ${isDesktop ? "1.75rem" : "1.4rem"}/0.94 ${fd}`, color: t1, letterSpacing: "-0.04em" }}>{formatMetricValue(metric)}</p>
+          <p style={{ font: `700 ${isDesktop ? "1.75rem" : "1.4rem"}/0.94 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.04em" }}>{formatMetricValue(metric)}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: "auto" }}>
-          <span style={{ font: `700 0.62rem/1 ${fm}`, letterSpacing: "0.07em", padding: "4px 8px", borderRadius: 6, background: tag.green ? "rgba(22,163,74,0.10)" : "rgba(255,122,24,0.10)", color: tag.green ? "#15803D" : accentDeep }}>
+          <span style={{ font: `700 0.62rem/1 var(--font-family-body)`, letterSpacing: "0.07em", padding: "4px 8px", borderRadius: 6, background: tag.green ? "rgba(22,163,74,0.10)" : "rgba(255,122,24,0.10)", color: tag.green ? "#15803D" : accentDeep }}>
             {tag.label}
           </span>
-          <span style={{ font: `500 0.68rem/1 ${fb}`, color: deltaColor, whiteSpace: "nowrap" }}>{deltaText}</span>
+          <span style={{ font: `500 0.68rem/1 var(--font-family-display)`, color: deltaColor, whiteSpace: "nowrap" }}>{deltaText}</span>
         </div>
         {!isLast && isDesktop && (
           <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 1, background: "rgba(15,17,21,0.07)" }} />
@@ -543,14 +537,14 @@ export default function DashboardPage() {
           <div style={{ width: 28, height: 28, borderRadius: 8, background: iconBg, color: iconColor, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <Icon size={14} />
           </div>
-          <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>{title}</p>
+          <p style={{ font: `700 0.9rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>{title}</p>
           {isEmbudo && prospectos > 0 && (
-            <span style={{ font: `600 0.62rem/1 ${fm}`, color: accentDeep, background: "rgba(255,122,24,0.08)", border: "1px solid rgba(255,122,24,0.18)", borderRadius: 9999, padding: "3px 8px", whiteSpace: "nowrap" }}>
+            <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: accentDeep, background: "rgba(255,122,24,0.08)", border: "1px solid rgba(255,122,24,0.18)", borderRadius: 9999, padding: "3px 8px", whiteSpace: "nowrap" }}>
               ● {prospectos} lead{prospectos === 1 ? "" : "s"} activo{prospectos === 1 ? "" : "s"}
             </span>
           )}
-          <span style={{ font: `400 0.74rem/1 ${fb}`, color: t3, marginLeft: "auto", whiteSpace: "nowrap" }}>{subtitle}</span>
-          <span style={{ font: `400 1rem/1 ${fd}`, color: t3, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>⌄</span>
+          <span style={{ font: `400 0.74rem/1 var(--font-family-display)`, color: "var(--color-text-3)", marginLeft: "auto", whiteSpace: "nowrap" }}>{subtitle}</span>
+          <span style={{ font: `400 1rem/1 var(--font-family-display)`, color: "var(--color-text-3)", transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s", flexShrink: 0 }}>⌄</span>
         </button>
         {/* Grid */}
         {isOpen && (
@@ -619,27 +613,27 @@ export default function DashboardPage() {
             <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(99,102,241,0.10)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Users size={13} />
             </div>
-            <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Últimas altas</p>
+            <p style={{ font: `700 0.9rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Últimas altas</p>
             {recientes.length > 0 && (
-              <span style={{ font: `600 0.62rem/1 ${fm}`, color: statusPositive, background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", borderRadius: 9999, padding: "3px 8px" }}>
+              <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: statusPositive, background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", borderRadius: 9999, padding: "3px 8px" }}>
                 ● +{recientes.length}
               </span>
             )}
-            <a href="/dashboard/alumnos" style={{ font: `500 0.74rem/1 ${fb}`, color: t3, textDecoration: "none", marginLeft: "auto" }}>Ver todo →</a>
+            <a href="/dashboard/alumnos" style={{ font: `500 0.74rem/1 var(--font-family-display)`, color: "var(--color-text-3)", textDecoration: "none", marginLeft: "auto" }}>Ver todo →</a>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             {recientes.length > 0 ? recientes.slice(0, 5).map((r, i) => (
               <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 20px", borderBottom: i < Math.min(recientes.length, 5) - 1 ? "1px solid rgba(15,17,21,0.06)" : "none" }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: AVATAR_COLORS[i % AVATAR_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ font: `700 0.7rem/1 ${fd}`, color: "white" }}>{initials(r.full_name)}</span>
+                  <span style={{ font: `700 0.7rem/1 var(--font-family-display)`, color: "white" }}>{initials(r.full_name)}</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ font: `600 0.84rem/1 ${fd}`, color: t1, marginBottom: 4 }}>{r.full_name}</p>
+                  <p style={{ font: `600 0.84rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>{r.full_name}</p>
                 </div>
-                <span style={{ font: `500 0.65rem/1 ${fm}`, color: t3, flexShrink: 0, letterSpacing: "0.04em" }}>{relDate(r.created_at)}</span>
+                <span style={{ font: `500 0.65rem/1 var(--font-family-body)`, color: "var(--color-text-3)", flexShrink: 0, letterSpacing: "0.04em" }}>{relDate(r.created_at)}</span>
               </div>
             )) : (
-              <p style={{ font: `500 0.74rem/1.5 ${fb}`, color: t3, padding: "16px 20px" }}>Todavía no hay socios registrados.</p>
+              <p style={{ font: `500 0.74rem/1.5 var(--font-family-display)`, color: "var(--color-text-3)", padding: "16px 20px" }}>Todavía no hay socios registrados.</p>
             )}
           </div>
         </section>
@@ -651,32 +645,32 @@ export default function DashboardPage() {
               <div style={{ width: 26, height: 26, borderRadius: 8, background: "rgba(37,211,102,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Send size={12} color="#16A34A" />
               </div>
-              <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1, margin: 0 }}>Bot de WhatsApp</p>
-              <span style={{ font: `600 0.62rem/1 ${fm}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", borderRadius: 9999, padding: "3px 8px", flexShrink: 0 }}>● activo</span>
+              <p style={{ font: `700 0.9rem/1 var(--font-family-display)`, color: "var(--color-text-1)", margin: 0 }}>Bot de WhatsApp</p>
+              <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", borderRadius: 9999, padding: "3px 8px", flexShrink: 0 }}>● activo</span>
             </div>
-            <span style={{ font: `400 0.74rem/1 ${fb}`, color: t3, marginLeft: "auto" }}>Lo que mandó hoy</span>
+            <span style={{ font: `400 0.74rem/1 var(--font-family-display)`, color: "var(--color-text-3)", marginLeft: "auto" }}>Lo que mandó hoy</span>
           </div>
           <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
               <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(99,102,241,0.07)" }}>
-                <p style={{ font: `700 1.5rem/1 ${fd}`, color: "#4338CA", marginBottom: 6, letterSpacing: "-0.04em" }}>{botActivity?.msgHoy ?? "0"}</p>
-                <p style={{ font: `600 0.6rem/1 ${fm}`, color: "#6366F1", letterSpacing: "0.08em" }}>MENSAJES HOY</p>
+                <p style={{ font: `700 1.5rem/1 var(--font-family-display)`, color: "#4338CA", marginBottom: 6, letterSpacing: "-0.04em" }}>{botActivity?.msgHoy ?? "0"}</p>
+                <p style={{ font: `600 0.6rem/1 var(--font-family-body)`, color: "#6366F1", letterSpacing: "0.08em" }}>MENSAJES HOY</p>
               </div>
               <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(249,115,22,0.07)" }}>
-                <p style={{ font: `700 1.5rem/1 ${fd}`, color: accentDeep, marginBottom: 6, letterSpacing: "-0.04em" }}>{botActivity?.vencHoy ?? "0"}</p>
-                <p style={{ font: `600 0.6rem/1 ${fm}`, color: accentDeep, letterSpacing: "0.08em" }}>VENCEN HOY</p>
+                <p style={{ font: `700 1.5rem/1 var(--font-family-display)`, color: accentDeep, marginBottom: 6, letterSpacing: "-0.04em" }}>{botActivity?.vencHoy ?? "0"}</p>
+                <p style={{ font: `600 0.6rem/1 var(--font-family-body)`, color: accentDeep, letterSpacing: "0.08em" }}>VENCEN HOY</p>
               </div>
               <div style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(22,163,74,0.07)" }}>
-                <p style={{ font: `700 1.5rem/1 ${fd}`, color: "#15803D", marginBottom: 6, letterSpacing: "-0.04em" }}>{botActivity?.pagosHoyCount ?? "0"}</p>
-                <p style={{ font: `600 0.6rem/1 ${fm}`, color: "#16A34A", letterSpacing: "0.08em" }}>PAGOS HOY</p>
+                <p style={{ font: `700 1.5rem/1 var(--font-family-display)`, color: "#15803D", marginBottom: 6, letterSpacing: "-0.04em" }}>{botActivity?.pagosHoyCount ?? "0"}</p>
+                <p style={{ font: `600 0.6rem/1 var(--font-family-body)`, color: "#16A34A", letterSpacing: "0.08em" }}>PAGOS HOY</p>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(15,17,21,0.03)", border: "1px solid rgba(15,17,21,0.06)" }}>
-              <Clock size={13} color={t3} />
-              <span style={{ font: `400 0.74rem/1 ${fb}`, color: t2 }}>
+              <Clock size={13} color={"var(--color-text-3)"} />
+              <span style={{ font: `400 0.74rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}>
                 {botActivity && botActivity.feed.length > 0
-                  ? <>Último envío: <strong style={{ font: `600 0.74rem/1 ${fm}`, color: t1 }}>{new Date(botActivity.feed[0].ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · {botActivity.feed[0].label}</strong></>
-                  : <span style={{ color: t3 }}>Sin actividad hoy todavía</span>
+                  ? <>Último envío: <strong style={{ font: `600 0.74rem/1 var(--font-family-body)`, color: "var(--color-text-1)" }}>{new Date(botActivity.feed[0].ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · {botActivity.feed[0].label}</strong></>
+                  : <span style={{ color: "var(--color-text-3)" }}>Sin actividad hoy todavía</span>
                 }
               </span>
             </div>
@@ -735,21 +729,21 @@ export default function DashboardPage() {
         <div className="dashboard-grain" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-            <p style={{ font: `500 0.66rem/1.4 ${fm}`, color: "#7A3E13", letterSpacing: "0.06em", textTransform: "uppercase" }}>{gymName}</p>
-            {planLabel && <span style={{ font: `600 0.6rem/1 ${fm}`, color: planLabel === "Trial" ? "#D97706" : "#16A34A", background: planLabel === "Trial" ? "rgba(217,119,6,0.12)" : "rgba(22,163,74,0.12)", border: `1px solid ${planLabel === "Trial" ? "rgba(217,119,6,0.25)" : "rgba(22,163,74,0.25)"}`, borderRadius: 9999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{planLabel}</span>}
+            <p style={{ font: `500 0.66rem/1.4 var(--font-family-body)`, color: "#7A3E13", letterSpacing: "0.06em", textTransform: "uppercase" }}>{gymName}</p>
+            {planLabel && <span style={{ font: `600 0.6rem/1 var(--font-family-body)`, color: planLabel === "Trial" ? "#D97706" : "#16A34A", background: planLabel === "Trial" ? "rgba(217,119,6,0.12)" : "rgba(22,163,74,0.12)", border: `1px solid ${planLabel === "Trial" ? "rgba(217,119,6,0.25)" : "rgba(22,163,74,0.25)"}`, borderRadius: 9999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{planLabel}</span>}
           </div>
-          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 ${fd}`, color: t1, letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
-          <p style={{ font: `500 0.8rem/1.55 ${fb}`, color: t2, marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
-          <Filters compact selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} fb={fb} t1={t1} t2={t2} t3={t3} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
+          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
+          <p style={{ font: `500 0.8rem/1.55 var(--font-family-display)`, color: "var(--color-text-2)", marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
+          <Filters compact selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
           <div style={{ marginTop: 16, padding: "18px 16px 16px", borderRadius: 16, background: "linear-gradient(135deg, #1A1D24 0%, #0E0F12 100%)", color: "white", border: "1px solid rgba(255,255,255,0.06)", boxShadow: "0 1px 0 rgba(15,17,21,0.04), 0 2px 8px rgba(15,17,21,0.05)" }}>
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
               <div>
-                <span style={{ font: `500 0.59rem/1 ${fm}`, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.11em", display: "block", marginBottom: 10 }}>A cobrar este mes</span>
+                <span style={{ font: `500 0.59rem/1 var(--font-family-body)`, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.11em", display: "block", marginBottom: 10 }}>A cobrar este mes</span>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                   {loading
                     ? <SkelLight w={140} h={36} r={10} />
-                    : <span style={{ font: `600 2.1rem/0.92 ${fd}`, color: "#F9FAFB", letterSpacing: "-0.05em" }}>{fmt(ingresoProyectado)}</span>}
-                  {!loading && <span style={{ font: `400 0.74rem/1 ${fb}`, color: "rgba(255,255,255,0.38)" }}>/ mes</span>}
+                    : <span style={{ font: `600 2.1rem/0.92 var(--font-family-display)`, color: "#F9FAFB", letterSpacing: "-0.05em" }}>{fmt(ingresoProyectado)}</span>}
+                  {!loading && <span style={{ font: `400 0.74rem/1 var(--font-family-display)`, color: "rgba(255,255,255,0.38)" }}>/ mes</span>}
                 </div>
               </div>
               <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -759,14 +753,14 @@ export default function DashboardPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
               {!loading && recaudadoEsteMes > 0 && (
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                  <span style={{ font: `400 0.62rem/1 ${fb}`, color: "rgba(255,255,255,0.42)" }}>Cobrado</span>
-                  <span style={{ font: `600 0.66rem/1 ${fm}`, color: "rgba(255,255,255,0.78)" }}>{fmt(recaudadoEsteMes)}</span>
+                  <span style={{ font: `400 0.62rem/1 var(--font-family-display)`, color: "rgba(255,255,255,0.42)" }}>Cobrado</span>
+                  <span style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "rgba(255,255,255,0.78)" }}>{fmt(recaudadoEsteMes)}</span>
                 </div>
               )}
               {!loading && proyeccionProximoMes > 0 && (
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 9999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                  <span style={{ font: `400 0.60rem/1 ${fb}`, color: "rgba(255,255,255,0.36)" }}>Próx. mes</span>
-                  <span style={{ font: `600 0.64rem/1 ${fm}`, color: "rgba(255,255,255,0.60)" }}>{fmt(proyeccionProximoMes)}</span>
+                  <span style={{ font: `400 0.60rem/1 var(--font-family-display)`, color: "rgba(255,255,255,0.36)" }}>Próx. mes</span>
+                  <span style={{ font: `600 0.64rem/1 var(--font-family-body)`, color: "rgba(255,255,255,0.60)" }}>{fmt(proyeccionProximoMes)}</span>
                 </div>
               )}
             </div>
@@ -777,8 +771,8 @@ export default function DashboardPage() {
                 { label: "Vencen pronto", value: loading ? <SkelLight w="50%" h={20} r={5} /> : String(alerts.upcomingExpirations.length), href: "/dashboard/alumnos" },
               ].map((item) => (
                 <a key={item.label} href={item.href} style={{ padding: "10px 10px 9px", borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)", cursor: item.href ? "pointer" : "default", textDecoration: "none", color: "inherit", display: "block" }}>
-                  <p style={{ font: `600 0.92rem/1 ${fm}`, marginBottom: 5, letterSpacing: "-0.02em", color: "#F9FAFB" }}>{item.value}</p>
-                  <p style={{ font: `500 0.55rem/1.3 ${fb}`, color: "rgba(255,255,255,0.42)", textTransform: "uppercase", letterSpacing: "0.09em" }}>{item.label}</p>
+                  <p style={{ font: `600 0.92rem/1 var(--font-family-body)`, marginBottom: 5, letterSpacing: "-0.02em", color: "#F9FAFB" }}>{item.value}</p>
+                  <p style={{ font: `500 0.55rem/1.3 var(--font-family-display)`, color: "rgba(255,255,255,0.42)", textTransform: "uppercase", letterSpacing: "0.09em" }}>{item.label}</p>
                 </a>
               ))}
             </div>
@@ -786,7 +780,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <QuickActions asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       {!loading && (
         <a href="/dashboard/alumnos" style={{ ...cardBase, padding: "16px 16px", background: morososCount > 0 ? "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)" : "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: morososCount > 0 ? "1px solid rgba(234,88,12,0.20)" : "1px solid rgba(34,197,94,0.18)", textDecoration: "none", display: "block" }} {...cardHover}>
@@ -795,11 +789,11 @@ export default function DashboardPage() {
               <CreditCard size={17} color={morososCount > 0 ? "#EA580C" : "#15803D"} />
             </div>
             <div>
-              <p style={{ font: `700 0.65rem/1 ${fb}`, color: morososCount > 0 ? "#EA580C" : "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Cuotas impagas</p>
-              <p style={{ font: `700 0.9rem/1.3 ${fd}`, color: morososCount > 0 ? "#7C2D12" : "#14532D", letterSpacing: "-0.03em" }}>
+              <p style={{ font: `700 0.65rem/1 var(--font-family-display)`, color: morososCount > 0 ? "#EA580C" : "#15803D", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Cuotas impagas</p>
+              <p style={{ font: `700 0.9rem/1.3 var(--font-family-display)`, color: morososCount > 0 ? "#7C2D12" : "#14532D", letterSpacing: "-0.03em" }}>
                 {morososCount > 0 ? `${morososCount} ${morososCount === 1 ? "alumno moroso" : "alumnos morosos"} · ${fmt(deudaTotal)} por cobrar` : "Sin deuda pendiente — todo al día ✅"}
               </p>
-              <p style={{ font: `500 0.68rem/1.4 ${fb}`, color: morososCount > 0 ? "#9A3412" : "#166534", marginTop: 4 }}>
+              <p style={{ font: `500 0.68rem/1.4 var(--font-family-display)`, color: morososCount > 0 ? "#9A3412" : "#166534", marginTop: 4 }}>
                 {morososCount > 0 ? "Todavía no cobraste. Tocá para ver quiénes son." : "Todos los socios están al día. 🟢"}
               </p>
             </div>
@@ -811,9 +805,9 @@ export default function DashboardPage() {
 
       {!loading && (
         <div style={{ ...cardBase, padding: "16px 14px", background: "#FFFFFF", border: "1px solid rgba(15,17,21,0.07)" }}>
-          <p style={{ font: `600 0.62rem/1 ${fm}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
-          <p style={{ font: `700 0.84rem/1 ${fd}`, color: t1, marginBottom: 2 }}>Lo que FitGrowX hizo por vos</p>
-          <p style={{ font: `400 0.68rem/1.4 ${fb}`, color: t3, marginBottom: 12 }}>El sistema trabajó mientras te ocupabas del gym.</p>
+          <p style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 3 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
+          <p style={{ font: `700 0.84rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 2 }}>Lo que FitGrowX hizo por vos</p>
+          <p style={{ font: `400 0.68rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 12 }}>El sistema trabajó mientras te ocupabas del gym.</p>
           <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "1fr 1fr" : "1fr", gap: 8 }}>
             {[
               { icon: <Send size={13} />, value: mensajesAutoEnviados, label: "MENSAJES" },
@@ -824,9 +818,9 @@ export default function DashboardPage() {
               <div key={i} style={{ padding: "12px 12px", borderRadius: 10, background: "rgba(111,99,232,0.06)", border: "1px solid rgba(111,99,232,0.10)", display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.icon}</div>
                 <div>
-                  <p style={{ font: `700 1.1rem/1 ${fd}`, color: "#4338CA", marginBottom: 2, letterSpacing: "-0.03em" }}>{item.value}</p>
-                  <p style={{ font: `500 0.57rem/1.3 ${fm}`, color: "#6366F1", letterSpacing: "0.04em" }}>{item.label}</p>
-                  {item.sub && <p style={{ font: `500 0.58rem/1 ${fb}`, color: "#15803D", marginTop: 2 }}>{item.sub}</p>}
+                  <p style={{ font: `700 1.1rem/1 var(--font-family-display)`, color: "#4338CA", marginBottom: 2, letterSpacing: "-0.03em" }}>{item.value}</p>
+                  <p style={{ font: `500 0.57rem/1.3 var(--font-family-body)`, color: "#6366F1", letterSpacing: "0.04em" }}>{item.label}</p>
+                  {item.sub && <p style={{ font: `500 0.58rem/1 var(--font-family-display)`, color: "#15803D", marginTop: 2 }}>{item.sub}</p>}
                 </div>
               </div>
             ))}
@@ -841,8 +835,8 @@ export default function DashboardPage() {
       {/* Nuevos socios – mobile */}
       <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
-          <p style={{ font: `700 0.94rem/1 ${fd}`, color: t1 }}>Nuevos socios por mes</p>
-          <span style={{ font: `600 0.62rem/1 ${fm}`, color: "#16A34A", background: "rgba(22,163,74,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● +{captacion5[captacion5.length - 1]} este mes</span>
+          <p style={{ font: `700 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Nuevos socios por mes</p>
+          <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: "#16A34A", background: "rgba(22,163,74,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● +{captacion5[captacion5.length - 1]} este mes</span>
         </div>
         {(() => {
           const H = 110, W = 400, padT = 20, padB = 14;
@@ -874,18 +868,18 @@ export default function DashboardPage() {
                   {pts.map((p, i) => (
                     <g key={i}>
                       <circle cx={p.x} cy={p.y} r="4.5" fill="#fff" stroke={accent} strokeWidth="2" />
-                      <text x={p.x} y={p.y - 8} textAnchor="middle" fill={t1} fontSize="9" fontFamily={fd} fontWeight="700">{p.v}</text>
+                      <text x={p.x} y={p.y - 8} textAnchor="middle" fill={"var(--color-text-1)"} fontSize="9" fontFamily={"var(--font-family-display)"} fontWeight="700">{p.v}</text>
                     </g>
                   ))}
                 </>
               ) : (
-                <text x={W / 2} y={H / 2} textAnchor="middle" fill={t3} fontSize="12" fontFamily={fb}>Sin datos aún</text>
+                <text x={W / 2} y={H / 2} textAnchor="middle" fill={"var(--color-text-3)"} fontSize="12" fontFamily={"var(--font-family-display)"}>Sin datos aún</text>
               )}
             </svg>
           );
         })()}
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-          {months5.map((m) => <span key={m.key} style={{ font: `500 0.65rem/1 ${fb}`, color: t3 }}>{m.label}</span>)}
+          {months5.map((m) => <span key={m.key} style={{ font: `500 0.65rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}>{m.label}</span>)}
         </div>
       </div>
 
@@ -893,12 +887,12 @@ export default function DashboardPage() {
       <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <p style={{ font: `700 0.94rem/1 ${fd}`, color: t1 }}>Balance neto</p>
-            {!loading && <span style={{ font: `600 0.62rem/1 ${fm}`, color: balanceNeto >= 0 ? "#16A34A" : "#DC2626", background: balanceNeto >= 0 ? "rgba(22,163,74,0.09)" : "rgba(220,38,38,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● {balanceNeto >= 0 ? "+" : ""}{fmt(balanceNeto)}</span>}
+            <p style={{ font: `700 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Balance neto</p>
+            {!loading && <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: balanceNeto >= 0 ? "#16A34A" : "#DC2626", background: balanceNeto >= 0 ? "rgba(22,163,74,0.09)" : "rgba(220,38,38,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● {balanceNeto >= 0 ? "+" : ""}{fmt(balanceNeto)}</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 3, font: `400 0.62rem/1 ${fb}`, color: t2 }}><span style={{ width: 7, height: 7, borderRadius: 1, background: "#17181B", display: "inline-block" }} />Ingresos</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 3, font: `400 0.62rem/1 ${fb}`, color: t3 }}><span style={{ width: 7, height: 7, borderRadius: 1, background: "#F6B99A", display: "inline-block" }} />Gastos</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 3, font: `400 0.62rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}><span style={{ width: 7, height: 7, borderRadius: 1, background: "#17181B", display: "inline-block" }} />Ingresos</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 3, font: `400 0.62rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}><span style={{ width: 7, height: 7, borderRadius: 1, background: "#F6B99A", display: "inline-block" }} />Gastos</span>
           </div>
         </div>
         {(() => {
@@ -927,7 +921,7 @@ export default function DashboardPage() {
                     <rect x={gasX} y={padT + drawH - gasH} width={barW} height={gasH} rx="2" fill="#F6B99A" />
                     <rect x={ingX} y={padT + drawH - ingH} width={barW} height={ingH} rx="2" fill="#17181B" />
                     {i === topIdx && ing > 0 && (
-                      <text x={ingX + barW / 2} y={padT + drawH - ingH - 3} textAnchor="middle" fill={t1} fontSize="8" fontFamily={fd} fontWeight="700">{fmt(ing)}</text>
+                      <text x={ingX + barW / 2} y={padT + drawH - ingH - 3} textAnchor="middle" fill={"var(--color-text-1)"} fontSize="8" fontFamily={"var(--font-family-display)"} fontWeight="700">{fmt(ing)}</text>
                     )}
                   </g>
                 );
@@ -936,17 +930,17 @@ export default function DashboardPage() {
           );
         })()}
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-          {months5.map((m) => <span key={m.key} style={{ font: `500 0.65rem/1 ${fb}`, color: t3 }}>{m.label}</span>)}
+          {months5.map((m) => <span key={m.key} style={{ font: `500 0.65rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}>{m.label}</span>)}
         </div>
         {!loading && (
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 9, paddingTop: 9, borderTop: "1px solid rgba(15,17,21,0.06)" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.67rem/1 ${fb}`, color: t2 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.67rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}>
               <span style={{ width: 7, height: 7, borderRadius: 1, background: "#17181B", display: "inline-block", flexShrink: 0 }} />
-              Ingresos <strong style={{ font: `700 0.67rem/1 ${fd}`, color: t1 }}>{fmt(ingresoProyectado)}</strong>
+              Ingresos <strong style={{ font: `700 0.67rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>{fmt(ingresoProyectado)}</strong>
             </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.67rem/1 ${fb}`, color: t2 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.67rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}>
               <span style={{ width: 7, height: 7, borderRadius: 1, background: "#F6B99A", display: "inline-block", flexShrink: 0 }} />
-              Egresos <strong style={{ font: `700 0.67rem/1 ${fd}`, color: t1 }}>{fmt(gastosTotal)}</strong>
+              Egresos <strong style={{ font: `700 0.67rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>{fmt(gastosTotal)}</strong>
             </span>
           </div>
         )}
@@ -960,10 +954,10 @@ export default function DashboardPage() {
             <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
                 <div>
-                  <p style={{ font: `800 0.94rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Asistencia diaria</p>
-                  <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3 }}>Últimos 14 días · prom. {asistPromedioDiario}/día operativo</p>
+                  <p style={{ font: `800 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>Asistencia diaria</p>
+                  <p style={{ font: `500 0.7rem/1.45 var(--font-family-display)`, color: "var(--color-text-3)" }}>Últimos 14 días · prom. {asistPromedioDiario}/día operativo</p>
                 </div>
-                <span style={{ font: `700 0.68rem/1 ${fb}`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "7px 10px" }}>{asistHoy} hoy</span>
+                <span style={{ font: `700 0.68rem/1 var(--font-family-display)`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "7px 10px" }}>{asistHoy} hoy</span>
               </div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 84 }}>
                 {asistDiarias.map((d) => {
@@ -979,8 +973,8 @@ export default function DashboardPage() {
             </div>
 
             <div className="dash-card" style={{ ...cardBase, padding: "18px 16px", background: whitePanel }} {...cardHover}>
-              <p style={{ font: `800 0.94rem/1 ${fd}`, color: t1, marginBottom: 4 }}>Cuándo viene la gente</p>
-              <p style={{ font: `500 0.7rem/1.45 ${fb}`, color: t3, marginBottom: 16 }}>El horario con más movimiento.</p>
+              <p style={{ font: `800 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>Cuándo viene la gente</p>
+              <p style={{ font: `500 0.7rem/1.45 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 16 }}>El horario con más movimiento.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22].map((h) => {
                   const count = asistHoras[h] ?? 0;
@@ -988,11 +982,11 @@ export default function DashboardPage() {
                   const isPeak = h === peakH && count > 0;
                   return (
                     <div key={h} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ width: 28, flexShrink: 0, textAlign: "right", font: `600 0.62rem/1 ${fm}`, color: t3 }}>{h}h</span>
+                      <span style={{ width: 28, flexShrink: 0, textAlign: "right", font: `600 0.62rem/1 var(--font-family-body)`, color: "var(--color-text-3)" }}>{h}h</span>
                       <div style={{ flex: 1, height: 7, background: "#EDF1F5", borderRadius: 9999, overflow: "hidden" }}>
                         <div style={{ width: `${pct}%`, height: "100%", background: isPeak ? orangeGlow : "#17181B", borderRadius: 9999 }} />
                       </div>
-                      <span style={{ width: 16, flexShrink: 0, font: `700 0.62rem/1 ${fd}`, color: isPeak ? accentDeep : t2 }}>{count}</span>
+                      <span style={{ width: 16, flexShrink: 0, font: `700 0.62rem/1 var(--font-family-display)`, color: isPeak ? accentDeep : "var(--color-text-2)"}}>{count}</span>
                     </div>
                   );
                 })}
@@ -1018,22 +1012,22 @@ export default function DashboardPage() {
               style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#6366F1" }}>✦</span>
-                <p style={{ font: `700 0.9rem/1 ${fd}`, color: t1 }}>Sugerencias</p>
-                {hasAlerts && <span style={{ font: `700 0.6rem/1 ${fm}`, color: "#DC2626", background: "rgba(220,38,38,0.10)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9999, padding: "2px 7px" }}>{items.length}</span>}
+                <span style={{ font: `500 0.8rem/1 var(--font-family-display)`, color: "#6366F1" }}>✦</span>
+                <p style={{ font: `700 0.9rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Sugerencias</p>
+                {hasAlerts && <span style={{ font: `700 0.6rem/1 var(--font-family-body)`, color: "#DC2626", background: "rgba(220,38,38,0.10)", border: "1px solid rgba(220,38,38,0.18)", borderRadius: 9999, padding: "2px 7px" }}>{items.length}</span>}
               </div>
-              <span style={{ font: `400 1rem/1 ${fd}`, color: t3, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>⌄</span>
+              <span style={{ font: `400 1rem/1 var(--font-family-display)`, color: "var(--color-text-3)", transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>⌄</span>
             </button>
             {isOpen && (
               <div style={{ display: "flex", flexDirection: "column", gap: 1, borderTop: "1px solid rgba(15,17,21,0.07)" }}>
                 {items.slice(0, 3).map((s, i) => (
                   <a key={i} href={s.href} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: i % 2 === 0 ? "#FAFAFA" : "#FFFFFF", textDecoration: "none" }}>
                     <div style={{ width: 30, height: 30, borderRadius: 9, background: s.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, color: t2 }}>›</span>
+                      <span style={{ fontSize: 11, color: "var(--color-text-2)" }}>›</span>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <p style={{ font: `600 0.82rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{s.title}</p>
-                      <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: t3 }}>{s.desc}</p>
+                      <p style={{ font: `600 0.82rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 3 }}>{s.title}</p>
+                      <p style={{ font: `400 0.7rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)" }}>{s.desc}</p>
                     </div>
                   </a>
                 ))}
@@ -1048,8 +1042,8 @@ export default function DashboardPage() {
       <div onClick={() => setActiveInfo(null)} style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(4px)", display: "flex", alignItems: "flex-end" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", background: "#FFFFFF", borderRadius: "22px 22px 0 0", padding: "20px 18px 24px", boxShadow: "0 -16px 36px rgba(0,0,0,0.14)" }}>
           <div style={{ width: 42, height: 4, borderRadius: 999, background: "#E5E7EB", margin: "0 auto 14px" }} />
-          <p style={{ font: `800 0.98rem/1 ${fd}`, color: t1, marginBottom: 8 }}>{activeInfo.title}</p>
-          <p style={{ font: `500 0.82rem/1.6 ${fb}`, color: t2 }}>{activeInfo.body}</p>
+          <p style={{ font: `800 0.98rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 8 }}>{activeInfo.title}</p>
+          <p style={{ font: `500 0.82rem/1.6 var(--font-family-display)`, color: "var(--color-text-2)" }}>{activeInfo.body}</p>
         </div>
       </div>
     )}
@@ -1096,13 +1090,13 @@ export default function DashboardPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 16px", borderRadius: 14, background: "rgba(249,115,22,0.10)", border: "1.5px solid rgba(249,115,22,0.28)", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 16 }}>👁</span>
-            <p style={{ font: `600 0.8rem/1.3 ${fd}`, color: "#C2410C" }}>
+            <p style={{ font: `600 0.8rem/1.3 var(--font-family-display)`, color: "#C2410C" }}>
               <strong>Modo demo</strong> — estos números son de ejemplo, no son tus datos reales.
             </p>
           </div>
           <button
             onClick={exitDemo}
-            style={{ padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(249,115,22,0.35)", background: "white", color: "#C2410C", font: `700 0.75rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+            style={{ padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(249,115,22,0.35)", background: "white", color: "#C2410C", font: `700 0.75rem/1 var(--font-family-display)`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
           >
             Volver a mis datos
           </button>
@@ -1112,14 +1106,14 @@ export default function DashboardPage() {
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <p style={{ font: `500 0.7rem/1.4 ${fm}`, color: "#8A4516", letterSpacing: "0.06em", textTransform: "uppercase" }}>{gymName}</p>
-            {planLabel && <span style={{ font: `600 0.62rem/1 ${fm}`, color: planLabel === "Trial" ? "#D97706" : "#16A34A", background: planLabel === "Trial" ? "rgba(217,119,6,0.12)" : "rgba(22,163,74,0.12)", border: `1px solid ${planLabel === "Trial" ? "rgba(217,119,6,0.25)" : "rgba(22,163,74,0.25)"}`, borderRadius: 9999, padding: "2px 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{planLabel}</span>}
+            <p style={{ font: `500 0.7rem/1.4 var(--font-family-body)`, color: "#8A4516", letterSpacing: "0.06em", textTransform: "uppercase" }}>{gymName}</p>
+            {planLabel && <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: planLabel === "Trial" ? "#D97706" : "#16A34A", background: planLabel === "Trial" ? "rgba(217,119,6,0.12)" : "rgba(22,163,74,0.12)", border: `1px solid ${planLabel === "Trial" ? "rgba(217,119,6,0.25)" : "rgba(22,163,74,0.25)"}`, borderRadius: 9999, padding: "2px 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{planLabel}</span>}
           </div>
-          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 2rem/0.95 ${fd}`, color: t1, letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
-          <p style={{ font: `500 0.86rem/1.6 ${fb}`, color: t2, maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
+          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 2rem/0.95 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
+          <p style={{ font: `500 0.86rem/1.6 var(--font-family-display)`, color: "var(--color-text-2)", maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <Filters selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} fb={fb} t1={t1} t2={t2} t3={t3} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
+          <Filters selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
         </div>
       </div>
 
@@ -1143,7 +1137,7 @@ export default function DashboardPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
                   {nextTask && (
-                    <span style={{ font: `600 0.66rem/1 ${fm}`, color: "#7C2D12", background: "rgba(124,45,18,0.10)", border: "1px solid rgba(124,45,18,0.20)", borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>
+                    <span style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "#7C2D12", background: "rgba(124,45,18,0.10)", border: "1px solid rgba(124,45,18,0.20)", borderRadius: 999, padding: "3px 9px", whiteSpace: "nowrap" }}>
                       PASO {done + 1}/5 · {nextTask.label} · {nextTask.time}
                     </span>
                   )}
@@ -1154,13 +1148,13 @@ export default function DashboardPage() {
                       <div key={t.key} style={{ flex: 1, height: 4, borderRadius: 999, background: setup[t.key] ? "#22C55E" : i === done ? accent : "rgba(0,0,0,0.10)" }} />
                     ))}
                   </div>
-                  <p style={{ font: `500 0.72rem/1 ${fm}`, color: t3, whiteSpace: "nowrap" }}>{done}/5 listos</p>
+                  <p style={{ font: `500 0.72rem/1 var(--font-family-body)`, color: "var(--color-text-3)", whiteSpace: "nowrap" }}>{done}/5 listos</p>
                 </div>
               </div>
               {nextTask && (
                 <a
                   href={nextTask.href}
-                  style={{ padding: "9px 18px", borderRadius: 10, background: t1, font: `600 0.78rem/1 ${fd}`, color: "white", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
+                  style={{ padding: "9px 18px", borderRadius: 10, background: "var(--color-text-1)", font: `600 0.78rem/1 var(--font-family-display)`, color: "white", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}
                 >
                   Continuar
                   <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6h8M6 2l4 4-4 4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -1169,12 +1163,12 @@ export default function DashboardPage() {
             </div>
             {!demoMode && (
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(249,115,22,0.12)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: t2 }}>
+                <p style={{ font: `400 0.78rem/1.4 var(--font-family-display)`, color: "var(--color-text-2)" }}>
                   ¿Querés ver cómo se vería tu dashboard con 50 alumnos?
                 </p>
                 <button
                   onClick={enterDemo}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, border: "1.5px solid rgba(249,115,22,0.30)", background: "white", color: "#C2410C", font: `700 0.78rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, border: "1.5px solid rgba(249,115,22,0.30)", background: "white", color: "#C2410C", font: `700 0.78rem/1 var(--font-family-display)`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
                 >
                   <span>👁</span> Ver demo
                 </button>
@@ -1195,23 +1189,23 @@ export default function DashboardPage() {
         >
           <span style={{ fontSize: "1rem", flexShrink: 0 }}>⚠️</span>
           <div style={{ flex: 1 }}>
-            <p style={{ font: `600 0.82rem/1.3 ${fd}`, color: "#111827", margin: 0 }}>
+            <p style={{ font: `600 0.82rem/1.3 var(--font-family-display)`, color: "#111827", margin: 0 }}>
               Falta tu número de WhatsApp
             </p>
-            <p style={{ font: `400 0.74rem/1.4 ${fb}`, color: "#1F2937", margin: 0 }}>
+            <p style={{ font: `400 0.74rem/1.4 var(--font-family-display)`, color: "#1F2937", margin: 0 }}>
               Sin él, las alertas de pagos, socios en riesgo y transferencias pendientes no te llegan. Agregalo en Ajustes →
             </p>
           </div>
         </a>
       )}
 
-      <QuickActions asistHoy={asistHoy} alerts={alerts} t1={t1} t2={t2} t3={t3} fd={fd} fm={fm} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
+      <QuickActions asistHoy={asistHoy} alerts={alerts} accentDeep={accentDeep} cardBase={cardBase} cardHover={cardHover} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {/* A cobrar — feature card */}
         <div style={{ background: "linear-gradient(135deg, #1A1D24 0%, #0E0F12 100%)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.06)", padding: "20px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", overflow: "hidden" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
-            <p style={{ font: `600 0.615rem/1 ${fm}`, color: "#B2B5BB", textTransform: "uppercase", letterSpacing: "0.12em" }}>A cobrar este mes</p>
+            <p style={{ font: `600 0.615rem/1 var(--font-family-body)`, color: "#B2B5BB", textTransform: "uppercase", letterSpacing: "0.12em" }}>A cobrar este mes</p>
             <div style={{ width: 26, height: 26, borderRadius: 7, background: "rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <CreditCard size={14} color="rgba(255,255,255,0.80)" />
             </div>
@@ -1219,13 +1213,13 @@ export default function DashboardPage() {
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 10 }}>
             {loading
               ? <SkelLight w={120} h={40} r={8} />
-              : <span style={{ font: `600 1.875rem/1 ${fd}`, color: "#F9FAFB", letterSpacing: "-0.025em" }}>{fmt(ingresoProyectado)}</span>}
-            {!loading && <span style={{ font: `500 0.875rem/1 ${fb}`, color: "#8A8E97" }}>/ mes</span>}
+              : <span style={{ font: `600 1.875rem/1 var(--font-family-display)`, color: "#F9FAFB", letterSpacing: "-0.025em" }}>{fmt(ingresoProyectado)}</span>}
+            {!loading && <span style={{ font: `500 0.875rem/1 var(--font-family-display)`, color: "#8A8E97" }}>/ mes</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#8A8E97" }}>Proyección sobre planes activos</span>
+            <span style={{ font: `400 0.72rem/1 var(--font-family-display)`, color: "#8A8E97" }}>Proyección sobre planes activos</span>
             {!loading && recaudadoEsteMes > 0 && (
-              <span style={{ font: `600 0.65rem/1 ${fm}`, color: "#5EE9A4", background: "rgba(22,163,74,0.18)", borderRadius: 5, padding: "2px 7px", flexShrink: 0 }}>{fmt(recaudadoEsteMes)} cobrado</span>
+              <span style={{ font: `600 0.65rem/1 var(--font-family-body)`, color: "#5EE9A4", background: "rgba(22,163,74,0.18)", borderRadius: 5, padding: "2px 7px", flexShrink: 0 }}>{fmt(recaudadoEsteMes)} cobrado</span>
             )}
           </div>
         </div>
@@ -1239,33 +1233,33 @@ export default function DashboardPage() {
 
       {!loading && (
         <div style={{ ...cardBase, padding: "22px 24px", background: "#FFFFFF", border: "1px solid rgba(15,17,21,0.07)" }}>
-          <p style={{ font: `600 0.66rem/1 ${fm}`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
-          <p style={{ font: `700 1rem/1 ${fd}`, color: t1, marginBottom: 3 }}>Lo que FitGrowX hizo por vos</p>
-          <p style={{ font: `400 0.74rem/1.4 ${fb}`, color: t3, marginBottom: 18 }}>El sistema trabajó mientras te ocupabas del gym.</p>
+          <p style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 4 }}>AUTOMATIZACIONES · {MONTH_NAMES[selectedMonth.getMonth()].toUpperCase()}</p>
+          <p style={{ font: `700 1rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 3 }}>Lo que FitGrowX hizo por vos</p>
+          <p style={{ font: `400 0.74rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 18 }}>El sistema trabajó mientras te ocupabas del gym.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             <div style={{ padding: "14px 14px", borderRadius: 12, background: "rgba(111,99,232,0.05)", border: "1px solid rgba(111,99,232,0.12)" }}>
               <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}><Send size={14} /></div>
-              <p style={{ font: `700 1.55rem/1 ${fd}`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{mensajesAutoEnviados}</p>
-              <p style={{ font: `600 0.66rem/1 ${fm}`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>MENSAJES ENVIADOS</p>
-              <p style={{ font: `400 0.67rem/1.4 ${fb}`, color: t3 }}>recordatorios, bienvenidas y alertas</p>
+              <p style={{ font: `700 1.55rem/1 var(--font-family-display)`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{mensajesAutoEnviados}</p>
+              <p style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>MENSAJES ENVIADOS</p>
+              <p style={{ font: `400 0.67rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)" }}>recordatorios, bienvenidas y alertas</p>
             </div>
             <div style={{ padding: "14px 14px", borderRadius: 12, background: "rgba(111,99,232,0.05)", border: "1px solid rgba(111,99,232,0.12)" }}>
               <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}><CheckCircle size={14} /></div>
-              <p style={{ font: `700 1.55rem/1 ${fd}`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{renovacionesCount}</p>
-              <p style={{ font: `600 0.66rem/1 ${fm}`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>RENOVACIONES</p>
-              <p style={{ font: `400 0.67rem/1.4 ${fb}`, color: t3 }}>socios que renovaron su membresía</p>
+              <p style={{ font: `700 1.55rem/1 var(--font-family-display)`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{renovacionesCount}</p>
+              <p style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>RENOVACIONES</p>
+              <p style={{ font: `400 0.67rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)" }}>socios que renovaron su membresía</p>
             </div>
             <div style={{ padding: "14px 14px", borderRadius: 12, background: "rgba(111,99,232,0.05)", border: "1px solid rgba(111,99,232,0.12)" }}>
               <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}><RefreshCw size={14} /></div>
-              <p style={{ font: `700 1.55rem/1 ${fd}`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{recuperadosCount}</p>
-              <p style={{ font: `600 0.66rem/1 ${fm}`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>SOCIOS RECUPERADOS</p>
-              <p style={{ font: `400 0.67rem/1.4 ${fb}`, color: recuperadosRevenue > 0 ? "#15803D" : t3 }}>{recuperadosRevenue > 0 ? `${fmt(recuperadosRevenue)} recuperados` : "sin recuperados aún"}</p>
+              <p style={{ font: `700 1.55rem/1 var(--font-family-display)`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{recuperadosCount}</p>
+              <p style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>SOCIOS RECUPERADOS</p>
+              <p style={{ font: `400 0.67rem/1.4 var(--font-family-display)`, color: recuperadosRevenue > 0 ? "#15803D" : "var(--color-text-3)"}}>{recuperadosRevenue > 0 ? `${fmt(recuperadosRevenue)} recuperados` : "sin recuperados aún"}</p>
             </div>
             <div style={{ padding: "14px 14px", borderRadius: 12, background: "rgba(111,99,232,0.05)", border: "1px solid rgba(111,99,232,0.12)" }}>
               <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(111,99,232,0.12)", color: "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}><Clock size={14} /></div>
-              <p style={{ font: `700 1.55rem/1 ${fd}`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{Math.round(mensajesAutoEnviados / 6)} hs</p>
-              <p style={{ font: `600 0.66rem/1 ${fm}`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>TIEMPO AHORRADO</p>
-              <p style={{ font: `400 0.67rem/1.4 ${fb}`, color: t3 }}>trabajo manual evitado</p>
+              <p style={{ font: `700 1.55rem/1 var(--font-family-display)`, color: "#4338CA", marginBottom: 5, letterSpacing: "-0.04em" }}>{Math.round(mensajesAutoEnviados / 6)} hs</p>
+              <p style={{ font: `600 0.66rem/1 var(--font-family-body)`, color: "#6366F1", letterSpacing: "0.06em", marginBottom: 3 }}>TIEMPO AHORRADO</p>
+              <p style={{ font: `400 0.67rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)" }}>trabajo manual evitado</p>
             </div>
           </div>
         </div>
@@ -1281,12 +1275,12 @@ export default function DashboardPage() {
         <div style={{ ...cardBase, padding: "22px 22px 18px", background: whitePanel }} {...cardHover}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <p style={{ font: `700 1rem/1 ${fd}`, color: t1 }}>Nuevos socios por mes</p>
-              <span style={{ font: `600 0.67rem/1 ${fm}`, color: "#16A34A", background: "rgba(22,163,74,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● +{captacion5[captacion5.length - 1]} este mes</span>
+              <p style={{ font: `700 1rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Nuevos socios por mes</p>
+              <span style={{ font: `600 0.67rem/1 var(--font-family-body)`, color: "#16A34A", background: "rgba(22,163,74,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● +{captacion5[captacion5.length - 1]} este mes</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 ${fb}`, color: t2 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: accent, display: "inline-block" }} />Altas</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 ${fb}`, color: t3 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#CBD5E1", display: "inline-block" }} />Meta</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: accent, display: "inline-block" }} />Altas</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: "#CBD5E1", display: "inline-block" }} />Meta</span>
             </div>
           </div>
           {(() => {
@@ -1315,7 +1309,7 @@ export default function DashboardPage() {
                 ))}
                 {/* META dashed line */}
                 <line x1="0" y1={metaY} x2={W} y2={metaY} stroke="#CBD5E1" strokeWidth="1.2" strokeDasharray="5 4" />
-                <text x={W - 2} y={metaY - 5} textAnchor="end" fill="#94A3B8" fontSize="9" fontFamily={fb}>META {meta}</text>
+                <text x={W - 2} y={metaY - 5} textAnchor="end" fill="#94A3B8" fontSize="9" fontFamily={"var(--font-family-display)"}>META {meta}</text>
                 {hasCapt ? (
                   <>
                     <path d={area} fill="url(#captGradD)" />
@@ -1323,18 +1317,18 @@ export default function DashboardPage() {
                     {pts.map((p, i) => (
                       <g key={i}>
                         <circle cx={p.x} cy={p.y} r="5" fill="#fff" stroke={accent} strokeWidth="2.2" />
-                        <text x={p.x} y={p.y - 10} textAnchor="middle" fill={t1} fontSize="10" fontFamily={fd} fontWeight="700">{p.v}</text>
+                        <text x={p.x} y={p.y - 10} textAnchor="middle" fill={"var(--color-text-1)"} fontSize="10" fontFamily={"var(--font-family-display)"} fontWeight="700">{p.v}</text>
                       </g>
                     ))}
                   </>
                 ) : (
-                  <text x={W / 2} y={H / 2} textAnchor="middle" fill={t3} fontSize="12" fontFamily={fb}>Sin datos registrados aún</text>
+                  <text x={W / 2} y={H / 2} textAnchor="middle" fill={"var(--color-text-3)"} fontSize="12" fontFamily={"var(--font-family-display)"}>Sin datos registrados aún</text>
                 )}
               </svg>
             );
           })()}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-            {months5.map((m) => <span key={m.key} style={{ font: `500 0.69rem/1 ${fb}`, color: t3 }}>{m.label}</span>)}
+            {months5.map((m) => <span key={m.key} style={{ font: `500 0.69rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}>{m.label}</span>)}
           </div>
         </div>
 
@@ -1342,12 +1336,12 @@ export default function DashboardPage() {
         <div style={{ ...cardBase, padding: "22px 22px 18px", background: whitePanel }} {...cardHover}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <p style={{ font: `700 1rem/1 ${fd}`, color: t1 }}>Balance neto</p>
-              {!loading && <span style={{ font: `600 0.67rem/1 ${fm}`, color: balanceNeto >= 0 ? "#16A34A" : "#DC2626", background: balanceNeto >= 0 ? "rgba(22,163,74,0.09)" : "rgba(220,38,38,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● {balanceNeto >= 0 ? "+" : ""}{fmt(balanceNeto)}</span>}
+              <p style={{ font: `700 1rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Balance neto</p>
+              {!loading && <span style={{ font: `600 0.67rem/1 var(--font-family-body)`, color: balanceNeto >= 0 ? "#16A34A" : "#DC2626", background: balanceNeto >= 0 ? "rgba(22,163,74,0.09)" : "rgba(220,38,38,0.09)", borderRadius: 9999, padding: "4px 8px" }}>● {balanceNeto >= 0 ? "+" : ""}{fmt(balanceNeto)}</span>}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 ${fb}`, color: t2 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "#17181B", display: "inline-block" }} />Ingresos</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 ${fb}`, color: t3 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "#F6B99A", display: "inline-block" }} />Gastos</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "#17181B", display: "inline-block" }} />Ingresos</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 4, font: `500 0.69rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}><span style={{ width: 8, height: 8, borderRadius: 2, background: "#F6B99A", display: "inline-block" }} />Gastos</span>
             </div>
           </div>
           {(() => {
@@ -1380,7 +1374,7 @@ export default function DashboardPage() {
                       <rect x={gasX} y={gasY} width={barW} height={gasH} rx="3" fill="#F6B99A" />
                       <rect x={ingX} y={ingY} width={barW} height={ingH} rx="3" fill="#17181B" />
                       {i === topIdx && ing > 0 && (
-                        <text x={ingX + barW / 2} y={ingY - 5} textAnchor="middle" fill={t1} fontSize="10" fontFamily={fd} fontWeight="700">{fmt(ing)}</text>
+                        <text x={ingX + barW / 2} y={ingY - 5} textAnchor="middle" fill={"var(--color-text-1)"} fontSize="10" fontFamily={"var(--font-family-display)"} fontWeight="700">{fmt(ing)}</text>
                       )}
                     </g>
                   );
@@ -1389,17 +1383,17 @@ export default function DashboardPage() {
             );
           })()}
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-            {months5.map((m) => <span key={m.key} style={{ font: `500 0.69rem/1 ${fb}`, color: t3 }}>{m.label}</span>)}
+            {months5.map((m) => <span key={m.key} style={{ font: `500 0.69rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}>{m.label}</span>)}
           </div>
           {!loading && (
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(15,17,21,0.06)" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.71rem/1 ${fb}`, color: t2 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.71rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: "#17181B", display: "inline-block", flexShrink: 0 }} />
-                Ingresos <strong style={{ font: `700 0.71rem/1 ${fd}`, color: t1 }}>{fmt(ingresoProyectado)}</strong>
+                Ingresos <strong style={{ font: `700 0.71rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>{fmt(ingresoProyectado)}</strong>
               </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.71rem/1 ${fb}`, color: t2 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 5, font: `500 0.71rem/1 var(--font-family-display)`, color: "var(--color-text-2)" }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: "#F6B99A", display: "inline-block", flexShrink: 0 }} />
-                Egresos <strong style={{ font: `700 0.71rem/1 ${fd}`, color: t1 }}>{fmt(gastosTotal)}</strong>
+                Egresos <strong style={{ font: `700 0.71rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>{fmt(gastosTotal)}</strong>
               </span>
             </div>
           )}
@@ -1411,10 +1405,10 @@ export default function DashboardPage() {
         <div style={{ ...cardBase, padding: "20px 22px", background: whitePanel }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ font: `500 0.76rem/1 ${fd}`, color: "#6366F1" }}>✦</span>
-              <p style={{ font: `700 0.96rem/1 ${fd}`, color: t1 }}>Sugerencias del sistema</p>
+              <span style={{ font: `500 0.76rem/1 var(--font-family-display)`, color: "#6366F1" }}>✦</span>
+              <p style={{ font: `700 0.96rem/1 var(--font-family-display)`, color: "var(--color-text-1)" }}>Sugerencias del sistema</p>
             </div>
-            <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>basadas en tu data</span>
+            <span style={{ font: `400 0.72rem/1 var(--font-family-display)`, color: "var(--color-text-3)" }}>basadas en tu data</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {((): { icon: React.ReactNode; iconBg: string; title: string; desc: string; href: string }[] => {
@@ -1427,12 +1421,12 @@ export default function DashboardPage() {
               return items.slice(0, 3);
             })().map((s, i) => (
               <a key={i} href={s.href} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid rgba(15,17,21,0.06)", textDecoration: "none", cursor: "pointer" }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: s.iconBg, color: t1, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{s.icon}</div>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: s.iconBg, color: "var(--color-text-1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{s.icon}</div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ font: `600 0.84rem/1 ${fd}`, color: t1, marginBottom: 3 }}>{s.title}</p>
-                  <p style={{ font: `400 0.72rem/1.4 ${fb}`, color: t3 }}>{s.desc}</p>
+                  <p style={{ font: `600 0.84rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 3 }}>{s.title}</p>
+                  <p style={{ font: `400 0.72rem/1.4 var(--font-family-display)`, color: "var(--color-text-3)" }}>{s.desc}</p>
                 </div>
-                <span style={{ color: t3, fontSize: 14, flexShrink: 0 }}>›</span>
+                <span style={{ color: "var(--color-text-3)", fontSize: 14, flexShrink: 0 }}>›</span>
               </a>
             ))}
           </div>
@@ -1479,10 +1473,10 @@ export default function DashboardPage() {
             <div style={{ ...cardBase, padding: "24px 24px 20px", background: whitePanel }} {...cardHover}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
                 <div>
-                  <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Asistencia diaria</p>
-                  <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3 }}>Cuánta gente entrenó cada día · prom. <strong>{asistPromedioDiario}/día</strong> (solo días operativos)</p>
+                  <p style={{ font: `800 1.02rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 6 }}>Asistencia diaria</p>
+                  <p style={{ font: `500 0.76rem/1.5 var(--font-family-display)`, color: "var(--color-text-3)" }}>Cuánta gente entrenó cada día · prom. <strong>{asistPromedioDiario}/día</strong> (solo días operativos)</p>
                 </div>
-                <a href="/dashboard/asistencias" style={{ font: `700 0.72rem/1 ${fb}`, color: t2, textDecoration: "none" }}>Ver detalle →</a>
+                <a href="/dashboard/asistencias" style={{ font: `700 0.72rem/1 var(--font-family-display)`, color: "var(--color-text-2)", textDecoration: "none" }}>Ver detalle →</a>
               </div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
                 {asistDiarias.map((d) => {
@@ -1498,8 +1492,8 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ ...cardBase, padding: "24px 22px", background: whitePanel }} {...cardHover}>
-              <p style={{ font: `800 1.02rem/1 ${fd}`, color: t1, marginBottom: 6 }}>Cuándo viene la gente</p>
-              <p style={{ font: `500 0.76rem/1.5 ${fb}`, color: t3, marginBottom: 18 }}>El horario con más movimiento.</p>
+              <p style={{ font: `800 1.02rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 6 }}>Cuándo viene la gente</p>
+              <p style={{ font: `500 0.76rem/1.5 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 18 }}>El horario con más movimiento.</p>
               <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                 {[6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22].map((h) => {
                   const count = asistHoras[h] ?? 0;
@@ -1507,11 +1501,11 @@ export default function DashboardPage() {
                   const isPeak = h === peakH && count > 0;
                   return (
                     <div key={h} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ width: 28, flexShrink: 0, textAlign: "right", font: `600 0.64rem/1 ${fm}`, color: t3 }}>{h}h</span>
+                      <span style={{ width: 28, flexShrink: 0, textAlign: "right", font: `600 0.64rem/1 var(--font-family-body)`, color: "var(--color-text-3)" }}>{h}h</span>
                       <div style={{ flex: 1, height: 8, background: "#EDF1F5", borderRadius: 9999, overflow: "hidden" }}>
                         <div style={{ width: `${pct}%`, height: "100%", background: isPeak ? orangeGlow : "#17181B", borderRadius: 9999 }} />
                       </div>
-                      <span style={{ width: 18, flexShrink: 0, font: `700 0.64rem/1 ${fd}`, color: isPeak ? accentDeep : t2 }}>{count}</span>
+                      <span style={{ width: 18, flexShrink: 0, font: `700 0.64rem/1 var(--font-family-display)`, color: isPeak ? accentDeep : "var(--color-text-2)"}}>{count}</span>
                     </div>
                   );
                 })}
