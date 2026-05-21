@@ -10,6 +10,8 @@ import { supabase } from "@/lib/supabase";
 import { OnboardingModal, DinoSVG, getDinoState } from "@/app/dashboard/components/OnboardingModal";
 import { QuickActions } from "@/app/dashboard/components/QuickActions";
 import { Filters } from "@/app/dashboard/components/Filters";
+import { initials, fmt, last5Months, metricDelta, formatMetricValue, getMetricTag, buildDonutSegments } from "@/lib/dashboard-helpers";
+import { DashboardMetric, DashboardAlerts, DashboardSnapshot, RecenteAlumno, PlanDist } from "@/lib/dashboard-types";
 
 const accent = "#FF7A18";
 const accentDeep = "#E65A00";
@@ -28,109 +30,9 @@ const cardBase: React.CSSProperties = {
   transition: "box-shadow 0.2s ease, transform 0.2s ease",
 };
 
-interface RecenteAlumno { id: string; full_name: string; created_at: string; }
-interface PlanDist { nombre: string; count: number; }
-interface DashboardMetric {
-  key: string;
-  label: string;
-  section: "Embudo" | "Fidelización" | "Eficiencia";
-  tooltip: string;
-  value: number | null;
-  previous: number | null;
-  format: "number" | "percent" | "currency" | "months";
-  accent: "orange" | "ink" | "soft";
-}
-interface DashboardAlerts {
-  inactiveCount: number;
-  inactiveNames: string[];
-  upcomingExpirations: { id: string; full_name: string; next_expiration_date: string | null }[];
-}
-interface DashboardSnapshot {
-  activosCount: number;
-  totalCount: number;
-  ingresoProyectado: number;
-  proyeccionProximoMes: number;
-  renovacionesPendientes: number;
-  renovacionesCount: number;
-  mensajesAutoEnviados: number;
-  recuperadosCount: number;
-  recuperadosRevenue: number;
-  recaudadoEsteMes: number;
-  deudaTotal: number;
-  morososCount: number;
-  gastosTotal: number;
-  recientes: RecenteAlumno[];
-  captacion5: number[];
-  ingresos5: number[];
-  gastos5: number[];
-  planDist: PlanDist[];
-  prospectos: number;
-  asistDiarias: { fecha: string; count: number }[];
-  asistHoras: number[];
-  asistHoy: number;
-  asistPromedioDiario: number;
-  metrics: DashboardMetric[];
-  alerts: DashboardAlerts;
-}
-
-function initials(name: string) {
-  if (!name) return "?";
-  return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
-}
-
-function fmt(n: number) {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}k`;
-  return `$${n}`;
-}
-
 const MONTH_NAMES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 
-const MONTH_LABELS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-function last5Months() {
-  const now = new Date();
-  return Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (4 - i), 1);
-    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: MONTH_LABELS[d.getMonth()] };
-  });
-}
-
-
-function metricDelta(current: number | null, previous: number | null) {
-  if (current == null || previous == null) return null;
-  if (previous === 0) return current === 0 ? 0 : 100;
-  return ((current - previous) / previous) * 100;
-}
-
-function formatMetricValue(metric: DashboardMetric) {
-  if (metric.value == null) return "—";
-  if (metric.format === "currency") return fmt(Math.round(metric.value));
-  if (metric.format === "percent") return `${metric.value.toFixed(1)}%`;
-  if (metric.format === "months") return `${metric.value.toFixed(1)}m`;
-  return Number.isInteger(metric.value) ? String(metric.value) : metric.value.toFixed(1);
-}
-
 const PLAN_COLORS = ["#1A1D23", "#374151", "#6B7280", "#9CA3AF", "#D1D5DB", "#E5E7EB"];
-
-const DONUT_R    = 52;
-const DONUT_CX   = 74;
-const DONUT_CY   = 74;
-const DONUT_CIRC = 2 * Math.PI * DONUT_R;
-const DONUT_GAP  = 5; // px gap accounts for round linecaps
-
-function buildDonutSegments(slices: { value: number; color: string }[]) {
-  const total = slices.reduce((s, d) => s + d.value, 0);
-  if (total === 0) return [];
-  let cumulative = 0;
-  return slices.map(d => {
-    const fraction  = d.value / total;
-    const arcLen    = Math.max(0, fraction * DONUT_CIRC - DONUT_GAP);
-    const dasharray = `${arcLen.toFixed(2)} ${(DONUT_CIRC - arcLen).toFixed(2)}`;
-    const dashoffset = (DONUT_CIRC * (1 - cumulative)).toFixed(2);
-    cumulative += fraction;
-    return { dasharray, dashoffset, color: d.color, pct: Math.round(fraction * 100) };
-  });
-}
 
 // ─── Skeleton components ──────────────────────────────────────────────────────
 function Skel({ w, h, r = 7 }: { w?: number | string; h: number; r?: number }) {
@@ -596,19 +498,6 @@ export default function DashboardPage() {
     </div>
   );
 
-  const getMetricTag = (metric: DashboardMetric): { label: string; green: boolean } => {
-    switch (metric.key) {
-      case "leads":        return { label: "CAPTACIÓN",  green: false };
-      case "lead_trial":   return { label: "CONVERSIÓN", green: false };
-      case "trial_member": return { label: "CIERRE",     green: false };
-      case "cac":          return { label: "RENTABLE",   green: true  };
-      case "churn":        return { label: (metric.value ?? 0) <= 5 ? "SALUDABLE" : "RIESGO", green: (metric.value ?? 0) <= 5 };
-      case "retention":    return { label: (metric.value ?? 0) >= 70 ? "RENOVANDO" : "ESPERANDO", green: true };
-      case "ltv":          return { label: "VALOR",      green: true  };
-      default:             return { label: metric.section, green: false };
-    }
-  };
-
   const renderMetricCell = (metric: DashboardMetric, idx: number, showStep: boolean, isLast: boolean) => {
     const delta = metricDelta(metric.value, metric.previous);
     const isPositive = metric.key === "cac" ? (delta ?? 0) <= 0 : metric.key === "churn" ? (delta ?? 0) <= 0 : (delta ?? 0) >= 0;
@@ -726,7 +615,6 @@ export default function DashboardPage() {
       if (diff === 1) return "AYER";
       return `${diff} DÍAS`;
     };
-    const initials = (name: string) => name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
     const AVATAR_COLORS = ["#FF7A18","#6366F1","#10B981","#F59E0B","#EC4899","#3B82F6"];
 
     return (
