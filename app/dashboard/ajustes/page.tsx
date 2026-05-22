@@ -678,11 +678,11 @@ function AjustesContent() {
                       <input value={gymName} onChange={(event) => setGymName(event.target.value)} maxLength={100} style={inputStyle} />
                     </Field>
 
-                    <Field label="Tu número de WhatsApp para alertas" hint="Con código de país, sin espacios. Ej: 5491165909374. Si usás este número también para el WhatsApp del gym, las alertas llegan solo por notificación en el dashboard.">
+                    <Field label="Tu número de WhatsApp para alertas" hint="Con código de país, sin espacios. Ej: 5491164893435. Si usás este número también para el WhatsApp del gym, las alertas llegan solo por notificación en el dashboard.">
                       <input
                         value={ownerPhone}
                         onChange={(e) => setOwnerPhone(e.target.value.replace(/[^\d+]/g, ""))}
-                        placeholder="5491165909374"
+                        placeholder="5491164893435"
                         maxLength={30}
                         style={inputStyle}
                       />

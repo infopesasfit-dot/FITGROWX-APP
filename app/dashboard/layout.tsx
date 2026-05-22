@@ -663,7 +663,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </a>
           )}
           <a
-            href="https://wa.me/5491165909374"
+            href="https://wa.me/5491164893435"
             target="_blank"
             rel="noopener noreferrer"
             className="sb-item"
@@ -1040,7 +1040,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
               <span style={{ font: `400 0.68rem/1 ${fb}`, color: "#B0B8C8" }}>
                 Soporte:{" "}
-                <a href="https://wa.me/5491165909374" target="_blank" rel="noopener noreferrer" style={{ color: "#B0B8C8", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                <a href="https://wa.me/5491164893435" target="_blank" rel="noopener noreferrer" style={{ color: "#B0B8C8", textDecoration: "underline", textUnderlineOffset: 2 }}>
                   +54 9 11 6590-9374
                 </a>
               </span>

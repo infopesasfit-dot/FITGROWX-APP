@@ -552,7 +552,7 @@ function PlatformPage() {
 
   const handleTplTest = async (key: string, body: string) => {
     const ownerPhone = process.env.NEXT_PUBLIC_OWNER_PHONE ?? "";
-    const phone = prompt("Número para el test (ej: 5491165909374):", ownerPhone || "");
+    const phone = prompt("Número para el test (ej: 5491164893435):", ownerPhone || "");
     if (!phone?.trim()) return;
     setTplTesting(prev => ({ ...prev, [key]: "sending" }));
     const r = await fetch("/api/platform/wa-templates/test", {
