@@ -709,6 +709,25 @@ Decidir cuando se haga split daily/reportes con cabeza fresca.
 **Estimado de Esfuerzo:** 30min (crear vars, actualizar OwnerPhoneAlert, revisar otros alerts)  
 **Risk:** Low (puro refactor cosmético)
 
+### Consolidate useState hooks to single DashboardSnapshot state (Bloque 5-6)
+**Status:** Pending (consider for future refactors with useReducer pattern)  
+**Current State:** /app/dashboard/page.tsx uses ~25 individual useState hooks (activosCount, totalCount, altasMes, bajasMes, variacionNeta, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, etc.)
+
+**Problema:** State explosion → maintenance burden. Adding 3 fields (altasMes, bajasMes, variacionNeta) required updates to 5 locations per field = 15 edits total (useState declaration, applySnapshot setter, buildDemoSnapshot, enterDemo assignment, useCallback dependencies). Future fields compound this.
+
+**Solución:** Refactor to single `const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null)` state object:
+- `applySnapshot()` becomes: `setSnapshot(data)`
+- `buildDemoSnapshot()` already returns full object → no change needed
+- `enterDemo` → single assignment: `realSnapshotRef.current = { ...snapshot, ...newFields }`
+- `useCallback` dependencies → single `[snapshot]` instead of listing 25 individual fields
+
+**Resultado:** Reducir puntos de toque de 5 → 1 por campo nuevo (nuevos campos solo van en DashboardSnapshot interface + 1 applySnapshot setter)
+
+**Cuándo:** Bloque 5-6 (cuando refactoricemos a useReducer para estado más robusto)  
+**Estimado de Esfuerzo:** 30min-1h (consolidar useState, verificar applySnapshot, tests)  
+**Risk:** Low (estado consolidado, misma semántica, no cambio de lógica)  
+**Beneficio:** -80% del mantenimiento futuro para nuevos campos en dashboard
+
 ---
 
 ## 🔮 Mejoras futuras
@@ -749,3 +768,37 @@ Requiere:
 - Thresholds: <2 saturado, 2-4 saludable, >4 subutilizado
 
 **Eliminado del código por estar null sin uso.** Se puede reactivar cuando haya soporte para cargar m² del local.
+
+---
+
+## 🐛 Deuda Técnica Detectada
+
+### isWithin() — Comparación lexicográfica bug latente
+
+**Ubicación:** `/app/api/admin/dashboard/route.ts` (líneas 54-57)
+
+```typescript
+function isWithin(dateStr: string | null | undefined, from: string, to: string) {
+  if (!dateStr) return false;
+  return dateStr >= from && dateStr <= to;  // ← Comparación lexicográfica
+}
+```
+
+**Problema:** 
+Si la columna comparada es `TIMESTAMPTZ`, la comparación lexicográfica falla en el límite superior del rango.
+
+**Ejemplo:**
+```
+isWithin("2026-04-30T23:59:00Z", "2026-04-01", "2026-04-30")
+"2026-04-30T23:59:00Z" > "2026-04-30"  ← TRUE (timestamp > date string)
+Debería ser FALSE (dentro del rango)
+```
+
+**Estado:** No bloqueante para reportes mensuales porque los nuevos cálculos (`altasMes`, `bajasMes`) en Fase 1.0 del Bloque 3 usan método robusto con `.slice(0, 10)` y filtrado en DB.
+
+**Acción recomendada:** Fix global en cleanup futuro (Bloque 6-7). Alternativas:
+1. Convertir todos a YYYY-MM-DD antes de comparar en todas partes
+2. Usar `.slice(0, 10)` sistemáticamente en todos los isWithin() calls
+3. Mover comparación a la DB (PostgreSQL `::date` cast)
+
+**Detectado:** Fase 1.0 del Bloque 3 (agregar campos de altas/bajas)

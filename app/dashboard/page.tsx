@@ -55,7 +55,7 @@ function buildDemoSnapshot(): DashboardSnapshot {
     return 0;
   });
   return {
-    activosCount: 47, totalCount: 54, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, renovacionesCount: 31, mensajesAutoEnviados: 47, recuperadosCount: 7, recuperadosRevenue: 126_000, recaudadoEsteMes: 612_000, deudaTotal: 85_000, morososCount: 6, gastosTotal: 210_000,
+    activosCount: 47, totalCount: 54, altasMes: 8, bajasMes: 2, variacionNeta: 6, ingresoProyectado: 847_000, proyeccionProximoMes: 520_000, renovacionesPendientes: 28, renovacionesCount: 31, mensajesAutoEnviados: 47, recuperadosCount: 7, recuperadosRevenue: 126_000, recaudadoEsteMes: 612_000, deudaTotal: 85_000, morososCount: 6, gastosTotal: 210_000,
     recientes: [
       { id: "d1", full_name: "Valentina Ríos",    created_at: new Date(Date.now() - 1 * 86400000).toISOString() },
       { id: "d2", full_name: "Matías Fernández",  created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
@@ -113,6 +113,9 @@ export default function DashboardPage() {
 
   const [activosCount,      setActivosCount]      = useState(0);
   const [totalCount,        setTotalCount]        = useState(0);
+  const [altasMes,          setAltasMes]          = useState(0);
+  const [bajasMes,          setBajasMes]          = useState(0);
+  const [variacionNeta,     setVariacionNeta]     = useState(0);
   const [ingresoProyectado,     setIngresoProyectado]     = useState(0);
   const [proyeccionProximoMes,  setProyeccionProximoMes]  = useState(0);
   const [renovacionesPendientes,setRenovacionesPendientes]= useState(0);
@@ -148,6 +151,9 @@ export default function DashboardPage() {
   const applySnapshot = useCallback((snapshot: DashboardSnapshot) => {
     setActivosCount(snapshot.activosCount);
     setTotalCount(snapshot.totalCount);
+    setAltasMes(snapshot.altasMes);
+    setBajasMes(snapshot.bajasMes);
+    setVariacionNeta(snapshot.variacionNeta);
     setIngresoProyectado(snapshot.ingresoProyectado);
     setProyeccionProximoMes(snapshot.proyeccionProximoMes);
     setRenovacionesPendientes(snapshot.renovacionesPendientes);
@@ -176,7 +182,7 @@ export default function DashboardPage() {
   const realBotActivityRef = useRef<typeof botActivity>(null);
 
   const enterDemo = useCallback(() => {
-    realSnapshotRef.current = { activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, renovacionesCount, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, ingresos5, gastos5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, asistPromedioDiario, metrics, alerts };
+    realSnapshotRef.current = { activosCount, totalCount, altasMes, bajasMes, variacionNeta, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, renovacionesCount, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, ingresos5, gastos5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, asistPromedioDiario, metrics, alerts };
     realBotActivityRef.current = botActivity;
     applySnapshot(buildDemoSnapshot());
     setBotActivity({
@@ -188,7 +194,7 @@ export default function DashboardPage() {
       ],
     });
     setDemoMode(true);
-  }, [activosCount, totalCount, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, renovacionesCount, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, ingresos5, gastos5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, asistPromedioDiario, metrics, alerts, botActivity, applySnapshot]);
+  }, [activosCount, totalCount, altasMes, bajasMes, variacionNeta, ingresoProyectado, proyeccionProximoMes, renovacionesPendientes, renovacionesCount, mensajesAutoEnviados, recuperadosCount, recuperadosRevenue, recaudadoEsteMes, deudaTotal, morososCount, gastosTotal, recientes, captacion5, ingresos5, gastos5, planDist, prospectos, asistDiarias, asistHoras, asistHoy, asistPromedioDiario, metrics, alerts, botActivity, applySnapshot]);
 
   const exitDemo = useCallback(() => {
     if (realSnapshotRef.current) applySnapshot(realSnapshotRef.current);

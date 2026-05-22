@@ -177,6 +177,7 @@ export async function GET(req: NextRequest) {
     { data: allAsistRows, error: asistError },
     { data: gymClassesMetricRows, error: classesError },
     { count: mensajesAutoCount, error: mensajesAutoError },
+    { count: bajasCount, error: bajasError },
     { data: lastCronRunRows },
   ] = await Promise.all([
     admin.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "pendiente"),
@@ -190,13 +191,14 @@ export async function GET(req: NextRequest) {
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
     admin.from("wa_mensajes_log").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("sent_at", `${thisMonthFrom}T00:00:00Z`).lte("sent_at", `${thisMonthTo}T23:59:59Z`),
+    admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).not("deleted_at", "is", null).gte("deleted_at", `${from}T00:00:00`).lte("deleted_at", `${to}T23:59:59`),
     admin.from("cron_runs").select("ran_at, status, summary").eq("cron_name", "vencimientos").order("ran_at", { ascending: false }).limit(1),
   ]);
 
   const anyError =
     prospectosCountError || settingsError || gymError ||
     prospectRowsError || pagosError || egresosMetricError || alumnosError || reservasError ||
-    asistError || classesError || mensajesAutoError;
+    asistError || classesError || mensajesAutoError || bajasError;
 
   if (anyError) {
     return NextResponse.json({
@@ -263,6 +265,14 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, 5)
     .map(r => ({ id: r.id, full_name: r.full_name, created_at: r.created_at }));
+
+  const altasMes = alumnoRows.filter(r => {
+    if (!r.created_at) return false;
+    const dateOnly = r.created_at.slice(0, 10);
+    return dateOnly >= from && dateOnly <= to;
+  }).length;
+  const bajasMes = bajasCount ?? 0;
+  const variacionNeta = altasMes - bajasMes;
 
   const captMap: Record<string, number> = {};
   alumnoRows.filter(row => row.created_at >= oldestMonthKey && isPaidMember(row)).forEach(row => {
@@ -447,6 +457,9 @@ export async function GET(req: NextRequest) {
     snapshot: {
       activosCount: activos,
       totalCount: total,
+      altasMes,
+      bajasMes,
+      variacionNeta,
       ingresoProyectado: proyectado,
       proyeccionProximoMes,
       renovacionesPendientes,

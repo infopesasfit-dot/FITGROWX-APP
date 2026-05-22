@@ -37,6 +37,9 @@ export interface SetupFlags {
 export interface DashboardSnapshot {
   activosCount: number;
   totalCount: number;
+  altasMes: number;
+  bajasMes: number;
+  variacionNeta: number;
   ingresoProyectado: number;
   proyeccionProximoMes: number;
   renovacionesPendientes: number;
