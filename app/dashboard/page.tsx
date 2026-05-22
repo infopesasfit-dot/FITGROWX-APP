@@ -111,7 +111,6 @@ export default function DashboardPage() {
   const [waStatus, setWaStatus] = useState<"active" | "disconnected" | "qr" | "unknown">("unknown");
   const [botActivity, setBotActivity] = useState<{ msgHoy: number; vencHoy: number; pagosHoyCount: number; feed: { ts: string; tipo: "wa" | "pago"; label: string; name: string }[] } | null>(null);
   const [gymName, setGymName] = useState("tu gym");
-  const [greetPhase, setGreetPhase] = useState<"hola" | "exit" | "welcome">("hola");
 
   const [activosCount,      setActivosCount]      = useState(0);
   const [totalCount,        setTotalCount]        = useState(0);
@@ -243,10 +242,6 @@ export default function DashboardPage() {
     if (payload.fetchedAt) setFetchedAt(new Date(payload.fetchedAt));
     setLastCronRun(payload.lastCronRun ?? null);
     if (payload.waStatus) setWaStatus(payload.waStatus);
-    if (name) {
-      setGreetPhase("exit");
-      setTimeout(() => setGreetPhase("welcome"), 650);
-    }
     const snapshot = payload.snapshot;
 
     applySnapshot(snapshot);
@@ -323,14 +318,25 @@ export default function DashboardPage() {
   const balanceNeto = sinEgresos ? ingresoProyectado : ingresoProyectado - gastosTotal;
   const hasCapt     = captacion5.some(v => v > 0);
 
-  const hour = useMemo(() => new Date().getHours(), []);
   const greeting = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      hour: '2-digit',
+      hour12: false,
+    });
+    const hour = parseInt(formatter.format(new Date()), 10);
     if (hour >= 6 && hour < 12) return "Buenos días";
     if (hour >= 12 && hour < 20) return "Buenas tardes";
     return "Buenas noches";
-  }, [hour]);
+  }, []);
 
   const quickActions = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      hour: '2-digit',
+      hour12: false,
+    });
+    const hour = parseInt(formatter.format(new Date()), 10);
     if (hour >= 6 && hour < 10) return [
       { emoji: "✅", label: "Asistencia de hoy", hint: asistHoy > 0 ? `${asistHoy} registradas` : "Sin registros aún", href: "/dashboard/asistencias" },
       { emoji: "📋", label: "Tomar asistencia", hint: "Manual o QR", href: "/dashboard/scanner" },
@@ -718,7 +724,7 @@ export default function DashboardPage() {
             <p style={{ font: `500 0.66rem/1.4 var(--font-family-body)`, color: "#7A3E13", letterSpacing: "0.06em", textTransform: "uppercase" }}>{gymName}</p>
             {planLabel && <span style={{ font: `600 0.6rem/1 var(--font-family-body)`, color: planLabel === "Trial" ? "#D97706" : "#16A34A", background: planLabel === "Trial" ? "rgba(217,119,6,0.12)" : "rgba(22,163,74,0.12)", border: `1px solid ${planLabel === "Trial" ? "rgba(217,119,6,0.25)" : "rgba(22,163,74,0.25)"}`, borderRadius: 9999, padding: "2px 7px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{planLabel}</span>}
           </div>
-          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 1.45rem/1.02 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.06em", marginBottom: 8 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
+          <h1 style={{ font: `800 1.45rem/1.02 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.06em", marginBottom: 8 }}>{ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
           <p style={{ font: `500 0.8rem/1.55 var(--font-family-display)`, color: "var(--color-text-2)", marginBottom: 16 }}>Veamos cómo va tu negocio hoy.</p>
           <Filters compact selectedMonth={selectedMonth} isCurrentMonth={isCurrentMonth} fetchedAtLabel={fetchedAtLabel} waBadge={waBadge} cronSyncLabel={cronSyncLabel} lastCronRun={lastCronRun} onPrevMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1))} onNextMonth={() => setSelectedMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))} />
 
@@ -1042,7 +1048,7 @@ export default function DashboardPage() {
             <p style={{ font: `500 0.7rem/1.4 var(--font-family-body)`, color: "#8A4516", letterSpacing: "0.06em", textTransform: "uppercase" }}>{gymName}</p>
             {planLabel && <span style={{ font: `600 0.62rem/1 var(--font-family-body)`, color: planLabel === "Trial" ? "#D97706" : "#16A34A", background: planLabel === "Trial" ? "rgba(217,119,6,0.12)" : "rgba(22,163,74,0.12)", border: `1px solid ${planLabel === "Trial" ? "rgba(217,119,6,0.25)" : "rgba(22,163,74,0.25)"}`, borderRadius: 9999, padding: "2px 8px", textTransform: "uppercase", letterSpacing: "0.06em" }}>{planLabel}</span>}
           </div>
-          <h1 className={greetPhase === "exit" ? "greet-exit" : greetPhase === "welcome" ? "greet-welcome" : ""} style={{ font: `800 2rem/0.95 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{greetPhase === "welcome" ? `Bienvenido, ${ownerName}.` : ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
+          <h1 style={{ font: `800 2rem/0.95 var(--font-family-display)`, color: "var(--color-text-1)", letterSpacing: "-0.08em", marginBottom: 8, maxWidth: 760 }}>{ownerName ? `${greeting}, ${ownerName}.` : `${greeting}.`}</h1>
           <p style={{ font: `500 0.86rem/1.6 var(--font-family-display)`, color: "var(--color-text-2)", maxWidth: 720 }}>Veamos cómo va tu negocio y dónde conviene actuar primero.</p>
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
