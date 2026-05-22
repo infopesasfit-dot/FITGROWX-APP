@@ -802,3 +802,69 @@ Debería ser FALSE (dentro del rango)
 3. Mover comparación a la DB (PostgreSQL `::date` cast)
 
 **Detectado:** Fase 1.0 del Bloque 3 (agregar campos de altas/bajas)
+
+---
+
+### Daily dashboard: métricas mixtas según filtro de mes
+
+**Análisis hecho en sub-paso 1.5.B.0** (extracción de calculateSnapshot a función pura)
+
+**Hallazgo:** El endpoint `/api/admin/dashboard` retorna métricas de 3 categorías distintas según su dependencia del filtro de rango (from/to):
+
+#### a) Del mes seleccionado (respetan filtro):
+- `metrics.*` (leads, lead_trial, trial_member, cac, churn, retention, ltv, arpu, ocupacion)
+- `recaudadoEsteMes` (pagos en thisMonthFrom/To)
+- `asistDiarias` (últimos 14 días del mes)
+- `asistHoras` (distribución horaria del mes)
+- `asistPromedioDiario` (promedio del mes)
+- `altasMes` (created_at en from/to)
+- `bajasMes` (deleted_at en from/to)
+- `gastosTotal` (egresos en from/to)
+
+#### b) Del estado actual (ignoran filtro):
+- `activosCount` (status='activo' AHORA)
+- `totalCount` (total alumnos AHORA)
+- `ingresoProyectado` (suma planes activos AHORA)
+- `proyeccionProximoMes` (vencimientos en nextMonth)
+- `renovacionesPendientes` (count nextMonth)
+- `deudaTotal` (sum morosos AHORA)
+- `morososCount` (count AHORA)
+- `recientes` (top 5 alumnos AHORA ordenados)
+- `planDist` (distribución planes AHORA)
+- `prospectos` (count pendientes AHORA)
+- `asistHoy` (asistencias de todayStr)
+- `mensajesAutoEnviados` (wa_mensajes_log AHORA)
+- `renovacionesCount` (pagos AHORA)
+- `recuperadosCount` (comparación AHORA vs prevMonth)
+- `recuperadosRevenue` (derivado AHORA)
+- `alerts.*` (inactivos, vencimientos próximos)
+
+#### c) Histórico fijo (últimos 5 meses):
+- `captacion5` (últimos 5 meses, ignorando from/to)
+- `ingresos5` (últimos 5 meses)
+- `gastos5` (últimos 5 meses)
+
+**Comportamiento observado:** Las métricas "del estado actual" tienen sentido conceptual: un admin QUIERE saber "cuántos socios activos tengo AHORA" no "cuántos tenía en abril". Pero la UX del daily puede confundir cuando:
+- Se filtra por "Abril" (del año pasado)
+- Se ven métricas del mes (leads, revenue) 
+- Pero también ven "Socios Activos: 87" (cifra de HOY, no de Abril)
+- Y "Asistencias Hoy: 0" (hoy es mayo, no abril)
+
+**Riesgo de confusión:** Usuario cree que TODAS las métricas corresponden a Abril; algunas ignoran el filtro silenciosamente.
+
+**Mejora futura considerar:**
+1. **Etiquetar visualmente** cards que "no responden al filtro de mes"
+   - Ej: "Socios Activos: 87 **[AHORA]**" (etiqueta visual, distinto color)
+   - Ej: "Deuda: $5,200 **[Estado actual, no del mes filtrado]**"
+   
+2. **O deshabilitar/ocultar filtro** cuando hay métricas mixtas
+   - Alternativa: "El filtro aplica solo a: leads, revenue, asistencias, balance"
+   - "Otras métricas muestran estado actual" (banner de aviso)
+
+3. **O separar en 2 vistas:**
+   - /dashboard/reportes/[mes] (solo métricas del mes) ← YA HECHO en Fase 1.0
+   - /dashboard/daily (solo métricas de estado actual)
+
+**IMPORTANTE:** En `/dashboard/reportes/[mes]` NO es problema porque **solo mostramos métricas del mes** (cobrado, margen, altas, bajas, variación, etc). Las tarjetas "estado actual" se ocultan allí.
+
+**Estado:** Low priority. Impacto es UI/UX clarity, no funcional. Revisar cuando se diseñe split daily vs reportes con cabeza fresca.
