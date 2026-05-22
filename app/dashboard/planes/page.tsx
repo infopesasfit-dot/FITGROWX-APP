@@ -161,8 +161,7 @@ export default function PlanesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           plan_key: selectedPlan.key,
-          plan_label: `FitGrowX ${selectedPlan.name} ${billing}`,
-          price_ars: checkoutAmount,
+          billing,
         }),
       });
       const data = await res.json();

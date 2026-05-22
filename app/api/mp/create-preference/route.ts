@@ -25,12 +25,14 @@ export async function POST(req: NextRequest) {
   const gymId = profile?.gym_id;
   if (!gymId) return NextResponse.json({ error: "Gym no encontrado" }, { status: 404 });
 
-  const { plan_key } = await req.json();
+  const { plan_key, billing } = await req.json();
 
   const plan = FITGROWX_PLANS.find((p) => p.key === plan_key);
   if (!plan) {
     return NextResponse.json({ error: "Plan inválido" }, { status: 400 });
   }
+
+  const amount = billing === "anual" ? plan.annualTotal : plan.priceMonthly;
 
   const body = {
     items: [
@@ -39,8 +41,8 @@ export async function POST(req: NextRequest) {
         title: `FitGrowX — ${plan.name}`,
         quantity: 1,
         currency_id: "ARS",
-        unit_price: plan.annualTotal,
-        description: "Plan Anual FitGrowX · Pagás 10 meses, entrenás 12",
+        unit_price: amount,
+        description: billing === "anual" ? "Plan Anual FitGrowX · Pagás 10 meses, entrenás 12" : "Plan Mensual FitGrowX",
       },
     ],
     back_urls: {

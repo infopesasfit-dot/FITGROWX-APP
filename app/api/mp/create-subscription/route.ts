@@ -12,12 +12,14 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const { gym_id, plan_key } = await req.json();
+  const { gym_id, plan_key, billing } = await req.json();
 
   const plan = FITGROWX_PLANS.find((p) => p.key === plan_key);
   if (!gym_id || !plan_key || !plan) {
     return NextResponse.json({ error: "Faltan parámetros." }, { status: 400 });
   }
+
+  const amount = billing === "anual" ? plan.annualTotal : plan.priceMonthly;
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
     auto_recurring: {
       frequency: 1,
       frequency_type: "months",
-      transaction_amount: plan.annualTotal,
+      transaction_amount: amount,
       currency_id: "ARS",
     },
     payer_email: settings?.email ?? undefined,
