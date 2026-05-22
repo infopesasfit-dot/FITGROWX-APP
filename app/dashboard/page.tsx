@@ -81,7 +81,6 @@ function buildDemoSnapshot(): DashboardSnapshot {
       { key: "ltv",          label: "Valor de un socio",     section: "Fidelización",  tooltip: "Cuánto genera en promedio un socio durante todo el tiempo en tu gym.",      value: 54000,previous: 49000,format: "currency", accent: "ink"   },
       { key: "arpu",         label: "Ingreso por socio",     section: "Eficiencia",    tooltip: "Cuánto generás por cada socio activo este mes.",                            value: 18000,previous: 17200,format: "currency", accent: "soft"   },
       { key: "ocupacion",    label: "Ocupación de clases",   section: "Eficiencia",    tooltip: "De todos los lugares disponibles en clases, cuántos se ocuparon.",          value: 73.5, previous: 68.0,format: "percent",  accent: "orange" },
-      { key: "m2",           label: "Ingreso por metro²",    section: "Eficiencia",    tooltip: "Lo activamos cuando cargues la superficie del local.",                       value: null, previous: null,format: "currency", accent: "ink"    },
     ],
     alerts: {
       inactiveCount: 9,
