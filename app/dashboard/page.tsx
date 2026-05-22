@@ -793,49 +793,25 @@ export default function DashboardPage() {
 
       {asistDiarias.length > 0 && (() => {
         const maxA = Math.max(...asistDiarias.map((d) => d.count), 1);
-        const peakH = asistHoras.indexOf(Math.max(...asistHoras));
         return (
-          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 12 }}>
-            <div className="dash-card dashboard-card" style={{ padding: "18px 16px", background: "#FFFFFF" }} >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
-                <div>
-                  <p style={{ font: `800 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>Asistencia diaria</p>
-                  <p style={{ font: `500 0.7rem/1.45 var(--font-family-display)`, color: "var(--color-text-3)" }}>Últimos 14 días · prom. {asistPromedioDiario}/día operativo</p>
-                </div>
-                <span style={{ font: `700 0.68rem/1 var(--font-family-display)`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "7px 10px" }}>{asistHoy} hoy</span>
+          <div className="dash-card dashboard-card" style={{ padding: "18px 16px", background: "#FFFFFF" }} >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 16 }}>
+              <div>
+                <p style={{ font: `800 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>Asistencia diaria</p>
+                <p style={{ font: `500 0.7rem/1.45 var(--font-family-display)`, color: "var(--color-text-3)" }}>Últimos 14 días · prom. {asistPromedioDiario}/día operativo</p>
               </div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 84 }}>
-                {asistDiarias.map((d) => {
-                  const h = maxA > 0 ? Math.max((d.count / maxA) * 72, d.count > 0 ? 4 : 0) : 0;
-                  const isToday = d.fecha === todayStr;
-                  return (
-                    <div key={d.fecha} style={{ flex: 1, display: "flex", alignItems: "flex-end", height: "100%" }}>
-                      <div style={{ width: "100%", height: h || 2, borderRadius: 9999, background: isToday ? orangeGlow : d.count > 0 ? peakStroke : "#EDF1F5", opacity: isToday ? 1 : 0.75 }} />
-                    </div>
-                  );
-                })}
-              </div>
+              <span style={{ font: `700 0.68rem/1 var(--font-family-display)`, color: accentDeep, background: chipBg, borderRadius: 9999, padding: "7px 10px" }}>{asistHoy} hoy</span>
             </div>
-
-            <div className="dash-card dashboard-card" style={{ padding: "18px 16px", background: "#FFFFFF" }} >
-              <p style={{ font: `800 0.94rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 4 }}>Cuándo viene la gente</p>
-              <p style={{ font: `500 0.7rem/1.45 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 16 }}>El horario con más movimiento.</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {[6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22].map((h) => {
-                  const count = asistHoras[h] ?? 0;
-                  const pct = asistHoras[peakH] > 0 ? (count / asistHoras[peakH]) * 100 : 0;
-                  const isPeak = h === peakH && count > 0;
-                  return (
-                    <div key={h} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ width: 28, flexShrink: 0, textAlign: "right", font: `600 0.62rem/1 var(--font-family-body)`, color: "var(--color-text-3)" }}>{h}h</span>
-                      <div style={{ flex: 1, height: 7, background: "#EDF1F5", borderRadius: 9999, overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", background: isPeak ? orangeGlow : "#17181B", borderRadius: 9999 }} />
-                      </div>
-                      <span style={{ width: 16, flexShrink: 0, font: `700 0.62rem/1 var(--font-family-display)`, color: isPeak ? accentDeep : "var(--color-text-2)"}}>{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 84 }}>
+              {asistDiarias.map((d) => {
+                const h = maxA > 0 ? Math.max((d.count / maxA) * 72, d.count > 0 ? 4 : 0) : 0;
+                const isToday = d.fecha === todayStr;
+                return (
+                  <div key={d.fecha} style={{ flex: 1, display: "flex", alignItems: "flex-end", height: "100%" }}>
+                    <div style={{ width: "100%", height: h || 2, borderRadius: 9999, background: isToday ? orangeGlow : d.count > 0 ? peakStroke : "#EDF1F5", opacity: isToday ? 1 : 0.75 }} />
+                  </div>
+                );
+              })}
             </div>
           </div>
         );
@@ -1132,49 +1108,25 @@ export default function DashboardPage() {
 
       {asistDiarias.length > 0 && (() => {
         const maxA = Math.max(...asistDiarias.map((d) => d.count), 1);
-        const peakH = asistHoras.indexOf(Math.max(...asistHoras));
         return (
-          <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0, 1.35fr) minmax(320px, 1fr)" : "1fr", gap: 20 }}>
-            <div className="dashboard-card" style={{ padding: "24px 24px 20px" }} >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
-                <div>
-                  <p style={{ font: `800 1.02rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 6 }}>Asistencia diaria</p>
-                  <p style={{ font: `500 0.76rem/1.5 var(--font-family-display)`, color: "var(--color-text-3)" }}>Cuánta gente entrenó cada día · prom. <strong>{asistPromedioDiario}/día</strong> (solo días operativos)</p>
-                </div>
-                <a href="/dashboard/asistencias" style={{ font: `700 0.72rem/1 var(--font-family-display)`, color: "var(--color-text-2)", textDecoration: "none" }}>Ver detalle →</a>
+          <div className="dashboard-card" style={{ padding: "24px 24px 20px" }} >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, marginBottom: 18 }}>
+              <div>
+                <p style={{ font: `800 1.02rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 6 }}>Asistencia diaria</p>
+                <p style={{ font: `500 0.76rem/1.5 var(--font-family-display)`, color: "var(--color-text-3)" }}>Cuánta gente entrenó cada día · prom. <strong>{asistPromedioDiario}/día</strong> (solo días operativos)</p>
               </div>
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
-                {asistDiarias.map((d) => {
-                  const h = maxA > 0 ? Math.max((d.count / maxA) * 84, d.count > 0 ? 4 : 0) : 0;
-                  const isToday = d.fecha === todayStr;
-                  return (
-                    <div key={d.fecha} style={{ flex: 1, display: "flex", alignItems: "flex-end", height: "100%" }}>
-                      <div style={{ width: "100%", height: h || 2, borderRadius: 9999, background: isToday ? orangeGlow : d.count > 0 ? peakStroke : "#EDF1F5", opacity: isToday ? 1 : 0.76 }} />
-                    </div>
-                  );
-                })}
-              </div>
+              <a href="/dashboard/asistencias" style={{ font: `700 0.72rem/1 var(--font-family-display)`, color: "var(--color-text-2)", textDecoration: "none" }}>Ver detalle →</a>
             </div>
-
-            <div className="dashboard-card" style={{ padding: "24px 22px" }} >
-              <p style={{ font: `800 1.02rem/1 var(--font-family-display)`, color: "var(--color-text-1)", marginBottom: 6 }}>Cuándo viene la gente</p>
-              <p style={{ font: `500 0.76rem/1.5 var(--font-family-display)`, color: "var(--color-text-3)", marginBottom: 18 }}>El horario con más movimiento.</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                {[6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22].map((h) => {
-                  const count = asistHoras[h] ?? 0;
-                  const pct = asistHoras[peakH] > 0 ? (count / asistHoras[peakH]) * 100 : 0;
-                  const isPeak = h === peakH && count > 0;
-                  return (
-                    <div key={h} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ width: 28, flexShrink: 0, textAlign: "right", font: `600 0.64rem/1 var(--font-family-body)`, color: "var(--color-text-3)" }}>{h}h</span>
-                      <div style={{ flex: 1, height: 8, background: "#EDF1F5", borderRadius: 9999, overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", background: isPeak ? orangeGlow : "#17181B", borderRadius: 9999 }} />
-                      </div>
-                      <span style={{ width: 18, flexShrink: 0, font: `700 0.64rem/1 var(--font-family-display)`, color: isPeak ? accentDeep : "var(--color-text-2)"}}>{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 100 }}>
+              {asistDiarias.map((d) => {
+                const h = maxA > 0 ? Math.max((d.count / maxA) * 84, d.count > 0 ? 4 : 0) : 0;
+                const isToday = d.fecha === todayStr;
+                return (
+                  <div key={d.fecha} style={{ flex: 1, display: "flex", alignItems: "flex-end", height: "100%" }}>
+                    <div style={{ width: "100%", height: h || 2, borderRadius: 9999, background: isToday ? orangeGlow : d.count > 0 ? peakStroke : "#EDF1F5", opacity: isToday ? 1 : 0.76 }} />
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

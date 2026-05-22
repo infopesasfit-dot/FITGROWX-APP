@@ -10,6 +10,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { MONTH_NAMES, fmt } from "@/lib/dashboard-helpers";
 import { DashboardMetric } from "@/lib/dashboard-types";
 import { MetricSection } from "@/app/dashboard/components/MetricSection";
+import { HorariosHeatmap } from "@/app/dashboard/components/HorariosHeatmap";
 
 function Skel({ w, h, r = 7 }: { w?: number | string; h: number; r?: number }) {
   return (
@@ -363,6 +364,11 @@ export default function ReporteMesPage({ params }: PageProps) {
             </>
           )}
 
+          {/* Horarios Heatmap */}
+          {snapshot.asistHoras && snapshot.asistHoras.length > 0 && (
+            <HorariosHeatmap asistHoras={snapshot.asistHoras} isDesktop={isDesktop} />
+          )}
+
           {/* Placeholder */}
           <div className="dashboard-card" style={{
             padding: "24px 16px",
@@ -375,7 +381,7 @@ export default function ReporteMesPage({ params }: PageProps) {
               font: "400 0.9rem/1.5 var(--font-family-body, 'Inter', sans-serif)",
               color: "var(--color-text-2, #6B7280)",
             }}>
-              📊 Métricas y charts próximamente
+              📊 Más visualizaciones próximamente
             </p>
           </div>
 
