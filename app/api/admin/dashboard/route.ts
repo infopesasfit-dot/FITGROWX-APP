@@ -496,7 +496,6 @@ export async function GET(req: NextRequest) {
         { key: "ltv", label: "Valor de un socio", section: "Fidelización", tooltip: "Cuánto genera en promedio un socio durante todo el tiempo que está en tu gym.", value: ltvCurrent, previous: ltvPrevious, format: "currency", accent: "ink" },
         { key: "arpu", label: "Ingreso por socio", section: "Eficiencia", tooltip: "Cuánto generás por cada socio activo este mes.", value: arpuCurrent, previous: arpuPrevious, format: "currency", accent: "soft" },
         { key: "ocupacion", label: "Ocupación de clases", section: "Eficiencia", tooltip: "De todos los lugares disponibles en clases, cuántos se ocuparon este mes.", value: occupancyCurrent, previous: occupancyPrevious, format: "percent", accent: "orange" },
-        { key: "m2", label: "Ingreso por metro²", section: "Eficiencia", tooltip: "Cuánto generás por metro cuadrado del local. Lo activamos cuando cargues la superficie.", value: null, previous: null, format: "currency", accent: "ink" },
       ],
       alerts: {
         inactiveCount: inactiveRows.length,

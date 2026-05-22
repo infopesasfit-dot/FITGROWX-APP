@@ -8,6 +8,8 @@ import { getCachedProfile } from "@/lib/gym-cache";
 import { supabase } from "@/lib/supabase";
 import { useIsDesktop } from "@/hooks/useIsDesktop";
 import { MONTH_NAMES, fmt } from "@/lib/dashboard-helpers";
+import { DashboardMetric } from "@/lib/dashboard-types";
+import { MetricSection } from "@/app/dashboard/components/MetricSection";
 
 function Skel({ w, h, r = 7 }: { w?: number | string; h: number; r?: number }) {
   return (
@@ -34,6 +36,8 @@ export default function ReporteMesPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [snapshot, setSnapshot] = useState<any>(null);
   const [isCurrent, setIsCurrent] = useState(false);
+  const [metricSectionOpen, setMetricSectionOpen] = useState<Record<string, boolean>>({ Embudo: false, Fidelización: false, Eficiencia: false });
+  const [activeInfo, setActiveInfo] = useState<{ title: string; body: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -320,6 +324,45 @@ export default function ReporteMesPage({ params }: PageProps) {
             </p>
           </div>
 
+          {/* Metric Sections */}
+          {snapshot.metrics && snapshot.metrics.length > 0 && (
+            <>
+              <MetricSection
+                section="Embudo"
+                metrics={snapshot.metrics}
+                prospectos={snapshot.prospectos ?? 0}
+                loading={false}
+                isDesktop={isDesktop}
+                isOpen={metricSectionOpen["Embudo"] ?? false}
+                onToggle={() => setMetricSectionOpen(prev => ({ ...prev, Embudo: !prev["Embudo"] }))}
+                activeInfo={activeInfo}
+                setActiveInfo={setActiveInfo}
+              />
+              <MetricSection
+                section="Fidelización"
+                metrics={snapshot.metrics}
+                prospectos={snapshot.prospectos ?? 0}
+                loading={false}
+                isDesktop={isDesktop}
+                isOpen={metricSectionOpen["Fidelización"] ?? false}
+                onToggle={() => setMetricSectionOpen(prev => ({ ...prev, Fidelización: !prev["Fidelización"] }))}
+                activeInfo={activeInfo}
+                setActiveInfo={setActiveInfo}
+              />
+              <MetricSection
+                section="Eficiencia"
+                metrics={snapshot.metrics}
+                prospectos={snapshot.prospectos ?? 0}
+                loading={false}
+                isDesktop={isDesktop}
+                isOpen={metricSectionOpen["Eficiencia"] ?? false}
+                onToggle={() => setMetricSectionOpen(prev => ({ ...prev, Eficiencia: !prev["Eficiencia"] }))}
+                activeInfo={activeInfo}
+                setActiveInfo={setActiveInfo}
+              />
+            </>
+          )}
+
           {/* Placeholder */}
           <div className="dashboard-card" style={{
             padding: "24px 16px",
@@ -335,6 +378,64 @@ export default function ReporteMesPage({ params }: PageProps) {
               📊 Métricas y charts próximamente
             </p>
           </div>
+
+          {/* Mobile tooltip modal */}
+          {!isDesktop && activeInfo && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.4)",
+                display: "flex",
+                alignItems: "flex-end",
+                zIndex: 40,
+              }}
+              onClick={() => setActiveInfo(null)}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  background: "white",
+                  borderRadius: "16px 16px 0 0",
+                  padding: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p style={{
+                  font: "700 1rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                  color: "var(--color-text-1, #1A1D23)",
+                  margin: 0,
+                }}>
+                  {activeInfo.title}
+                </p>
+                <p style={{
+                  font: "400 0.9rem/1.5 var(--font-family-body, 'Inter', sans-serif)",
+                  color: "var(--color-text-2, #6B7280)",
+                  margin: 0,
+                }}>
+                  {activeInfo.body}
+                </p>
+                <button
+                  onClick={() => setActiveInfo(null)}
+                  style={{
+                    marginTop: 12,
+                    padding: "12px 16px",
+                    borderRadius: 10,
+                    background: "var(--bg-card, #FFFFFF)",
+                    border: "1px solid rgba(15,17,21,0.1)",
+                    font: "600 0.9rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                    color: "var(--color-text-1, #1A1D23)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="dashboard-card" style={{
