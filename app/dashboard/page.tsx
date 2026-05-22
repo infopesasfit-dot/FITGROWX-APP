@@ -357,7 +357,7 @@ export default function DashboardPage() {
       { emoji: "📝", label: "Cargar egreso", hint: "Registrar gasto del día", href: "/dashboard/egresos" },
       { emoji: "⏰", label: alerts.upcomingExpirations.length > 0 ? `${alerts.upcomingExpirations.length} vencen pronto` : "Sin vencimientos pronto", hint: alerts.upcomingExpirations.length > 0 ? "Para mañana: contactar" : "Todo al día", href: "/dashboard/alumnos" },
     ];
-  }, [hour, asistHoy, alerts.upcomingExpirations.length, prospectos]);
+  }, [asistHoy, alerts.upcomingExpirations.length, prospectos]);
 
   // QuickActions moved to /app/dashboard/components/QuickActions.tsx
 
