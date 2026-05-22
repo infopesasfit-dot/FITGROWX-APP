@@ -10,7 +10,7 @@ import {
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
-  CheckCircle, HelpCircle, Power, MessageSquare, Smartphone,
+  CheckCircle, HelpCircle, Power, MessageSquare, Smartphone, BarChart3,
 } from "lucide-react";
 import WelcomeModal from "./components/WelcomeModal";
 import { DinoChatWidget } from "./components/DinoChatWidget";
@@ -68,6 +68,12 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
     items: [
       { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
       { href: "/dashboard/egresos", label: "Egresos",  icon: TrendingDown },
+    ],
+  },
+  {
+    section: "ANÁLISIS",
+    items: [
+      { href: "/dashboard/reportes", label: "Reportes", icon: BarChart3 },
     ],
   },
   {
