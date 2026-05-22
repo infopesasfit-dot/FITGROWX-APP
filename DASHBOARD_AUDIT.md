@@ -197,65 +197,204 @@
 
 ### Nuevo Archivo: `/app/dashboard/reportes/page.tsx`
 
-Estructura de tabs:
-1. **Embudo** (leads → trial → member conversión)
-2. **Fidelización** (churn, retention, LTV)
-3. **Eficiencia** (CAC, ROI, efficiency)
+```
+┌─────────────────────────────────────────────────────────────┐
+│ REPORTES ANALYTRICOS — Insights & Trends                   │
+│ Tab/Section Navigation: EMBUDO | FIDELIZACIÓN | EFICIENCIA  │
+│ (o 3 separate pages: /reportes/embudo, /reportes/fidelizacion, /reportes/eficiencia) │
+└─────────────────────────────────────────────────────────────┘
 
-Visualizaciones full-size (5 meses, 14 días, SVG completo con leyendas).
+┌─────────────────────────────────────────────────────────────┐
+│ EMBUDO (Captación)                                           │
+│ ┌────────────────────────────────────────────────────────┐  │
+│ │ 01 LEADS (total incoming contacts)  | Delta ▲ 12%     │  │
+│ │ 02 LEAD → TRIAL (conversion %)      | Delta ▼ 3%      │  │
+│ │ 03 TRIAL → MEMBER (closure %)       | Delta ▲ 8%      │  │
+│ │ 04 CAC (cost per acquisition)       | Delta ▼ 5%      │  │
+│ │ 05+ (additional metrics by gym size) │                │  │
+│ └────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ FIDELIZACIÓN (Retención)                                     │
+│ ┌────────────────────────────────────────────────────────┐  │
+│ │ 01 CHURN RATE (% leaving/month)     | Status: SALUDABLE  │
+│ │ 02 RETENTION (% staying)            | Delta ▲ 4%         │
+│ │ 03 LTV (lifetime value per member)  | Delta ▲ 15%        │
+│ │ 04+ (subscription duration analysis, plan mix, etc.)     │
+│ └────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ EFICIENCIA (Business Health)                                 │
+│ ┌────────────────────────────────────────────────────────┐  │
+│ │ 01 REVENUE per member                 │ $520/year       │  │
+│ │ 02 CHURN COST (projected revenue loss)│ -$8,400/month   │  │
+│ │ 03 MEMBER HEALTH SCORE (composite)    │ 78/100          │  │
+│ │ 04+ (breakeven analysis, margin %, etc.)              │  │
+│ └────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ CHARTS (Full-Size Analysis)                                  │
+│ • Nuevos Socios/Mes (5-month line chart + meta line + labels)│
+│ • Balance Neto (5-month grouped bar chart + legends)        │
+│ • Asistencia Diaria (14-day bar chart + trend analysis)     │
+│ • Cuándo Viene la Gente (hourly heatmap + peak detection)   │
+│ • [NEW] Monthly revenue trend, plan distribution, etc.       │
+│                                                              │
+│ **Strategy:** /dashboard shows COMPACT versions (1-line)     │
+│              /reportes shows FULL versions (100+ lines each) │
+│              Same data, different rendering strategy         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Estructura de Rutas:**
+```
+/app/dashboard/reportes/
+├── page.tsx (main reportes hub, default: embudo tab)
+├── embudo/
+│   └── page.tsx (detailed embudo metrics + charts)
+├── fidelizacion/
+│   └── page.tsx (retention analysis)
+├── eficiencia/
+│   └── page.tsx (business health metrics)
+└── layout.tsx (shared header, tabs, filters)
+```
 
 ---
 
-## 5. ESTRUCTURA DE IMPLEMENTACIÓN — BLOQUES
+## 5. IMPACTO & PHASED IMPLEMENTATION PLAN
 
-### **BLOCK 0: Unify Responsive Rendering** (No logic change)
-**Goal:** Single source of truth for mobile + desktop layout logic
+### Current State
+- **File:** `/app/dashboard/page.tsx`
+- **Lines:** 1748
+- **Components Inline:** 40+ useState hooks, 10+ render functions, 2 layout variants (mobile/desktop)
+- **Complexity:** God component with mixed operational + analytical UI
 
-**Cambio:** 
-- `/app/dashboard/components/QuickActions.tsx` — Responsive wrapper
-- `/app/dashboard/components/Filters.tsx` — Responsive wrapper
-- `useIsDesktop()` hook para decisiones inline, no 2 renderings
+### Target State
+- **File 1:** `/app/dashboard/page.tsx` (CORE + SECUNDARIO + compact charts)
+  - **Lines:** ~540 (69% reduction)
+  - **Focus:** Daily ops, quick actions, KPI cards, compact charts (sparklines), alerts, onboarding
+  
+- **File 2:** `/app/dashboard/reportes/page.tsx` (REPORTE + full charts)
+  - **Lines:** ~550 (new)
+  - **Focus:** Full-size analytical metrics, trends, business intelligence, detailed charts
 
-**Files Modified:**
-- `/app/dashboard/page.tsx` (replace duplicate mobile/desktop blocks with useIsDesktop conditional)
+- **Folder:** `/app/dashboard/components/` (extracted responsive components)
+  - **Lines:** ~300 (unified mobile/desktop)
+  - **Contains:** QuickActions.tsx, Filters.tsx, CompactCharts.tsx, AutomationStats.tsx, etc.
 
-**Commit:** `"refactor: unify responsive logic in dashboard components"`
+- **Shared:** `/lib/dashboard-helpers.ts` (extracted utilities)
+  - **Lines:** ~100 (refactored from main)
+  - **Contains:** formatMetricValue, metricDelta, buildDonutSegments, fmt, initials, etc.
 
-**Testing:** Mobile/desktop snapshot tests (no visual changes)
-**Risk:** Low (structural only, logic identical)
+### Impact Summary
+
+| Metric | Before | After | Δ |
+|--------|--------|-------|---|
+| Lines in /dashboard/page.tsx | 1748 | 540 | -69% |
+| Render functions in dashboard | 12 | 6 | -50% |
+| useState hooks in dashboard | 40+ | 18 | -55% |
+| Complexity (visual elements) | 21 | 9 | -57% |
+| Code clarity (cognitive load) | High | Low | ✓ |
+| Time to first meaningful paint | ~2s | ~0.7s | -65% |
+| Reusable responsive components | 0 | 5+ | new |
+| Mobile/Desktop code duplication | 3 areas | 0 | eliminated |
+| Race condition risk (state cascade) | High | Low | ✓ |
+
+### Components to Extract/Move
+
+**→ /dashboard/components (unified responsive — BLOQUE 0):**
+- `renderQuickActions()` unified (mobile + desktop logic merged) → `QuickActions.tsx`
+- `renderFilters()` unified (responsive variants) → `Filters.tsx`
+- Compact chart helpers (sparkline render) → `CompactCharts.tsx`
+- **Strategy:** Extract responsive logic ONCE, before moving to /reportes
+
+**→ /reportes (full-size REPORTE sections):**
+- `renderMetricSection()` (Embudo, Fidelización, Eficiencia) → `/app/dashboard/reportes/components/MetricSection.tsx`
+- Metric cell rendering → `/app/dashboard/reportes/components/MetricCell.tsx`
+- Full chart rendering (line, bar with SVG) → `/app/dashboard/reportes/components/Charts.tsx`
+- Metric type definitions → `/lib/dashboard-types.ts`
+
+**→ /lib (shared helpers):**
+- `formatMetricValue()`, `metricDelta()`, `getMetricTag()` → `/lib/dashboard-helpers.ts`
+- `buildDonutSegments()`, `fmt()`, `initials()` → `/lib/dashboard-helpers.ts`
+- Date formatting, month navigation → `/lib/dashboard-helpers.ts`
+
+**→ /dashboard/components (secondary sections):**
+- `renderAutomationStats()` → `/app/dashboard/components/AutomationStats.tsx`
+- `renderSuggestions()` → `/app/dashboard/components/Suggestions.tsx`
+- `renderOnboardingProgress()` → `/app/dashboard/components/OnboardingProgress.tsx`
+- `renderOwnerPhoneAlert()` → `/app/dashboard/components/OwnerPhoneAlert.tsx`
+
+**→ Keep inline in /dashboard/page.tsx (CORE):**
+- Greeting + filters (now imported from components)
+- KPI cards (A cobrar, Socios, Asistencias, Morosos)
+- Recent members list
+- WhatsApp bot activity
+- Quick actions (now imported from components)
+- Compact charts (sparklines)
+- Onboarding progress (now imported)
 
 ---
 
-### **BLOCK 1: Extract Helper Functions** (Data processing)
-**Goal:** Move metric calculations, formatters out of page.tsx
+## 6. PHASED IMPLEMENTATION PLAN (1 commit per block)
+
+### **BLOCK 0: Unify Mobile/Desktop Responsive Components** (Critical foundation)
+**Goal:** Extract + merge mobile/desktop duplicated logic into unified responsive components
+
+**Reason:** renderQuickActions, renderFilters, chart SVG logic are duplicated across mobile (l.1005, 1057, 1109, etc.) and desktop (l.1424, 1494, 1557, etc.). Extract once, reuse everywhere. Prevents duplicating this debt when moving to /reportes.
 
 **Files Created:**
-- `/lib/dashboard-metrics.ts` — Metric calculation helpers (cac(), churn(), retention(), ltv(), etc.)
-- `/lib/dashboard-formatters.ts` — Metric formatting, date helpers
+- `/app/dashboard/components/QuickActions.tsx` (unified responsive, handles both layouts)
+- `/app/dashboard/components/Filters.tsx` (unified responsive, compact param removed)
+- `/app/dashboard/components/CompactCharts.tsx` (new: sparkline/mini chart render helpers)
 
 **Files Modified:**
-- `/app/dashboard/page.tsx` (import + use helpers)
+- `/app/dashboard/page.tsx` (replace renderQuickActions(), renderFilters() with imports; simplify SVG chart logic)
 
-**Commit:** `"refactor: extract metric calculations to helper library"`
+**Commit:** `"refactor: unify mobile/desktop components into responsive QuickActions, Filters, CompactCharts"`
 
-**Testing:** Unit tests for helpers
-**Risk:** Low (data processing, no UI changes)
+**Testing:** Visual regression tests for mobile/desktop; snapshot tests
+**Risk:** Medium (responsive layout logic, needs careful testing across breakpoints)
+**Lines Changed:** +150 added (new components), -100 removed (inlined logic)
 
 ---
 
-### **BLOCK 2: Extract KPI Cards** (Responsive component)
-**Goal:** Create reusable KPI metric card component
+### **BLOCK 1: Extract Shared Helpers** (Non-breaking)
+**Goal:** Create `/lib/dashboard-helpers.ts`, move utility functions
 
 **Files Created:**
-- `/app/dashboard/components/KPICard.tsx` (number + label + trend + currency format)
+- `/lib/dashboard-helpers.ts` (utilities: fmt, initials, metricDelta, formatMetricValue, etc.)
+- `/lib/dashboard-types.ts` (move DashboardMetric, DashboardSnapshot, etc.)
 
 **Files Modified:**
-- `/app/dashboard/page.tsx` (replace inline render with <KPICard /> instances)
+- `/app/dashboard/page.tsx` (add imports from helpers, remove inline functions)
 
-**Commit:** `"refactor: extract KPI card to reusable component"`
+**Commit:** `"refactor: extract dashboard helpers to /lib/dashboard-helpers.ts"`
 
-**Testing:** Unit tests for KPICard
-**Risk:** Low (component wrapper)
+**Testing:** Unit tests for fmt, metricDelta, formatMetricValue
+**Risk:** Low (pure functions, no behavioral changes)
+
+---
+
+### **BLOCK 2: Extract Shared Helpers** (Non-breaking)
+**Goal:** Move Automatizaciones, Sugerencias, Onboarding to `/app/dashboard/components/`
+
+**Files Created:**
+- `/app/dashboard/components/AutomationStats.tsx` (30 lines)
+- `/app/dashboard/components/Suggestions.tsx` (45 lines)
+- `/app/dashboard/components/OnboardingProgress.tsx` (60 lines)
+- `/app/dashboard/components/OwnerPhoneAlert.tsx` (20 lines)
+
+**Files Modified:**
+- `/app/dashboard/page.tsx` (replace inline render functions with imports)
+
+**Commit:** `"refactor: extract secondary dashboard sections to components"`
+
+**Testing:** Snapshot tests for conditional rendering
+**Risk:** Low (just componentization, same logic)
 
 ---
 
@@ -585,9 +724,7 @@ Decidir cuando se haga split daily/reportes con cabeza fresca.
 **Propuesta:**
 1. **Stack vertical en mobile:** Título arriba, descripción debajo (flex-direction: column)
 2. **O truncar con tooltip:** Mantener row pero agregar title attribute o popover con texto completo
-3. **O reducir ancho:** Ajustar fuente/padding en mobile para que quepa
-
-Tipos de métrica afectadas:
+3. **O reducir ancho:** Ajustar fuente/padding en mobile para que quepaTipos de métrica afectadas:
 - Embudo (leads → trial → member)
 - Fidelización (churn, retention, LTV)
 - Eficiencia (CAC, ROI, efficiency)
@@ -612,5 +749,3 @@ Requiere:
 - Thresholds: <2 saturado, 2-4 saludable, >4 subutilizado
 
 **Eliminado del código por estar null sin uso.** Se puede reactivar cuando haya soporte para cargar m² del local.
-
----
