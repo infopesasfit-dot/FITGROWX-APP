@@ -39,6 +39,12 @@ export default function ReporteMesPage({ params }: PageProps) {
   const [isCurrent, setIsCurrent] = useState(false);
   const [metricSectionOpen, setMetricSectionOpen] = useState<Record<string, boolean>>({ Embudo: false, Fidelización: false, Eficiencia: false });
   const [activeInfo, setActiveInfo] = useState<{ title: string; body: string } | null>(null);
+  const [isClosed, setIsClosed] = useState(false);
+  const [closedAt, setClosedAt] = useState<string | null>(null);
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closeLoading, setCloseLoading] = useState(false);
+  const [closeError, setCloseError] = useState<string | null>(null);
+  const [closeSuccess, setCloseSuccess] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -93,7 +99,22 @@ export default function ReporteMesPage({ params }: PageProps) {
         setSnapshot(data.snapshot);
 
         // Check if current month
-        setIsCurrent(year === currentYear && month === currentMonth);
+        const isCurr = year === currentYear && month === currentMonth;
+        setIsCurrent(isCurr);
+
+        // Check if month is closed (query monthly_reports)
+        if (!isCurr) {
+          const { data: reportData } = await supabase
+            .from("monthly_reports")
+            .select("closed_at")
+            .eq("year_month", mesParam)
+            .maybeSingle();
+
+          if (reportData) {
+            setIsClosed(true);
+            setClosedAt(reportData.closed_at);
+          }
+        }
       } catch (err) {
         console.error("Failed to fetch dashboard:", err);
       } finally {
@@ -106,6 +127,35 @@ export default function ReporteMesPage({ params }: PageProps) {
 
   const [year, month] = mes.split("-").map(Number);
   const monthName = MONTH_NAMES[month - 1];
+
+  const handleClose = async () => {
+    setCloseError(null);
+    setCloseLoading(true);
+    try {
+      const response = await fetch("/api/admin/reportes/cerrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year_month: mes }),
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setCloseSuccess(true);
+        setTimeout(() => {
+          setShowCloseModal(false);
+          router.refresh();
+        }, 800);
+      } else if (response.status === 409) {
+        setCloseError(`${monthName} ${year} ya está cerrado.`);
+      } else {
+        setCloseError(data.error || "Error al cerrar el mes.");
+      }
+    } catch (err) {
+      setCloseError((err as Error).message || "Error desconocido.");
+    } finally {
+      setCloseLoading(false);
+    }
+  };
 
   return (
     <div style={{
@@ -157,9 +207,63 @@ export default function ReporteMesPage({ params }: PageProps) {
           font: "400 0.95rem/1.5 var(--font-family-body, 'Inter', sans-serif)",
           color: "var(--color-text-2, #6B7280)",
         }}>
-          {isCurrent ? "Reporte en curso" : "Reporte completado"}
+          {isCurrent
+            ? "Reporte en curso"
+            : isClosed
+              ? `Cerraste este mes el ${new Date(closedAt!).toLocaleDateString("es-AR")}`
+              : "Reporte completado"}
         </p>
       </header>
+
+      {/* Close Month Banner (past month not closed) */}
+      {!loading && !isCurrent && !isClosed && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "12px 16px",
+          background: "rgba(234, 120, 34, 0.08)",
+          border: "1px solid rgba(234, 120, 34, 0.2)",
+          borderRadius: 10,
+          gap: 12,
+        }}>
+          <p style={{
+            margin: 0,
+            font: "500 0.9rem/1.4 var(--font-family-body, 'Inter', sans-serif)",
+            color: "#EA7822",
+            flex: 1,
+          }}>
+            Cerrá este mes para guardar los números definitivos.
+          </p>
+          <button
+            onClick={() => {
+              setCloseError(null);
+              setCloseSuccess(false);
+              setShowCloseModal(true);
+            }}
+            style={{
+              padding: "8px 16px",
+              borderRadius: 8,
+              background: "#EA7822",
+              color: "white",
+              border: "none",
+              font: "600 0.85rem/1 var(--font-family-body, 'Inter', sans-serif)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "#D46A1A";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "#EA7822";
+            }}
+          >
+            Cerrar mes
+          </button>
+        </div>
+      )}
 
       {/* Metrics Grid */}
       {loading ? (
@@ -439,6 +543,267 @@ export default function ReporteMesPage({ params }: PageProps) {
                 >
                   Cerrar
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Close month modal */}
+          {showCloseModal && snapshot && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0,0,0,0.5)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 50,
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setShowCloseModal(false);
+                }
+              }}
+              tabIndex={0}
+            >
+              <div
+                style={{
+                  background: "white",
+                  borderRadius: 12,
+                  padding: "24px 20px",
+                  maxWidth: "500px",
+                  width: "90%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 20,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {closeSuccess ? (
+                  <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{
+                      fontSize: "3rem",
+                      lineHeight: 1,
+                    }}>
+                      ✓
+                    </div>
+                    <div>
+                      <h2 style={{
+                        margin: "0 0 8px",
+                        font: "700 1.25rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                        color: "#22C55E",
+                      }}>
+                        Listo, mes cerrado
+                      </h2>
+                      <p style={{
+                        margin: 0,
+                        font: "400 0.9rem/1.5 var(--font-family-body, 'Inter', sans-serif)",
+                        color: "var(--color-text-2, #6B7280)",
+                      }}>
+                        Guardando datos definitivos...
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h2 style={{
+                      margin: "0 0 12px",
+                      font: "700 1.25rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                      color: "var(--color-text-1, #1A1D23)",
+                    }}>
+                      Cerrar {monthName} {year}
+                    </h2>
+                    <p style={{
+                      margin: 0,
+                      font: "400 0.9rem/1.5 var(--font-family-body, 'Inter', sans-serif)",
+                      color: "var(--color-text-2, #6B7280)",
+                    }}>
+                      Revisá los números antes de cerrar
+                    </p>
+                  </div>
+                )}
+
+                {!closeSuccess && (
+                  <>
+                    {/* Summary Grid */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gap: 12,
+                  padding: "12px",
+                  background: "rgba(0,0,0,0.02)",
+                  borderRadius: 8,
+                }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <p style={{
+                      margin: 0,
+                      font: "500 0.75rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                      color: "var(--color-text-2, #6B7280)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}>
+                      Cobrado
+                    </p>
+                    <p style={{
+                      margin: 0,
+                      font: "700 1rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                      color: "var(--color-text-1, #1A1D23)",
+                    }}>
+                      {fmt(snapshot.recaudadoEsteMes ?? 0)}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <p style={{
+                      margin: 0,
+                      font: "500 0.75rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                      color: "var(--color-text-2, #6B7280)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}>
+                      Margen
+                    </p>
+                    <p style={{
+                      margin: 0,
+                      font: "700 1rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                      color: "var(--color-text-1, #1A1D23)",
+                    }}>
+                      {fmt((snapshot.recaudadoEsteMes ?? 0) - (snapshot.gastosTotal ?? 0))}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <p style={{
+                      margin: 0,
+                      font: "500 0.75rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                      color: "var(--color-text-2, #6B7280)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}>
+                      Altas
+                    </p>
+                    <p style={{
+                      margin: 0,
+                      font: "700 1rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                      color: "#22C55E",
+                    }}>
+                      +{snapshot.altasMes ?? 0}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <p style={{
+                      margin: 0,
+                      font: "500 0.75rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                      color: "var(--color-text-2, #6B7280)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}>
+                      Bajas
+                    </p>
+                    <p style={{
+                      margin: 0,
+                      font: "700 1rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                      color: "#EF4444",
+                    }}>
+                      -{snapshot.bajasMes ?? 0}
+                    </p>
+                  </div>
+                  <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: 4 }}>
+                    <p style={{
+                      margin: 0,
+                      font: "500 0.75rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                      color: "var(--color-text-2, #6B7280)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}>
+                      Variación Neta
+                    </p>
+                    <p style={{
+                      margin: 0,
+                      font: "700 1.1rem/1 var(--font-family-display, 'Inter', sans-serif)",
+                      color: snapshot.variacionNeta >= 0 ? "#22C55E" : "#EF4444",
+                    }}>
+                      {snapshot.variacionNeta >= 0 ? "+" : ""}
+                      {snapshot.variacionNeta}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Warning */}
+                <div style={{
+                  padding: "12px",
+                  background: "rgba(239, 68, 68, 0.08)",
+                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                  borderRadius: 8,
+                }}>
+                  <p style={{
+                    margin: 0,
+                    font: "400 0.85rem/1.5 var(--font-family-body, 'Inter', sans-serif)",
+                    color: "#EF4444",
+                  }}>
+                    ⚠️ Una vez cerrado, este reporte queda guardado y ya no podés cambiar los números.
+                  </p>
+                </div>
+
+                {/* Error message */}
+                {closeError && (
+                  <div style={{
+                    padding: "12px",
+                    background: "rgba(239, 68, 68, 0.08)",
+                    border: "1px solid rgba(239, 68, 68, 0.2)",
+                    borderRadius: 8,
+                  }}>
+                    <p style={{
+                      margin: 0,
+                      font: "400 0.85rem/1.5 var(--font-family-body, 'Inter', sans-serif)",
+                      color: "#EF4444",
+                    }}>
+                      {closeError}
+                    </p>
+                  </div>
+                )}
+
+                    {/* Buttons */}
+                    <div style={{
+                      display: "flex",
+                      gap: 12,
+                      justifyContent: "flex-end",
+                    }}>
+                      <button
+                        onClick={() => setShowCloseModal(false)}
+                        disabled={closeLoading}
+                        style={{
+                          padding: "10px 20px",
+                          borderRadius: 8,
+                          background: "var(--bg-card, #FFFFFF)",
+                          border: "1px solid rgba(15,17,21,0.1)",
+                          font: "600 0.9rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                          color: "var(--color-text-1, #1A1D23)",
+                          cursor: closeLoading ? "not-allowed" : "pointer",
+                          opacity: closeLoading ? 0.5 : 1,
+                          transition: "opacity 0.15s",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleClose}
+                        disabled={closeLoading}
+                        style={{
+                          padding: "10px 20px",
+                          borderRadius: 8,
+                          background: "#EA7822",
+                          color: "white",
+                          border: "none",
+                          font: "600 0.9rem/1 var(--font-family-body, 'Inter', sans-serif)",
+                          cursor: closeLoading ? "not-allowed" : "pointer",
+                          opacity: closeLoading ? 0.7 : 1,
+                          transition: "opacity 0.15s",
+                        }}
+                      >
+                        {closeLoading ? "Cerrando..." : `Cerrar ${monthName} ${year}`}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
