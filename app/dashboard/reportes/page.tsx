@@ -134,6 +134,7 @@ export default function ReportesPage() {
       }
 
       const createdDate = new Date(gym.created_at);
+      const createdMonth = new Date(createdDate.getFullYear(), createdDate.getMonth(), 1);
       setGymCreatedAt(createdDate);
 
       // Generate months from created_at to today, max 6 most recent
@@ -150,7 +151,7 @@ export default function ReportesPage() {
         const m = d.getMonth();
 
         // Stop if we've gone before gym creation
-        if (d < createdDate) break;
+        if (d < createdMonth) break;
 
         monthsList.push({
           year: y,
