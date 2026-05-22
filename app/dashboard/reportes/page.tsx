@@ -28,11 +28,12 @@ interface MonthRowProps {
   year: number;
   month: number;
   isCurrent: boolean;
+  isClosed: boolean;
   isLast: boolean;
   isDesktop: boolean;
 }
 
-function MonthRow({ year, month, isCurrent, isLast, isDesktop }: MonthRowProps) {
+function MonthRow({ year, month, isCurrent, isClosed, isLast, isDesktop }: MonthRowProps) {
   const monthName = MONTH_NAMES[month];
   const yearMonth = `${year}-${String(month + 1).padStart(2, "0")}`;
   const href = `/dashboard/reportes/${yearMonth}`;
@@ -84,10 +85,18 @@ function MonthRow({ year, month, isCurrent, isLast, isDesktop }: MonthRowProps) 
               fontSize: "0.75rem",
               fontWeight: 600,
               fontFamily: "var(--font-family-body, 'Inter', sans-serif)",
-              background: isCurrent ? "rgba(255,122,24,0.12)" : "rgba(107,114,128,0.12)",
-              color: isCurrent ? "#FF7A18" : "#6B7280",
+              background: isCurrent
+                ? "rgba(255,122,24,0.12)"
+                : isClosed
+                  ? "rgba(34,197,94,0.12)"
+                  : "rgba(251,191,36,0.12)",
+              color: isCurrent
+                ? "#FF7A18"
+                : isClosed
+                  ? "#22C55E"
+                  : "#F59E0B",
             }}>
-              {isCurrent ? "🔄 En curso" : "📊 Disponible"}
+              {isCurrent ? "🔄 En curso" : isClosed ? "✅ Cerrado" : "⏳ Pendiente"}
             </span>
           </div>
           <p style={{
@@ -95,7 +104,11 @@ function MonthRow({ year, month, isCurrent, isLast, isDesktop }: MonthRowProps) 
             font: "400 0.85rem/1.4 var(--font-family-body, 'Inter', sans-serif)",
             color: "var(--color-text-2, #6B7280)",
           }}>
-            {isCurrent ? "Disponible al cierre del mes" : "Ver reporte completo"}
+            {isCurrent
+              ? "Disponible al cierre del mes"
+              : isClosed
+                ? "Reporte cerrado"
+                : "Pendiente de cierre"}
           </p>
         </div>
 
@@ -110,7 +123,7 @@ function MonthRow({ year, month, isCurrent, isLast, isDesktop }: MonthRowProps) 
 export default function ReportesPage() {
   const isDesktop = useIsDesktop();
   const [loading, setLoading] = useState(true);
-  const [months, setMonths] = useState<{ year: number; month: number; isCurrent: boolean }[]>([]);
+  const [months, setMonths] = useState<{ year: number; month: number; isCurrent: boolean; isClosed: boolean }[]>([]);
   const [gymCreatedAt, setGymCreatedAt] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -160,7 +173,23 @@ export default function ReportesPage() {
         });
       }
 
-      setMonths(monthsList);
+      // Query monthly_reports to check which months are closed
+      const { data: closed } = await supabase
+        .from("monthly_reports")
+        .select("year_month")
+        .eq("gym_id", profile.gymId);
+
+      const closedSet = new Set(closed?.map(r => r.year_month) ?? []);
+
+      // Add isClosed field to each month
+      const monthsWithClosed = monthsList.map(({ year, month, isCurrent }) => ({
+        year,
+        month,
+        isCurrent,
+        isClosed: closedSet.has(`${year}-${String(month + 1).padStart(2, "0")}`),
+      }));
+
+      setMonths(monthsWithClosed);
       setLoading(false);
     };
 
@@ -230,12 +259,13 @@ export default function ReportesPage() {
           flexDirection: "column",
           overflow: "hidden",
         }}>
-          {months.map(({ year, month, isCurrent }, index) => (
+          {months.map(({ year, month, isCurrent, isClosed }, index) => (
             <MonthRow
               key={`${year}-${month}`}
               year={year}
               month={month}
               isCurrent={isCurrent}
+              isClosed={isClosed}
               isLast={index === months.length - 1}
               isDesktop={isDesktop}
             />

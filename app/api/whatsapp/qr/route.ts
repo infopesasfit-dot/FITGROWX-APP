@@ -1,10 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyRateLimit } from "@/lib/request-security";
 
 const QR_TIMEOUT_MS = 13_000;
 
 export async function GET(req: NextRequest) {
-  const gymId = req.nextUrl.searchParams.get("gym_id");
-  if (!gymId) return NextResponse.json({ error: "gym_id requerido" }, { status: 400 });
+  // ── 1. Authenticate user ────────────────────────────────────────────────────
+  const supabaseServer = await createSupabaseServerClient();
+  const { data: { user } } = await supabaseServer.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  }
+
+  // ── 2. Get user's gym_id and verify role (owner/admin) ─────────────────────
+  const admin = getSupabaseAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("gym_id, role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile?.gym_id || !["owner", "admin"].includes(profile.role)) {
+    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+  }
+
+  const gymId = profile.gym_id;
+
+  // ── 3. Apply rate limit ─────────────────────────────────────────────────────
+  const rl = await applyRateLimit({
+    namespace: "wa_qr",
+    identifier: `${user.id}:${gymId}`,
+    windowMs: 60_000,
+    maxAttempts: 10,
+  });
+
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit excedido. Reintentá más tarde." },
+      { status: 429 }
+    );
+  }
 
   // ── 1. Pull directly from Railway WA motor ───────────────────────────────
   const baseUrl = process.env.WA_MOTOR_URL;
@@ -41,8 +78,7 @@ export async function GET(req: NextRequest) {
       {
         error: isTimeout
           ? `Motor no respondió en ${QR_TIMEOUT_MS / 1000}s`
-          : `Error de red al contactar el motor: ${cause}`,
-        debug: { endpoint, isTimeout, cause },
+          : "Error de red al contactar el motor",
       },
       { status: 504 },
     );
@@ -67,8 +103,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
-        error: `Motor respondió HTTP ${res.status}`,
-        debug: { httpStatus: res.status, httpStatusText: res.statusText, body: errorBody },
+        error: `Motor no disponible (HTTP ${res.status})`,
       },
       { status: res.status },
     );
