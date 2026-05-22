@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getTodayDate } from "@/lib/date-utils";
-import { calculateSnapshot } from "@/lib/dashboard-calculations";
+import { calculateSnapshot, getMetaOnly } from "@/lib/dashboard-calculations";
 
 type DateFilter = "hoy" | "semana" | "mes";
 
@@ -34,6 +34,14 @@ function getDateRange(filter: DateFilter) {
     return { from: isoDate(d), to };
   }
   return { from: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`, to };
+}
+
+function checkFullMonth(from: string, to: string): boolean {
+  if (!/^\d{4}-\d{2}-01$/.test(from)) return false;
+  const [year, month] = from.split("-").map(Number);
+  const monthEnd = new Date(year, month, 0).getDate();
+  const expectedTo = `${from.slice(0, 7)}-${String(monthEnd).padStart(2, "0")}`;
+  return to === expectedTo;
 }
 
 export async function GET(req: NextRequest) {
@@ -78,8 +86,33 @@ export async function GET(req: NextRequest) {
   const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const SNAPSHOT_TTL_MS = 10 * 60 * 1000;
 
+  // ── Check for closed month snapshot ────────────────────────────────────────
+  let snapshot: unknown | undefined;
+  let meta: {
+    gymName: string;
+    ownerName: string;
+    waStatus: "active" | "disconnected" | "qr" | "unknown";
+    lastCronRun: { ran_at: string; status: string; summary: string | null } | null;
+  } | undefined;
+
+  const isFullMonth = checkFullMonth(from, to);
+  if (isFullMonth) {
+    const yearMonth = from.slice(0, 7);
+    const { data: closed } = await admin
+      .from("monthly_reports")
+      .select("snapshot_data")
+      .eq("gym_id", gymId)
+      .eq("year_month", yearMonth)
+      .maybeSingle();
+
+    if (closed?.snapshot_data) {
+      snapshot = closed.snapshot_data;
+      meta = await getMetaOnly(admin, gymId, { ownerName: profile.full_name ?? undefined });
+    }
+  }
+
   // ── Fast path: serve from pre-computed snapshot ──────────────────────────
-  if (isCurrentMonth && !fromParam) {
+  if (isCurrentMonth && !fromParam && !snapshot) {
     const { data: snapRow } = await admin
       .from("dashboard_snapshots")
       .select("payload, computed_at")
@@ -95,26 +128,37 @@ export async function GET(req: NextRequest) {
       ]);
       const payload = snapRow.payload as Record<string, unknown>;
       const snap    = payload.snapshot as Record<string, unknown>;
+      meta = {
+        gymName: (payload as Record<string, unknown>).gymName as string ?? "tu gym",
+        ownerName: (payload as Record<string, unknown>).ownerName as string ?? "dueño",
+        waStatus: (liveSettings?.wa_status ?? "unknown") as "active" | "disconnected" | "qr" | "unknown",
+        lastCronRun: (payload as Record<string, unknown>).lastCronRun as { ran_at: string; status: string; summary: string | null } | null ?? null,
+      };
       return NextResponse.json({
         ...payload,
         fetchedAt: new Date().toISOString(),
-        waStatus:  (liveSettings?.wa_status ?? "unknown") as "active" | "disconnected" | "qr" | "unknown",
-        snapshot:  { ...snap, asistHoy: asistHoy ?? 0 },
+        waStatus: meta.waStatus,
+        snapshot: { ...snap, asistHoy: asistHoy ?? 0 },
       });
     }
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  const { snapshot, meta } = await calculateSnapshot(
-    admin,
-    gymId,
-    from,
-    to,
-    today,
-    todayStr,
-    fromParam,
-    { ownerName: profile.full_name ?? undefined }
-  );
+  // Fallback: calculate snapshot if not found in closed months or not full month
+  if (!snapshot || !meta) {
+    const result = await calculateSnapshot(
+      admin,
+      gymId,
+      from,
+      to,
+      today,
+      todayStr,
+      fromParam,
+      { ownerName: profile.full_name ?? undefined }
+    );
+    snapshot = result.snapshot;
+    meta = result.meta;
+  }
 
   const responseBody = {
     ok: true,

@@ -97,6 +97,61 @@ function averageMonthsFromCreated(rows: AlumnoMetricRow[]) {
   return months.reduce((sum, value) => sum + value, 0) / months.length;
 }
 
+// ── Get meta information only (for closed months) ──────────────────────────
+export async function getMetaOnly(
+  admin: SupabaseClient,
+  gymId: string,
+  options?: { ownerName?: string }
+): Promise<{
+  gymName: string;
+  ownerName: string;
+  waStatus: "active" | "disconnected" | "qr" | "unknown";
+  lastCronRun: { ran_at: string; status: string; summary: string | null } | null;
+}> {
+  const [
+    { data: gymSettings },
+    { data: gymRow },
+    { data: lastCronRunRows },
+  ] = await Promise.all([
+    admin
+      .from("gym_settings")
+      .select("gym_name, owner_name, wa_status")
+      .eq("gym_id", gymId)
+      .maybeSingle<GymSettingsRow>(),
+    admin
+      .from("gyms")
+      .select("name, owner_name")
+      .eq("id", gymId)
+      .maybeSingle<GymRow>(),
+    admin
+      .from("cron_runs")
+      .select("ran_at, status, summary")
+      .eq("cron_name", "vencimientos")
+      .order("ran_at", { ascending: false })
+      .limit(1),
+  ]);
+
+  const gymDisplay =
+    gymSettings?.gym_name?.trim() ||
+    gymRow?.name?.trim() ||
+    "tu gym";
+
+  const lastCronRun = lastCronRunRows?.[0] as
+    | { ran_at: string; status: string; summary: string | null }
+    | undefined;
+
+  return {
+    gymName: gymDisplay,
+    ownerName: options?.ownerName ?? "dueño",
+    waStatus: (gymSettings?.wa_status ?? "unknown") as
+      | "active"
+      | "disconnected"
+      | "qr"
+      | "unknown",
+    lastCronRun: lastCronRun ?? null,
+  };
+}
+
 // ── Main calculation function ──────────────────────────────────────────────
 export async function calculateSnapshot(
   admin: SupabaseClient,
