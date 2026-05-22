@@ -1958,7 +1958,10 @@ function PlatformPage() {
                 try {
                   const res = await fetch("/api/whatsapp/wipe", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                      "Content-Type": "application/json",
+                      "X-Confirm-Wipe": "true",
+                    },
                     body: JSON.stringify({ gymId: "fitgrowx-platform" }),
                   });
                   if (res.ok) {

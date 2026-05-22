@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { assertPlatformOwner } from "@/lib/auth-platform";
 
 const sb = getSupabaseAdminClient();
 
 const VALID_STATUSES = ["trial_setup", "trial_active", "trial_risk", "converted", "churned"] as const;
 type AccountStatus = typeof VALID_STATUSES[number];
-
-async function assertPlatformOwner() {
-  const sbUser = await createSupabaseServerClient();
-  const { data: { user } } = await sbUser.auth.getUser();
-  if (!user) return null;
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  return profile?.role === "platform_owner" ? user : null;
-}
 
 // PATCH /api/platform/accounts — update platform_account status
 export async function PATCH(req: NextRequest) {

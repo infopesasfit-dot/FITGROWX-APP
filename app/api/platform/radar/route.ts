@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { assertPlatformOwner } from "@/lib/auth-platform";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  // Verificar que el caller sea platform_owner
-  const sbUser = await createSupabaseServerClient();
-  const { data: { user } } = await sbUser.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const sb = getSupabaseAdminClient();
-  const { data: profile } = await sb
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "platform_owner") {
+  if (!await assertPlatformOwner()) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const sb = getSupabaseAdminClient();
 
   const now = new Date();
   const h1ago = new Date(now.getTime() - 60 * 60 * 1000).toISOString();

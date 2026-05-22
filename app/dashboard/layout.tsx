@@ -172,6 +172,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [userName,         setUserName]         = useState("Admin");
   const [userInitials,     setUserInitials]     = useState("FG");
   const [prospectBadge,    setProspectBadge]    = useState(0);
+  const [hasPendingReports, setHasPendingReports] = useState(false);
   const [trialDaysLeft,    setTrialDaysLeft]    = useState<number | null>(null);
   const [trialExpired,     setTrialExpired]     = useState(false);
   const [isSubscribed,     setIsSubscribed]     = useState(false);
@@ -342,6 +343,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     void ensureLoaded(gymId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gymId, notifOpen]);
+
+  // Check for pending reports on load
+  useEffect(() => {
+    if (!gymId) return;
+
+    const checkPending = async () => {
+      try {
+        const response = await fetch(`/api/admin/reportes/check-pending`);
+        const data = await response.json();
+        if (data.ok) {
+          setHasPendingReports(data.hasPendingReports ?? false);
+        }
+      } catch {}
+    };
+
+    checkPending();
+  }, [gymId]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
   const notificationsNowMs = notifs.length > 0 ? new Date(notifs[0].created_at).getTime() : 0;
@@ -608,7 +626,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 return (
                   <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={`sb-item${isActive(item.href) ? " sb-nav-active" : ""}`} title={(!isMobile && collapsed) ? item.label : undefined} onMouseEnter={() => prefetchRoute(item.href)}>
                     <Icon size={16} style={{ opacity: isActive(item.href) ? 1 : 0.65, flexShrink: 0 }} />
-                    {(isMobile || !collapsed) && <span style={{ flex: 1 }}>{item.label}</span>}
+                    {(isMobile || !collapsed) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                        <span style={{ flex: 1 }}>{item.label}</span>
+                        {item.href === "/dashboard/reportes" && hasPendingReports && (
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF7A18", flexShrink: 0 }} />
+                        )}
+                      </div>
+                    )}
                   </Link>
                 );
               })}
