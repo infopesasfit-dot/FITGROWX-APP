@@ -642,31 +642,54 @@ export default function AlumnosPage() {
     setExportMenuOpen(false);
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    const { jsPDF } = await import("jspdf");
     const rows = buildRows();
     const cols = Object.keys(rows[0] ?? {});
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Alumnos</title>
-<style>
-  body{font-family:system-ui,sans-serif;padding:28px;color:#111}
-  h2{margin:0 0 4px;font-size:1.1rem}
-  p{margin:0 0 18px;font-size:.75rem;color:#777}
-  table{width:100%;border-collapse:collapse;font-size:.78rem}
-  th{background:#1A1D23;color:#fff;padding:8px 10px;text-align:left;font-weight:600}
-  td{padding:7px 10px;border-bottom:1px solid #eee}
-  tr:nth-child(even) td{background:#f9f9f9}
-</style></head><body>
-<h2>Lista de Alumnos</h2>
-<p>Exportado el ${new Date().toLocaleDateString("es-AR")} · ${rows.length} alumnos</p>
-<table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead>
-<tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${(r as Record<string,string>)[c]}</td>`).join("")}</tr>`).join("")}</tbody>
-</table></body></html>`;
-    const w = window.open("", "_blank");
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    setTimeout(() => { w.print(); }, 400);
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+    let yPos = margin + 10;
+
+    doc.setFontSize(14);
+    doc.text("Lista de Alumnos", margin, yPos);
+    yPos += 7;
+    doc.setFontSize(9);
+    doc.setTextColor(119, 119, 119);
+    doc.text(`Exportado el ${new Date().toLocaleDateString("es-AR")} · ${rows.length} alumnos`, margin, yPos);
+    yPos += 8;
+    doc.setTextColor(0, 0, 0);
+
+    const colWidths = cols.map(() => (pageWidth - 2 * margin) / cols.length);
+    doc.setFontSize(8);
+    doc.setFillColor(26, 29, 35);
+    doc.setTextColor(255, 255, 255);
+
+    cols.forEach((col, i) => {
+      doc.text(col, margin + colWidths.slice(0, i).reduce((a, b) => a + b, 0) + 1, yPos);
+    });
+    yPos += 5;
+
+    doc.setTextColor(0, 0, 0);
+    rows.forEach((row, rowIdx) => {
+      if (yPos > pageHeight - margin) {
+        doc.addPage();
+        yPos = margin;
+      }
+      cols.forEach((col, colIdx) => {
+        const text = String((row as Record<string, string>)[col] ?? "");
+        const x = margin + colWidths.slice(0, colIdx).reduce((a, b) => a + b, 0) + 1;
+        if (rowIdx % 2 === 0) {
+          doc.setFillColor(249, 249, 249);
+          doc.rect(x - 0.5, yPos - 3, colWidths[colIdx], 4, "F");
+        }
+        doc.text(text.substring(0, 30), x, yPos);
+      });
+      yPos += 4;
+    });
+
+    doc.save(`alumnos_${new Date().toISOString().slice(0, 10)}.pdf`);
     setExportMenuOpen(false);
   };
 

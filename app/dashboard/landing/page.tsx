@@ -270,6 +270,7 @@ export default function LandingBuilderPage() {
   const [logoFile,      setLogoFile]      = useState<File | null>(null);
   const [logoPreview,   setLogoPreview]   = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError,     setLogoError]     = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -531,6 +532,15 @@ export default function LandingBuilderPage() {
                             onChange={e => {
                               const f = e.target.files?.[0];
                               if (!f) return;
+                              if (f.size > 2 * 1024 * 1024) {
+                                setLogoError("El archivo no puede superar 2 MB.");
+                                return;
+                              }
+                              if (!f.type.startsWith("image/")) {
+                                setLogoError("Solo se aceptan imágenes PNG, JPG, SVG o WEBP.");
+                                return;
+                              }
+                              setLogoError(null);
                               setLogoPreview(URL.createObjectURL(f));
                               setLogoFile(f);
                               handleLogoUpload(f);
@@ -544,7 +554,7 @@ export default function LandingBuilderPage() {
                           </button>
                         )}
                       </div>
-                      <p style={{ font: `400 0.72rem/1.4 ${fd}`, color: t3, margin: 0 }}>PNG, JPG o SVG · Se sube automáticamente al elegir.</p>
+                      <p style={{ font: `400 0.72rem/1.4 ${fd}`, color: logoError ? "#EF4444" : t3, margin: 0 }}>{logoError ?? "PNG, JPG o SVG · Se sube automáticamente al elegir."}</p>
                     </div>
                   </div>
                 </div>

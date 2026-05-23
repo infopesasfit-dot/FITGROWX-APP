@@ -849,7 +849,7 @@ function AlumnoPanelInner() {
       });
       const d = await res.json();
       if (d.init_point) {
-        window.open(d.init_point, "_blank");
+        window.open(d.init_point, "_blank", "noopener,noreferrer");
       } else {
         showToast(d.error ?? "No se pudo generar el link de pago.", false);
       }

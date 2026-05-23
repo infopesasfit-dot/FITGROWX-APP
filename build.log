@@ -1,0 +1,206 @@
+
+> fitgrowx@0.1.0 build
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 13.5s
+  Running TypeScript ...
+  Finished TypeScript in 13.7s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/159) ...
+  Generating static pages using 7 workers (39/159) 
+  Generating static pages using 7 workers (79/159) 
+  Generating static pages using 7 workers (119/159) 
+✓ Generating static pages using 7 workers (159/159) in 356ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /alumno/auth
+├ ○ /alumno/dev-login
+├ ○ /alumno/login
+├ ○ /alumno/panel
+├ ○ /alumno/preview
+├ ƒ /api/admin/alumno-progreso
+├ ƒ /api/admin/alumnos
+├ ƒ /api/admin/alumnos/freeze
+├ ƒ /api/admin/alumnos/pay-link
+├ ƒ /api/admin/asistencias-stats
+├ ƒ /api/admin/asistencias/[id]
+├ ƒ /api/admin/bot-activity
+├ ƒ /api/admin/checkin-manual
+├ ƒ /api/admin/clase/cancelar-instancia
+├ ƒ /api/admin/classes
+├ ƒ /api/admin/dashboard
+├ ƒ /api/admin/email-blast
+├ ƒ /api/admin/guest-passes
+├ ƒ /api/admin/invalidate-tokens
+├ ƒ /api/admin/molinete-emergency
+├ ƒ /api/admin/molinete-key
+├ ƒ /api/admin/monthly-dashboard-report
+├ ƒ /api/admin/pagos/void
+├ ƒ /api/admin/reportes/cerrar
+├ ƒ /api/admin/reportes/check-pending
+├ ƒ /api/admin/staff
+├ ƒ /api/alumno/asistencias
+├ ƒ /api/alumno/bootstrap
+├ ƒ /api/alumno/checkin
+├ ƒ /api/alumno/checkin-publico
+├ ƒ /api/alumno/clases
+├ ƒ /api/alumno/fotos
+├ ƒ /api/alumno/guest-pass
+├ ƒ /api/alumno/gym-info
+├ ƒ /api/alumno/hitos
+├ ƒ /api/alumno/logout
+├ ƒ /api/alumno/me
+├ ƒ /api/alumno/medidas
+├ ƒ /api/alumno/notificaciones
+├ ƒ /api/alumno/notify-rutina
+├ ƒ /api/alumno/pagar
+├ ƒ /api/alumno/pagar-link
+├ ƒ /api/alumno/pesos
+├ ƒ /api/alumno/push-subscribe
+├ ƒ /api/alumno/push-unsubscribe
+├ ƒ /api/alumno/ranking
+├ ƒ /api/alumno/request-access
+├ ƒ /api/alumno/reservar
+├ ƒ /api/alumno/rutina
+├ ƒ /api/alumno/send-welcome
+├ ƒ /api/alumno/session
+├ ƒ /api/alumno/set-session
+├ ƒ /api/alumno/share-card
+├ ƒ /api/alumno/verify-token
+├ ƒ /api/alumno/workout-log
+├ ƒ /api/auth/callback
+├ ƒ /api/auth/sensitive-otp
+├ ƒ /api/auth/sensitive-otp/verify
+├ ƒ /api/cron/ausentes
+├ ƒ /api/cron/ausentes-trigger
+├ ƒ /api/cron/clase-gratis-followup
+├ ƒ /api/cron/contactos-followup
+├ ƒ /api/cron/cumpleanos
+├ ƒ /api/cron/monthly-dashboard-report
+├ ƒ /api/cron/platform-notifs
+├ ƒ /api/cron/push-notifications
+├ ƒ /api/cron/staff-payment-reminders
+├ ƒ /api/cron/trial-check
+├ ƒ /api/cron/vencimientos
+├ ƒ /api/cron/wa-keepalive
+├ ƒ /api/cron/wa-queue-flush
+├ ƒ /api/emilio
+├ ƒ /api/feedback
+├ ƒ /api/guest-pass/[token]
+├ ƒ /api/guest-pass/[token]/claim
+├ ƒ /api/gym/delete
+├ ƒ /api/gym/lead
+├ ƒ /api/gym/public-info
+├ ƒ /api/gym/reservar-clase-gratis
+├ ƒ /api/gym/select-plan
+├ ƒ /api/gym/webhook-url
+├ ƒ /api/health
+├ ƒ /api/manifest
+├ ƒ /api/molinete/access
+├ ƒ /api/molinete/emergency-poll
+├ ƒ /api/mp/cancel-subscription
+├ ƒ /api/mp/create-preference
+├ ƒ /api/mp/create-subscription
+├ ƒ /api/mp/gym-webhook
+├ ƒ /api/mp/webhook
+├ ƒ /api/notifications
+├ ƒ /api/onboarding/test-wa
+├ ƒ /api/platform/accounts
+├ ƒ /api/platform/crm
+├ ƒ /api/platform/feedback
+├ ƒ /api/platform/leads
+├ ƒ /api/platform/overview
+├ ƒ /api/platform/ping
+├ ƒ /api/platform/pulso
+├ ƒ /api/platform/radar
+├ ƒ /api/platform/reprocess-payment
+├ ƒ /api/platform/resellers
+├ ƒ /api/platform/resellers/applications
+├ ƒ /api/platform/resellers/delete
+├ ƒ /api/platform/resellers/onboard
+├ ƒ /api/platform/resellers/resend-wa
+├ ƒ /api/platform/sync-signup
+├ ƒ /api/platform/trigger-cron
+├ ƒ /api/platform/vault
+├ ƒ /api/platform/wa-health
+├ ƒ /api/platform/wa-templates
+├ ƒ /api/platform/wa-templates/test
+├ ƒ /api/platform/webhook-log
+├ ƒ /api/reseller/apply
+├ ƒ /api/reseller/me
+├ ƒ /api/reseller/profile
+├ ƒ /api/reseller/track
+├ ƒ /api/reseller/withdrawal
+├ ƒ /api/reserva/book
+├ ƒ /api/rutina/sugerir
+├ ƒ /api/support-chat
+├ ƒ /api/upsell/lead
+├ ƒ /api/user/export-alumnos-csv
+├ ƒ /api/user/export-data
+├ ƒ /api/wa/proxy
+├ ƒ /api/webhooks/wa-motor
+├ ƒ /api/whatsapp/qr
+├ ƒ /api/whatsapp/restart
+├ ƒ /api/whatsapp/send
+├ ƒ /api/whatsapp/session
+├ ƒ /api/whatsapp/session/reset
+├ ƒ /api/whatsapp/status
+├ ƒ /api/whatsapp/webhook
+├ ƒ /api/whatsapp/wipe
+├ ƒ /auth/callback
+├ ƒ /checkin/[gymId]
+├ ○ /dashboard
+├ ○ /dashboard/ajustes
+├ ○ /dashboard/alumnos
+├ ○ /dashboard/asistencias
+├ ○ /dashboard/automatizaciones
+├ ○ /dashboard/automatizaciones/flujos
+├ ƒ /dashboard/boveda
+├ ƒ /dashboard/boveda/categoria/[slug]
+├ ƒ /dashboard/boveda/recurso/[slug]
+├ ○ /dashboard/clases
+├ ○ /dashboard/egresos
+├ ○ /dashboard/landing
+├ ○ /dashboard/membresias
+├ ○ /dashboard/mi-progreso
+├ ○ /dashboard/pagos
+├ ○ /dashboard/planes
+├ ○ /dashboard/prospectos
+├ ○ /dashboard/reportes
+├ ƒ /dashboard/reportes/[mes]
+├ ○ /dashboard/scanner
+├ ○ /dashboard/suscripcion
+├ ○ /faq
+├ ○ /guia
+├ ƒ /gym/[slug]
+├ ƒ /gym/[slug]/reservar
+├ ○ /icon.png
+├ ○ /onboarding
+├ ƒ /pase/[token]
+├ ○ /platform
+├ ○ /platform/dev
+├ ○ /platform/pagos
+├ ○ /platform/pulso
+├ ○ /platform/radar
+├ ○ /platform/resellers
+├ ○ /privacidad
+├ ○ /reseller
+├ ○ /reseller/portal
+├ ƒ /reserva/[gymId]
+├ ○ /reset-password
+├ ○ /start
+└ ○ /terminos
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
