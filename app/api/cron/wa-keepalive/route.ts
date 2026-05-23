@@ -44,7 +44,10 @@ export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
   const motorUrl = process.env.WA_MOTOR_URL;
-  if (!motorUrl) return NextResponse.json({ error: "WA_MOTOR_URL no configurado." }, { status: 500 });
+  if (!motorUrl) {
+    console.error("[WA-KEEPALIVE] WA_MOTOR_URL no está configurado en las variables de entorno");
+    return NextResponse.json({ error: "Servicio no disponible." }, { status: 500 });
+  }
 
   const headers: Record<string, string> = {};
   if (process.env.WA_MOTOR_API_KEY) headers["x-api-key"] = process.env.WA_MOTOR_API_KEY;

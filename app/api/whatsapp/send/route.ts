@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.WA_MOTOR_URL;
   if (!baseUrl) {
     console.error(`[WA SEND] ${new Date().toISOString()} ${endpoint} error config request_id=${requestId} gym_id=${gym_id} phone=${phoneRef} reason=WA_MOTOR_URL_missing`);
-    return NextResponse.json({ error: "WA_MOTOR_URL not configured" }, { status: 500 });
+    return NextResponse.json({ error: "Servicio no disponible." }, { status: 500 });
   }
 
   const headers: Record<string, string> = {

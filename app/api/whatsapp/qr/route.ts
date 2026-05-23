@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   const baseUrl = process.env.WA_MOTOR_URL;
   if (!baseUrl) {
     console.error("[WA-QR] WA_MOTOR_URL no está configurado en las variables de entorno");
-    return NextResponse.json({ error: "WA_MOTOR_URL not configured" }, { status: 500 });
+    return NextResponse.json({ error: "Servicio no disponible." }, { status: 500 });
   }
 
   const headers: Record<string, string> = {};
@@ -76,9 +76,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
-        error: isTimeout
-          ? `Motor no respondió en ${QR_TIMEOUT_MS / 1000}s`
-          : "Error de red al contactar el motor",
+        error: "Servicio temporalmente no disponible.",
       },
       { status: 504 },
     );
@@ -103,7 +101,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(
       {
-        error: `Motor no disponible (HTTP ${res.status})`,
+        error: "Servicio no disponible.",
       },
       { status: res.status },
     );
@@ -130,7 +128,7 @@ export async function GET(req: NextRequest) {
       `\n  content-type=${contentType}`,
       `\n  parseError=${parseErr instanceof Error ? parseErr.message : String(parseErr)}`,
     );
-    return NextResponse.json({ error: "El motor devolvió JSON inválido" }, { status: 502 });
+    return NextResponse.json({ error: "Servicio no disponible." }, { status: 502 });
   }
 
   const image = (data.image ?? data.qr ?? data.data) as string | undefined;

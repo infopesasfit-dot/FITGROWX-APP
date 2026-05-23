@@ -9,7 +9,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 export async function POST(req: NextRequest) {
   if (!MP_ACCESS_TOKEN || MP_ACCESS_TOKEN === "TU_ACCESS_TOKEN_MP_AQUI") {
-    return NextResponse.json({ error: "MP_ACCESS_TOKEN no configurado" }, { status: 500 });
+    console.error("[MP] MP_ACCESS_TOKEN no está configurado en las variables de entorno");
+    return NextResponse.json({ error: "Servicio de pagos no disponible." }, { status: 500 });
   }
 
   const supabase = await createSupabaseServerClient();

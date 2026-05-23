@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.WA_MOTOR_URL;
   if (!baseUrl) {
     console.error("[WA-RESET] WA_MOTOR_URL no configurado");
-    return NextResponse.json({ error: "WA_MOTOR_URL not configured" }, { status: 500 });
+    return NextResponse.json({ error: "Servicio no disponible." }, { status: 500 });
   }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
