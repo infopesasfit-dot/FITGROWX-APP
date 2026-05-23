@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
+import { createHash } from "crypto";
 
 const sb = getSupabaseAdminClient();
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
@@ -32,27 +33,34 @@ export async function POST(req: NextRequest) {
   const plan = alumno.planes as unknown as { nombre: string; precio: number } | null;
   if (!plan?.precio) return NextResponse.json({ error: "El alumno no tiene plan con precio asignado" }, { status: 400 });
 
-  // Reusar token vigente o crear uno nuevo
   const now = new Date();
   const { data: existing } = await sb
     .from("alumno_tokens")
-    .select("token")
+    .select("id")
     .eq("alumno_id", alumno_id)
+    .eq("gym_id", profile.gym_id)
     .gt("expires_at", now.toISOString())
-    .order("expires_at", { ascending: false })
-    .limit(1)
     .maybeSingle();
 
-  let token = existing?.token;
-  if (!token) {
-    token = crypto.randomUUID();
-    await sb.from("alumno_tokens").insert({
-      alumno_id,
-      gym_id: profile.gym_id,
-      token,
-      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    });
+  // Invalidate existing token to prevent hash-reuse bugs
+  if (existing) {
+    await sb
+      .from("alumno_tokens")
+      .update({ expires_at: now.toISOString() })
+      .eq("id", existing.id);
   }
+
+  // Always generate a fresh token (rawToken for URL, tokenHash for DB)
+  const rawToken = crypto.randomUUID();
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  await sb.from("alumno_tokens").insert({
+    alumno_id,
+    gym_id: profile.gym_id,
+    token: tokenHash,
+    expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+
+  let token = rawToken;
 
   const { data: settings } = await sb
     .from("gym_settings")
