@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendWa } from "@/lib/wa";
+import { normalizePhone } from "@/lib/phone";
+import { applyRateLimit } from "@/lib/request-security";
 
 const sb = getSupabaseAdminClient();
 
@@ -9,10 +11,35 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+           || req.headers.get("x-real-ip")
+           || "unknown";
+  const rl = await applyRateLimit({
+    namespace: "guest-pass-claim",
+    identifier: `${ip}::${token}`,
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 5,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Demasiados intentos. Esperá un momento." },
+      { status: 429 }
+    );
+  }
+
   const { name, phone } = await req.json();
 
   if (!name?.trim() || !phone?.trim()) {
     return NextResponse.json({ error: "Nombre y teléfono requeridos" }, { status: 400 });
+  }
+
+  const normalizedPhone = normalizePhone(phone || "");
+  if (!/^549\d{10}$/.test(normalizedPhone)) {
+    return NextResponse.json(
+      { error: "Número de teléfono inválido. Usá formato argentino." },
+      { status: 400 }
+    );
   }
 
   const { data: pass } = await sb
@@ -44,7 +71,6 @@ export async function POST(
   const expDate    = new Date(pass.expires_at).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com";
   const passUrl = `${appUrl}/pase/${token}`;
-  const normalizedPhone = phone.trim().replace(/\D/g, "");
 
   void sendWa(
     pass.gym_id,
