@@ -4,6 +4,7 @@ import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 import { getTodayDate } from "@/lib/date-utils";
+import { reservarClaseGratisSchema } from "@/lib/schemas";
 
 const supabase = getSupabaseAdminClient();
 
@@ -29,10 +30,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Demasiados intentos. Probá de nuevo en unos minutos." }, { status: 429 });
   }
 
-  const { gym_id, phone, name, clase_id, fecha, hora, clase_nombre } = await req.json();
-  if (!gym_id || !phone) {
-    return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  const parsed = reservarClaseGratisSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
   }
+  const { gym_id, phone, name, clase_id, fecha, hora, clase_nombre } = parsed.data;
 
   const phoneNorm = normalizePhone(phone);
   let prospecto = await findProspecto(gym_id, phoneNorm);
