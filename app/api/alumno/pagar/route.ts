@@ -4,6 +4,7 @@ import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
 import { logAlumnoAction } from "@/lib/alumno-logging";
+import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
 
 const MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? "";
 
@@ -50,6 +51,9 @@ export async function POST(req: NextRequest) {
   if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
     return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
   }
+
+  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60_000, maxAttempts: 5 });
+  if (!rateLimit.allowed) return rateLimit.response!;
 
   const [{ data: alumno }, { data: settings }] = await Promise.all([
     supabase
