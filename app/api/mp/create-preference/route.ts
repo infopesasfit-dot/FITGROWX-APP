@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         quantity: 1,
         currency_id: "ARS",
         unit_price: amount,
-        description: billing === "anual" ? "Plan Anual FitGrowX · Pagás 10 meses, entrenás 12" : "Plan Mensual FitGrowX",
+        description: billing === "anual" ? "Plan Anual FitGrowX · 12 meses de acceso · 2 meses gratis" : "Plan Mensual FitGrowX",
       },
     ],
     back_urls: {

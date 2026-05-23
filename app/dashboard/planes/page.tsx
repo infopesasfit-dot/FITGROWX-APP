@@ -96,7 +96,7 @@ function PlanCard({
       </div>
       {billing === "anual" && (
         <p style={{ font: `400 0.68rem/1 ${fb}`, color: "#16A34A", marginBottom: 12 }}>
-          Pagás 10, entrenás 12 · ahorrás ${formatArs(plan.savings)}
+          Plan anual · 2 meses gratis · ahorrás ${formatArs(plan.savings)}
         </p>
       )}
 
@@ -121,7 +121,7 @@ export default function PlanesPage() {
   const [mpLoading, setMpLoading] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [billing, setBilling] = useState<"mensual" | "anual">(searchParams.get("billing") === "anual" ? "anual" : "anual");
+  const [billing, setBilling] = useState<"mensual" | "anual">(searchParams.get("billing") === "mensual" ? "mensual" : "anual");
   const [selectedPlanKey, setSelectedPlanKey] = useState<string>("crecimiento");
 
   useEffect(() => {
@@ -156,13 +156,19 @@ export default function PlanesPage() {
     setMpLoading(true);
     setMpError(null);
     try {
-      const res = await fetch("/api/mp/create-preference", {
+      const endpoint = billing === "mensual"
+        ? "/api/mp/create-subscription"
+        : "/api/mp/create-preference";
+
+      const body: any = { plan_key: selectedPlan.key, billing };
+      if (billing === "mensual" && gymId) {
+        body.gym_id = gymId;
+      }
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan_key: selectedPlan.key,
-          billing,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.init_point) {
@@ -292,7 +298,7 @@ export default function PlanesPage() {
           <div style={{ padding: "16px 24px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
             <p style={{ font: `400 0.75rem/1.4 ${fb}`, color: t3, flex: 1 }}>
               {billing === "anual"
-                ? `Pago único de $${formatArs(checkoutAmount)} ARS · 10 meses + 2 de regalo.`
+                ? `Pago único de $${formatArs(checkoutAmount)} ARS · 2 meses gratis.`
                 : "Se renueva mensualmente. Cancelás cuando querés."}
             </p>
             <button
@@ -344,12 +350,12 @@ export default function PlanesPage() {
             </button>
 
             <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
-              Checkout · {billing}
+              Checkout · {billing === "mensual" ? "Suscripción Mensual" : "Pago Anual"}
             </p>
             <h2 style={{ font: `800 1.2rem/1 ${fd}`, color: t1, marginBottom: 4 }}>FitGrowX {selectedPlan.name}</h2>
             <p style={{ font: `400 0.8rem/1.45 ${fb}`, color: t2, marginBottom: 22 }}>
               {billing === "anual"
-                ? <>Pago único de <strong>${formatArs(selectedPlan.annualTotal)} ARS</strong>. Pagás 10 meses, entrenás los 12. Los 2 últimos son nuestro regalo.</>
+                ? <>Pago único de <strong>${formatArs(selectedPlan.annualTotal)} ARS</strong>. 12 meses de acceso · los 2 últimos son nuestro regalo.</>
                 : <>Primer cobro de <strong>${formatArs(selectedPlan.priceMonthly)} ARS</strong>. Cancelás cuando querés.</>}
             </p>
 

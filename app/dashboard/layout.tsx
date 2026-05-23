@@ -1009,7 +1009,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 14 }}>🎁</span>
               <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#C2410C" }}>
-                {isMobile ? "Pasate al anual: pagás 10, usás 12." : "Pasate al Plan Anual: pagás 10 meses y te regalamos 2. Sin cambios en tu workflow."}
+                {isMobile ? "Plan anual · 2 meses gratis" : "Plan anual · 2 meses gratis · pago único · Sin cambios en tu workflow."}
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
