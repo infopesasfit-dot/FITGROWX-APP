@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { applyRateLimit } from "@/lib/request-security";
 import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
@@ -43,9 +43,17 @@ function validatePhoneByCountry(phone: string, country: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  // 3 intentos por IP por hora
-  if (!rateLimit(`reseller_apply:${getClientIp(req)}`, 3, 60 * 60 * 1000)) {
-    return NextResponse.json({ error: "Demasiados intentos. Esperá un rato." }, { status: 429 });
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+           || req.headers.get("x-real-ip")
+           || "unknown";
+  const rl = await applyRateLimit({
+    namespace: "reseller-apply",
+    identifier: ip,
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 3,
+  });
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Demasiados intentos. Probá de nuevo en una hora." }, { status: 429 });
   }
 
   const { name, email, whatsapp, colleague_count, social_links, motivation, country } = await req.json();
