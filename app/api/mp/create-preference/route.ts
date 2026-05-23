@@ -26,7 +26,14 @@ export async function POST(req: NextRequest) {
   const gymId = profile?.gym_id;
   if (!gymId) return NextResponse.json({ error: "Gym no encontrado" }, { status: 404 });
 
-  const { plan_key, billing } = await req.json();
+  // Security: Only accept plan_key and billing. Price, name, and description are resolved server-side from FITGROWX_PLANS
+  const reqBody = await req.json();
+  const plan_key = reqBody.plan_key;
+  const billing = reqBody.billing;
+
+  if (!plan_key || !billing || (billing !== "anual" && billing !== "mensual")) {
+    return NextResponse.json({ error: "plan_key y billing son requeridos" }, { status: 400 });
+  }
 
   const plan = FITGROWX_PLANS.find((p) => p.key === plan_key);
   if (!plan) {

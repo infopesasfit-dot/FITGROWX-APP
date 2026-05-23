@@ -13,11 +13,19 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const { gym_id, plan_key, billing } = await req.json();
+  // Security: Only accept gym_id, plan_key, and billing. Price and description are resolved server-side from FITGROWX_PLANS
+  const reqBody = await req.json();
+  const gym_id = reqBody.gym_id;
+  const plan_key = reqBody.plan_key;
+  const billing = reqBody.billing;
+
+  if (!gym_id || !plan_key || !billing || (billing !== "anual" && billing !== "mensual")) {
+    return NextResponse.json({ error: "Faltan parámetros." }, { status: 400 });
+  }
 
   const plan = FITGROWX_PLANS.find((p) => p.key === plan_key);
-  if (!gym_id || !plan_key || !plan) {
-    return NextResponse.json({ error: "Faltan parámetros." }, { status: 400 });
+  if (!plan) {
+    return NextResponse.json({ error: "Plan inválido." }, { status: 400 });
   }
 
   const amount = billing === "anual" ? plan.annualTotal : plan.priceMonthly;
