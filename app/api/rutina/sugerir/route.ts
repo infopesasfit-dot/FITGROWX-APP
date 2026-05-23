@@ -59,7 +59,13 @@ Reglas:
 - Nombre del WOD en español o hero WOD en inglés si aplica`;
 
     try {
-      const result = await model.generateContent(prompt);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Gemini timeout after 5s")), 5000)
+      );
+      const result = await Promise.race([
+        model.generateContent(prompt),
+        timeoutPromise,
+      ]) as Awaited<ReturnType<typeof model.generateContent>>;
       const raw = result.response.text();
       const cleaned = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(cleaned);
@@ -97,7 +103,13 @@ Reglas:
 - Nombre de rutina en español, específico para el objetivo`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Gemini timeout after 5s")), 5000)
+    );
+    const result = await Promise.race([
+      model.generateContent(prompt),
+      timeoutPromise,
+    ]) as Awaited<ReturnType<typeof model.generateContent>>;
     const raw = result.response.text();
     const cleaned = raw.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);

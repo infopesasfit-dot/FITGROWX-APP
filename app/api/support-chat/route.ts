@@ -252,11 +252,17 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    const result = await chat.sendMessage(lastMessage?.content ?? "");
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Gemini timeout after 5s")), 5000)
+    );
+    const result = await Promise.race([
+      chat.sendMessage(lastMessage?.content ?? ""),
+      timeoutPromise,
+    ]) as Awaited<ReturnType<typeof chat.sendMessage>>;
     const reply = result.response.text();
     return NextResponse.json({ reply });
   } catch (err) {
-    console.error("[support-chat] Gemini error:", err);
+    console.error("[support-chat] Gemini error:", err instanceof Error ? err.message : err);
     return NextResponse.json({ reply: "Hubo un problema al procesar tu consulta. Intentá de nuevo en unos segundos." }, { status: 200 });
   }
 }
