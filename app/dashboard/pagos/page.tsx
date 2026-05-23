@@ -544,11 +544,10 @@ export default function PagosPage() {
         if (error) { showToast(`Error: ${error.message}`, "err"); return; }
 
         // Upload comprobante if provided (attach to first pago)
-        if (comproFile && insertedPagos?.length && gymId) {
+        if (comproFile && insertedPagos?.length) {
           const formData = new FormData();
           formData.append("file", comproFile);
           formData.append("pago_id", String(insertedPagos[0].id));
-          formData.append("gym_id", String(gymId));
           const uploadRes = await fetch("/api/pagos/upload-comprobante", {
             method: "POST",
             body: formData,
@@ -648,11 +647,10 @@ export default function PagosPage() {
       if (error) { showToast(`Error: ${error.message}`, "err"); return; }
 
       // Upload comprobante if provided
-      if (comproFile && insertedPago && gymId) {
+      if (comproFile && insertedPago) {
         const formData = new FormData();
         formData.append("file", comproFile);
         formData.append("pago_id", String(insertedPago.id));
-        formData.append("gym_id", String(gymId));
         const uploadRes = await fetch("/api/pagos/upload-comprobante", {
           method: "POST",
           body: formData,
