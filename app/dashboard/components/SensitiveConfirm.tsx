@@ -19,7 +19,7 @@ export default function SensitiveConfirm({
 }: Props) {
   const [step,     setStep]     = useState<"idle" | "sent" | "verifying">("idle");
   const [sending,  setSending]  = useState(false);
-  const [digits,   setDigits]   = useState(["", "", "", ""]);
+  const [digits,   setDigits]   = useState(["", "", "", "", "", ""]);
   const [masked,   setMasked]   = useState("");
   const [error,    setError]    = useState<string | null>(null);
   const inputRefs  = useRef<(HTMLInputElement | null)[]>([]);
@@ -43,7 +43,7 @@ export default function SensitiveConfirm({
     const next = [...digits];
     next[i] = clean;
     setDigits(next);
-    if (clean && i < 3) inputRefs.current[i + 1]?.focus();
+    if (clean && i < 5) inputRefs.current[i + 1]?.focus();
   };
 
   const handleKeyDown = (i: number, e: React.KeyboardEvent) => {
@@ -54,7 +54,7 @@ export default function SensitiveConfirm({
 
   const verify = async () => {
     const code = digits.join("");
-    if (code.length < 4) { setError("Ingresá los 4 dígitos."); return; }
+    if (code.length < 6) { setError("Ingresá los 6 dígitos."); return; }
     setStep("verifying"); setError(null);
     const res = await fetch("/api/auth/sensitive-otp/verify", {
       method: "POST",
@@ -62,7 +62,7 @@ export default function SensitiveConfirm({
       body: JSON.stringify({ code }),
     });
     const data = await res.json();
-    if (!res.ok) { setStep("sent"); setError(data.error); setDigits(["", "", "", ""]); inputRefs.current[0]?.focus(); return; }
+    if (!res.ok) { setStep("sent"); setError(data.error); setDigits(["", "", "", "", "", ""]); inputRefs.current[0]?.focus(); return; }
     onConfirmed();
   };
 
@@ -116,8 +116,8 @@ export default function SensitiveConfirm({
             </div>
             <button
               onClick={verify}
-              disabled={step === "verifying" || digits.join("").length < 4}
-              style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", background: (step === "verifying" || digits.join("").length < 4) ? "#E5E7EB" : "#16A34A", color: (step === "verifying" || digits.join("").length < 4) ? "#9CA3AF" : "white", font: `700 0.875rem/1 ${fd}`, cursor: (step === "verifying" || digits.join("").length < 4) ? "not-allowed" : "pointer", marginBottom: 8 }}
+              disabled={step === "verifying" || digits.join("").length < 6}
+              style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", background: (step === "verifying" || digits.join("").length < 6) ? "#E5E7EB" : "#16A34A", color: (step === "verifying" || digits.join("").length < 6) ? "#9CA3AF" : "white", font: `700 0.875rem/1 ${fd}`, cursor: (step === "verifying" || digits.join("").length < 6) ? "not-allowed" : "pointer", marginBottom: 8 }}
             >
               {step === "verifying" ? "Verificando…" : "Confirmar"}
             </button>

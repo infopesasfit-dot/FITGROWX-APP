@@ -3,6 +3,8 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
+import { randomInt } from "crypto";
+import { createHash } from "crypto";
 
 const sb = getSupabaseAdminClient();
 
@@ -20,10 +22,14 @@ export async function POST() {
   if (!profile?.phone)
     return NextResponse.json({ error: "No tenés un número de WhatsApp configurado. Agregalo en Ajustes → General." }, { status: 400 });
 
-  const code = String(Math.floor(1000 + Math.random() * 9000));
+  const code = String(randomInt(100000, 1000000));
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
+  const codeHash = createHash("sha256").update(code).digest("hex");
 
-  await sb.from("profiles").update({ otp_code: code, otp_expires_at: expiresAt }).eq("id", user.id);
+  await sb
+    .from("profiles")
+    .update({ otp_code: codeHash, otp_expires_at: expiresAt, otp_failed_attempts: 0 })
+    .eq("id", user.id);
 
   const gymId = profile.gym_id;
   const phone = normalizePhone(profile.phone);
