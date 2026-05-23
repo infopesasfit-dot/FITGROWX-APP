@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
+import { fetchMpWithTimeout } from "@/lib/mp-timeout";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -55,19 +56,20 @@ export async function POST(req: NextRequest) {
     external_reference: `${gymId}|${plan_key}|annual`,
   };
 
-  const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
+  const result = await fetchMpWithTimeout("https://api.mercadopago.com/checkout/preferences", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
     },
     body: JSON.stringify(body),
+    retryable: false,
   });
 
-  const data = await res.json();
-  if (!res.ok) {
-    return NextResponse.json({ error: data.message ?? "Error MP" }, { status: res.status });
+  if (!result.ok) {
+    const message = (result.data as any)?.message ?? result.error ?? "Error MP";
+    return NextResponse.json({ error: message }, { status: result.status || 500 });
   }
 
-  return NextResponse.json({ init_point: data.init_point });
+  return NextResponse.json({ init_point: (result.data as any)?.init_point });
 }

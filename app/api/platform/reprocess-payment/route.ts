@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
+import { fetchMpWithTimeout } from "@/lib/mp-timeout";
 
 export const dynamic = "force-dynamic";
 
@@ -47,12 +48,14 @@ export async function POST(req: NextRequest) {
   }
 
   // 2. Consultar pago en MP
-  const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${payment_id}`, {
+  const mpResult = await fetchMpWithTimeout(`https://api.mercadopago.com/v1/payments/${payment_id}`, {
+    method: "GET",
     headers: { Authorization: `Bearer ${gymSettings.mp_access_token}` },
+    retryable: true,
   });
-  if (!mpRes.ok) return NextResponse.json({ error: `MP API error ${mpRes.status}` }, { status: 502 });
+  if (!mpResult.ok) return NextResponse.json({ error: `MP API error ${mpResult.status}` }, { status: 502 });
 
-  const payment = await mpRes.json() as {
+  const payment = mpResult.data as {
     status: string;
     external_reference: string | null;
     transaction_amount: number;

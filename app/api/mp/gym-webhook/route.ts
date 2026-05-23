@@ -4,6 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { normalizePhone } from "@/lib/phone";
 import { logAlumnoActivity } from "@/lib/alumno-log";
+import { fetchMpWithTimeout } from "@/lib/mp-timeout";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -109,14 +110,16 @@ async function enviarMensajeWA(gymId: string, phone: string, message: string): P
 // ── Consulta del pago a MP ────────────────────────────────────────────────────
 
 async function consultarPagoMP(paymentId: string, accessToken: string): Promise<MPPayment | null> {
-  const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+  const result = await fetchMpWithTimeout(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+    method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
+    retryable: true,
   });
-  if (!res.ok) {
-    console.error(`[gym-webhook] consultarPagoMP paymentId=${paymentId} HTTP ${res.status}`);
+  if (!result.ok) {
+    console.error(`[gym-webhook] consultarPagoMP paymentId=${paymentId} HTTP ${result.status}`);
     return null;
   }
-  return res.json() as Promise<MPPayment>;
+  return result.data as MPPayment;
 }
 
 // ── Idempotencia ──────────────────────────────────────────────────────────────

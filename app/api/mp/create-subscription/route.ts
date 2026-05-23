@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
+import { fetchMpWithTimeout } from "@/lib/mp-timeout";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
@@ -50,21 +51,23 @@ export async function POST(req: NextRequest) {
     status: "pending",
   };
 
-  const res = await fetch("https://api.mercadopago.com/preapproval", {
+  const result = await fetchMpWithTimeout("https://api.mercadopago.com/preapproval", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
     },
     body: JSON.stringify(body),
+    retryable: false,
   });
 
-  const data = await res.json();
-
-  if (!res.ok) {
-    console.error("MP preapproval error:", data);
-    return NextResponse.json({ error: data.message ?? "Error MP" }, { status: res.status });
+  if (!result.ok) {
+    const message = (result.data as any)?.message ?? result.error ?? "Error MP";
+    console.error("MP preapproval error:", result.error);
+    return NextResponse.json({ error: message }, { status: result.status || 500 });
   }
+
+  const data = result.data as any;
 
   // Solo guardamos el preapproval_id — plan_type se setea en el webhook
   // cuando MP confirma el pago, no antes (evita dar Pro gratis si abandona el checkout)

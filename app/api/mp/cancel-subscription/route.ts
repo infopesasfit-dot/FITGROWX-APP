@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { fetchMpWithTimeout } from "@/lib/mp-timeout";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Cancelar en MP
-  const mpRes = await fetch(
+  const mpResult = await fetchMpWithTimeout(
     `https://api.mercadopago.com/preapproval/${gym.mp_preapproval_id}`,
     {
       method: "PUT",
@@ -41,13 +42,13 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
       },
       body: JSON.stringify({ status: "cancelled" }),
+      retryable: true,
     }
   );
 
-  if (!mpRes.ok) {
-    const err = await mpRes.json().catch(() => ({}));
-    console.error("MP cancel error:", err);
-    return NextResponse.json({ error: "No se pudo cancelar en MP." }, { status: mpRes.status });
+  if (!mpResult.ok) {
+    console.error("MP cancel error:", mpResult.error);
+    return NextResponse.json({ error: "No se pudo cancelar en MP." }, { status: mpResult.status || 500 });
   }
 
   const { error: dbErr } = await supabaseAdmin

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual } from "crypto";
 import { addOneMonth } from "@/lib/date-utils";
 import { sendWa } from "@/lib/wa";
+import { fetchMpWithTimeout } from "@/lib/mp-timeout";
 
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN!;
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;
@@ -97,12 +98,14 @@ export async function POST(req: NextRequest) {
   // ── Pago único anual ──────────────────────────────────────────────────────
   if (type === "payment" && data?.id) {
     logWebhookPlatform(null, String(data.id), "payment", "received");
-    const payRes = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+    const payResult = await fetchMpWithTimeout(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+      method: "GET",
       headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+      retryable: true,
     });
-    if (!payRes.ok) return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
+    if (!payResult.ok) return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
 
-    const payment = await payRes.json();
+    const payment = payResult.data as any;
     const { id: paymentId, status: payStatus, external_reference: payRef } = payment;
     if (payStatus !== "approved") return NextResponse.json({ ok: true });
 
@@ -169,16 +172,18 @@ export async function POST(req: NextRequest) {
   logWebhookPlatform(null, String(data.id), "preapproval", "received");
 
   // Fetch current preapproval state from MP
-  const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${data.id}`, {
+  const mpResult = await fetchMpWithTimeout(`https://api.mercadopago.com/preapproval/${data.id}`, {
+    method: "GET",
     headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+    retryable: true,
   });
-  if (!mpRes.ok) {
+  if (!mpResult.ok) {
     // Transient MP API error — return 500 so MP retries
     console.error("MP webhook: no se pudo consultar preapproval", data.id);
     return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
   }
 
-  const preapproval = await mpRes.json();
+  const preapproval = mpResult.data as any;
   const { id, status, external_reference } = preapproval;
 
   const extParts = (external_reference ?? "").split("|");
