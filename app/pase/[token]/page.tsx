@@ -22,6 +22,7 @@ export default function GuestPassPage() {
     fetch(`/api/guest-pass/${token}`)
       .then(r => r.json())
       .then(d => {
+        history.replaceState(null, "", "/pase");
         if (d.error) { setState({ phase: "error", message: d.error }); return; }
         if (d.status === "claimed") {
           setState({ phase: "success", code: d.code, gymName: d.gymName, expiresAt: d.expiresAt, accentColor: d.accentColor ?? "#F97316", gymWhatsapp: d.gymWhatsapp ?? null });

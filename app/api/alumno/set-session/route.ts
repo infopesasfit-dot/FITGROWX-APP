@@ -28,12 +28,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
   }
 
-  if (!tokenRow.used_at) {
-    await supabase
-      .from("alumno_tokens")
-      .update({ used_at: now, expires_at: thirtyDays })
-      .eq("id", tokenRow.id);
+  if (tokenRow.used_at) {
+    await logAlumnoAction({ action: "login_failed", status: "error", error_msg: "Token already used", ip_address: ip });
+    return NextResponse.json({ error: "Enlace ya utilizado." }, { status: 401 });
   }
+
+  await supabase
+    .from("alumno_tokens")
+    .update({ used_at: now, expires_at: thirtyDays })
+    .eq("id", tokenRow.id);
 
   const { data: alumno } = await supabase
     .from("alumnos")

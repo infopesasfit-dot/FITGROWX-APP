@@ -18,6 +18,8 @@ function AuthInner() {
   useEffect(() => {
     if (!token) return;
 
+    history.replaceState(null, "", `/alumno/auth${gymSlug ? `?gym=${encodeURIComponent(gymSlug)}` : ""}`);
+
     fetch("/api/alumno/set-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -30,7 +32,7 @@ function AuthInner() {
         router.replace("/alumno/panel");
       })
       .catch(() => { setError("Error de conexión."); setStatus("error"); });
-  }, [token, router]);
+  }, [token, router, gymSlug]);
 
   return (
     <div style={{ minHeight: "100svh", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fd }}>
