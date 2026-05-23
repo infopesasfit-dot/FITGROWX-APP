@@ -42,7 +42,7 @@ interface Pago {
   status: PagoStatus;
   concepto: Concepto;
   descripcion: string | null;
-  comprobante_url: string | null;
+  comprobante_path: string | null;
   notes: string | null;
   alumno_id: string;
   alumnos: { full_name: string; phone: string | null } | null;
@@ -56,7 +56,7 @@ type PagoRow = {
   status: PagoStatus;
   concepto: Concepto;
   descripcion: string | null;
-  comprobante_url: string | null;
+  comprobante_path: string | null;
   notes: string | null;
   alumno_id: string;
   alumnos: unknown;
@@ -121,7 +121,7 @@ function mapPagoRow(row: PagoRow): Pago {
     status: row.status,
     concepto: row.concepto ?? "membresia",
     descripcion: row.descripcion ?? null,
-    comprobante_url: row.comprobante_url,
+    comprobante_path: row.comprobante_path,
     notes: row.notes,
     alumno_id: row.alumno_id,
     alumnos: getPagoAlumnoSummary(row.alumnos),
@@ -355,7 +355,7 @@ export default function PagosPage() {
     const [{ data: pagosData }, { data: cuentasData }, { data: alumnosData }, { data: clasesData }] = await Promise.all([
       supabase
         .from("pagos")
-        .select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)")
+        .select("id, amount, date, method, status, concepto, descripcion, comprobante_path, notes, alumno_id, alumnos(full_name, phone)")
         .eq("gym_id", profile.gymId)
         .order("created_at", { ascending: false })
         .limit(100),
@@ -525,15 +525,6 @@ export default function PagosPage() {
       const needsValidation = pagoMethod === "transferencia";
       setUploading(true);
       try {
-        let comprUrl: string | null = null;
-        if (comproFile) {
-          const ext  = comproFile.name.split(".").pop();
-          const path = `${gymId}/${Date.now()}.${ext}`;
-          const { error: upErr } = await supabase.storage.from("comprobantes").upload(path, comproFile);
-          if (upErr) { showToast(`Error al subir imagen: ${upErr.message}`, "err"); return; }
-          const { data: urlData } = supabase.storage.from("comprobantes").getPublicUrl(path);
-          comprUrl = urlData.publicUrl;
-        }
         const records = grupalAlumnos.map(g => ({
           gym_id:          gymId,
           alumno_id:       g.alumno.id,
@@ -542,15 +533,33 @@ export default function PagosPage() {
           status:          needsValidation ? "pendiente" : "validado",
           concepto:        "membresia" as Concepto,
           descripcion:     pagoDescripcion.trim() || null,
-          comprobante_url: comprUrl,
+          comprobante_path: null as string | null,
           notes:           pagoNotes.trim() || null,
           date:            pagoFecha,
         }));
         const { data: insertedPagos, error } = await supabase
           .from("pagos")
           .insert(records)
-          .select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)");
+          .select("id, amount, date, method, status, concepto, descripcion, comprobante_path, notes, alumno_id, alumnos(full_name, phone)");
         if (error) { showToast(`Error: ${error.message}`, "err"); return; }
+
+        // Upload comprobante if provided (attach to first pago)
+        if (comproFile && insertedPagos?.length && gymId) {
+          const formData = new FormData();
+          formData.append("file", comproFile);
+          formData.append("pago_id", String(insertedPagos[0].id));
+          formData.append("gym_id", String(gymId));
+          const uploadRes = await fetch("/api/pagos/upload-comprobante", {
+            method: "POST",
+            body: formData,
+          });
+          if (!uploadRes.ok) {
+            const err = await uploadRes.json();
+            showToast(`Error al subir comprobante: ${err.error ?? "Error desconocido"}`, "err");
+            // Don't return - pagos were created successfully
+          }
+        }
+
         if (!needsValidation) {
           const renewResults = await Promise.allSettled(grupalAlumnos.map(g => renewMembership(g.alumno.id, pagoFecha)));
           if (insertedPagos?.length) {
@@ -612,16 +621,6 @@ export default function PagosPage() {
 
     setUploading(true);
     try {
-      let comprUrl: string | null = null;
-      if (comproFile) {
-        const ext  = comproFile.name.split(".").pop();
-        const path = `${gymId}/${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from("comprobantes").upload(path, comproFile);
-        if (upErr) { showToast(`Error al subir imagen: ${upErr.message}`, "err"); return; }
-        const { data: urlData } = supabase.storage.from("comprobantes").getPublicUrl(path);
-        comprUrl = urlData.publicUrl;
-      }
-
       const needsValidation = pagoMethod === "transferencia";
       const discountLabel = pagoDiscountType === "monto"
         ? `Descuento: -${fmtARS(discountAmount)}`
@@ -642,11 +641,28 @@ export default function PagosPage() {
         status:          needsValidation ? "pendiente" : "validado",
         concepto:        pagoConcepto,
         descripcion:     pagoDescripcion.trim() || null,
-        comprobante_url: comprUrl,
+        comprobante_path: null as string | null,
         notes:           notesParts.join(" · ") || null,
         date:            pagoFecha,
-      }]).select("id, amount, date, method, status, concepto, descripcion, comprobante_url, notes, alumno_id, alumnos(full_name, phone)").single();
+      }]).select("id, amount, date, method, status, concepto, descripcion, comprobante_path, notes, alumno_id, alumnos(full_name, phone)").single();
       if (error) { showToast(`Error: ${error.message}`, "err"); return; }
+
+      // Upload comprobante if provided
+      if (comproFile && insertedPago && gymId) {
+        const formData = new FormData();
+        formData.append("file", comproFile);
+        formData.append("pago_id", String(insertedPago.id));
+        formData.append("gym_id", String(gymId));
+        const uploadRes = await fetch("/api/pagos/upload-comprobante", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          showToast(`Error al subir comprobante: ${err.error ?? "Error desconocido"}`, "err");
+          // Don't return - pago was created successfully
+        }
+      }
 
       // Notificación: pago registrado
       const alumnoLabel = selectedAlumno?.full_name ?? `Alumno`;
@@ -982,11 +998,21 @@ export default function PagosPage() {
                         <p style={{ font: `800 1.2rem/1 ${fd}`, color: "#D97706", marginTop: 8 }}>{fmtARS(p.amount)}</p>
                       )}
                       <div style={{ display: "flex", gap: 8, marginTop: 10, flexDirection: isMobile ? "column" : "row", alignItems: isMobile ? "stretch" : "center", flexWrap: "wrap" }}>
-                        {p.comprobante_url && (
-                          <a href={p.comprobante_url} target="_blank" rel="noreferrer"
-                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 12px", background: "rgba(75,107,251,0.07)", border: "1px solid rgba(75,107,251,0.20)", borderRadius: 9, font: `600 0.72rem/1 ${fb}`, color: BLUE, textDecoration: "none" }}>
+                        {p.comprobante_path && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/pagos/comprobante/${p.id}`);
+                                if (!res.ok) throw new Error("Failed to get comprobante URL");
+                                const { url } = await res.json();
+                                window.open(url, "_blank", "noopener,noreferrer");
+                              } catch (e) {
+                                showToast("Error al cargar comprobante", "err");
+                              }
+                            }}
+                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 12px", background: "rgba(75,107,251,0.07)", border: "1px solid rgba(75,107,251,0.20)", borderRadius: 9, font: `600 0.72rem/1 ${fb}`, color: BLUE, textDecoration: "none", cursor: "pointer" }}>
                             <Upload size={11} /> Ver comprobante
-                          </a>
+                          </button>
                         )}
                         {(isAdmin || isStaff) && (
                           <>
