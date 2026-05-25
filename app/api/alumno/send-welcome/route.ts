@@ -19,10 +19,7 @@ function fill(template: string, nombre: string, gym: string, link = "") {
 const supabase = getSupabaseAdminClient();
 
 const DEFAULT_WELCOME =
-  `Hola {nombre}, soy del staff de {gym}. Te paso el link para que entres a la app:\n\n{link}\n\nCualquier duda escribime.`;
-
-const DEFAULT_APP_MSG =
-  `¡Bienvenido a {gym}, {nombre}! 💪 Ya podés acceder a la app desde acá:\n\n{link}`;
+  `¡Hola {nombre}! 👋\n\nTe paso el acceso a la app de {gym}:\n{link}\n\nAhí vas a poder ver tu rutina, reservar clases y registrar pagos.\n\nCualquier duda escribime por acá.`;
 
 const DEFAULT_RENEWAL =
   `Hola {nombre}, te recordamos que tu cuota de {gym} vence en {dias} días ({fecha}). Si querés renovarla, avisanos por acá.`;
@@ -90,7 +87,7 @@ export async function POST(req: NextRequest) {
 
   const [{ data: settings }, { data: gym }] = await Promise.all([
     supabase.from("gym_settings")
-      .select("gym_name, magiclink_msg, bienvenida_app_msg, renewal_msg, renewal_activo, bienvenida_activo")
+      .select("gym_name, magiclink_msg, renewal_msg, renewal_activo, bienvenida_activo")
       .eq("gym_id", alumno.gym_id)
       .maybeSingle(),
     supabase.from("gyms").select("name").eq("id", alumno.gym_id).maybeSingle(),
@@ -128,17 +125,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // welcome: msg 1 (link) → 3s → msg 2 (app explanation)
-  const template1 = ensureGymBranding(settings?.magiclink_msg?.trim() || DEFAULT_WELCOME, gymName);
-  const msg1 = fill(template1, alumno.full_name, gymName, link);
-  await sendWA(msg1, "welcome-link");
-
-  if (settings?.bienvenida_app_msg !== "") {
-    await new Promise(r => setTimeout(r, 3000));
-    const template2 = ensureGymBranding(settings?.bienvenida_app_msg?.trim() || DEFAULT_APP_MSG, gymName);
-    const msg2 = fill(template2, alumno.full_name, gymName);
-    await sendWA(msg2, "welcome-app");
-  }
+  // welcome: single message with link and app explanation
+  const template = ensureGymBranding(settings?.magiclink_msg?.trim() || DEFAULT_WELCOME, gymName);
+  const msg = fill(template, alumno.full_name, gymName, link);
+  await sendWA(msg, "welcome");
 
   return NextResponse.json({ ok: true });
 }
