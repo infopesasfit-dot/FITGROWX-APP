@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
   const { data: tokenRow, error } = await supabase
     .from("alumno_tokens")
-    .select("id, alumno_id, gym_id, used_at")
+    .select("id, alumno_id, gym_id")
     .eq("token", tokenHash)
     .gt("expires_at", now)
     .single();
@@ -28,17 +28,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
   }
 
-  const { data: markedUsed, error: updateError } = await supabase
+  // Token válido. Extendemos expires_at a 30 días desde este uso.
+  // No marcamos used_at — el link puede reutilizarse mientras no expire.
+  const { error: updateError } = await supabase
     .from("alumno_tokens")
-    .update({ used_at: now, expires_at: thirtyDays })
-    .eq("id", tokenRow.id)
-    .is("used_at", null)
-    .select("id")
-    .single();
+    .update({ expires_at: thirtyDays })
+    .eq("id", tokenRow.id);
 
-  if (updateError || !markedUsed) {
-    await logAlumnoAction({ action: "login_failed", status: "error", error_msg: "Token already used", ip_address: ip });
-    return NextResponse.json({ error: "Enlace ya utilizado." }, { status: 401 });
+  if (updateError) {
+    await logAlumnoAction({ action: "login_failed", status: "error", error_msg: "DB update failed", ip_address: ip });
+    return NextResponse.json({ error: "Error al procesar el ingreso." }, { status: 500 });
   }
 
   const { data: alumno } = await supabase
