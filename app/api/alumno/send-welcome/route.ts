@@ -5,6 +5,7 @@ import { normalizePhone } from "@/lib/phone";
 import { logger } from "@/lib/logger";
 import { sendWa as sendWaLib } from "@/lib/wa";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
+import { createHash } from "crypto";
 
 const ROUTE = "/api/alumno/send-welcome";
 
@@ -60,14 +61,32 @@ export async function POST(req: NextRequest) {
   }
 
   // Crear token de 30 días
-  const token = crypto.randomUUID();
-  const expires_at = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date();
+  const { data: existing } = await supabase
+    .from("alumno_tokens")
+    .select("id")
+    .eq("alumno_id", alumno.id)
+    .gt("expires_at", now.toISOString())
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("alumno_tokens")
+      .update({ expires_at: now.toISOString() })
+      .eq("id", existing.id);
+  }
+
+  const rawToken = crypto.randomUUID();
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const expires_at = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
   await supabase.from("alumno_tokens").insert({
     alumno_id: alumno.id,
     gym_id: alumno.gym_id,
-    token,
+    token: tokenHash,
     expires_at,
   });
+
+  let token = rawToken;
 
   const [{ data: settings }, { data: gym }] = await Promise.all([
     supabase.from("gym_settings")

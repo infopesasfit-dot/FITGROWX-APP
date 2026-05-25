@@ -7,6 +7,7 @@ import { logAlumnoActivity } from "@/lib/alumno-log";
 import { enqueueWABulk } from "@/lib/wa-queue";
 import { getTodayDate } from "@/lib/date-utils";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
+import { createHash } from "crypto";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -116,19 +117,35 @@ async function crearTokensFaltantes(
   const sinToken = alumnos.filter(a => !tokenMap[a.id]);
   if (!sinToken.length) return;
 
-  const nuevos = sinToken.map(a => ({
-    alumno_id: a.id,
-    gym_id: gymId,
-    token: crypto.randomUUID(),
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-  }));
+  const now = new Date();
+  const alumnoIds = sinToken.map(a => a.id);
 
-  const { data, error } = await supabase.from("alumno_tokens").insert(nuevos).select("alumno_id, token");
+  // Invalidate existing tokens (same pattern as pay-link)
+  await supabase
+    .from("alumno_tokens")
+    .update({ expires_at: now.toISOString() })
+    .in("alumno_id", alumnoIds)
+    .gt("expires_at", now.toISOString());
+
+  const nuevos = sinToken.map(a => {
+    const rawToken = crypto.randomUUID();
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    tokenMap[a.id] = rawToken;
+    return {
+      alumno_id: a.id,
+      gym_id: gymId,
+      token: tokenHash,
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+  });
+
+  const { error } = await supabase.from("alumno_tokens").insert(nuevos);
   if (error) {
     console.error("[vencimientos] crearTokensFaltantes:", error.message);
+    // Limpiar mapeos porque los tokens no existen en DB
+    for (const a of sinToken) delete tokenMap[a.id];
     return;
   }
-  for (const t of data ?? []) tokenMap[t.alumno_id] = t.token;
 }
 
 // ── Bloque 1: Transferencias pendientes sin validar ───────────────────────────
