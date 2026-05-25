@@ -112,10 +112,20 @@ export function useWaSession(gymId: string | null) {
     setQrLoading(true);
     setQrImage(null);
     try {
-      if (attempt === 0) await waProxy("session-delete").catch(() => {});
+      if (attempt === 0) {
+        console.log("[QR-DEBUG] calling session-delete");
+        const delRes = await waProxy("session-delete").catch(e => {
+          console.log("[QR-DEBUG] session-delete FAILED:", e);
+          return null;
+        });
+        console.log("[QR-DEBUG] session-delete result:", delRes?.status);
+      }
+      console.log("[QR-DEBUG] attempt:", attempt, "calling qr-data");
       const response = await waProxy("qr-data");
       const data = await response.json();
+      console.log("[QR-DEBUG] motor response:", data);
       if (data.status === "active") {
+        console.log("[QR-DEBUG] motor says active, closing modal");
         setWaStatus("connected");
         setQrModalOpen(false);
         setQrLoading(false);
