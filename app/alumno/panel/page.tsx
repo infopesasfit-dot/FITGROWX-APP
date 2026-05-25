@@ -726,7 +726,7 @@ function AlumnoPanelInner() {
         method: "POST",
         headers: { "Content-Type": "application/json",
     },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ gym_id: session.gym_id }),
       });
       const d = await res.json();
       setCheckinResult({ ok: d.ok, already: d.already, full_name: d.alumno?.full_name, hora: d.hora, error: d.error });
@@ -799,7 +799,7 @@ function AlumnoPanelInner() {
               method: "POST",
               headers: { "Content-Type": "application/json",
     },
-              body: JSON.stringify({}),
+              body: JSON.stringify({ gym_id: gymIdFromQR }),
             });
             const d = await res.json();
             setCheckinResult({ ok: d.ok, already: d.already, full_name: d.alumno?.full_name, hora: d.hora, error: d.error });

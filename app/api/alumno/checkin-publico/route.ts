@@ -13,11 +13,13 @@ export async function POST(req: NextRequest) {
   const limit = await applyRateLimit({ namespace: "checkin:ip", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 20 });
   if (!limit.allowed) return NextResponse.json({ ok: false, error: "Demasiados intentos." }, { status: 429 });
 
+  const { gym_id } = await req.json();
+  if (!gym_id) return NextResponse.json({ ok: false, error: "gym_id requerido." }, { status: 400 });
+
   const supabase = getSupabaseAdminClient();
 
-  // ── Token en Authorization header ──────────────────────────
+  // ── Modo automático: token en Authorization header ──────────────────────────
   let alumnoId: string | null = null;
-  let gymId: string | null = null;
   const rawToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() ?? null;
 
   if (rawToken) {
@@ -28,13 +30,12 @@ export async function POST(req: NextRequest) {
       .eq("token", tokenHash)
       .maybeSingle<TokenRow>();
 
-    if (tokenRow && new Date(tokenRow.expires_at) > new Date()) {
+    if (tokenRow && tokenRow.gym_id === gym_id && new Date(tokenRow.expires_at) > new Date()) {
       alumnoId = tokenRow.alumno_id;
-      gymId = tokenRow.gym_id;
     }
   }
 
-  if (!alumnoId || !gymId) {
+  if (!alumnoId) {
     return NextResponse.json({
       ok: false,
       error_code: "auth_required",
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   const { data: alumno, error } = await supabase
     .from("alumnos")
     .select("id, gym_id, full_name, status, planes(nombre), next_expiration_date")
-    .eq("gym_id", gymId)
+    .eq("gym_id", gym_id)
     .eq("id", alumnoId)
     .maybeSingle();
   const alumnoRow = alumno as AlumnoRow | null;
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
   // ── Registrar asistencia ────────────────────────────────────────────────────
   const hora = getCurrentTime();
   const { error: insErr } = await supabase.from("asistencias").insert({
-    gym_id: gymId,
+    gym_id: gym_id,
     alumno_id: alumnoId,
     fecha: today,
     hora,
