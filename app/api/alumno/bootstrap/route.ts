@@ -8,19 +8,13 @@ const supabase = getSupabaseAdminClient();
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const alumno_id = searchParams.get("alumno_id");
-    const gym_id = searchParams.get("gym_id");
     const includeTraining = searchParams.get("include") === "training";
-
-    if (!alumno_id || !gym_id) {
-      return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
-    }
 
     const tokenRow = await getValidAlumnoToken(req);
     if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-    if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
-      return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
-    }
+
+    const alumno_id = tokenRow.alumno_id;
+    const gym_id = tokenRow.gym_id;
 
     const today = new Date();
     const dates = Array.from({ length: 7 }, (_, i) => {

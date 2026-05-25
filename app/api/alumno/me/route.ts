@@ -10,17 +10,13 @@ const supabase = createClient(
 );
 
 export const GET = withApiHandler(async function GET(req: NextRequest) {
-  const alumno_id = new URL(req.url).searchParams.get("alumno_id");
-  if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
-
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
   const { data, error } = await supabase
     .from("alumnos")
     .select("id, dni, gym_id, full_name, status, next_expiration_date, deuda_pendiente, planes!plan_id(nombre)")
-    .eq("id", alumno_id)
+    .eq("id", tokenRow.alumno_id)
     .eq("gym_id", tokenRow.gym_id)
     .single();
 

@@ -13,16 +13,11 @@ function anonName(fullName: string, isMe: boolean): string {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const alumno_id = searchParams.get("alumno_id");
-  const gym_id    = searchParams.get("gym_id");
-  if (!alumno_id || !gym_id) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
-
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
-    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
-  }
+
+  const alumno_id = tokenRow.alumno_id;
+  const gym_id = tokenRow.gym_id;
 
   const monthStart = new Date();
   monthStart.setDate(1);
