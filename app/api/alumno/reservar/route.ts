@@ -23,27 +23,25 @@ function getWeekRange(dateStr: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { alumno_id, gym_id, clase_id, fecha } = await req.json();
-  if (!alumno_id || !gym_id || !clase_id || !fecha) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  const { clase_id, fecha } = await req.json();
+  if (!clase_id || !fecha) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
   if (fecha < getTodayDate()) return NextResponse.json({ error: "No podés reservar clases pasadas." }, { status: 400 });
+
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
-    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
-  }
 
-  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
+  const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
   if (!rateLimit.allowed) return rateLimit.response!;
 
   const { data: clase } = await supabase.from("gym_classes").select("max_capacity, class_name, gym_id").eq("id", clase_id).single();
   if (!clase) return NextResponse.json({ error: "Clase no encontrada." }, { status: 404 });
-  if (clase.gym_id !== gym_id) return NextResponse.json({ error: "Clase inválida para este gimnasio." }, { status: 403 });
+  if (clase.gym_id !== tokenRow.gym_id) return NextResponse.json({ error: "Clase inválida para este gimnasio." }, { status: 403 });
 
   const { data: alumno } = await supabase
     .from("alumnos")
     .select("plan_id, planes!plan_id(access_type, classes_per_week)")
-    .eq("id", alumno_id)
-    .eq("gym_id", gym_id)
+    .eq("id", tokenRow.alumno_id)
+    .eq("gym_id", tokenRow.gym_id)
     .maybeSingle();
 
   const planes = alumno?.planes;
@@ -57,8 +55,8 @@ export async function POST(req: NextRequest) {
     const { count: weeklyCount } = await supabase
       .from("reservas")
       .select("id", { count: "exact", head: true })
-      .eq("gym_id", gym_id)
-      .eq("alumno_id", alumno_id)
+      .eq("gym_id", tokenRow.gym_id)
+      .eq("alumno_id", tokenRow.alumno_id)
       .in("estado", ["confirmada", "cancelada_tarde"])
       .gte("fecha", from)
       .lte("fecha", to);
@@ -71,34 +69,32 @@ export async function POST(req: NextRequest) {
   const { count } = await supabase.from("reservas").select("id", { count: "exact", head: true }).eq("clase_id", clase_id).eq("fecha", fecha).eq("estado", "confirmada");
   if ((count ?? 0) >= clase.max_capacity) return NextResponse.json({ error: "La clase ya está completa para esa fecha." }, { status: 409 });
 
-  const { error } = await supabase.from("reservas").insert({ gym_id, alumno_id, clase_id, fecha, estado: "confirmada" }).select();
+  const { error } = await supabase.from("reservas").insert({ gym_id: tokenRow.gym_id, alumno_id: tokenRow.alumno_id, clase_id, fecha, estado: "confirmada" }).select();
   if (error) {
-    await logAlumnoAction({ alumno_id, gym_id, action: "reserva_created", status: "error", error_msg: error.message });
+    await logAlumnoAction({ alumno_id: tokenRow.alumno_id, gym_id: tokenRow.gym_id, action: "reserva_created", status: "error", error_msg: error.message });
     if (error.code === "23505") return NextResponse.json({ error: "Ya tenés una reserva para esa clase y fecha." }, { status: 409 });
     if (error.code === "P0001" && error.message.includes("CAPACITY_EXCEEDED"))
       return NextResponse.json({ error: "La clase ya está completa para esa fecha." }, { status: 409 });
     return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 
-  await logAlumnoAction({ alumno_id, gym_id, action: "reserva_created", status: "success", details: { clase_id, fecha } });
+  await logAlumnoAction({ alumno_id: tokenRow.alumno_id, gym_id: tokenRow.gym_id, action: "reserva_created", status: "success", details: { clase_id, fecha } });
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: NextRequest) {
-  const { alumno_id, clase_id, fecha } = await req.json();
-  if (!alumno_id || !clase_id || !fecha) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  const { clase_id, fecha } = await req.json();
+  if (!clase_id || !fecha) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
-  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
+  const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
   if (!rateLimit.allowed) return rateLimit.response!;
-
-  const gymId = tokenRow.gym_id;
 
   const [{ data: claseRow }, { data: settings }] = await Promise.all([
     supabase.from("gym_classes").select("start_time").eq("id", clase_id).single(),
-    supabase.from("gym_settings").select("cancel_window_hours").eq("gym_id", gymId).maybeSingle(),
+    supabase.from("gym_settings").select("cancel_window_hours").eq("gym_id", tokenRow.gym_id).maybeSingle(),
   ]);
 
   let estado: "cancelada" | "cancelada_tarde" = "cancelada";
@@ -118,16 +114,16 @@ export async function DELETE(req: NextRequest) {
   const { error } = await supabase
     .from("reservas")
     .update({ estado })
-    .eq("alumno_id", alumno_id)
-    .eq("gym_id", gymId)
+    .eq("alumno_id", tokenRow.alumno_id)
+    .eq("gym_id", tokenRow.gym_id)
     .eq("clase_id", clase_id)
     .eq("fecha", fecha);
   if (error) {
-    await logAlumnoAction({ alumno_id, gym_id: gymId, action: "reserva_cancelled", status: "error", error_msg: error.message });
+    await logAlumnoAction({ alumno_id: tokenRow.alumno_id, gym_id: tokenRow.gym_id, action: "reserva_cancelled", status: "error", error_msg: error.message });
     return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });
   }
 
-  await logAlumnoAction({ alumno_id, gym_id: gymId, action: "reserva_cancelled", status: "success", details: { clase_id, fecha, tipo: estado } });
+  await logAlumnoAction({ alumno_id: tokenRow.alumno_id, gym_id: tokenRow.gym_id, action: "reserva_cancelled", status: "success", details: { clase_id, fecha, tipo: estado } });
 
   if (estado === "cancelada_tarde") {
     return NextResponse.json({
