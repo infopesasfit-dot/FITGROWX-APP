@@ -768,10 +768,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               {notifOpen && (
                 <div style={{
-                  position: "fixed", top: isMobile ? "calc(100% + 16px)" : "auto", right: isMobile ? 12 : "auto",
-                  bottom: isMobile ? "auto" : "auto",
-                  width: isMobile ? "calc(100vw - 24px)" : 340,
-                  maxWidth: isMobile ? 360 : 340,
+                  position: "fixed", top: isMobile ? "calc(100% + 16px)" : "auto", right: isMobile ? 12 : 20,
+                  bottom: isMobile ? "auto" : 20,
+                  width: isMobile ? "calc(100vw - 24px)" : 420,
+                  maxWidth: isMobile ? "calc(100vw - 24px)" : 420,
+                  maxHeight: isMobile ? "calc(100vh - 140px)" : "calc(100vh - 120px)",
                   background: "#FFFFFF",
                   border: "1px solid rgba(0,0,0,0.08)",
                   borderRadius: 16,
@@ -779,6 +780,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   zIndex: 50,
                   overflow: "hidden",
                   animation: "dropIn 0.16s cubic-bezier(0.34,1.56,0.64,1) both",
+                  display: "flex",
+                  flexDirection: "column",
                 }}>
                   <div style={{ padding: isMobile ? "12px 14px 10px" : "14px 16px 10px", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                     <span style={{ font: `700 ${isMobile ? "0.8rem" : "0.875rem"}/1 ${fd}`, color: "#1A1D23", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Notificaciones</span>
@@ -787,7 +790,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     )}
                   </div>
 
-                  <div style={{ maxHeight: isMobile ? "calc(100vh - 140px)" : 360, overflowY: "auto" }}>
+                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
                     {notifs.length === 0 ? (
                       <div style={{ padding: "32px 16px", textAlign: "center" }}>
                         <Bell size={28} color="#D1D5DB" style={{ margin: "0 auto 10px", display: "block" }} />
