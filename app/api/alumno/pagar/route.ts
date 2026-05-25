@@ -43,28 +43,22 @@ function calcNewExpiry(current: string | null, periodo: string, duracion_dias: n
 }
 
 export async function POST(req: NextRequest) {
-  const { alumno_id, gym_id } = await req.json();
-  if (!alumno_id || !gym_id) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
-
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
-    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
-  }
 
-  const rateLimit = await applyAlumnoRateLimit(req, alumno_id, { windowMs: 60_000, maxAttempts: 5 });
+  const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60_000, maxAttempts: 5 });
   if (!rateLimit.allowed) return rateLimit.response!;
 
   const [{ data: alumno }, { data: settings }] = await Promise.all([
     supabase
       .from("alumnos")
       .select("id, full_name, gym_id, plan_id, next_expiration_date, planes(nombre, precio, periodo, duracion_dias)")
-      .eq("id", alumno_id)
+      .eq("id", tokenRow.alumno_id)
       .single(),
     supabase
       .from("gym_settings")
       .select("mp_access_token, gym_name")
-      .eq("gym_id", gym_id)
+      .eq("gym_id", tokenRow.gym_id)
       .single(),
   ]);
 
@@ -85,13 +79,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No se pudo determinar el precio del plan." }, { status: 422 });
   }
 
-  const wt = createHmac("sha256", MASTER_SECRET).update(gym_id).digest("hex").slice(0, 32);
-  const notificationUrl = `${APP_URL}/api/mp/gym-webhook?gym_id=${gym_id}&wt=${wt}`;
+  const wt = createHmac("sha256", MASTER_SECRET).update(tokenRow.gym_id).digest("hex").slice(0, 32);
+  const notificationUrl = `${APP_URL}/api/mp/gym-webhook?gym_id=${tokenRow.gym_id}&wt=${wt}`;
 
   const prefBody = {
     items: [
       {
-        id: `membresia-${alumno_id}`,
+        id: `membresia-${tokenRow.alumno_id}`,
         title: `${planNombre} — ${gymName}`,
         description: `Renovación de membresía de ${alumnoRow.full_name}`,
         quantity: 1,
@@ -100,7 +94,7 @@ export async function POST(req: NextRequest) {
       },
     ],
     payer: { name: alumnoRow.full_name },
-    external_reference: `${gym_id}|${alumno_id}`,
+    external_reference: `${tokenRow.gym_id}|${tokenRow.alumno_id}`,
     notification_url: notificationUrl,
     back_urls: {
       success:  `${APP_URL}/alumno/panel?pago=ok`,
@@ -123,11 +117,11 @@ export async function POST(req: NextRequest) {
   if (!mpRes.ok) {
     const err = await mpRes.text();
     console.error("[alumno/pagar] MP error:", err);
-    await logAlumnoAction({ alumno_id, gym_id, action: "pago_initiated", status: "error", error_msg: `MP error: ${mpRes.status}` });
+    await logAlumnoAction({ alumno_id: tokenRow.alumno_id, gym_id: tokenRow.gym_id, action: "pago_initiated", status: "error", error_msg: `MP error: ${mpRes.status}` });
     return NextResponse.json({ error: "No se pudo generar el link de pago." }, { status: 502 });
   }
 
   const mpData = await mpRes.json() as { init_point: string };
-  await logAlumnoAction({ alumno_id, gym_id, action: "pago_initiated", status: "success", details: { precio, plan: alumnoRow.planes?.nombre } });
+  await logAlumnoAction({ alumno_id: tokenRow.alumno_id, gym_id: tokenRow.gym_id, action: "pago_initiated", status: "success", details: { precio, plan: alumnoRow.planes?.nombre } });
   return NextResponse.json({ init_point: mpData.init_point });
 }

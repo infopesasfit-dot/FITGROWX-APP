@@ -11,24 +11,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
 
-    let raw: unknown;
-    try {
-      raw = await req.json();
-    } catch {
-      return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
-    }
-
-    const { alumno_id } = raw as Record<string, unknown>;
-
-    if (typeof alumno_id !== "string") {
-      return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
-    }
-
-    // Verify ownership: alumno_id from request must match token's alumno_id
-    if (alumno_id !== tokenRow.alumno_id) {
-      return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-    }
-
     await supabase.from("push_subscriptions").delete().eq("alumno_id", tokenRow.alumno_id);
 
     return NextResponse.json({ ok: true });

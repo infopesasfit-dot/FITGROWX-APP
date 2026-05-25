@@ -25,11 +25,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    // Verify ownership: alumno_id from request must match token's alumno_id
-    if (parsed.data.alumno_id !== tokenRow.alumno_id) {
-      return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-    }
-
     // Store push subscription
     const { error } = await supabase.from("push_subscriptions").upsert(
       {

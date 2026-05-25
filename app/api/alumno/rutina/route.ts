@@ -11,23 +11,27 @@ type StaffProfile = { gym_id: string | null; role: string | null };
 const supabase = getSupabaseAdminClient();
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const alumno_id = searchParams.get("alumno_id");
-  if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
-  const { data } = await supabase.from("rutinas").select("nombre, ejercicios, updated_at").eq("alumno_id", alumno_id).single();
+  const { data } = await supabase.from("rutinas").select("nombre, ejercicios, updated_at").eq("alumno_id", tokenRow.alumno_id).single();
   return NextResponse.json({ rutina: data ?? null });
 }
 
 export async function POST(req: NextRequest) {
-  const { alumno_id, gym_id, nombre, ejercicios, notas } = await req.json();
-  if (!alumno_id || !gym_id) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  const body = await req.json();
   const tokenRow = await getValidAlumnoToken(req);
 
+  let alumno_id: string;
+  let gym_id: string;
+  const { nombre, ejercicios, notas } = body;
+
   if (!tokenRow) {
+    // Staff/admin auth path
+    alumno_id = body.alumno_id;
+    gym_id = body.gym_id;
+    if (!alumno_id || !gym_id) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+
     const supabaseServer = await createSupabaseServerClient();
     const { data: { user } } = await supabaseServer.auth.getUser();
     if (!user) {
@@ -43,8 +47,10 @@ export async function POST(req: NextRequest) {
     if (!ownerProfile || !["admin", "staff"].includes(ownerProfile.role ?? "") || ownerProfile.gym_id !== gym_id) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
-  } else if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
-    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+  } else {
+    // Alumno auth path - derive identity from token
+    alumno_id = tokenRow.alumno_id;
+    gym_id = tokenRow.gym_id;
   }
 
   const { error } = await supabase.from("rutinas").upsert(
@@ -58,8 +64,8 @@ export async function POST(req: NextRequest) {
   if (!tokenRow) {
     // Send in-app notification
     void createAlumnoNotification(supabase, {
-      alumno_id: alumno_id,
-      gym_id:    gym_id,
+      alumno_id,
+      gym_id,
       type:      "rutina_asignada",
       title:     "Nueva rutina asignada",
       body:      nombre ? `Tu profe te asignó: ${nombre}` : "Tu profe actualizó tu rutina de entrenamiento.",
