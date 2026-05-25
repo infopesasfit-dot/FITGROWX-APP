@@ -338,7 +338,7 @@ function AlumnoPanelInner() {
     const suffix = includeTraining ? "&include=training" : "";
     let r: Response;
     try {
-      r = await fetch(`/api/alumno/bootstrap?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}${suffix}`, {
+      r = await fetch(`/api/alumno/bootstrap?${suffix}`, {
         credentials: "include",
       });
     } catch {
@@ -387,7 +387,7 @@ function AlumnoPanelInner() {
   const { isSyncing, syncedCount } = useOfflineSync(handleSyncComplete);
 
   const fetchPesos = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/pesos?alumno_id=${s.alumno_id}`, {
+    const r = await fetch(`/api/alumno/pesos`, {
       credentials: "include",
     });
     const d = await r.json();
@@ -396,7 +396,7 @@ function AlumnoPanelInner() {
 
   const fetchMedidas = useCallback(async (s: Session) => {
     setMedLoading(true);
-    const r = await fetch(`/api/alumno/medidas?alumno_id=${s.alumno_id}`, {
+    const r = await fetch(`/api/alumno/medidas`, {
       credentials: "include",
     }).catch(() => null);
     if (r?.ok) {
@@ -407,7 +407,7 @@ function AlumnoPanelInner() {
   }, []);
 
   const fetchRanking = useCallback(async (s: Session) => {
-    const r = await fetch(`/api/alumno/ranking?alumno_id=${s.alumno_id}&gym_id=${s.gym_id}`, {
+    const r = await fetch(`/api/alumno/ranking`, {
       credentials: "include",
     }).catch(() => null);
     if (r?.ok) {
@@ -467,7 +467,7 @@ function AlumnoPanelInner() {
   useEffect(() => {
     if (tab !== "metas" || !session || fotos.length > 0 || fotosLoading) return;
     setFotosLoading(true);
-    fetch(`/api/alumno/fotos?alumno_id=${session.alumno_id}`, {
+    fetch(`/api/alumno/fotos`, {
       credentials: "include",
     })
       .then(r => r.ok ? r.json() : { fotos: [] })
@@ -475,7 +475,7 @@ function AlumnoPanelInner() {
       .catch(() => {})
       .finally(() => setFotosLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, session?.alumno_id]);
+  }, [tab]);
 
   const fetchNotifications = useCallback(async (s: Session) => {
     const r = await fetch("/api/alumno/notificaciones", {
@@ -531,8 +531,6 @@ function AlumnoPanelInner() {
   const handleSaveMedida = async () => {
     if (!session || !medPeso.trim()) return;
     const body: Record<string, unknown> = {
-      alumno_id: session.alumno_id,
-      gym_id: session.gym_id,
       peso_kg: parseFloat(medPeso),
     };
     if (medGrasa.trim()) body.grasa_pct = parseFloat(medGrasa);
@@ -575,7 +573,7 @@ function AlumnoPanelInner() {
           }
         }
         const res = await fetch("/api/alumno/reservar", { method: "DELETE", headers: { "Content-Type": "application/json",
-    }, body: JSON.stringify({ alumno_id: session.alumno_id, clase_id, fecha }) });
+    }, body: JSON.stringify({ clase_id, fecha }) });
         const d = await res.json();
         if (d.ok) {
           setReservas(prev => prev.filter(r => !(r.clase_id === clase_id && r.fecha === fecha)));
@@ -584,7 +582,7 @@ function AlumnoPanelInner() {
         else showToast(d.error ?? "Error.", false);
       } else {
         const res = await fetch("/api/alumno/reservar", { method: "POST", headers: { "Content-Type": "application/json",
-    }, body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, clase_id, fecha }) });
+    }, body: JSON.stringify({ clase_id, fecha }) });
         const d = await res.json();
         if (d.ok) { setReservas(prev => [...prev, { clase_id, fecha }]); showToast("Reserva confirmada!"); }
         else showToast(d.error ?? "Error.", false);
@@ -607,7 +605,7 @@ function AlumnoPanelInner() {
         method: "POST",
         headers: { "Content-Type": "application/json",
     },
-        body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id, ejercicio, peso: kgNum, notas: null }),
+        body: JSON.stringify({ ejercicio, peso: kgNum, notas: null }),
       });
       const d = await res.json();
       if (d.ok) {
@@ -655,8 +653,6 @@ function AlumnoPanelInner() {
     }
     const fd = new FormData();
     fd.append("file", compressed);
-    fd.append("alumno_id", session.alumno_id);
-    fd.append("gym_id", session.gym_id);
     fd.append("privada", String(nuevaFotoPrivada));
     try {
       const res = await fetch("/api/alumno/fotos", {
@@ -682,7 +678,7 @@ function AlumnoPanelInner() {
         method: "PATCH",
         headers: { "Content-Type": "application/json",
     },
-        body: JSON.stringify({ foto_id: fotoId, alumno_id: session.alumno_id, privada: next }),
+        body: JSON.stringify({ foto_id: fotoId, privada: next }),
       });
       if (!res.ok) setFotos(prev => prev.map(f => f.id === fotoId ? { ...f, privada: privadaActual } : f));
     } catch {
@@ -730,7 +726,7 @@ function AlumnoPanelInner() {
         method: "POST",
         headers: { "Content-Type": "application/json",
     },
-        body: JSON.stringify({ gym_id: session.gym_id }),
+        body: JSON.stringify({}),
       });
       const d = await res.json();
       setCheckinResult({ ok: d.ok, already: d.already, full_name: d.alumno?.full_name, hora: d.hora, error: d.error });
@@ -803,7 +799,7 @@ function AlumnoPanelInner() {
               method: "POST",
               headers: { "Content-Type": "application/json",
     },
-              body: JSON.stringify({ gym_id: gymIdFromQR }),
+              body: JSON.stringify({}),
             });
             const d = await res.json();
             setCheckinResult({ ok: d.ok, already: d.already, full_name: d.alumno?.full_name, hora: d.hora, error: d.error });
@@ -845,7 +841,7 @@ function AlumnoPanelInner() {
         method: "POST",
         headers: { "Content-Type": "application/json",
     },
-        body: JSON.stringify({ alumno_id: session.alumno_id, gym_id: session.gym_id }),
+        body: JSON.stringify({}),
       });
       const d = await res.json();
       if (d.init_point) {
