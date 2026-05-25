@@ -188,16 +188,15 @@ export function useWaSession(gymId: string | null) {
     setRefreshing(true);
     try {
       await waProxy("session-reconnect");
-      setTimeout(async () => {
-        try {
-          const response = await waProxy("session-status");
-          const data = await response.json();
-          setWaStatus(parseWaStatus(data.status));
-          if (data.retries != null) setWaRetries(data.retries);
-        } catch {}
-        setRefreshing(false);
-      }, 3500);
-    } catch { setRefreshing(false); }
+      await new Promise(r => setTimeout(r, 6000));
+      const res = await waProxy("session-status");
+      const data = await res.json();
+      const resolved = parseWaStatus(data.status);
+      setWaStatus(resolved);
+      if (data.retries != null) setWaRetries(data.retries);
+      if (resolved !== "connected") openQrModal();
+    } catch { openQrModal(); }
+    finally { setRefreshing(false); }
   };
 
   const applyStatusData = (data: Record<string, unknown>) => {
