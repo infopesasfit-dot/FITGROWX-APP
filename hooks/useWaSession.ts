@@ -20,6 +20,8 @@ export function useWaSession(gymId: string | null) {
   const [qrError,     setQrError]     = useState<QrError>(null);
   const [qrAttempt,   setQrAttempt]   = useState(0);
   const [qrSecondsLeft, setQrSecondsLeft] = useState<number | null>(null);
+  const [disconnectModalOpen, setDisconnectModalOpen] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   const qrCountdownRef  = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollRef         = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -168,13 +170,29 @@ export function useWaSession(gymId: string | null) {
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
-  const disconnectWA = async () => {
-    if (!gymId || !window.confirm("¿Desvincular WhatsApp? Se detendrán los mensajes automáticos.")) return;
-    stopPolling();
-    await waProxy("session-delete");
-    setWaStatus("disconnected");
-    setWaPhone(null); setWaBattery(null); setWaSignal(null); setWaPlugged(null);
-    openQrModal();
+  const openDisconnectModal = () => {
+    setDisconnectModalOpen(true);
+  };
+
+  const closeDisconnectModal = () => {
+    setDisconnectModalOpen(false);
+  };
+
+  const confirmDisconnect = async () => {
+    if (!gymId) return;
+    setDisconnecting(true);
+    try {
+      stopPolling();
+      await waProxy("session-delete");
+      setWaStatus("disconnected");
+      setWaPhone(null); setWaBattery(null); setWaSignal(null); setWaPlugged(null);
+      setDisconnectModalOpen(false);
+      openQrModal();
+    } catch {
+      setDisconnectModalOpen(false);
+    } finally {
+      setDisconnecting(false);
+    }
   };
 
   const handlePanicReconnect = async () => {
@@ -252,7 +270,9 @@ export function useWaSession(gymId: string | null) {
     waPhone,     waBattery, waSignal, waPlugged, waRetries,
     refreshing,  panicLoading,
     qrModalOpen, qrImage, qrLoading, qrError, qrAttempt, qrSecondsLeft,
-    openQrModal, closeQrModal, disconnectWA,
+    openQrModal, closeQrModal,
+    disconnectModalOpen, disconnecting,
+    openDisconnectModal, closeDisconnectModal, confirmDisconnect,
     handlePanicReconnect, handleRefreshSession,
   };
 }

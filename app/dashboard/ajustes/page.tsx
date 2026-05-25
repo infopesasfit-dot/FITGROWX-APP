@@ -201,7 +201,9 @@ function AjustesContent() {
     waStatus, waPhone, waBattery, waSignal, waPlugged, waRetries,
     refreshing, panicLoading,
     qrModalOpen, qrImage, qrLoading, qrError, qrAttempt, qrSecondsLeft,
-    openQrModal, closeQrModal, disconnectWA,
+    openQrModal, closeQrModal,
+    disconnectModalOpen, disconnecting,
+    openDisconnectModal, closeDisconnectModal, confirmDisconnect,
     handlePanicReconnect, handleRefreshSession,
   } = useWaSession(gymId);
 
@@ -1052,7 +1054,7 @@ function AjustesContent() {
                           {refreshing ? "Actualizando..." : "Refrescar"}
                         </button>
                         <button
-                          onClick={disconnectWA}
+                          onClick={openDisconnectModal}
                           style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.18)", background: "white", color: "#DC2626", font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
                         >
                           <X size={13} />
@@ -1866,6 +1868,90 @@ function AjustesContent() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {disconnectModalOpen && (
+        <div
+          onClick={closeDisconnectModal}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            background: "rgba(15,23,42,0.46)",
+            backdropFilter: "blur(10px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              ...card,
+              padding: 24,
+              boxShadow: "0 24px 60px rgba(15,23,42,0.18)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <AlertTriangle size={18} color="#DC2626" />
+              </div>
+              <div>
+                <h3 style={{ font: `900 1rem/1 ${fd}`, color: t1, margin: 0 }}>¿Desvincular WhatsApp?</h3>
+                <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: t2, margin: "4px 0 0 0" }}>
+                  {waPhone ? `Número: ${waPhone}` : "Esta acción no se puede deshacer"}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: "#F8FAFC", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 12, padding: 14, marginBottom: 20 }}>
+              <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: "#7F1D1D", margin: 0 }}>
+                ⚠️ Se detendrán todos los mensajes automáticos. Tendrás que vincular WhatsApp nuevamente escaneando un QR.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={closeDisconnectModal}
+                disabled={disconnecting}
+                style={{
+                  padding: "11px 16px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(15,23,42,0.08)",
+                  background: "white",
+                  color: t2,
+                  font: `700 0.8rem/1 ${fd}`,
+                  cursor: disconnecting ? "not-allowed" : "pointer",
+                  opacity: disconnecting ? 0.6 : 1,
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDisconnect}
+                disabled={disconnecting}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 7,
+                  padding: "11px 16px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: disconnecting ? "#9CA3AF" : "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+                  color: "white",
+                  font: `800 0.8rem/1 ${fd}`,
+                  cursor: disconnecting ? "not-allowed" : "pointer",
+                }}
+              >
+                <X size={13} />
+                {disconnecting ? "Desvinculando..." : "Desvincular"}
+              </button>
             </div>
           </div>
         </div>
