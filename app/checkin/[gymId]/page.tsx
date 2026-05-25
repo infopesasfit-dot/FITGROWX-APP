@@ -42,21 +42,13 @@ export default function CheckinPublicoPage({ params }: { params: Promise<{ gymId
       if (!gymData || gymData.error) { setGymError(true); setPhase("form"); return; }
       setGymInfo(gymData);
 
-      // Try auto check-in from localStorage session
-      const raw = typeof window !== "undefined" ? localStorage.getItem("fitgrowx_alumno") : null;
-      if (!raw) { setPhase("form"); return; }
-
-      let session: { gym_id?: string; token?: string } | null = null;
-      try { session = JSON.parse(raw); } catch { setPhase("form"); return; }
-
-      if (!session?.token || session.gym_id !== gymId) { setPhase("form"); return; }
-
-      // Has a valid session for this gym → auto check-in
+      // Try auto check-in using httpOnly cookie (set by login)
       setPhase("auto-checking");
       const res = await fetch("/api/alumno/checkin-publico", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ gym_id: gymId }),
+        credentials: "include",
       }).catch(() => null);
       if (cancelled) return;
 
@@ -65,9 +57,10 @@ export default function CheckinPublicoPage({ params }: { params: Promise<{ gymId
 
       if (!data) { setPhase("form"); return; }
 
-      // If the session is missing or expired, guide the user to login/manual help.
-      if (!data.ok && data.error_code === "auth_required") { setPhase("form"); return; }
+      // If no valid session, show form for manual check-in
+      if (res.status === 401) { setPhase("form"); return; }
 
+      // Success or membership error
       setResult(data);
       setPhase("result");
     };

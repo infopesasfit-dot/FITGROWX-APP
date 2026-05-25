@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
 import { getPlanNombre } from "@/lib/supabase-relations";
 import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
+import { getValidAlumnoToken } from "@/lib/alumno-token";
 
-type TokenRow  = { alumno_id: string; gym_id: string; expires_at: string };
 type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string | null; planes: unknown; next_expiration_date: string | null };
 type ExistingRow = { id: string; hora: string | null };
 
@@ -18,21 +17,12 @@ export async function POST(req: NextRequest) {
 
   const supabase = getSupabaseAdminClient();
 
-  // ── Modo automático: token en Authorization header ──────────────────────────
+  // ── Validación de token: Bearer header o cookie httpOnly ─────────────────────
+  const tokenRow = await getValidAlumnoToken(req);
   let alumnoId: string | null = null;
-  const rawToken = req.headers.get("authorization")?.replace("Bearer ", "").trim() ?? null;
 
-  if (rawToken) {
-    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-    const { data: tokenRow } = await supabase
-      .from("alumno_tokens")
-      .select("alumno_id, gym_id, expires_at")
-      .eq("token", tokenHash)
-      .maybeSingle<TokenRow>();
-
-    if (tokenRow && tokenRow.gym_id === gym_id && new Date(tokenRow.expires_at) > new Date()) {
-      alumnoId = tokenRow.alumno_id;
-    }
+  if (tokenRow && tokenRow.gym_id === gym_id) {
+    alumnoId = tokenRow.alumno_id;
   }
 
   if (!alumnoId) {
