@@ -34,7 +34,7 @@ const dateField  = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (YYY
 // ─── Admin: alumnos ───────────────────────────────────────────────────────────
 export const createAlumnoSchema = z.object({
   full_name:            nameField,
-  dni:                  z.string().max(LIMITS.dni).nullable().optional().transform(s => s?.trim() || null),
+  dni:                  z.string().min(1, "El DNI es obligatorio.").max(LIMITS.dni).transform(s => s.trim()),
   phone:                phoneField,
   email:                emailField.nullable().optional().transform(s => s?.trim().toLowerCase() || null),
   plan_id:              uuidField.nullable().optional(),

@@ -360,6 +360,8 @@ export default function AlumnosPage() {
   // ── Submit new alumno ─────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.dni.trim()) { setFormError("El DNI es obligatorio."); return; }
+    if (!form.full_name.trim()) { setFormError("El nombre completo es obligatorio."); return; }
     if (!form.phone.trim()) { setFormError("El teléfono/WhatsApp es obligatorio."); return; }
     setSaving(true);
     setFormError(null);
@@ -1294,7 +1296,7 @@ export default function AlumnosPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div>
               <h2 style={{ font: `800 1.15rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Nuevo Alumno</h2>
-              <p style={{ font: `400 0.78rem/1 ${fb}`, color: t3, marginTop: 4 }}>Nombre y WhatsApp alcanzan para empezar.</p>
+              <p style={{ font: `400 0.78rem/1 ${fb}`, color: t3, marginTop: 4 }}>DNI, nombre y WhatsApp son los datos clave.</p>
             </div>
             <button
               onClick={() => setModalOpen(false)}
@@ -1311,14 +1313,29 @@ export default function AlumnosPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
 
-            {/* ── QUICK ADD: Nombre ── */}
+            {/* ── OBLIGATORIO: DNI ── */}
+            <div>
+              <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>DNI *</label>
+              <input
+                required
+                autoFocus
+                value={form.dni}
+                onChange={e => setForm(f => ({ ...f, dni: e.target.value.replace(/\D/g, "") }))}
+                placeholder="Ej: 40123456"
+                maxLength={9}
+                style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
+                onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+              />
+            </div>
+
+            {/* ── OBLIGATORIO: Nombre ── */}
             <div>
               <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Nombre completo *</label>
               <div style={{ position: "relative" }}>
                 <User size={14} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: t3, pointerEvents: "none" }} />
                 <input
                   required
-                  autoFocus
                   value={form.full_name}
                   onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                   placeholder="Ej: Carlos Mendez"
@@ -1330,7 +1347,7 @@ export default function AlumnosPage() {
               </div>
             </div>
 
-            {/* ── QUICK ADD: Teléfono ── */}
+            {/* ── OBLIGATORIO: Teléfono ── */}
             <div>
               <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>
                 Teléfono <span style={{ color: "#25D366", fontSize: "0.72rem" }}>· WhatsApp</span> *
@@ -1402,12 +1419,24 @@ export default function AlumnosPage() {
               style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: "2px 0", font: `500 0.78rem/1 ${fb}`, color: t3, textAlign: "left", width: "fit-content" }}
             >
               <span style={{ fontSize: "0.65rem", transition: "transform 0.15s", display: "inline-block", transform: showDetails ? "rotate(90deg)" : "rotate(0deg)" }}>▶</span>
-              {showDetails ? "Menos detalles" : "Más detalles"} — email, DNI, cumpleaños
+              {showDetails ? "Menos detalles" : "Más detalles"} — fecha de nacimiento, email
             </button>
 
             {/* ── DETALLES OPCIONALES ── */}
             {showDetails && (
               <>
+                <div>
+                  <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Fecha de nacimiento <span style={{ color: t3, fontWeight: 400 }}>(opcional · saludo de cumple)</span></label>
+                  <input
+                    type="date"
+                    value={form.fecha_nacimiento}
+                    onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
+                    style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
+                    onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
+                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
+                  />
+                </div>
+
                 <div>
                   <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Email <span style={{ color: t3, fontWeight: 400 }}>(opcional)</span></label>
                   <div style={{ position: "relative" }}>
@@ -1423,31 +1452,6 @@ export default function AlumnosPage() {
                       onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>DNI <span style={{ color: t3, fontWeight: 400 }}>(opcional)</span></label>
-                  <input
-                    value={form.dni}
-                    onChange={e => setForm(f => ({ ...f, dni: e.target.value.replace(/\D/g, "") }))}
-                    placeholder="Ej: 40123456"
-                    maxLength={9}
-                    style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
-                    onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: "block", font: `500 0.78rem/1 ${fb}`, color: t1, marginBottom: 6 }}>Fecha de nacimiento <span style={{ color: t3, fontWeight: 400 }}>(opcional · saludo de cumple)</span></label>
-                  <input
-                    type="date"
-                    value={form.fecha_nacimiento}
-                    onChange={e => setForm(f => ({ ...f, fecha_nacimiento: e.target.value }))}
-                    style={{ width: "100%", padding: "11px 14px", background: "#F9FAFB", border: "1px solid rgba(0,0,0,0.09)", borderRadius: 10, font: `400 0.875rem/1 ${fb}`, color: t1, outline: "none", boxSizing: "border-box" as const, transition: "border-color 0.14s" }}
-                    onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
-                    onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
-                  />
                 </div>
               </>
             )}
