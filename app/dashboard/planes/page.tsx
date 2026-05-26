@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, CreditCard, X, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getGymSummary } from "@/lib/supabase-relations";
 import { FITGROWX_PLANS, formatArs, type FitgrowxPlanDefinition } from "@/lib/fitgrowx-plans";
+import { useIsDesktop } from "@/hooks/useIsDesktop";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -30,12 +31,14 @@ function PlanCard({
   selected,
   current,
   onSelect,
+  isDesktop,
 }: {
   plan: FitgrowxPlanDefinition;
   billing: "mensual" | "anual";
   selected: boolean;
   current: boolean;
   onSelect: () => void;
+  isDesktop: boolean;
 }) {
   const price = billing === "mensual" ? plan.priceMonthly : plan.priceAnnual;
 
@@ -48,7 +51,7 @@ function PlanCard({
           ? "2px solid rgba(249,115,22,0.70)"
           : "1px solid #E5E7EB",
         background: selected ? "rgba(249,115,22,0.03)" : "white",
-        padding: "20px 22px",
+        padding: isDesktop ? "20px 22px" : "16px 18px",
         cursor: "pointer",
         position: "relative",
         transition: "border-color 0.15s, background 0.15s",
@@ -84,12 +87,12 @@ function PlanCard({
         </div>
       )}
 
-      <p style={{ font: `700 1rem/1 ${fd}`, color: t1, marginBottom: 4 }}>{plan.name}</p>
-      <p style={{ font: `400 0.75rem/1.4 ${fb}`, color: t2, marginBottom: 14, maxWidth: 260 }}>{plan.description}</p>
+      <p style={{ font: `700 ${isDesktop ? "1rem" : "0.9rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>{plan.name}</p>
+      <p style={{ font: `400 ${isDesktop ? "0.75rem" : "0.7rem"}/1.4 ${fb}`, color: t2, marginBottom: 14, maxWidth: 260 }}>{plan.description}</p>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 4 }}>
-        <span style={{ font: `800 1.6rem/1 ${fd}`, color: t1, letterSpacing: "-0.04em" }}>${formatArs(price)}</span>
-        <span style={{ font: `400 0.72rem/1 ${fb}`, color: t3 }}>/mes</span>
+        <span style={{ font: `800 ${isDesktop ? "1.6rem" : "1.4rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.04em" }}>${formatArs(price)}</span>
+        <span style={{ font: `400 ${isDesktop ? "0.72rem" : "0.68rem"}/1 ${fb}`, color: t3 }}>/mes</span>
         {billing === "anual" && (
           <span style={{ marginLeft: 6, padding: "2px 7px", borderRadius: 6, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 0.62rem/1 ${fd}` }}>2 meses gratis</span>
         )}
@@ -113,6 +116,7 @@ function PlanCard({
 
 export default function PlanesPage() {
   const searchParams = useSearchParams();
+  const isDesktop = useIsDesktop();
   const [trialExpiresAt, setTrialExpiresAt] = useState<string | null>(null);
   const [subscriptionExpiresAt, setSubExpAt] = useState<string | null>(null);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -191,42 +195,43 @@ export default function PlanesPage() {
   };
 
   return (
-    <div style={{ maxWidth: 720, display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ maxWidth: 720, display: "flex", flexDirection: "column", gap: isDesktop ? 20 : 16, width: "100%", padding: isDesktop ? 0 : "0 0" }}>
 
       {/* Header */}
       <div>
-        <p style={{ font: `500 0.72rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+        <p style={{ font: `500 ${isDesktop ? "0.72rem" : "0.68rem"}/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
           Cuenta
         </p>
-        <h1 style={{ font: `800 1.8rem/1 ${fd}`, color: t1, letterSpacing: "-0.03em" }}>
+        <h1 style={{ font: `800 ${isDesktop ? "1.8rem" : "1.5rem"}/1 ${fd}`, color: t1, letterSpacing: "-0.03em" }}>
           Tu suscripción
         </h1>
       </div>
 
       {/* Status card */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 14,
-        padding: "16px 20px", borderRadius: 16,
+        display: "flex", alignItems: isDesktop ? "center" : "flex-start", gap: isDesktop ? 14 : 12, flexDirection: isDesktop ? "row" : "row",
+        padding: isDesktop ? "16px 20px" : "14px 16px", borderRadius: 16,
         background: isSubscribed ? "rgba(22,163,74,0.06)" : trialExpired ? "rgba(220,38,38,0.06)" : "rgba(249,115,22,0.06)",
         border: `1px solid ${isSubscribed ? "rgba(22,163,74,0.20)" : trialExpired ? "rgba(220,38,38,0.20)" : "rgba(249,115,22,0.20)"}`,
+        flexWrap: isDesktop ? "nowrap" : "wrap",
       }}>
         <div style={{
-          width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+          width: isDesktop ? 40 : 36, height: isDesktop ? 40 : 36, borderRadius: 12, flexShrink: 0,
           background: isSubscribed ? "rgba(22,163,74,0.12)" : trialExpired ? "rgba(220,38,38,0.12)" : "rgba(249,115,22,0.12)",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
           {isSubscribed
-            ? <CheckCircle2 size={18} color="#16A34A" />
-            : <Clock size={18} color={trialExpired ? "#DC2626" : ORANGE} />}
+            ? <CheckCircle2 size={isDesktop ? 18 : 16} color="#16A34A" />
+            : <Clock size={isDesktop ? 18 : 16} color={trialExpired ? "#DC2626" : ORANGE} />}
         </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ font: `700 0.9rem/1 ${fd}`, color: isSubscribed ? "#15803D" : trialExpired ? "#DC2626" : "#C2410C", marginBottom: 3 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ font: `700 ${isDesktop ? "0.9rem" : "0.8rem"}/1 ${fd}`, color: isSubscribed ? "#15803D" : trialExpired ? "#DC2626" : "#C2410C", marginBottom: 3 }}>
             {isSubscribed
               ? `Plan ${selectedPlan.name} activo`
               : trialExpired ? "Período de prueba vencido"
               : `${days} día${days !== 1 ? "s" : ""} de prueba restante${days !== 1 ? "s" : ""}`}
           </p>
-          <p style={{ font: `400 0.78rem/1.4 ${fb}`, color: t2 }}>
+          <p style={{ font: `400 ${isDesktop ? "0.78rem" : "0.72rem"}/1.4 ${fb}`, color: t2 }}>
             {isSubscribed
               ? subscriptionExpiresAt ? `Válido hasta el ${fmtDate(subscriptionExpiresAt)}` : "Acceso completo activo"
               : trialExpired ? "Elegí un plan para seguir usando el sistema."
@@ -237,9 +242,9 @@ export default function PlanesPage() {
           <button
             onClick={() => { setCheckoutOpen(true); setMpError(null); }}
             style={{
-              padding: "10px 18px", borderRadius: 10, border: "none", cursor: "pointer",
-              background: ORANGE, color: "white", font: `700 0.82rem/1 ${fd}`, whiteSpace: "nowrap",
-              flexShrink: 0,
+              padding: isDesktop ? "10px 18px" : "9px 14px", borderRadius: 10, border: "none", cursor: "pointer",
+              background: ORANGE, color: "white", font: `700 ${isDesktop ? "0.82rem" : "0.75rem"}/1 ${fd}`, whiteSpace: "nowrap",
+              flexShrink: 0, marginLeft: isDesktop ? 0 : "auto",
             }}
           >
             Activar plan
@@ -249,38 +254,38 @@ export default function PlanesPage() {
 
       {/* Plan selector */}
       <div style={{ background: "white", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
-        <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ padding: isDesktop ? "20px 24px 16px" : "16px 18px 14px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: isDesktop ? "center" : "flex-start", justifyContent: "space-between", gap: isDesktop ? 16 : 12, flexWrap: "wrap", flexDirection: isDesktop ? "row" : "column" }}>
           <div>
-            <p style={{ font: `700 0.88rem/1 ${fd}`, color: t1 }}>
+            <p style={{ font: `700 ${isDesktop ? "0.88rem" : "0.8rem"}/1 ${fd}`, color: t1 }}>
               {isSubscribed ? "Tu plan" : "Elegí tu plan"}
             </p>
             {!isSubscribed && (
-              <p style={{ font: `400 0.74rem/1 ${fb}`, color: t3, marginTop: 3 }}>
+              <p style={{ font: `400 ${isDesktop ? "0.74rem" : "0.7rem"}/1 ${fb}`, color: t3, marginTop: 3 }}>
                 Podés cambiar después.
               </p>
             )}
           </div>
           {/* Billing toggle */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 0, padding: 3, borderRadius: 11, background: "#F3F4F6", border: "1px solid #E5E7EB", flexShrink: 0 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 0, padding: 3, borderRadius: 11, background: "#F3F4F6", border: "1px solid #E5E7EB", flexShrink: 0, alignSelf: isDesktop ? "auto" : "flex-start" }}>
             {(["mensual", "anual"] as const).map((b) => (
               <button key={b} onClick={() => setBilling(b)} style={{
-                padding: "7px 16px", borderRadius: 9, border: "none",
+                padding: isDesktop ? "7px 16px" : "6px 12px", borderRadius: 9, border: "none",
                 background: billing === b ? "white" : "transparent",
                 color: billing === b ? t1 : t3,
-                font: `${billing === b ? 700 : 500} 0.78rem/1 ${fd}`,
+                font: `${billing === b ? 700 : 500} ${isDesktop ? "0.78rem" : "0.72rem"}/1 ${fd}`,
                 cursor: "pointer",
                 boxShadow: billing === b ? "0 1px 3px rgba(0,0,0,0.10)" : "none",
                 display: "flex", alignItems: "center", gap: 5,
               }}>
                 {b === "mensual" ? "Mensual" : (
-                  <>Anual <span style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 0.62rem/1 ${fd}` }}>+2 gratis</span></>
+                  <>Anual <span style={{ padding: "1px 5px", borderRadius: 4, background: "rgba(249,115,22,0.10)", color: ORANGE, font: `700 ${isDesktop ? "0.62rem" : "0.58rem"}/1 ${fd}` }}>+2 gratis</span></>
                 )}
               </button>
             ))}
           </div>
         </div>
 
-        <div style={{ padding: "16px 24px 20px", display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ padding: isDesktop ? "16px 24px 20px" : "14px 16px 16px", display: "grid", gridTemplateColumns: isDesktop ? "repeat(3, 1fr)" : "1fr", gap: isDesktop ? 12 : 10 }}>
           {FITGROWX_PLANS.map((plan) => (
             <PlanCard
               key={plan.key}
@@ -289,14 +294,15 @@ export default function PlanesPage() {
               selected={selectedPlanKey === plan.key}
               current={isSubscribed && currentPlanType === plan.key}
               onSelect={() => setSelectedPlanKey(plan.key)}
+              isDesktop={isDesktop}
             />
           ))}
         </div>
 
         {/* CTA footer */}
         {!isSubscribed && (
-          <div style={{ padding: "16px 24px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
-            <p style={{ font: `400 0.75rem/1.4 ${fb}`, color: t3, flex: 1 }}>
+          <div style={{ padding: isDesktop ? "16px 24px" : "14px 16px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: isDesktop ? "center" : "flex-start", justifyContent: "flex-end", gap: isDesktop ? 12 : 10, flexDirection: isDesktop ? "row" : "column", flexWrap: isDesktop ? "nowrap" : "wrap" }}>
+            <p style={{ font: `400 ${isDesktop ? "0.75rem" : "0.72rem"}/1.4 ${fb}`, color: t3, flex: isDesktop ? 1 : "none", order: isDesktop ? 1 : 2 }}>
               {billing === "anual"
                 ? `Pago único de $${formatArs(checkoutAmount)} ARS · 2 meses gratis.`
                 : "Se renueva mensualmente. Cancelás cuando querés."}
@@ -304,10 +310,11 @@ export default function PlanesPage() {
             <button
               onClick={() => openCheckout(selectedPlanKey)}
               style={{
-                padding: "11px 22px", borderRadius: 11, border: "none", cursor: "pointer",
+                padding: isDesktop ? "11px 22px" : "10px 16px", borderRadius: 11, border: "none", cursor: "pointer",
                 background: "linear-gradient(180deg,#ff7a1a 0%,#ff6000 58%,#de4f00 100%)",
-                color: "white", font: `700 0.85rem/1 ${fd}`,
-                boxShadow: "0 6px 20px rgba(255,96,0,0.24)", whiteSpace: "nowrap",
+                color: "white", font: `700 ${isDesktop ? "0.85rem" : "0.78rem"}/1 ${fd}`,
+                boxShadow: "0 6px 20px rgba(255,96,0,0.24)", whiteSpace: isDesktop ? "nowrap" : "normal",
+                width: isDesktop ? "auto" : "100%", order: isDesktop ? 2 : 1, flexShrink: 0,
               }}
             >
               {billing === "mensual" ? `Activar ${selectedPlan.name} mensual` : `Activar Plan Anual · 2 meses gratis 🎁`}
@@ -317,16 +324,17 @@ export default function PlanesPage() {
 
         {/* Upgrade/downgrade if already subscribed */}
         {isSubscribed && selectedPlanKey !== currentPlanType && (
-          <div style={{ padding: "16px 24px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12 }}>
-            <p style={{ font: `400 0.75rem/1.4 ${fb}`, color: t3, flex: 1 }}>
+          <div style={{ padding: isDesktop ? "16px 24px" : "14px 16px", borderTop: "1px solid #F3F4F6", display: "flex", alignItems: isDesktop ? "center" : "flex-start", justifyContent: "flex-end", gap: isDesktop ? 12 : 10, flexDirection: isDesktop ? "row" : "column", flexWrap: isDesktop ? "nowrap" : "wrap" }}>
+            <p style={{ font: `400 ${isDesktop ? "0.75rem" : "0.72rem"}/1.4 ${fb}`, color: t3, flex: isDesktop ? 1 : "none", order: isDesktop ? 1 : 2 }}>
               Cambio de plan — te generamos un nuevo link de pago.
             </p>
             <button
               onClick={() => openCheckout(selectedPlanKey)}
               style={{
-                padding: "11px 22px", borderRadius: 11, border: "none", cursor: "pointer",
-                background: ORANGE, color: "white", font: `700 0.85rem/1 ${fd}`,
-                boxShadow: "0 6px 20px rgba(255,96,0,0.24)", whiteSpace: "nowrap",
+                padding: isDesktop ? "11px 22px" : "10px 16px", borderRadius: 11, border: "none", cursor: "pointer",
+                background: ORANGE, color: "white", font: `700 ${isDesktop ? "0.85rem" : "0.78rem"}/1 ${fd}`,
+                boxShadow: "0 6px 20px rgba(255,96,0,0.24)", whiteSpace: isDesktop ? "nowrap" : "normal",
+                width: isDesktop ? "auto" : "100%", order: isDesktop ? 2 : 1, flexShrink: 0,
               }}
             >
               Cambiar a {selectedPlan.name}
@@ -339,44 +347,44 @@ export default function PlanesPage() {
       {checkoutOpen && (
         <div
           onClick={() => { setCheckoutOpen(false); setMpError(null); }}
-          style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.48)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.48)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: isDesktop ? 24 : 16 }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "white", borderRadius: 20, padding: "28px 28px 24px", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", position: "relative" }}
+            style={{ background: "white", borderRadius: isDesktop ? 20 : 16, padding: isDesktop ? "28px 28px 24px" : "20px 16px 18px", width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", position: "relative" }}
           >
-            <button onClick={() => { setCheckoutOpen(false); setMpError(null); }} style={{ position: "absolute", top: 14, right: 14, background: "#F3F4F6", border: "none", cursor: "pointer", width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: t2 }}>
+            <button onClick={() => { setCheckoutOpen(false); setMpError(null); }} style={{ position: "absolute", top: isDesktop ? 14 : 12, right: isDesktop ? 14 : 12, background: "#F3F4F6", border: "none", cursor: "pointer", width: 30, height: 30, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", color: t2 }}>
               <X size={16} />
             </button>
 
-            <p style={{ font: `500 0.68rem/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+            <p style={{ font: `500 ${isDesktop ? "0.68rem" : "0.64rem"}/1 ${fb}`, color: t3, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
               Checkout · {billing === "mensual" ? "Suscripción Mensual" : "Pago Anual"}
             </p>
-            <h2 style={{ font: `800 1.2rem/1 ${fd}`, color: t1, marginBottom: 4 }}>FitGrowX {selectedPlan.name}</h2>
-            <p style={{ font: `400 0.8rem/1.45 ${fb}`, color: t2, marginBottom: 22 }}>
+            <h2 style={{ font: `800 ${isDesktop ? "1.2rem" : "1.1rem"}/1 ${fd}`, color: t1, marginBottom: 4 }}>FitGrowX {selectedPlan.name}</h2>
+            <p style={{ font: `400 ${isDesktop ? "0.8rem" : "0.75rem"}/1.45 ${fb}`, color: t2, marginBottom: isDesktop ? 22 : 16 }}>
               {billing === "anual"
                 ? <>Pago único de <strong>${formatArs(selectedPlan.annualTotal)} ARS</strong>. 12 meses de acceso · los 2 últimos son nuestro regalo.</>
                 : <>Primer cobro de <strong>${formatArs(selectedPlan.priceMonthly)} ARS</strong>. Cancelás cuando querés.</>}
             </p>
 
-            <div style={{ border: "1px solid #E5E7EB", borderRadius: 14, padding: "16px 18px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(249,115,22,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ border: "1px solid #E5E7EB", borderRadius: 14, padding: isDesktop ? "16px 18px" : "14px 14px" }}>
+              <div style={{ display: "flex", alignItems: isDesktop ? "center" : "flex-start", gap: isDesktop ? 10 : 10, marginBottom: isDesktop ? 14 : 12 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(249,115,22,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <CreditCard size={15} color={ORANGE} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{ font: `600 0.84rem/1 ${fd}`, color: t1 }}>Mercado Pago</p>
-                  <p style={{ font: `400 0.7rem/1 ${fb}`, color: t3 }}>Tarjeta, transferencia o efectivo</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ font: `600 ${isDesktop ? "0.84rem" : "0.78rem"}/1 ${fd}`, color: t1 }}>Mercado Pago</p>
+                  <p style={{ font: `400 ${isDesktop ? "0.7rem" : "0.65rem"}/1 ${fb}`, color: t3 }}>Tarjeta, transferencia o efectivo</p>
                 </div>
-                <p style={{ font: `700 1rem/1 ${fd}`, color: t1 }}>
+                <p style={{ font: `700 ${isDesktop ? "1rem" : "0.9rem"}/1 ${fd}`, color: t1, flexShrink: 0, whiteSpace: "nowrap" }}>
                   ${formatArs(checkoutAmount)}
                 </p>
               </div>
-              {mpError && <p style={{ font: `400 0.74rem/1 ${fb}`, color: "#DC2626", marginBottom: 10 }}>{mpError}</p>}
+              {mpError && <p style={{ font: `400 ${isDesktop ? "0.74rem" : "0.7rem"}/1 ${fb}`, color: "#DC2626", marginBottom: 10 }}>{mpError}</p>}
               <button
                 onClick={handlePay}
                 disabled={mpLoading}
-                style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: mpLoading ? "#D1D5DB" : ORANGE, color: "white", font: `700 0.875rem/1 ${fd}`, cursor: mpLoading ? "not-allowed" : "pointer" }}
+                style={{ width: "100%", padding: isDesktop ? "12px 0" : "11px 0", borderRadius: 10, border: "none", background: mpLoading ? "#D1D5DB" : ORANGE, color: "white", font: `700 ${isDesktop ? "0.875rem" : "0.8rem"}/1 ${fd}`, cursor: mpLoading ? "not-allowed" : "pointer" }}
               >
                 {mpLoading ? "Generando link..." : "Pagar con Mercado Pago"}
               </button>
