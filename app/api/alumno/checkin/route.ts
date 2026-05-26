@@ -93,7 +93,8 @@ export async function POST(req: NextRequest) {
   const baseQuery = supabaseAdmin
     .from("alumnos")
     .select("id, gym_id, full_name, status, phone, planes(nombre, accent_color), next_expiration_date")
-    .eq("gym_id", profileRow.gym_id);
+    .eq("gym_id", profileRow.gym_id)
+    .is("deleted_at", null);
 
   const { data: alumno, error } = await (byId
     ? baseQuery.eq("id", lookup)

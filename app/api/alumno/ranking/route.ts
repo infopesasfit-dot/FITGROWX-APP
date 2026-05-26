@@ -48,7 +48,8 @@ export async function GET(req: NextRequest) {
   const { data: alumnos } = await supabase
     .from("alumnos")
     .select("id, full_name")
-    .in("id", idsToFetch);
+    .in("id", idsToFetch)
+    .is("deleted_at", null);
 
   const nameMap: Record<string, string> = {};
   for (const a of alumnos ?? []) nameMap[a.id] = a.full_name;

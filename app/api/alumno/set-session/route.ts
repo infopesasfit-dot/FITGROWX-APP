@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, dni, full_name, phone, status, plan_id, next_expiration_date, planes!plan_id(nombre, accent_color, precio)")
     .eq("id", tokenRow.alumno_id)
+    .is("deleted_at", null)
     .single();
 
   await logAlumnoAction({

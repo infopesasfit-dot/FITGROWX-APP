@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       .from("alumnos")
       .select("id, full_name, gym_id, plan_id, next_expiration_date, planes(nombre, precio, periodo, duracion_dias)")
       .eq("id", tokenRow.alumno_id)
+      .is("deleted_at", null)
       .single(),
     supabase
       .from("gym_settings")

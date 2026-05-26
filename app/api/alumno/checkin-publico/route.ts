@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     .select("id, gym_id, full_name, status, planes(nombre), next_expiration_date")
     .eq("gym_id", gym_id)
     .eq("id", alumnoId)
+    .is("deleted_at", null)
     .maybeSingle();
   const alumnoRow = alumno as AlumnoRow | null;
 

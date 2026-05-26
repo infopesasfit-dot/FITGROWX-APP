@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, gym_id, full_name, phone")
     .eq("dni", dniClean)
+    .is("deleted_at", null)
     .single();
 
   if (error || !alumno) {

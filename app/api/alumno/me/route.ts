@@ -18,6 +18,7 @@ export const GET = withApiHandler(async function GET(req: NextRequest) {
     .select("id, dni, gym_id, full_name, status, next_expiration_date, deuda_pendiente, planes!plan_id(nombre)")
     .eq("id", tokenRow.alumno_id)
     .eq("gym_id", tokenRow.gym_id)
+    .is("deleted_at", null)
     .single();
 
   if (error || !data) return NextResponse.json({ error: "Alumno no encontrado." }, { status: 404 });
