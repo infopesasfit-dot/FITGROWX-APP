@@ -177,3 +177,9 @@ export function parseBody<T>(
   }
   return { ok: true, data: result.data };
 }
+
+// ─── Alumno: reserva de clase ──────────────────────────────────────────────
+export const reservarClaseAlumnoSchema = z.object({
+  clase_id: z.string().uuid("clase_id debe ser un UUID."),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida (formato YYYY-MM-DD)."),
+});
