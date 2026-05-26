@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
     .select("id, full_name, gym_id, plan_id, next_expiration_date, planes(nombre, precio, periodo, duracion_dias)")
     .eq("id", alumnoId)
     .eq("gym_id", gym_id)
+    .is("deleted_at", null)
     .single();
 
   if (!alumnoData) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });
@@ -106,7 +107,8 @@ export async function POST(req: NextRequest) {
   // 5. Actualizar membresía
   const { error: alumnoErr } = await sb.from("alumnos")
     .update({ status: "activo", last_payment_date: today, next_expiration_date: nuevoVenc })
-    .eq("id", alumnoId);
+    .eq("id", alumnoId)
+    .is("deleted_at", null);
   if (alumnoErr) return NextResponse.json({ error: `DB error al extender membresía: ${alumnoErr.message}` }, { status: 500 });
 
   // 6. Marcar log como procesado

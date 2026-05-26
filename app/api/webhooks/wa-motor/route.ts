@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
           phone_is_invalid: true,
           phone_invalid_at: new Date().toISOString(),
         })
-        .eq("phone", phone);
+        .eq("phone", phone)
+        .is("deleted_at", null);
     }
 
     if (event === "rate_limited") {

@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     // Check opt-in if we have alumno_id
     if (alumno_id) {
-      const { data: alumno } = await sb.from("alumnos").select("whatsapp_opted_in, phone_is_invalid").eq("id", alumno_id).maybeSingle();
+      const { data: alumno } = await sb.from("alumnos").select("whatsapp_opted_in, phone_is_invalid").eq("id", alumno_id).is("deleted_at", null).maybeSingle();
       if (!alumno?.whatsapp_opted_in) {
         return NextResponse.json({ error: "Alumno no optó in para WhatsApp." }, { status: 403 });
       }
@@ -119,7 +119,8 @@ export async function POST(req: NextRequest) {
       Promise.resolve(
         sb.from("alumnos")
           .update({ phone_is_invalid: true, phone_invalid_at: new Date().toISOString() })
-          .eq("id", alumno_id),
+          .eq("id", alumno_id)
+          .is("deleted_at", null),
       ).catch(() => {});
     }
 

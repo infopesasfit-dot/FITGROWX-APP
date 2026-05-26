@@ -155,7 +155,8 @@ export async function GET(req: NextRequest) {
     const { count: alumnosCount } = await sb
       .from("alumnos")
       .select("id", { count: "exact", head: true })
-      .eq("gym_id", profile.gym_id);
+      .eq("gym_id", profile.gym_id)
+      .is("deleted_at", null);
 
     if ((alumnosCount ?? 0) > 0) {
       // Ya cargaron alumnos — marcar como enviado para no volver a evaluar
