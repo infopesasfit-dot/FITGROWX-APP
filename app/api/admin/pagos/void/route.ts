@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
         .from("alumnos")
         .select("plan_id, planes(duracion_dias)")
         .eq("id", pago.alumno_id)
+        .is("deleted_at", null)
         .maybeSingle();
 
       const duracion = (alumno?.planes as { duracion_dias?: number } | null)?.duracion_dias ?? 30;

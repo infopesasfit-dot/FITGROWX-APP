@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     .select("id, full_name, phone, gym_id, plan_id, planes(nombre, precio)")
     .eq("id", alumno_id)
     .eq("gym_id", profile.gym_id)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (!alumno) return NextResponse.json({ error: "Alumno no encontrado" }, { status: 404 });

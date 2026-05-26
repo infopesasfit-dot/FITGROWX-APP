@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     .select("id, gym_id, status, next_expiration_date")
     .eq("id", alumno_id)
     .eq("gym_id", profileRow.gym_id)
+    .is("deleted_at", null)
     .single();
   const alumnoRow = alumno as AlumnoCheckinRow | null;
 

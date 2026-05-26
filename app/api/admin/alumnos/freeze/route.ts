@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     .select("id, status, gym_id")
     .eq("id", alumno_id)
     .eq("gym_id", gymId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (fetchErr || !alumno) return NextResponse.json({ error: "Alumno no encontrado." }, { status: 404 });
@@ -67,6 +68,7 @@ export async function DELETE(req: NextRequest) {
     .select("id, status, gym_id, frozen_since, next_expiration_date")
     .eq("id", alumno_id)
     .eq("gym_id", gymId)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (fetchErr || !alumno) return NextResponse.json({ error: "Alumno no encontrado." }, { status: 404 });

@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("gym_id")
     .eq("id", alumno_id)
+    .is("deleted_at", null)
     .single();
 
   if (alumnoError || !alumno) {
