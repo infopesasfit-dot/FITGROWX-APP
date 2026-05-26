@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error || !tokenRow) {
-    await logAlumnoAction({ action: "login_failed", status: "error", error_msg: "Invalid token", ip_address: ip });
+    console.warn("[auth] login_failed", { reason: "Invalid token", ip });
     return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
   }
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     .eq("id", tokenRow.id);
 
   if (updateError) {
-    await logAlumnoAction({ action: "login_failed", status: "error", error_msg: "DB update failed", ip_address: ip });
+    console.warn("[auth] login_failed", { reason: "DB update failed", ip });
     return NextResponse.json({ error: "Error al procesar el ingreso." }, { status: 500 });
   }
 
