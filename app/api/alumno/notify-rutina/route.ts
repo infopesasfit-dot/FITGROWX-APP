@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     .select("id, gym_id, full_name, phone")
     .eq("id", alumno_id)
     .eq("gym_id", callerProfile.gym_id)
+    .is("deleted_at", null)
     .single();
 
   if (!alumno?.phone) return NextResponse.json({ ok: true });

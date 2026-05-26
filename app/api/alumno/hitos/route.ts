@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       sb.from("asistencias").select("id", { count: "exact", head: true }).eq("alumno_id", alumno_id),
       sb.from("asistencias").select("fecha").eq("alumno_id", alumno_id).order("fecha", { ascending: true }).limit(1),
       sb.from("alumno_hitos").select("hito").eq("alumno_id", alumno_id),
-      sb.from("alumnos").select("full_name, phone").eq("id", alumno_id).maybeSingle(),
+      sb.from("alumnos").select("full_name, phone").eq("id", alumno_id).is("deleted_at", null).maybeSingle(),
       sb.from("gym_settings").select("gym_name, accent_color, whatsapp").eq("gym_id", gym_id).maybeSingle(),
     ]);
 
