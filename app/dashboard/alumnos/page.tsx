@@ -1327,6 +1327,9 @@ export default function AlumnosPage() {
                 onFocus={e => (e.currentTarget.style.borderColor = "#F97316")}
                 onBlur={e => (e.currentTarget.style.borderColor = "rgba(0,0,0,0.09)")}
               />
+              <p style={{ font: `400 0.7rem/1.3 ${fb}`, color: t3, marginTop: 6 }}>
+                Necesario para que el alumno pueda recuperar acceso a la app.
+              </p>
             </div>
 
             {/* ── OBLIGATORIO: Nombre ── */}
