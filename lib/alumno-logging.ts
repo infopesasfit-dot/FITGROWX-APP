@@ -30,15 +30,18 @@ const supabase = getSupabaseAdminClient();
 
 export async function logAlumnoAction(entry: LogEntry) {
   try {
-    await supabase.from("alumno_activity_logs").insert({
+    await supabase.from("alumno_activity_log").insert({
       alumno_id: entry.alumno_id ?? null,
       gym_id: entry.gym_id ?? null,
-      action: entry.action,
-      details: entry.details ?? null,
-      status: entry.status,
-      error_msg: entry.error_msg ?? null,
-      ip_address: entry.ip_address ?? null,
-      created_at: new Date().toISOString(),
+      type: entry.action,
+      description: entry.action,
+      actor: "sistema",
+      metadata: {
+        status: entry.status,
+        details: entry.details ?? null,
+        error_msg: entry.error_msg ?? null,
+        ip_address: entry.ip_address ?? null,
+      },
     });
   } catch (err) {
     console.error("[alumno-logging]", entry.action, err instanceof Error ? err.message : err);
