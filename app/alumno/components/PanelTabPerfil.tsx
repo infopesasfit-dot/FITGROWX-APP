@@ -19,8 +19,6 @@ interface PanelTabPerfilProps {
   session: Session | null;
   fotos: Foto[];
   fotosLoading: boolean;
-  showQR: boolean;
-  setShowQR: (show: boolean) => void;
   handleShare: (foto_id: string) => void;
   handleDeleteFoto: (foto_id: string) => void;
   showComparador: () => void;
@@ -31,8 +29,6 @@ export function PanelTabPerfil({
   session,
   fotos,
   fotosLoading,
-  showQR,
-  setShowQR,
   handleShare,
   handleDeleteFoto,
   showComparador,
