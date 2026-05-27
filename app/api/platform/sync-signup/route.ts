@@ -38,11 +38,10 @@ export async function POST(req: NextRequest) {
       fullName,
       whatsApp,
       refCode,
-      resellerSlug: resellerSlugBody,
-    }: { fullName?: string; whatsApp?: string; refCode?: string; resellerSlug?: string } = await req.json();
+    }: { fullName?: string; whatsApp?: string; refCode?: string } = await req.json();
 
-    // Cookie is the authoritative source (30-day httpOnly), body is fallback
-    const resellerSlug = req.cookies.get("fitgrowx_ref")?.value || resellerSlugBody;
+    // Cookie is the only attribution source (30-day httpOnly).
+    const resellerSlug = req.cookies.get("fitgrowx_ref")?.value;
 
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData.user) {

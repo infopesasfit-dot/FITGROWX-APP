@@ -21,6 +21,12 @@ function normalizePhone(value: string | null | undefined) {
   return (value ?? "").replace(/\D/g, "");
 }
 
+function periodMonthFrom(value: string | null | undefined) {
+  const d = value ? new Date(value) : new Date();
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 7);
+  return d.toISOString().slice(0, 7);
+}
+
 async function logPossibleSelfReferralWarning(
   gym: { user_id?: string | null; email?: string | null; whatsapp?: string | null },
   reseller: { id: string; user_id?: string | null; name?: string | null; cuit?: string | null },
@@ -82,7 +88,13 @@ function logWebhookPlatform(
   });
 }
 
-async function createResellerCommission(gymId: string, paymentAmount: number, paymentRef: string, paymentType: "monthly" | "annual") {
+async function createResellerCommission(
+  gymId: string,
+  paymentAmount: number,
+  paymentRef: string,
+  paymentType: "monthly" | "annual",
+  periodMonth: string = periodMonthFrom(null),
+) {
   const { data: gym } = await supabaseAdmin
     .from("gyms")
     .select("reseller_id, user_id, self_referral, email, whatsapp")
@@ -105,7 +117,6 @@ async function createResellerCommission(gymId: string, paymentAmount: number, pa
   await logPossibleSelfReferralWarning(gym, reseller, gymId);
 
   const commissionAmount = Math.round(paymentAmount * (reseller.commission_pct / 100));
-  const periodMonth = new Date().toISOString().slice(0, 7);
 
   const { data: insertedCommission, error: insertError } = await supabaseAdmin
     .from("reseller_commissions")
@@ -159,6 +170,13 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ ok: true });
 
   const { type, data } = body;
+  console.log("[mp-webhook]", JSON.stringify({
+    type,
+    action: body.action,
+    data,
+    rawBody: body,
+    timestamp: new Date().toISOString(),
+  }));
 
   // ── Pago único anual ──────────────────────────────────────────────────────
   if (type === "payment" && data?.id) {
@@ -209,7 +227,13 @@ export async function POST(req: NextRequest) {
     console.log(`MP webhook: gym ${gymId} → annual payment ${paymentId} → activo hasta ${annualExpiry.toISOString().slice(0, 10)}`);
     logWebhookPlatform(gymId, String(paymentId), "payment", "processed");
 
-    createResellerCommission(gymId, payment.transaction_amount ?? 0, String(paymentId), "annual").catch(() => {});
+    createResellerCommission(
+      gymId,
+      payment.transaction_amount ?? 0,
+      `mp_payment:${paymentId}`,
+      "annual",
+      periodMonthFrom(payment.date_approved ?? payment.date_created ?? null),
+    ).catch(() => {});
 
     // WA de confirmación al dueño
     const motorUrl = process.env.WA_MOTOR_URL;
@@ -232,6 +256,72 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
   // ─────────────────────────────────────────────────────────────────────────
+
+  if (type === "subscription_authorized_payment" && data?.id) {
+    logWebhookPlatform(null, String(data.id), "subscription_authorized_payment", "received");
+
+    const authorizedPaymentResult = await fetchMpWithTimeout(`https://api.mercadopago.com/authorized_payments/${data.id}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+      retryable: true,
+    });
+    if (!authorizedPaymentResult.ok) {
+      console.error("MP webhook: no se pudo consultar authorized payment", data.id, authorizedPaymentResult.error);
+      return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
+    }
+
+    const authorizedPayment = authorizedPaymentResult.data as any;
+    console.log("[mp-webhook-authorized-payment]", JSON.stringify({
+      id: data.id,
+      authorizedPayment,
+      timestamp: new Date().toISOString(),
+    }));
+
+    const payment = authorizedPayment.payment;
+    if (!payment) {
+      console.log(`MP webhook: authorized payment ${data.id} payment pending`);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (payment.status !== "approved") {
+      console.log(`MP webhook: authorized payment ${data.id} ignored with status ${payment.status ?? "unknown"}`);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (!payment.id) {
+      console.log(`MP webhook: authorized payment ${data.id} approved without payment id`);
+      return NextResponse.json({ ok: true });
+    }
+
+    const extParts = (authorizedPayment.external_reference ?? "").split("|");
+    let gymId = extParts[0] || null;
+
+    if (!gymId && authorizedPayment.preapproval_id) {
+      const { data: gym } = await supabaseAdmin
+        .from("gyms")
+        .select("id")
+        .eq("mp_preapproval_id", String(authorizedPayment.preapproval_id))
+        .maybeSingle();
+      gymId = gym?.id ?? null;
+    }
+
+    if (!gymId) {
+      console.error("MP webhook: authorized payment sin gym_id", data.id, authorizedPayment.preapproval_id ?? null);
+      logWebhookPlatform(null, String(data.id), "subscription_authorized_payment", "error", "missing gym_id");
+      return NextResponse.json({ ok: true });
+    }
+
+    await createResellerCommission(
+      gymId,
+      authorizedPayment.transaction_amount ?? 0,
+      `mp_payment:${payment.id}`,
+      "monthly",
+      periodMonthFrom(authorizedPayment.debit_date ?? null),
+    );
+    logWebhookPlatform(gymId, String(payment.id), "subscription_authorized_payment", "processed");
+
+    return NextResponse.json({ ok: true });
+  }
 
   if (type !== "preapproval" || !data?.id) return NextResponse.json({ ok: true });
   logWebhookPlatform(null, String(data.id), "preapproval", "received");

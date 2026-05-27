@@ -26,9 +26,11 @@ export async function POST(req: NextRequest) {
 
   if (!reseller) return NextResponse.json({ error: "Reseller no encontrado" }, { status: 404 });
 
-  // Delete reseller (cascade should handle related records)
-  const { error: delErr } = await sb.from("resellers").delete().eq("id", resellerId);
-  if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
+  const { error: updateErr } = await sb
+    .from("resellers")
+    .update({ status: "deleted", updated_at: new Date().toISOString() })
+    .eq("id", resellerId);
+  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
 }

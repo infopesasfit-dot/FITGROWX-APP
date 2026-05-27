@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const COOKIE = "fitgrowx_ref";
 const TTL_DAYS = 30;
+const sb = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
   // 15 intentos por IP por minuto
@@ -17,8 +19,19 @@ export async function POST(req: NextRequest) {
   const existing = req.cookies.get(COOKIE)?.value;
   if (existing) return NextResponse.json({ ok: true, slug: existing, reused: true });
 
-  const res = NextResponse.json({ ok: true, slug: slug.trim() });
-  res.cookies.set(COOKIE, slug.trim(), {
+  const { data: reseller } = await sb
+    .from("resellers")
+    .select("id, slug")
+    .eq("slug", slug.trim())
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (!reseller) {
+    return NextResponse.json({ error: "reseller inválido" }, { status: 400 });
+  }
+
+  const res = NextResponse.json({ ok: true, slug: reseller.slug });
+  res.cookies.set(COOKIE, reseller.slug, {
     httpOnly: true,
     sameSite: "lax",
     path:     "/",
@@ -29,6 +42,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const existing = req.cookies.get(COOKIE)?.value;
+  if (!existing) return NextResponse.json({ ok: true, cleared: false });
+
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE, "", { maxAge: 0, path: "/" });
   return res;

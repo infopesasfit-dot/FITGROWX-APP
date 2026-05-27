@@ -14,13 +14,17 @@ async function assertPlatformOwner() {
 }
 
 // GET — list all resellers with stats
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { data: resellers } = await sb
+  const includeDeleted = new URL(req.url).searchParams.get("include_deleted") === "true";
+  let query = sb
     .from("resellers")
     .select("id, name, slug, commission_pct, tier, status, payout_info, cuit, fiscal_condition, user_id, created_at")
     .order("created_at", { ascending: false });
+  if (!includeDeleted) query = query.neq("status", "deleted");
+
+  const { data: resellers } = await query;
 
   if (!resellers?.length) return NextResponse.json({ resellers: [] });
 

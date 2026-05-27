@@ -47,7 +47,7 @@ function StartPageInner() {
   const [screen, setScreen] = useState<Screen>("form");
   const [isLogin, setIsLogin] = useState(searchParams.get("login") === "1");
   const refCode      = searchParams.get("ref")      ?? (typeof localStorage !== "undefined" ? localStorage.getItem("fitgrowx_ref")      : null);
-  const resellerSlug = searchParams.get("reseller") ?? (typeof localStorage !== "undefined" ? localStorage.getItem("fitgrowx_reseller") : null);
+  const resellerSlug = searchParams.get("reseller");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -199,7 +199,6 @@ function StartPageInner() {
         // Email confirmation disabled (legacy / local dev): proceed immediately
         const syncPayload: Record<string, string> = { email };
         if (refCode)      syncPayload.refCode      = refCode;
-        if (resellerSlug) syncPayload.resellerSlug = resellerSlug;
         await syncPlatformSignup(signUpData.session.access_token, syncPayload);
         if (refCode)      localStorage.removeItem("fitgrowx_ref");
         if (resellerSlug) localStorage.removeItem("fitgrowx_reseller");
