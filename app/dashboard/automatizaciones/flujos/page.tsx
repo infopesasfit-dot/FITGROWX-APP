@@ -402,6 +402,8 @@ export default function FlujosPage() {
   const [loading, setLoading]       = useState(true);
   const [todayStats, setTodayStats] = useState<Record<string, number>>({});
   const [isMobile, setIsMobile]     = useState(false);
+  const [planBlocked, setPlanBlocked] = useState(false);
+  const [planMessage, setPlanMessage] = useState<string>("");
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -497,6 +499,18 @@ export default function FlujosPage() {
     })();
   }, []);
 
+  useEffect(() => {
+    fetch("/api/admin/gym/plan-status", { credentials: "include" })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.is_blocked) {
+          setPlanBlocked(true);
+          setPlanMessage(d.message ?? "Tu gym está pausado.");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   async function togglePhase(nodeId: string) {
     const pal = COL_PAL[nodeId];
     const next = !activeMap[nodeId];
@@ -541,6 +555,44 @@ export default function FlujosPage() {
   return (
     <>
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }`}</style>
+
+      {planBlocked && (
+        <div style={{
+          background: "rgba(239,68,68,0.08)",
+          border: "1px solid rgba(239,68,68,0.25)",
+          borderRadius: 14,
+          padding: "14px 18px",
+          marginBottom: 18,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}>
+          <span style={{ fontSize: 22 }}>⏸</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#EF4444", marginBottom: 2 }}>
+              Automatizaciones pausadas
+            </div>
+            <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.65)", lineHeight: 1.45 }}>
+              {planMessage} Mientras tanto, los mensajes automáticos no se están enviando.
+            </div>
+          </div>
+          <a
+            href="/dashboard/planes"
+            style={{
+              background: "#EF4444",
+              color: "#FFFFFF",
+              padding: "8px 16px",
+              borderRadius: 10,
+              fontSize: 12,
+              fontWeight: 700,
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Activar plan
+          </a>
+        </div>
+      )}
 
       {/* Stats bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
