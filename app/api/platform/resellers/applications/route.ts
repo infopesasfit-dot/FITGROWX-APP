@@ -13,6 +13,23 @@ async function assertPlatformOwner() {
   return profile?.role === "platform_owner" ? user : null;
 }
 
+async function writeResellerAuditLog(entry: {
+  actor_id: string | null;
+  entity_type: "reseller" | "application";
+  entity_id: string;
+  action: "approve" | "reject" | "update" | "soft_delete" | "category_change" | "create";
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  notes?: string;
+}) {
+  try {
+    const { error } = await sb.from("reseller_audit_log").insert(entry);
+    if (error) console.error("Reseller audit log failed:", error.message);
+  } catch (error) {
+    console.error("Reseller audit log failed:", error);
+  }
+}
+
 export async function GET() {
   if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -25,18 +42,41 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id, status } = await req.json();
   if (!id || !["approved", "rejected", "pending"].includes(status)) {
     return NextResponse.json({ error: "id y status requeridos" }, { status: 400 });
   }
 
-  await sb.from("reseller_applications").update({ status }).eq("id", id);
+  const { data: before } = await sb
+    .from("reseller_applications")
+    .select("id, name, whatsapp, status, reseller_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!before) return NextResponse.json({ error: "Postulación no encontrada" }, { status: 404 });
+
+  const { data: after, error } = await sb
+    .from("reseller_applications")
+    .update({ status })
+    .eq("id", id)
+    .select("id, name, whatsapp, status, reseller_id")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await writeResellerAuditLog({
+    actor_id: actor.id,
+    entity_type: "application",
+    entity_id: id,
+    action: status === "approved" ? "approve" : status === "rejected" ? "reject" : "update",
+    before,
+    after,
+  });
 
   // Notify applicant via WA if approved/rejected
   {
-    const { data: app } = await sb.from("reseller_applications").select("name, whatsapp").eq("id", id).maybeSingle();
+    const app = after;
     if (app?.whatsapp) {
       const msg = status === "approved"
         ? `🎉 *¡Felicitaciones ${app.name}!*\n\nTu postulación como reseller de FitGrowX fue *aprobada*.\n\nPronto te enviamos tu link personalizado y los próximos pasos. ¡Bienvenido/a a la red! 🚀`

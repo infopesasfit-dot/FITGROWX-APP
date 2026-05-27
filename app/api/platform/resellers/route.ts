@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { sendWa } from "@/lib/wa";
 
 const sb = getSupabaseAdminClient();
+const VALID_RESELLER_TIERS = new Set(["standard", "premium", "franchise"]);
 
 async function assertPlatformOwner() {
   const sbUser = await createSupabaseServerClient();
@@ -11,6 +12,37 @@ async function assertPlatformOwner() {
   if (!user) return null;
   const { data: profile } = await sb.from("profiles").select("role").eq("id", user.id).maybeSingle();
   return profile?.role === "platform_owner" ? user : null;
+}
+
+async function writeResellerAuditLog(entry: {
+  actor_id: string | null;
+  entity_type: "reseller" | "application";
+  entity_id: string;
+  action: "approve" | "reject" | "update" | "soft_delete" | "category_change" | "create";
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  notes?: string;
+}) {
+  try {
+    const { error } = await sb.from("reseller_audit_log").insert(entry);
+    if (error) console.error("Reseller audit log failed:", error.message);
+  } catch (error) {
+    console.error("Reseller audit log failed:", error);
+  }
+}
+
+function parseCommissionPct(value: unknown, fallback?: number) {
+  if (value === undefined || value === null || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function invalidTierResponse() {
+  return NextResponse.json({ error: "Tier inválido" }, { status: 400 });
+}
+
+function invalidCommissionResponse() {
+  return NextResponse.json({ error: "commission_pct debe estar entre 0 y 100" }, { status: 400 });
 }
 
 // GET — list all resellers with stats
@@ -51,7 +83,8 @@ export async function GET(req: NextRequest) {
 
 // POST — create reseller
 export async function POST(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { name, slug, commission_pct, tier, payout_info, email } = await req.json();
 
@@ -62,6 +95,14 @@ export async function POST(req: NextRequest) {
   // Check slug unique
   const { data: existing } = await sb.from("resellers").select("id").eq("slug", slug.trim()).maybeSingle();
   if (existing) return NextResponse.json({ error: "El slug ya existe" }, { status: 409 });
+
+  const resellerTier = tier || "standard";
+  if (!VALID_RESELLER_TIERS.has(resellerTier)) return invalidTierResponse();
+
+  const resellerCommissionPct = parseCommissionPct(commission_pct, 20);
+  if (resellerCommissionPct === undefined || !Number.isFinite(resellerCommissionPct) || resellerCommissionPct < 0 || resellerCommissionPct > 100) {
+    return invalidCommissionResponse();
+  }
 
   // Resolve user_id from email if provided
   let userId: string | null = null;
@@ -74,20 +115,37 @@ export async function POST(req: NextRequest) {
   const { data: reseller, error } = await sb.from("resellers").insert({
     name:           name.trim(),
     slug:           slug.trim().toLowerCase(),
-    commission_pct: Number(commission_pct) || 20,
-    tier:           tier || "standard",
+    commission_pct: resellerCommissionPct,
+    tier:           resellerTier,
     payout_info:    payout_info?.trim() || null,
     status:         "active",
     user_id:        userId,
   }).select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await writeResellerAuditLog({
+    actor_id: actor.id,
+    entity_type: "reseller",
+    entity_id: reseller.id,
+    action: "create",
+    before: null,
+    after: {
+      id: reseller.id,
+      name: reseller.name,
+      slug: reseller.slug,
+      commission_pct: reseller.commission_pct,
+      tier: reseller.tier,
+      status: reseller.status,
+      user_id: reseller.user_id,
+    },
+  });
   return NextResponse.json({ reseller });
 }
 
 // PATCH — update reseller (commission, tier, status) or mark withdrawal paid
 export async function PATCH(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
 
@@ -132,12 +190,43 @@ export async function PATCH(req: NextRequest) {
 
   // Update reseller fields
   const { resellerId, ...updates } = body;
+  if (!resellerId) return NextResponse.json({ error: "resellerId requerido" }, { status: 400 });
+
   const allowed: Record<string, unknown> = {};
-  if (updates.commission_pct !== undefined) allowed.commission_pct = Number(updates.commission_pct);
-  if (updates.tier !== undefined)           allowed.tier           = updates.tier;
+  if (updates.commission_pct !== undefined) {
+    const commissionPct = parseCommissionPct(updates.commission_pct);
+    if (commissionPct === undefined || !Number.isFinite(commissionPct) || commissionPct < 0 || commissionPct > 100) return invalidCommissionResponse();
+    allowed.commission_pct = commissionPct;
+  }
+  if (updates.tier !== undefined) {
+    if (!VALID_RESELLER_TIERS.has(updates.tier)) return invalidTierResponse();
+    allowed.tier = updates.tier;
+  }
   if (updates.status !== undefined)         allowed.status         = updates.status;
   if (updates.payout_info !== undefined)    allowed.payout_info    = updates.payout_info;
 
-  await sb.from("resellers").update(allowed).eq("id", resellerId);
+  const { data: before } = await sb
+    .from("resellers")
+    .select("id, commission_pct, tier, status, payout_info")
+    .eq("id", resellerId)
+    .maybeSingle();
+  if (!before) return NextResponse.json({ error: "Reseller no encontrado" }, { status: 404 });
+
+  const { data: after, error } = await sb
+    .from("resellers")
+    .update(allowed)
+    .eq("id", resellerId)
+    .select("id, commission_pct, tier, status, payout_info")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await writeResellerAuditLog({
+    actor_id: actor.id,
+    entity_type: "reseller",
+    entity_id: resellerId,
+    action: updates.tier !== undefined || updates.commission_pct !== undefined ? "category_change" : "update",
+    before,
+    after,
+  });
   return NextResponse.json({ ok: true });
 }

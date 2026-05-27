@@ -13,6 +13,23 @@ async function assertPlatformOwner() {
   return profile?.role === "platform_owner" ? user : null;
 }
 
+async function writeResellerAuditLog(entry: {
+  actor_id: string | null;
+  entity_type: "reseller" | "application";
+  entity_id: string;
+  action: "approve" | "reject" | "update" | "soft_delete" | "category_change" | "create";
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  notes?: string;
+}) {
+  try {
+    const { error } = await sb.from("reseller_audit_log").insert(entry);
+    if (error) console.error("Reseller audit log failed:", error.message);
+  } catch (error) {
+    console.error("Reseller audit log failed:", error);
+  }
+}
+
 function toSlug(name: string) {
   return name.toLowerCase()
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -22,7 +39,8 @@ function toSlug(name: string) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { applicationId, name, email, whatsapp, payout_info } = await req.json();
 
@@ -33,12 +51,14 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com";
   const redirectTo = `${appUrl}/auth/callback?next=/reseller/portal`;
 
+  let applicationBefore: Record<string, unknown> | null = null;
   if (applicationId) {
     const { data: application } = await sb
       .from("reseller_applications")
-      .select("reseller_id")
+      .select("id, name, email, whatsapp, status, reseller_id")
       .eq("id", applicationId)
       .maybeSingle();
+    applicationBefore = application ?? null;
     if (application?.reseller_id) {
       const { data: existingReseller } = await sb
         .from("resellers")
@@ -94,10 +114,20 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (existingByUser) {
     if (applicationId) {
-      await sb
+      const { data: applicationAfter } = await sb
         .from("reseller_applications")
         .update({ status: "approved", reseller_id: existingByUser.id })
-        .eq("id", applicationId);
+        .eq("id", applicationId)
+        .select("id, name, email, whatsapp, status, reseller_id")
+        .single();
+      await writeResellerAuditLog({
+        actor_id: actor.id,
+        entity_type: "application",
+        entity_id: applicationId,
+        action: "approve",
+        before: applicationBefore,
+        after: applicationAfter,
+      });
     }
     const slug = existingByUser.slug;
     return NextResponse.json({
@@ -135,10 +165,20 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
       if (existingAfterConflict) {
         if (applicationId) {
-          await sb
+          const { data: applicationAfter } = await sb
             .from("reseller_applications")
             .update({ status: "approved", reseller_id: existingAfterConflict.id })
-            .eq("id", applicationId);
+            .eq("id", applicationId)
+            .select("id, name, email, whatsapp, status, reseller_id")
+            .single();
+          await writeResellerAuditLog({
+            actor_id: actor.id,
+            entity_type: "application",
+            entity_id: applicationId,
+            action: "approve",
+            before: applicationBefore,
+            after: applicationAfter,
+          });
         }
         return NextResponse.json({
           reseller: existingAfterConflict,
@@ -153,12 +193,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: rErr.message }, { status: 500 });
   }
 
+  await writeResellerAuditLog({
+    actor_id: actor.id,
+    entity_type: "reseller",
+    entity_id: reseller.id,
+    action: "create",
+    before: null,
+    after: {
+      id: reseller.id,
+      name: reseller.name,
+      slug: reseller.slug,
+      commission_pct: reseller.commission_pct,
+      tier: reseller.tier,
+      status: reseller.status,
+      user_id: reseller.user_id,
+    },
+  });
+
   // --- 4. Mark application approved ---
   if (applicationId) {
-    await sb
+    const { data: applicationAfter } = await sb
       .from("reseller_applications")
       .update({ status: "approved", reseller_id: reseller.id })
-      .eq("id", applicationId);
+      .eq("id", applicationId)
+      .select("id, name, email, whatsapp, status, reseller_id")
+      .single();
+    await writeResellerAuditLog({
+      actor_id: actor.id,
+      entity_type: "application",
+      entity_id: applicationId,
+      action: "approve",
+      before: applicationBefore,
+      after: applicationAfter,
+    });
   }
 
   // --- 5. Send WA onboarding ---

@@ -12,15 +12,33 @@ async function assertPlatformOwner() {
   return profile?.role === "platform_owner" ? user : null;
 }
 
+async function writeResellerAuditLog(entry: {
+  actor_id: string | null;
+  entity_type: "reseller" | "application";
+  entity_id: string;
+  action: "approve" | "reject" | "update" | "soft_delete" | "category_change" | "create";
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  notes?: string;
+}) {
+  try {
+    const { error } = await sb.from("reseller_audit_log").insert(entry);
+    if (error) console.error("Reseller audit log failed:", error.message);
+  } catch (error) {
+    console.error("Reseller audit log failed:", error);
+  }
+}
+
 export async function POST(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { resellerId } = await req.json();
   if (!resellerId) return NextResponse.json({ error: "resellerId requerido" }, { status: 400 });
 
   const { data: reseller } = await sb
     .from("resellers")
-    .select("id, user_id")
+    .select("id, user_id, status, slug, tier, commission_pct")
     .eq("id", resellerId)
     .maybeSingle();
 
@@ -31,6 +49,15 @@ export async function POST(req: NextRequest) {
     .update({ status: "deleted", updated_at: new Date().toISOString() })
     .eq("id", resellerId);
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+  await writeResellerAuditLog({
+    actor_id: actor.id,
+    entity_type: "reseller",
+    entity_id: resellerId,
+    action: "soft_delete",
+    before: reseller,
+    after: { ...reseller, status: "deleted" },
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -289,13 +289,18 @@ export async function POST(req: NextRequest) {
             .eq("ref_code", refCode.trim().toUpperCase())
             .maybeSingle();
           if (referrer?.gym_id) {
-            await supabase.from("referrals").insert({
-              referrer_gym_id: referrer.gym_id,
-              referred_gym_id: user.id,
-              referred_email:  normalizedEmail,
-              code:            refCode.trim().toUpperCase(),
-              status:          "registered",
-            });
+            await supabase
+              .from("referrals")
+              .upsert(
+                {
+                  referrer_gym_id: referrer.gym_id,
+                  referred_gym_id: user.id,
+                  referred_email:  normalizedEmail,
+                  code:            refCode.trim().toUpperCase(),
+                  status:          "registered",
+                },
+                { onConflict: "referred_gym_id", ignoreDuplicates: true },
+              );
           }
         } catch { /* non-fatal */ }
       })();
