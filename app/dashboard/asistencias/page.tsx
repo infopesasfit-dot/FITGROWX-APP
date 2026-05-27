@@ -135,7 +135,7 @@ export default function AsistenciasPage() {
     const [presentesRes, clasesRes, pruebaRes, monthlyRes] = await Promise.all([
       supabase
         .from("asistencias")
-        .select("id, alumno_id, hora, clase_id, gym_classes(class_name), alumnos(full_name, planes(nombre, accent_color))")
+        .select("id, alumno_id, hora, clase_id, gym_classes(*), alumnos(full_name, planes(nombre, accent_color))")
         .eq("gym_id", profile.gymId)
         .eq("fecha", today)
         .order("hora", { ascending: false }),

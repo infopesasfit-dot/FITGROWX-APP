@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getPlanNombre } from "@/lib/supabase-relations";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { withApiHandler } from "@/lib/api-error";
+import { getGymPlanStatus } from "@/lib/gym-plan-status";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,6 +13,14 @@ const supabase = createClient(
 export const GET = withApiHandler(async function GET(req: NextRequest) {
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const plan = await getGymPlanStatus(tokenRow.gym_id);
+  if (plan.is_blocked) {
+    return NextResponse.json({
+      error: "Este gimnasio no está disponible temporalmente. Contactá a tu profesor.",
+      gym_blocked: true,
+    }, { status: 403 });
+  }
 
   const { data, error } = await supabase
     .from("alumnos")

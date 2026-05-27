@@ -4,6 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getPlanNombre } from "@/lib/supabase-relations";
 import { setAlumnoSessionCookie } from "@/lib/alumno-session";
 import { logAlumnoAction, getClientIpFromRequest } from "@/lib/alumno-logging";
+import { getGymPlanStatus } from "@/lib/gym-plan-status";
 
 const supabase = getSupabaseAdminClient();
 
@@ -38,6 +39,15 @@ export async function POST(req: NextRequest) {
   if (updateError) {
     console.warn("[auth] login_failed", { reason: "DB update failed", ip });
     return NextResponse.json({ error: "Error al procesar el ingreso." }, { status: 500 });
+  }
+
+  const plan = await getGymPlanStatus(tokenRow.gym_id);
+  if (plan.is_blocked) {
+    return NextResponse.json({
+      ok: false,
+      error: "Este gimnasio no está disponible temporalmente. Contactá a tu profesor.",
+      gym_blocked: true,
+    }, { status: 403 });
   }
 
   const { data: alumno } = await supabase
