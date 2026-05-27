@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import Papa from "papaparse";
 import { ClipboardCopy, Check, Upload, Download, MessageSquare, X, AlertTriangle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 const accent = "#FF6A00";
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -202,40 +201,49 @@ export function CsvAlumnosImportContent({
 
   const handleImport = async (rows: ValidatedRow[]) => {
     if (rows.length === 0) { setError("No hay alumnos para importar."); return; }
-    if (gymPlanType === "starter" && currentAlumnoCount + rows.length > 60) {
-      setError(`Tu plan Starter tiene un límite de 60 alumnos. Tenés ${currentAlumnoCount} y estás intentando importar ${rows.length}.`);
-      return;
-    }
+
     setLoading(true);
     setError(null);
     setPartialCount(0);
-    const allInserted: ImportedAlumno[] = [];
-    let chunkError: string | null = null;
-    const CHUNK = 50;
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const { data, error: insertErr } = await supabase.from("alumnos").insert(
-        rows.slice(i, i + CHUNK).map(r => ({
-          gym_id:    gymId,
-          full_name: r.full_name,
-          phone:     r.phone_normalized || r.phone_number || null,
-          dni:       r.dni || null,
-          status:    "activo",
-        }))
-      ).select("id, phone, full_name");
-      if (insertErr) { chunkError = friendlyInsertError(insertErr.message); break; }
-      if (data) allInserted.push(...(data as ImportedAlumno[]));
-      setPartialCount(allInserted.length);
+
+    try {
+      const res = await fetch("/api/admin/alumnos/import-csv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          rows: rows.map(r => ({
+            full_name: r.full_name,
+            phone: r.phone_normalized || r.phone_number || null,
+            dni: r.dni || null,
+          })),
+        }),
+      });
+
+      const data = await res.json();
+      setLoading(false);
+
+      if (!res.ok) {
+        setError(data.error ?? "Error al importar.");
+        if (data.inserted_count && data.inserted_count > 0) {
+          setPartialCount(data.inserted_count);
+        }
+        return;
+      }
+
+      const inserted = (data.inserted ?? []) as ImportedAlumno[];
+      setImportedAlumnos(inserted);
+      setImportedCount(data.inserted_count ?? inserted.length);
+
+      // Aviso suave si hay teléfonos duplicados
+      if (data.duplicate_phones && data.duplicate_phones.length > 0) {
+        const last4 = data.duplicate_phones.map((p: string) => p.slice(-4)).join(", ");
+        setError(`Aviso: ${data.duplicate_phones.length} teléfono(s) ya existían en tu gym (terminados en ${last4}). Los alumnos se importaron igual.`);
+      }
+    } catch (err) {
+      setLoading(false);
+      setError("Error de conexión. Verificá tu internet y volvé a intentarlo.");
     }
-    setLoading(false);
-    if (chunkError) {
-      if (allInserted.length > 0) {
-        setImportedAlumnos(allInserted); setImportedCount(allInserted.length);
-        setError(`Se importaron ${allInserted.length} de ${rows.length}. ${chunkError}`);
-      } else { setError(chunkError); }
-      return;
-    }
-    setImportedAlumnos(allInserted);
-    setImportedCount(allInserted.length);
   };
 
   const handleSendAccesos = async () => {
