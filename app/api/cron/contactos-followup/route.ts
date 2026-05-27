@@ -5,6 +5,7 @@ import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
 import { sendWa } from "@/lib/wa";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
+import { canSendAutomatedWa } from "@/lib/gym-plan-status";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,6 +34,12 @@ export async function GET(req: NextRequest) {
   let totalEnviados = 0;
 
   for (const gym of gyms) {
+    const canSend = await canSendAutomatedWa(gym.gym_id);
+    if (!canSend) {
+      log.push(`⏸ ${gym.gym_name ?? gym.gym_id} — gym bloqueado (trial vencido o suscripción), saltado`);
+      continue;
+    }
+
     // Leads on step 1 (day-0 sent) or step 2 (day-1 sent), no class scheduled yet
     const { data: prospectos } = await supabase
       .from("prospectos")

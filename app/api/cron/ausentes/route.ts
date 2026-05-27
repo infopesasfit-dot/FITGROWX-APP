@@ -4,6 +4,7 @@ import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
 import { enqueueWABulk } from "@/lib/wa-queue";
+import { canSendAutomatedWa } from "@/lib/gym-plan-status";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,6 +38,12 @@ export async function GET(req: NextRequest) {
   const log: string[] = [];
 
   for (const gym of gyms) {
+    const canSend = await canSendAutomatedWa(gym.gym_id);
+    if (!canSend) {
+      log.push(`⏸ ${gym.gym_name ?? gym.gym_id} — gym bloqueado (trial vencido o suscripción), saltado`);
+      continue;
+    }
+
     const step1Days = gym.inactividad_dias ?? 10;
 
     const { data: alumnos } = await supabase

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
+import { canSendAutomatedWa } from "@/lib/gym-plan-status";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,6 +23,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (!gym) return NextResponse.json({ ok: false, error: "Gym no encontrado." }, { status: 404 });
+
+  const canSend = await canSendAutomatedWa(gym_id);
+  if (!canSend) {
+    return NextResponse.json({ ok: false, error: "Tu gym tiene el envío de WhatsApp pausado por suscripción vencida." }, { status: 422 });
+  }
 
   const dias = gym.inactividad_dias ?? 7;
   const since = new Date();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { sendWa, isWaConnected } from "@/lib/wa";
+import { canSendAutomatedWa } from "@/lib/gym-plan-status";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,11 @@ export async function GET(req: NextRequest) {
   for (const settings of gyms) {
     try {
       const gymId = settings.gym_id;
+      const canSend = await canSendAutomatedWa(gymId);
+      if (!canSend) {
+        log.push(`⏸ Gym ${gymId} — gym bloqueado (trial vencido o suscripción), saltado`);
+        continue;
+      }
       const reminderDays = settings.staff_payment_reminder_days || 14;
       const dayOfWeek = settings.staff_payment_reminder_day_of_week;
       const lastSent = settings.last_staff_payment_reminder_sent_at

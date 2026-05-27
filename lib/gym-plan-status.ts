@@ -99,3 +99,8 @@ export async function canAddAlumno(gymId: string): Promise<{ allowed: boolean; r
 
   return { allowed: true };
 }
+
+export async function canSendAutomatedWa(gymId: string): Promise<boolean> {
+  const plan = await getGymPlanStatus(gymId);
+  return !plan.is_blocked;
+}

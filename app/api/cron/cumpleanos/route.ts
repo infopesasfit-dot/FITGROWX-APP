@@ -4,6 +4,7 @@ import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
 import { logWASend } from "@/lib/wa-log";
 import { enqueueWABulk } from "@/lib/wa-queue";
+import { canSendAutomatedWa } from "@/lib/gym-plan-status";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,12 @@ export async function GET(req: NextRequest) {
   if (!gyms?.length) return NextResponse.json({ ok: true, log: ["Sin gyms con cumple activo"] });
 
   for (const gym of gyms) {
+    const canSend = await canSendAutomatedWa(gym.gym_id);
+    if (!canSend) {
+      log.push(`⏸ ${gym.gym_name ?? gym.gym_id} — gym bloqueado (trial vencido o suscripción), saltado`);
+      continue;
+    }
+
     const { data: alumnos } = await supabase
       .from("alumnos")
       .select("id, full_name, phone, fecha_nacimiento, notif_cumple_year")
