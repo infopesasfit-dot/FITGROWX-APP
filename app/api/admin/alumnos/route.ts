@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createAlumnoSchema, parseBody } from "@/lib/schemas";
-
-// null = sin límite. Cambiar aquí para actualizar todos los gyms de ese plan.
-const PLAN_LIMITS: Record<string, number | null> = {
-  starter:     60,
-  crecimiento: null,
-};
+import { canAddAlumno } from "@/lib/gym-plan-status";
 
 type AuthorizedProfile = {
   gym_id: string | null;
@@ -118,26 +113,10 @@ export async function POST(req: NextRequest) {
 
   const gymId = profile.gym_id;
 
-  // Verificar límite del plan
-  const { data: gymData } = await admin.from("gyms").select("plan_type").eq("id", gymId).maybeSingle();
-  const planType = (gymData as { plan_type?: string } | null)?.plan_type ?? "crecimiento";
-  // Si plan_type no está en PLAN_LIMITS, se asume sin límite (Pro)
-  const limit = Object.prototype.hasOwnProperty.call(PLAN_LIMITS, planType)
-    ? PLAN_LIMITS[planType]
-    : null;
-
-  if (limit !== null) {
-    const { count } = await admin
-      .from("alumnos")
-      .select("id", { count: "exact", head: true })
-      .eq("gym_id", gymId)
-      .is("deleted_at", null);
-    if ((count ?? 0) >= limit) {
-      return NextResponse.json(
-        { ok: false, error: `Tu plan permite hasta ${limit} alumnos. Contactanos para ampliar tu cuenta.` },
-        { status: 422 },
-      );
-    }
+  // Verificar plan: trial activo/gracia, plan starter dentro del límite, plan pro ilimitado
+  const planCheck = await canAddAlumno(gymId);
+  if (!planCheck.allowed) {
+    return NextResponse.json({ ok: false, error: planCheck.reason }, { status: 422 });
   }
 
   const raw = await req.json();
