@@ -85,6 +85,16 @@ export async function POST(req: NextRequest) {
 
   // ── Registrar asistencia ────────────────────────────────────────────────────
   const hora = getCurrentTime();
+
+  console.log("[checkin-publico] TIMEZONE DEBUG", {
+    serverTime_UTC: new Date().toISOString(),
+    serverTime_Argentina: new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires" }),
+    getTodayDate_result: today,
+    getCurrentTime_result: hora,
+    DATE_NOW: Date.now(),
+    TZ_env: process.env.TZ ?? "not set",
+  });
+
   console.log("[checkin-publico] INSERT attempt", { gym_id, alumno_id: alumnoId, fecha: today, hora });
 
   const { data: insertedData, error: insErr } = await supabase
