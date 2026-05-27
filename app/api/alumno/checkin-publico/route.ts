@@ -85,14 +85,33 @@ export async function POST(req: NextRequest) {
 
   // ── Registrar asistencia ────────────────────────────────────────────────────
   const hora = getCurrentTime();
-  const { error: insErr } = await supabase.from("asistencias").insert({
-    gym_id: gym_id,
-    alumno_id: alumnoId,
-    fecha: today,
-    hora,
-  } as never);
+  console.log("[checkin-publico] INSERT attempt", { gym_id, alumno_id: alumnoId, fecha: today, hora });
+
+  const { data: insertedData, error: insErr } = await supabase
+    .from("asistencias")
+    .insert({
+      gym_id: gym_id,
+      alumno_id: alumnoId,
+      fecha: today,
+      hora,
+    } as never)
+    .select("id, gym_id, alumno_id, fecha, hora");
+
+  console.log("[checkin-publico] INSERT result", {
+    error: insErr?.message ?? null,
+    errorCode: insErr?.code ?? null,
+    errorDetails: insErr?.details ?? null,
+    rowsReturned: insertedData?.length ?? 0,
+    data: insertedData
+  });
 
   if (insErr) {
+    console.error("[checkin-publico] insert error:", insErr.message, insErr.code, insErr.details);
+    return NextResponse.json({ ok: false, error: "Error al registrar la asistencia. Intentá de nuevo." }, { status: 500 });
+  }
+
+  if (!insertedData || insertedData.length === 0) {
+    console.error("[checkin-publico] INSERT returned no data — RLS blocked silently?");
     return NextResponse.json({ ok: false, error: "Error al registrar la asistencia. Intentá de nuevo." }, { status: 500 });
   }
 
