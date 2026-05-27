@@ -312,6 +312,13 @@ function AlumnoPanelInner() {
     fetch("/api/alumno/session", { credentials: "include" })
       .then(async r => {
         if (r.status === 401) { router.replace("/alumno/login"); return; }
+        if (r.status === 403) {
+          const errData = await r.json().catch(() => null);
+          if (errData?.gym_blocked) {
+            router.replace("/alumno/gym-pausado");
+            return;
+          }
+        }
         if (!r.ok) { setApiDown(true); return; }
         const d = await r.json();
         const dismissKey = `fitgrowx_deuda_ok_${d.alumno_id}`;
