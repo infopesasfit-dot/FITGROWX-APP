@@ -176,6 +176,7 @@ export default function AlumnosPage() {
   const [membresiaError,   setMembresiaError]   = useState<string | null>(null);
   const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
   const [bulkMembresiaOpen, setBulkMembresiaOpen] = useState(false);
+  const [bulkMembresiaIds, setBulkMembresiaIds] = useState<string[]>([]);
   const [reactivarTarget,   setReactivarTarget]   = useState<Alumno | null>(null);
   const [reactivarPlanId,   setReactivarPlanId]   = useState("");
   const [reactivarFechaInicio, setReactivarFechaInicio] = useState("");
@@ -587,6 +588,44 @@ export default function AlumnosPage() {
     setToast(`${name} eliminado`);
   };
 
+  const handleBulkEliminar = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    if (!confirm(`¿Eliminar ${ids.length} alumno${ids.length !== 1 ? "s" : ""}? Podrás recuperarlos contactando a soporte.`)) return;
+    const deletedAt = new Date().toISOString();
+    const { error } = await supabase.from("alumnos").update({ deleted_at: deletedAt }).in("id", ids);
+    if (error) {
+      setToast(`Error al eliminar: ${error.message}`);
+      return;
+    }
+    const idsSet = new Set(ids);
+    if (gymId) {
+      const logs = alumnos
+        .filter(alumno => idsSet.has(alumno.id))
+        .map(alumno => ({
+          alumno_id: alumno.id,
+          gym_id: gymId,
+          type: "eliminado",
+          description: "Alumno eliminado (soft delete)",
+          actor: "admin",
+        }));
+      if (logs.length > 0) supabase.from("alumno_activity_log").insert(logs).then(() => {});
+    }
+    setAlumnos(prev => {
+      const next = prev.filter(alumno => !idsSet.has(alumno.id));
+      if (gymId) setPageCache(`alumnos_${gymId}`, next);
+      return next;
+    });
+    setTotalCount(prev => Math.max(0, prev - ids.length));
+    setUltimaMap(prev => {
+      const next = { ...prev };
+      ids.forEach(id => { delete next[id]; });
+      return next;
+    });
+    setSelectedIds(new Set());
+    setToast(`${ids.length} alumno${ids.length !== 1 ? "s" : ""} eliminado${ids.length !== 1 ? "s" : ""}`);
+  };
+
   // ── Ficha / historial ────────────────────────────────────────────
   const openFicha = async (alumno: Alumno) => {
     setFichaTarget(alumno);
@@ -768,10 +807,21 @@ export default function AlumnosPage() {
     if (planes.length === 0 && gymId) await loadPlanes(gymId);
   };
 
+  const openBulkMembresiaModal = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setBulkMembresiaIds(ids);
+    setMembresiaPlanId("");
+    setMembresiaFecha(defaultExpiry());
+    setMembresiaError(null);
+    setBulkMembresiaOpen(true);
+    if (planes.length === 0 && gymId) await loadPlanes(gymId);
+  };
+
   const handleMembresiaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!membresiaTarget && !bulkMembresiaOpen) return;
-    const ids = bulkMembresiaOpen ? [...selectedIds] : [membresiaTarget!.id];
+    const ids = bulkMembresiaOpen ? bulkMembresiaIds : [membresiaTarget!.id];
     if (ids.length === 0) return;
     setMembresiaSaving(true);
     setMembresiaError(null);
@@ -784,6 +834,7 @@ export default function AlumnosPage() {
     if (error) { setMembresiaError(error.message); return; }
     setMembresiaTarget(null);
     setBulkMembresiaOpen(false);
+    setBulkMembresiaIds([]);
     setSelectedIds(new Set());
     setToast(`Membresía asignada a ${ids.length} alumno${ids.length !== 1 ? "s" : ""}`);
     setTimeout(() => setToast(null), 3000);
@@ -1691,7 +1742,7 @@ export default function AlumnosPage() {
     )}
     {/* ── Modal: Asignar Membresía ── */}
     {(membresiaTarget || bulkMembresiaOpen) && (
-      <div onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); }} style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
+      <div onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); setBulkMembresiaIds([]); }} style={{ position: "fixed", inset: 0, zIndex: 9010, background: "rgba(0,0,0,0.40)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20, paddingBottom: isMobile ? "calc(64px + env(safe-area-inset-bottom, 0px))" : undefined }}>
         <div onClick={e => e.stopPropagation()} style={{ background: "#FFFFFF", borderRadius: isMobile ? "20px 20px 0 0" : 20, boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)", width: "100%", maxWidth: isMobile ? "100%" : 420, overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 24px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1701,11 +1752,11 @@ export default function AlumnosPage() {
               <div>
                 <h2 style={{ font: `800 1.05rem/1 ${fd}`, color: t1, letterSpacing: "-0.01em" }}>Asignar Membresía</h2>
                 <p style={{ font: `400 0.75rem/1 ${fb}`, color: t3, marginTop: 3 }}>
-                  {bulkMembresiaOpen ? `${selectedIds.size} alumno${selectedIds.size !== 1 ? "s" : ""} seleccionado${selectedIds.size !== 1 ? "s" : ""}` : membresiaTarget?.full_name}
+                  {bulkMembresiaOpen ? `${bulkMembresiaIds.length} alumno${bulkMembresiaIds.length !== 1 ? "s" : ""} seleccionado${bulkMembresiaIds.length !== 1 ? "s" : ""}` : membresiaTarget?.full_name}
                 </p>
               </div>
             </div>
-            <button onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); }} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}
+            <button onClick={() => { setMembresiaTarget(null); setBulkMembresiaOpen(false); setBulkMembresiaIds([]); }} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F0F2F8", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: t2, flexShrink: 0 }}
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#E4E6EF"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F0F2F8"; }}
             ><X size={16} /></button>
@@ -2682,9 +2733,13 @@ export default function AlumnosPage() {
         <span style={{ font: `600 0.8rem/1 ${fd}`, color: "#E2E8F0" }}>{selectedIds.size} seleccionado{selectedIds.size !== 1 ? "s" : ""}</span>
         <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.12)" }} />
         <button
-          onClick={() => { setMembresiaPlanId(""); setMembresiaFecha(defaultExpiry()); setMembresiaError(null); setBulkMembresiaOpen(true); if (planes.length === 0 && gymId) loadPlanes(gymId); }}
+          onClick={openBulkMembresiaModal}
           style={{ padding: "7px 13px", borderRadius: 9, background: "#FF6A00", border: "none", color: "white", font: `600 0.78rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
         ><Star size={12} /> Asignar membresía</button>
+        <button
+          onClick={handleBulkEliminar}
+          style={{ padding: "7px 11px", borderRadius: 9, background: "rgba(220,38,38,0.16)", border: "1px solid rgba(248,113,113,0.35)", color: "#FCA5A5", font: `600 0.78rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+        ><Trash2 size={12} /> Eliminar</button>
         <button onClick={() => setSelectedIds(new Set())} style={{ width: 28, height: 28, borderRadius: 7, background: "rgba(255,255,255,0.08)", border: "none", color: "#94A3B8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={13} /></button>
       </div>
     )}
