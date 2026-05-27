@@ -129,14 +129,19 @@ export async function POST(req: NextRequest) {
 
     // Resolve reseller_id from slug if provided and gym doesn't have one yet
     let resellerId: string | null = null;
+    let selfReferral = false;
     if (resellerSlug && !existingGym) {
       const { data: reseller } = await supabase
         .from("resellers")
-        .select("id")
+        .select("id, user_id")
         .eq("slug", resellerSlug)
         .eq("status", "active")
         .maybeSingle();
       resellerId = reseller?.id ?? null;
+      selfReferral = Boolean(reseller?.user_id && reseller.user_id === user.id);
+      if (selfReferral) {
+        console.warn(`sync-signup: self-referral detected for gym ${user.id} and reseller ${resellerId}`);
+      }
     }
 
     const { error: gymUpsertError } = await supabase.from("gyms").upsert(
@@ -153,7 +158,7 @@ export async function POST(req: NextRequest) {
         gym_status: existingGym?.gym_status ?? "trial",
         plan_type: existingGym?.plan_type ?? "crecimiento",
         is_subscription_active: existingGym?.is_subscription_active ?? false,
-        ...(resellerId ? { reseller_id: resellerId } : {}),
+        ...(resellerId ? { reseller_id: resellerId, self_referral: selfReferral } : {}),
       },
       { onConflict: "id" },
     );

@@ -13,6 +13,58 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+function normalizeEmail(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function normalizePhone(value: string | null | undefined) {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+async function logPossibleSelfReferralWarning(
+  gym: { user_id?: string | null; email?: string | null; whatsapp?: string | null },
+  reseller: { id: string; user_id?: string | null; name?: string | null; cuit?: string | null },
+  gymId: string,
+) {
+  if (!gym.user_id || !reseller.user_id || gym.user_id === reseller.user_id) return;
+
+  const matches: string[] = [];
+  let resellerEmail = "";
+  let resellerPhone = "";
+
+  const { data: resellerAuth } = await supabaseAdmin.auth.admin.getUserById(reseller.user_id);
+  resellerEmail = normalizeEmail(resellerAuth?.user?.email);
+
+  if (resellerEmail) {
+    const { data: applicationByEmail } = await supabaseAdmin
+      .from("reseller_applications")
+      .select("email, whatsapp")
+      .eq("email", resellerEmail)
+      .maybeSingle();
+    resellerPhone = normalizePhone(applicationByEmail?.whatsapp);
+  }
+
+  if (!resellerPhone && reseller.name) {
+    const { data: applicationByName } = await supabaseAdmin
+      .from("reseller_applications")
+      .select("email, whatsapp")
+      .eq("name", reseller.name)
+      .eq("status", "approved")
+      .maybeSingle();
+    resellerEmail = resellerEmail || normalizeEmail(applicationByName?.email);
+    resellerPhone = normalizePhone(applicationByName?.whatsapp);
+  }
+
+  if (normalizeEmail(gym.email) && normalizeEmail(gym.email) === resellerEmail) matches.push("email");
+  if (normalizePhone(gym.whatsapp) && normalizePhone(gym.whatsapp) === resellerPhone) matches.push("phone");
+
+  if (matches.length) {
+    console.warn(
+      `Reseller commission warning: possible self-referral (${matches.join(", ")}) for gym ${gymId}, reseller ${reseller.id}, cuit=${reseller.cuit ?? "n/a"}`,
+    );
+  }
+}
+
 function logWebhookPlatform(
   gymId: string | null,
   paymentId: string | null,
@@ -33,40 +85,53 @@ function logWebhookPlatform(
 async function createResellerCommission(gymId: string, paymentAmount: number, paymentRef: string, paymentType: "monthly" | "annual") {
   const { data: gym } = await supabaseAdmin
     .from("gyms")
-    .select("reseller_id")
+    .select("reseller_id, user_id, self_referral, email, whatsapp")
     .eq("id", gymId)
     .maybeSingle();
   if (!gym?.reseller_id) return;
 
+  if (gym.self_referral) {
+    console.log(`Reseller commission: self-referral, skipped commission for gym ${gymId}`);
+    return;
+  }
+
   const { data: reseller } = await supabaseAdmin
     .from("resellers")
-    .select("id, commission_pct, status, slug")
+    .select("id, user_id, name, commission_pct, status, slug, cuit")
     .eq("id", gym.reseller_id)
     .maybeSingle();
   if (!reseller || reseller.status !== "active") return;
 
-  // Idempotency: skip if this payment ref already has a commission
-  const { data: existing } = await supabaseAdmin
-    .from("reseller_commissions")
-    .select("id")
-    .eq("mp_payment_ref", paymentRef)
-    .maybeSingle();
-  if (existing) return;
+  await logPossibleSelfReferralWarning(gym, reseller, gymId);
 
   const commissionAmount = Math.round(paymentAmount * (reseller.commission_pct / 100));
   const periodMonth = new Date().toISOString().slice(0, 7);
 
-  await supabaseAdmin.from("reseller_commissions").insert({
-    reseller_id:       reseller.id,
-    gym_id:            gymId,
-    mp_payment_ref:    paymentRef,
-    payment_amount:    paymentAmount,
-    commission_pct:    reseller.commission_pct,
-    commission_amount: commissionAmount,
-    payment_type:      paymentType,
-    period_month:      periodMonth,
-    status:            "pending",
-  });
+  const { data: insertedCommission, error: insertError } = await supabaseAdmin
+    .from("reseller_commissions")
+    .upsert({
+      reseller_id:       reseller.id,
+      gym_id:            gymId,
+      mp_payment_ref:    paymentRef,
+      payment_amount:    paymentAmount,
+      commission_pct:    reseller.commission_pct,
+      commission_amount: commissionAmount,
+      payment_type:      paymentType,
+      period_month:      periodMonth,
+      status:            "pending",
+    }, { onConflict: "mp_payment_ref", ignoreDuplicates: true })
+    .select("id")
+    .maybeSingle();
+
+  if (insertError) {
+    console.error(`Reseller commission: insert failed for payment ref ${paymentRef}:`, insertError.message);
+    return;
+  }
+
+  if (!insertedCommission) {
+    console.log(`Reseller commission: duplicate payment ref ${paymentRef}, skipped commission`);
+    return;
+  }
 
   console.log(`Reseller commission: gym ${gymId} → reseller ${reseller.id} → $${commissionAmount} (${paymentType})`);
 }
