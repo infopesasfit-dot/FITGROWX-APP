@@ -86,8 +86,9 @@ export async function GET(req: NextRequest) {
 
       const phone = normalizePhone(p.phone);
 
+      // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
       const sent = await sendWa(gym.gym_id, phone, message, { route: "cron/contactos-followup" });
-      if (!sent) {
+      if (!sent.ok) {
         log.push(`⚠ ${p.full_name} (${gym.gym_name}) — paso ${nextStep} WA falló, reintento próximo cron`);
         continue;
       }

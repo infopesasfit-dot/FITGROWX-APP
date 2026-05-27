@@ -114,8 +114,9 @@ export async function POST(req: NextRequest) {
   const logMeta = { requestId, alumno_id: alumno.id, gymId: alumno.gym_id, phone: phone.slice(-4), type };
 
   async function sendWA(message: string, step: string) {
+    // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
     const ok = await sendWaLib(alumno!.gym_id, phone, message, { route: ROUTE });
-    if (ok) void logger.info(`send-welcome: mensaje enviado (${step})`, { route: ROUTE, meta: logMeta });
+    if (ok.ok) void logger.info(`send-welcome: mensaje enviado (${step})`, { route: ROUTE, meta: logMeta });
   }
 
   if (type === "renewal") {

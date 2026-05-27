@@ -81,8 +81,9 @@ export async function POST(req: NextRequest) {
     ? `💳 *${gymName}* — Link de pago\n\nHola ${alumno.full_name.split(" ")[0]}! Te mandamos tu link para renovar tu membresía *${plan.nombre}* por $${precio}.\n\n👉 ${link}\n\n_Se abre directo en Mercado Pago. Sin registro._`
     : `💳 *${gymName}* — Renovación de membresía\n\nHola ${alumno.full_name.split(" ")[0]}! Tu membresía *${plan.nombre}* es $${precio}.\n\n👉 ${link}\n\n${settings?.payment_info ? `\n💳 Datos de pago:\n${settings.payment_info}` : ""}`;
 
+  // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
   const waOk = await sendWa(profile.gym_id, normalizePhone(alumno.phone), msg, { route: "admin/pay-link" });
-  if (!waOk) return NextResponse.json({ error: "No se pudo enviar el WA. Verificá que esté conectado." }, { status: 500 });
+  if (!waOk.ok) return NextResponse.json({ error: "No se pudo enviar el WA. Verificá que esté conectado." }, { status: 500 });
 
   return NextResponse.json({ ok: true, link });
 }

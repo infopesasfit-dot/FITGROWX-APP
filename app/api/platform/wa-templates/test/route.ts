@@ -59,13 +59,14 @@ export async function POST(req: NextRequest) {
   const normalizedPhone = digits.startsWith("549") ? digits : digits.startsWith("54") ? "549" + digits.slice(2) : "549" + digits;
   const preview = fill(body ?? "", { nombre: "Nombre", dias: "2" });
 
+  // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
   const ok = await sendWa("fitgrowx-platform", normalizedPhone, `[TEST — ${key}]\n\n${preview}`, { route: "wa-templates/test", timeout: 10_000 });
 
   // Log every test attempt regardless of outcome
   console.log(
-    `[wa-template-test] user=${user.id} key=${key} phone=${normalizedPhone} bodyLen=${(body ?? "").length} ok=${ok} remaining=${rl.remaining}`,
+    `[wa-template-test] user=${user.id} key=${key} phone=${normalizedPhone} bodyLen=${(body ?? "").length} ok=${ok.ok} remaining=${rl.remaining}`,
   );
 
-  if (!ok) return NextResponse.json({ error: "No se pudo enviar. Verificá que el QR esté conectado." }, { status: 500 });
+  if (!ok.ok) return NextResponse.json({ error: "No se pudo enviar. Verificá que el QR esté conectado." }, { status: 500 });
   return NextResponse.json({ ok: true, remaining: rl.remaining });
 }

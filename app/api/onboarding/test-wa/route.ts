@@ -26,8 +26,9 @@ export async function POST(req: NextRequest) {
     `✅ Avisos de inactividad\n\n` +
     `¡Todo sin que tengas que escribir nada! 🚀`;
 
+  // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
   const ok = await sendWa("fitgrowx-platform", normalized, message, { route: "onboarding/test-wa", timeout: 10_000 });
-  if (!ok) return NextResponse.json({ ok: false, error: "No se pudo enviar. Verificá que el número esté en WhatsApp." }, { status: 502 });
+  if (!ok.ok) return NextResponse.json({ ok: false, error: "No se pudo enviar. Verificá que el número esté en WhatsApp." }, { status: 502 });
 
   const admin = getSupabaseAdminClient();
   await admin

@@ -333,8 +333,9 @@ export async function POST(req: NextRequest) {
           const digits = normalizedPhone.replace(/\D/g, "");
           const phone = digits.startsWith("549") ? digits : digits.startsWith("54") ? "549" + digits.slice(2) : "549" + digits;
 
+          // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
           const ok = await sendWa("fitgrowx-platform", phone, body, { route: "sync-signup/bienvenida" });
-          if (ok) {
+          if (ok.ok) {
             await supabase
               .from("platform_accounts")
               .update({ wa_bienvenida_sent_at: new Date().toISOString() })

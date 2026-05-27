@@ -81,8 +81,9 @@ export async function GET(req: NextRequest) {
         `🎴 Mirá tu tarjeta de logro:\n${cardUrl}\n\n` +
         `Subíla a tus Stories 📸 ¡A seguir! 💪`;
 
-      void sendWa(gym_id, phone, message, { route: "alumno/hitos" }).then(ok => {
-        if (ok) void sb.from("alumno_hitos").update({ wa_sent_at: new Date().toISOString() }).eq("alumno_id", alumno_id).eq("hito", h);
+      // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
+      void sendWa(gym_id, phone, message, { route: "alumno/hitos" }).then(r => {
+        if (r.ok) void sb.from("alumno_hitos").update({ wa_sent_at: new Date().toISOString() }).eq("alumno_id", alumno_id).eq("hito", h);
       });
     }
   }

@@ -121,13 +121,14 @@ export async function POST(req: NextRequest) {
     ].join("\n");
 
     // Send WhatsApp notification
+    // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
     const sent = await sendWa(
       profile.gym_id,
       normalizePhone(phone),
       msg,
       { route: "admin/clase/cancelar-instancia" },
     );
-    sent ? notifiedCount.ok++ : notifiedCount.fail++;
+    sent.ok ? notifiedCount.ok++ : notifiedCount.fail++;
 
     // Send in-app notification
     void createAlumnoNotification(admin, {

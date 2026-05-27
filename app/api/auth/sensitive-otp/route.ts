@@ -35,8 +35,9 @@ export async function POST() {
   const phone = normalizePhone(profile.phone);
   const msg = `🔐 *FitGrowX — Código de confirmación*\n\nTu código es: *${code}*\n\nVence en 10 minutos. No lo compartas con nadie.`;
 
+  // sendWa retorna { ok: boolean, ... } — usar .ok, NO el objeto.
   const ok = await sendWa(gymId, phone, msg, { route: "auth/sensitive-otp" });
-  if (!ok) return NextResponse.json({ error: "No se pudo enviar el código. Verificá que WhatsApp esté conectado." }, { status: 500 });
+  if (!ok.ok) return NextResponse.json({ error: "No se pudo enviar el código. Verificá que WhatsApp esté conectado." }, { status: 500 });
 
   const masked = profile.phone.slice(-4).padStart(profile.phone.length, "•");
   return NextResponse.json({ ok: true, masked });
