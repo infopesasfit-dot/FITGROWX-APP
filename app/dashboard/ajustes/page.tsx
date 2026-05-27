@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useBrandAlert } from "@/components/brand-confirm";
 import {
   AlertTriangle,
   BarChart2,
@@ -152,6 +153,7 @@ function getInitials(value: string) {
 function AjustesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const brandAlert = useBrandAlert();
 
   const searchTab = searchParams.get("tab");
   const normalizeTab = (value: string | null): SettingsTab => {
@@ -908,7 +910,7 @@ function AjustesContent() {
                     await supabase.auth.resetPasswordForEmail(user.email, {
                       redirectTo: `${window.location.origin}/reset-password`,
                     });
-                    alert("Te enviamos un email para resetear tu contraseña.");
+                    await brandAlert({ eyebrow: "Seguridad", title: "Email enviado", message: "Te enviamos un email para resetear tu contraseña.", variant: "success" });
                   }}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,

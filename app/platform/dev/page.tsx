@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Play, AlertTriangle, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { useBrandAlert } from "@/components/brand-confirm";
 
 const fd = "'Inter', sans-serif";
 
@@ -63,6 +64,7 @@ type LogEntry = {
 };
 
 export default function DevPage() {
+  const brandAlert = useBrandAlert();
   const [gymId, setGymId] = useState("");
   const [running, setRunning] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -75,7 +77,7 @@ export default function DevPage() {
 
       const body: Record<string, string> = { cron: cron.id };
       if (cron.needsGymId) {
-        if (!gymId.trim()) { alert("Ingresá un gym_id primero."); return; }
+        if (!gymId.trim()) { await brandAlert({ eyebrow: "Dato requerido", title: "Ingresá un gym_id primero.", variant: "default" }); return; }
         body.gym_id = gymId.trim();
       }
 

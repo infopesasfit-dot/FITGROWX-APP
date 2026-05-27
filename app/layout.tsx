@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { CookieBanner } from "@/components/cookie-banner";
+import { BrandConfirmProvider } from "@/components/brand-confirm";
 import "./globals.css";
 
 const inter = Inter({
@@ -34,7 +35,7 @@ export default function RootLayout({
       <head>
         <meta name="theme-color" content="#050505" />
       </head>
-      <body className="min-h-full">{children}<SpeedInsights /><Analytics /><CookieBanner /></body>
+      <body className="min-h-full"><BrandConfirmProvider>{children}</BrandConfirmProvider><SpeedInsights /><Analytics /><CookieBanner /></body>
     </html>
   );
 }

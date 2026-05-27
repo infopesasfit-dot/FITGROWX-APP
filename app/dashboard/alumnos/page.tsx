@@ -12,6 +12,7 @@ import { EJERCICIOS } from "@/lib/ejercicios";
 import { usePagoModal } from "@/hooks/usePagoModal";
 import { useRutinaModal } from "@/hooks/useRutinaModal";
 import { addMonths } from "@/lib/date-utils";
+import { useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -131,6 +132,7 @@ function fuzzyMatch(query: string, target: string): boolean {
 const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry(), fecha_nacimiento: "", wa_consent: false };
 
 export default function AlumnosPage() {
+  const confirm = useBrandConfirm();
   const [isMobile,        setIsMobile]        = useState(false);
   const [role,            setRole]            = useState<"admin" | "staff">("admin");
   const [alumnos,         setAlumnos]         = useState<Alumno[]>([]);
@@ -565,7 +567,13 @@ export default function AlumnosPage() {
 
   // ── Eliminar Alumno ───────────────────────────────────────────────
   const handleEliminar = async (id: string, name: string) => {
-    if (!confirm(`¿Eliminar a ${name}? Podrás recuperarlo contactando a soporte.`)) return;
+    if (!await confirm({
+      eyebrow: "Eliminar alumno",
+      title: `¿Eliminar a ${name}?`,
+      message: "Podrás recuperarlo contactando a soporte.",
+      confirmLabel: "Eliminar",
+      variant: "danger",
+    })) return;
     const { error } = await supabase.from("alumnos").update({ deleted_at: new Date().toISOString() }).eq("id", id);
     if (error) {
       setToast(`Error al eliminar: ${error.message}`);
@@ -591,7 +599,13 @@ export default function AlumnosPage() {
   const handleBulkEliminar = async () => {
     const ids = [...selectedIds];
     if (ids.length === 0) return;
-    if (!confirm(`¿Eliminar ${ids.length} alumno${ids.length !== 1 ? "s" : ""}? Podrás recuperarlos contactando a soporte.`)) return;
+    if (!await confirm({
+      eyebrow: "Eliminar selección",
+      title: `¿Eliminar ${ids.length} alumno${ids.length !== 1 ? "s" : ""}?`,
+      message: "Podrás recuperarlos contactando a soporte.",
+      confirmLabel: "Eliminar",
+      variant: "danger",
+    })) return;
     const deletedAt = new Date().toISOString();
     const { error } = await supabase.from("alumnos").update({ deleted_at: deletedAt }).in("id", ids);
     if (error) {

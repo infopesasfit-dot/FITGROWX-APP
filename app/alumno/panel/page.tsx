@@ -13,6 +13,7 @@ import { PanelTabEntrenamiento } from "../components/PanelTabEntrenamiento";
 import { PanelTabMetas } from "../components/PanelTabMetas";
 import { PanelTabPerfil } from "../components/PanelTabPerfil";
 import { analytics } from "@/lib/alumno-analytics";
+import { useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "'Inter', sans-serif";
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -198,6 +199,7 @@ async function compressImage(file: File, maxPx = 1080, quality = 0.82): Promise<
 function AlumnoPanelInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const confirm = useBrandConfirm();
 
   const [session,      setSession]      = useState<Session | null>(null);
   const [tab,          setTab]          = useState<"calendario" | "entrenamiento" | "metas" | "perfil">("calendario");
@@ -572,9 +574,13 @@ function AlumnoPanelInner() {
             const claseDatetime = new Date(`${fecha}T${claseData.start_time}-03:00`);
             const diffHours = (claseDatetime.getTime() - Date.now()) / (1000 * 60 * 60);
             if (diffHours >= 0 && diffHours < windowHours) {
-              const ok = window.confirm(
-                `Estás cancelando a menos de ${windowHours}h de la clase. Esta cancelación se registrará como tardía y contará en tu cuota semanal. ¿Continuar?`
-              );
+              const ok = await confirm({
+                eyebrow: "Cancelación tardía",
+                title: `Estás cancelando a menos de ${windowHours}h de la clase`,
+                message: "Esta cancelación se registrará como tardía y contará en tu cuota semanal.",
+                confirmLabel: "Continuar",
+                variant: "danger",
+              });
               if (!ok) { setReservando(null); return; }
             }
           }

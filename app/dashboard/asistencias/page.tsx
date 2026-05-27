@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getTodayDate } from "@/lib/date-utils";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile, getPageCache, setPageCache, invalidateDashboardCache, invalidateAsistenciasCache } from "@/lib/gym-cache";
+import { useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -60,6 +61,7 @@ function fmt2(s: string) {
 }
 
 export default function AsistenciasPage() {
+  const confirm = useBrandConfirm();
   const [loading, setLoading] = useState(true);
   const [presentes, setPresentes] = useState<Presente[]>([]);
   const [ausentes, setAusentes] = useState<Ausente[]>([]);
@@ -744,7 +746,16 @@ export default function AsistenciasPage() {
                         <span style={{ font: `600 0.7rem/1 ${fd}`, color: "#34D399" }}>{fmt2(p.hora)}</span>
                       </div>
                       <button
-                        onClick={() => { if (window.confirm(`¿Anular asistencia de ${name}?`)) void handleDeleteAsist(p.id); }}
+                        onClick={async () => {
+                          if (!await confirm({
+                            eyebrow: "Anular asistencia",
+                            title: `¿Anular asistencia de ${name}?`,
+                            message: "El registro saldrá del listado de presentes de hoy.",
+                            confirmLabel: "Anular",
+                            variant: "danger",
+                          })) return;
+                          void handleDeleteAsist(p.id);
+                        }}
                         disabled={deletingAsist.has(p.id)}
                         title="Anular asistencia"
                         style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", padding: "4px 6px", borderRadius: 6, lineHeight: 1, flexShrink: 0, opacity: deletingAsist.has(p.id) ? 0.4 : 1 }}

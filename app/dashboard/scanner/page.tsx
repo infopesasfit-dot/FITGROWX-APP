@@ -57,19 +57,15 @@ export default function ScannerPage() {
 
   const [gymId,  setGymId]  = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [openSections, setOpenSections] = useState<Set<number>>(new Set());
+  const [openSections, setOpenSections] = useState<Set<number>>(new Set([1]));
   const [isMobile, setIsMobile] = useState(false);
 
   const toggleSection = (num: number) => {
     setOpenSections(prev => {
-      const next = new Set(prev);
-      if (next.has(num)) {
-        next.delete(num);
-        if (num === 1) stopCamera();
-      } else {
-        next.add(num);
-      }
-      return next;
+      const isClosing = prev.has(num);
+      if (prev.has(1) && num !== 1) stopCamera();
+      if (num === 1 && isClosing) stopCamera();
+      return isClosing ? new Set() : new Set([num]);
     });
   };
   const checkinUrl = gymId ? `${process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com"}/checkin/${gymId}` : "";
@@ -224,38 +220,41 @@ export default function ScannerPage() {
   const sections = [
     {
       num: 1,
-      title: "Escanear QR del alumno",
-      subtitle: "El staff lee el código del alumno con la cámara.",
+      title: "Escanear con cámara",
+      subtitle: "Lectura rápida del QR del alumno.",
       accent: "#F97316",
     },
     {
       num: 2,
-      title: "QR fijo del gimnasio",
-      subtitle: "El alumno escanea un código puesto en la entrada.",
+      title: "QR de ingreso",
+      subtitle: "Código fijo para la entrada del gimnasio.",
       accent: "#1A1D23",
     },
     {
       num: 3,
       title: "Ingreso manual por DNI",
-      subtitle: "Escribí el DNI del alumno para registrar su entrada.",
+      subtitle: "Registro directo cuando no hay QR.",
       accent: "#6366F1",
     },
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 14 : 16, maxWidth: 560, margin: "0 auto", overflowX: "hidden" }}>
+    <div style={{ width: "100%", maxWidth: isMobile ? "100%" : 760, margin: "0 auto", padding: isMobile ? "18px 14px 42px" : "34px 24px 56px", display: "flex", flexDirection: "column", gap: isMobile ? 16 : 20, overflowX: "hidden", boxSizing: "border-box" }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 2 }}>
-        <h1 style={{ font: `800 1.6rem/1 ${fd}`, color: "#1A1D23", letterSpacing: "-0.035em" }}>Escáner de Presencia</h1>
-        <p style={{ font: `400 0.82rem/1.5 ${fd}`, color: "#6B7280", marginTop: 6 }}>
-          Elegí cómo registrar la asistencia.
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "flex-end", gap: 14, marginBottom: isMobile ? 2 : 4 }}>
+        <div>
+          <p style={{ font: `800 0.72rem/1 ${fd}`, color: "#F97316", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>Control de acceso</p>
+          <h1 style={{ font: `850 ${isMobile ? "1.85rem" : "2.25rem"}/0.98 ${fd}`, color: "#15171D", letterSpacing: "-0.035em" }}>Escáner de Presencia</h1>
+        </div>
+        <p style={{ font: `500 0.86rem/1.45 ${fd}`, color: "#667085", margin: 0, maxWidth: isMobile ? "100%" : 260, textAlign: isMobile ? "left" : "right" }}>
+          Elegí un método y registrá la entrada en segundos.
         </p>
       </div>
 
       {/* Result card — visible desde cualquier método */}
       {result && !loading && (
-        <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(0,0,0,0.07)" }}>
+        <div style={{ borderRadius: 20, overflow: "hidden", border: "1px solid #E6E8EC", background: "white", boxShadow: "0 18px 46px rgba(16,24,40,0.08)" }}>
           {result.ok && result.alumno ? (
             <>
               {result.alumno.status === "activo" ? (
@@ -307,19 +306,19 @@ export default function ScannerPage() {
       {sections.map(s => {
         const isOpen = openSections.has(s.num);
         return (
-          <div key={s.num} style={{ background: "white", border: `1px solid ${isOpen ? `${s.accent}28` : "rgba(0,0,0,0.07)"}`, borderRadius: 16, overflow: "hidden", transition: "border-color 0.2s" }}>
+          <div key={s.num} style={{ background: "white", border: `1px solid ${isOpen ? `${s.accent}36` : "#E6E8EC"}`, borderRadius: 20, overflow: "hidden", boxShadow: isOpen ? "0 20px 56px rgba(16,24,40,0.10)" : "0 8px 24px rgba(16,24,40,0.045)", transition: "border-color 0.2s, box-shadow 0.2s, transform 0.2s" }}>
 
             {/* Accordion header */}
-            <button
-              onClick={() => toggleSection(s.num)}
-              style={{ width: "100%", minHeight: 72, padding: isMobile ? "16px" : "16px 18px", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-            >
-              <div style={{ width: 30, height: 30, borderRadius: 9, background: s.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ font: `800 0.78rem/1 ${fd}`, color: "white" }}>{s.num}</span>
+              <button
+                onClick={() => toggleSection(s.num)}
+              style={{ width: "100%", minHeight: isMobile ? 72 : 82, padding: isMobile ? "16px" : "18px 22px", display: "flex", alignItems: "center", gap: 14, background: isOpen ? `${s.accent}06` : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+              >
+              <div style={{ width: isMobile ? 34 : 38, height: isMobile ? 34 : 38, borderRadius: 12, background: s.accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: isOpen ? `0 10px 20px ${s.accent}2E` : "none" }}>
+                <span style={{ font: `850 ${isMobile ? "0.8rem" : "0.88rem"}/1 ${fd}`, color: "white" }}>{s.num}</span>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#1A1D23" }}>{s.title}</p>
-                <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280", marginTop: 3 }}>{s.subtitle}</p>
+                <p style={{ font: `800 ${isMobile ? "0.94rem" : "1rem"}/1.05 ${fd}`, color: "#171A21", letterSpacing: "-0.015em" }}>{s.title}</p>
+                <p style={{ font: `500 ${isMobile ? "0.76rem" : "0.82rem"}/1.4 ${fd}`, color: "#667085", marginTop: 5 }}>{s.subtitle}</p>
               </div>
               <ChevronDown
                 size={18}
@@ -330,21 +329,21 @@ export default function ScannerPage() {
 
             {/* Accordion body */}
             {isOpen && (
-              <div style={{ borderTop: "1px solid rgba(0,0,0,0.05)", padding: isMobile ? "16px" : "18px" }}>
+              <div style={{ borderTop: "1px solid #EEF0F3", padding: isMobile ? "16px" : "22px" }}>
 
                 {/* Sección 1: Cámara */}
                 {s.num === 1 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <div style={{ background: "#111", borderRadius: 14, overflow: "hidden", position: "relative", aspectRatio: "4/3" }}>
+                    <div style={{ background: "linear-gradient(145deg, #0B0D10, #171A21)", borderRadius: 18, overflow: "hidden", position: "relative", aspectRatio: "16/9", minHeight: isMobile ? 220 : 360 }}>
                       <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", display: scanning ? "block" : "none" }} />
                       {!scanning && (
                         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
-                          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <QrCode size={32} color="rgba(255,255,255,0.4)" />
+                          <div style={{ width: 82, height: 82, borderRadius: "50%", background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.08)" }}>
+                            <QrCode size={36} color="rgba(255,255,255,0.48)" />
                           </div>
                           {camError && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#FCA5A5", textAlign: "center", maxWidth: 240, padding: "0 16px" }}>{camError}</p>}
                           {hasDetector ? (
-                            <button onClick={startCamera} style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "#F97316", color: "white", border: "none", borderRadius: 11, font: `700 0.875rem/1 ${fd}`, cursor: "pointer" }}>
+                            <button onClick={startCamera} style={{ minHeight: 48, display: "flex", alignItems: "center", gap: 8, padding: "12px 22px", background: "#F97316", color: "white", border: "none", borderRadius: 13, font: `800 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 16px 32px rgba(249,115,22,0.28)" }}>
                               <Scan size={15} /> Iniciar cámara
                             </button>
                           ) : (
@@ -370,9 +369,9 @@ export default function ScannerPage() {
                       )}
                     </div>
                     {/* Foto del QR (fallback iOS) */}
-                    <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "11px 14px", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, cursor: "pointer" }}>
+                    <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 50, padding: "12px 14px", border: "1px solid #E6E8EC", borderRadius: 14, cursor: "pointer", background: "#FBFCFD" }}>
                       <QrCode size={15} color="#6B7280" />
-                      <span style={{ font: `500 0.82rem/1 ${fd}`, color: "#374151" }}>Sacar foto del QR (alternativa)</span>
+                      <span style={{ font: `650 0.82rem/1 ${fd}`, color: "#374151" }}>Sacar foto del QR</span>
                       <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFileCapture} />
                     </label>
                   </div>
@@ -384,29 +383,18 @@ export default function ScannerPage() {
                     {gymId && checkinUrl ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=1`} alt="QR del gimnasio" width={220} height={220} style={{ borderRadius: 14, border: "1px solid rgba(0,0,0,0.06)" }} />
-                        <div style={{ textAlign: "center" }}>
-                          <p style={{ font: `600 0.78rem/1 ${fd}`, color: "#1A1D23", marginBottom: 4 }}>Enlace de check-in</p>
-                          <p style={{ font: `400 0.7rem/1.4 ${fd}`, color: "#6B7280", wordBreak: "break-all", maxWidth: 320 }}>{checkinUrl}</p>
+                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=${isMobile ? 240 : 280}x${isMobile ? 240 : 280}&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=2`} alt="QR del gimnasio" width={isMobile ? 240 : 280} height={isMobile ? 240 : 280} style={{ borderRadius: 18, border: "1px solid #E6E8EC", padding: isMobile ? 10 : 14, background: "white", boxShadow: "0 18px 45px rgba(16,24,40,0.10)" }} />
+                        <div style={{ width: "100%", maxWidth: 520, textAlign: "center" }}>
+                          <p style={{ font: `750 0.82rem/1 ${fd}`, color: "#171A21", marginBottom: 6 }}>Enlace de check-in</p>
+                          <p style={{ font: `500 0.78rem/1.45 ${fd}`, color: "#667085", wordBreak: "break-word" }}>{checkinUrl}</p>
                         </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", width: "100%" }}>
-                          <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 48, padding: "10px 16px", background: copied ? "#22C55E" : "#1A1D23", color: "white", border: "none", borderRadius: 12, font: `600 0.8rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s", flex: isMobile ? "1 1 100%" : undefined, width: isMobile ? "100%" : undefined }}>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, width: "100%", maxWidth: 520 }}>
+                          <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: copied ? "#16A34A" : "#171A21", color: "white", border: "none", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s, transform 0.2s" }}>
                             <Copy size={14} />{copied ? "Copiado ✓" : "Copiar enlace"}
                           </button>
-                          <a href={`https://api.qrserver.com/v1/create-qr-code/?size=800x800&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=2`} download="qr-checkin-gym.png" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, minHeight: 48, padding: "10px 16px", background: "white", color: "#1A1D23", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 12, font: `600 0.8rem/1 ${fd}`, textDecoration: "none", flex: isMobile ? "1 1 100%" : undefined, width: isMobile ? "100%" : undefined }}>
+                          <a href={`https://api.qrserver.com/v1/create-qr-code/?size=900x900&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=3`} download="qr-checkin-gym.png" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: "#FBFCFD", color: "#171A21", border: "1px solid #D8DCE2", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, textDecoration: "none" }}>
                             <Download size={14} />Descargar QR
                           </a>
-                        </div>
-                        <div style={{ background: "#F8FAFC", borderRadius: 12, padding: "14px 16px", width: "100%" }}>
-                          <p style={{ font: `700 0.78rem/1 ${fd}`, color: "#1A1D23", marginBottom: 10 }}>¿Cómo lo usa el alumno?</p>
-                          {["Escanea el QR con la cámara (no hace falta app).", "Ingresa su DNI en la pantalla que aparece.", "El sistema verifica su membresía y registra la entrada."].map((step, i) => (
-                            <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start", marginBottom: i < 2 ? 8 : 0 }}>
-                              <div style={{ width: 18, height: 18, borderRadius: 5, background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
-                                <span style={{ font: `800 0.62rem/1 ${fd}`, color: "white" }}>{i + 1}</span>
-                              </div>
-                              <p style={{ font: `400 0.78rem/1.5 ${fd}`, color: "#6B7280" }}>{step}</p>
-                            </div>
-                          ))}
                         </div>
                       </>
                     ) : (
@@ -420,7 +408,7 @@ export default function ScannerPage() {
 
                 {/* Sección 3: DNI manual */}
                 {s.num === 3 && (
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto", gap: 10 }}>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -428,12 +416,12 @@ export default function ScannerPage() {
                       value={manualId}
                       onChange={e => setManualId(e.target.value.replace(/\D/g, ""))}
                       onKeyDown={e => e.key === "Enter" && handleManual()}
-                      style={{ width: "100%", minHeight: 48, padding: "11px 13px", border: "1px solid rgba(0,0,0,0.12)", borderRadius: 12, font: `400 0.94rem/1 ${fd}`, color: "#1A1D23", outline: "none", boxSizing: "border-box" }}
+                      style={{ width: "100%", minHeight: 54, padding: "13px 15px", border: "1px solid #D8DCE2", borderRadius: 14, font: `600 1rem/1 ${fd}`, color: "#171A21", outline: "none", boxSizing: "border-box", background: "#FBFCFD" }}
                     />
                     <button
                       onClick={handleManual}
                       disabled={!manualId.trim() || loading}
-                      style={{ minHeight: 48, padding: "11px 18px", background: "#6366F1", color: "white", border: "none", borderRadius: 12, font: `700 0.85rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1, whiteSpace: "nowrap", width: isMobile ? "100%" : undefined }}
+                      style={{ minHeight: 54, padding: "13px 22px", background: "#4F46E5", color: "white", border: "none", borderRadius: 14, font: `800 0.88rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1, whiteSpace: "nowrap", width: isMobile ? "100%" : undefined, boxShadow: manualId.trim() ? "0 14px 28px rgba(79,70,229,0.22)" : "none" }}
                     >
                       Registrar
                     </button>

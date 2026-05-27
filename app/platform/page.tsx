@@ -30,6 +30,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { invalidateProfile, setImpersonatedGym } from "@/lib/gym-cache";
 import { WaHealthDashboard } from "@/components/wa-health-dashboard";
+import { useBrandAlert, useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
@@ -213,6 +214,8 @@ function emptyState(title: string, body: string) {
 
 function PlatformPage() {
   const router = useRouter();
+  const confirm = useBrandConfirm();
+  const brandAlert = useBrandAlert();
   const [navigatingToGymId, setNavigatingToGymId] = useState<string | null>(null);
   const [tplDropdownId,  setTplDropdownId]  = useState<string | null>(null);
   const [crmSendingId,   setCrmSendingId]   = useState<string | null>(null);
@@ -759,7 +762,13 @@ function PlatformPage() {
   }, [resetFeedbackSoon]);
 
   const deleteLead = useCallback(async (id: string, name: string) => {
-    if (!window.confirm(`¿Eliminar el lead "${name}"? Esta acción no se puede deshacer.`)) return;
+    if (!await confirm({
+      eyebrow: "Eliminar lead",
+      title: `¿Eliminar el lead "${name}"?`,
+      message: "Esta acción no se puede deshacer.",
+      confirmLabel: "Eliminar",
+      variant: "danger",
+    })) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/platform/leads?id=${id}`, { method: "DELETE" });
@@ -772,7 +781,7 @@ function PlatformPage() {
     } finally {
       setDeletingId(null);
     }
-  }, [resetFeedbackSoon]);
+  }, [confirm, resetFeedbackSoon]);
 
   const handleCategorySubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1954,7 +1963,13 @@ function PlatformPage() {
             <button
               type="button"
               onClick={async () => {
-                if (!confirm("¿Limpiar credenciales guardadas? Esto forzará un nuevo QR.")) return;
+                if (!await confirm({
+                  eyebrow: "WhatsApp",
+                  title: "¿Limpiar credenciales guardadas?",
+                  message: "Esto forzará un nuevo QR para conectar la cuenta.",
+                  confirmLabel: "Limpiar",
+                  variant: "danger",
+                })) return;
                 try {
                   const res = await fetch("/api/whatsapp/wipe", {
                     method: "POST",
@@ -1965,14 +1980,14 @@ function PlatformPage() {
                     body: JSON.stringify({ gymId: "fitgrowx-platform" }),
                   });
                   if (res.ok) {
-                    alert("✅ Credenciales limpias. Escaneá el QR nuevamente.");
+                    await brandAlert({ eyebrow: "WhatsApp", title: "Credenciales limpias", message: "Escaneá el QR nuevamente.", variant: "success" });
                     setPlatWaStatus("unknown");
                     setTimeout(() => { void platAttemptQr(0); }, 1000);
                   } else {
-                    alert("❌ Error al limpiar credenciales");
+                    await brandAlert({ eyebrow: "WhatsApp", title: "Error al limpiar credenciales", variant: "danger" });
                   }
                 } catch (err) {
-                  alert("❌ Error: " + (err instanceof Error ? err.message : "desconocido"));
+                  await brandAlert({ eyebrow: "WhatsApp", title: "Error", message: err instanceof Error ? err.message : "desconocido", variant: "danger" });
                 }
               }}
               style={{
@@ -2205,8 +2220,14 @@ function PlatformPage() {
 
               {deleteModal.auth_user_id && (
                 <button
-                  onClick={() => {
-                    if (!window.confirm(`⚠️ BORRADO PERMANENTE\n\n"${deleteModal.company_name}"\n\nEsto eliminará el gym, todos los alumnos, pagos, membresías y usuarios. No se puede deshacer.\n\n¿Continuar?`)) return;
+                  onClick={async () => {
+                    if (!await confirm({
+                      eyebrow: "Borrado permanente",
+                      title: `¿Eliminar "${deleteModal.company_name}"?`,
+                      message: "Esto eliminará el gym, todos los alumnos, pagos, membresías y usuarios. No se puede deshacer.",
+                      confirmLabel: "Eliminar todo",
+                      variant: "danger",
+                    })) return;
                     deleteAccount(deleteModal.id, deleteModal.company_name, true);
                   }}
                   style={{ padding: "11px 16px", borderRadius: 10, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#DC2626", font: `600 0.88rem/1 ${fd}`, cursor: "pointer", textAlign: "left" }}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "'Inter', system-ui, sans-serif";
 const t1 = "#111827"; const t2 = "#6B7280"; const t3 = "#9CA3AF";
@@ -27,6 +28,7 @@ interface Withdrawal {
 }
 
 export default function PlatformResellers() {
+  const confirm = useBrandConfirm();
   const [tab,          setTab]         = useState<"resellers" | "postulaciones">("resellers");
   const [resellers,    setResellers]   = useState<Reseller[]>([]);
   const [withdrawals,  setWithdrawals] = useState<Withdrawal[]>([]);
@@ -135,7 +137,13 @@ export default function PlatformResellers() {
   };
 
   const handlePayWithdrawal = async (withdrawalId: string, resellerName: string, amount: number) => {
-    if (!confirm(`¿Marcar el retiro de $${fmt(amount)} de ${resellerName} como pagado?`)) return;
+    if (!await confirm({
+      eyebrow: "Retiro reseller",
+      title: `¿Marcar $${fmt(amount)} como pagado?`,
+      message: `Reseller: ${resellerName}. Se enviará la notificación correspondiente.`,
+      confirmLabel: "Marcar pagado",
+      variant: "success",
+    })) return;
     await fetch("/api/platform/resellers", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -146,7 +154,13 @@ export default function PlatformResellers() {
   };
 
   const handleDeleteReseller = async (id: string, name: string) => {
-    if (!confirm(`¿Borrar reseller "${name}"? Esta acción no se puede deshacer.`)) return;
+    if (!await confirm({
+      eyebrow: "Borrar reseller",
+      title: `¿Borrar reseller "${name}"?`,
+      message: "Esta acción no se puede deshacer.",
+      confirmLabel: "Borrar",
+      variant: "danger",
+    })) return;
     const res = await fetch("/api/platform/resellers/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
