@@ -33,6 +33,32 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com";
   const redirectTo = `${appUrl}/auth/callback?next=/reseller/portal`;
 
+  if (applicationId) {
+    const { data: application } = await sb
+      .from("reseller_applications")
+      .select("reseller_id")
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (application?.reseller_id) {
+      const { data: existingReseller } = await sb
+        .from("resellers")
+        .select("*")
+        .eq("id", application.reseller_id)
+        .maybeSingle();
+      if (existingReseller) {
+        const slug = existingReseller.slug;
+        return NextResponse.json({
+          reseller: existingReseller,
+          slug,
+          refLink: `${appUrl}/start?reseller=${slug}`,
+          waSent: false,
+          waBlocked: false,
+          reused: true,
+        });
+      }
+    }
+  }
+
   // --- 1. Resolve or create auth user ---
   const { data: { users } } = await sb.auth.admin.listUsers();
   const existing = users?.find(u => u.email?.toLowerCase() === email.trim().toLowerCase());
@@ -61,6 +87,29 @@ export async function POST(req: NextRequest) {
     magicLink = ld.properties?.action_link ?? "";
   }
 
+  const { data: existingByUser } = await sb
+    .from("resellers")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existingByUser) {
+    if (applicationId) {
+      await sb
+        .from("reseller_applications")
+        .update({ status: "approved", reseller_id: existingByUser.id })
+        .eq("id", applicationId);
+    }
+    const slug = existingByUser.slug;
+    return NextResponse.json({
+      reseller: existingByUser,
+      slug,
+      refLink: `${appUrl}/start?reseller=${slug}`,
+      waSent: false,
+      waBlocked: false,
+      reused: true,
+    });
+  }
+
   // --- 2. Unique slug ---
   let slug = toSlug(name.trim());
   const { data: slugConflict } = await sb.from("resellers").select("id").eq("slug", slug).maybeSingle();
@@ -77,11 +126,39 @@ export async function POST(req: NextRequest) {
     payout_info:    payout_info?.trim() || null,
   }).select().single();
 
-  if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
+  if (rErr) {
+    if (rErr.code === "23505") {
+      const { data: existingAfterConflict } = await sb
+        .from("resellers")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (existingAfterConflict) {
+        if (applicationId) {
+          await sb
+            .from("reseller_applications")
+            .update({ status: "approved", reseller_id: existingAfterConflict.id })
+            .eq("id", applicationId);
+        }
+        return NextResponse.json({
+          reseller: existingAfterConflict,
+          slug: existingAfterConflict.slug,
+          refLink: `${appUrl}/start?reseller=${existingAfterConflict.slug}`,
+          waSent: false,
+          waBlocked: false,
+          reused: true,
+        });
+      }
+    }
+    return NextResponse.json({ error: rErr.message }, { status: 500 });
+  }
 
   // --- 4. Mark application approved ---
   if (applicationId) {
-    await sb.from("reseller_applications").update({ status: "approved" }).eq("id", applicationId);
+    await sb
+      .from("reseller_applications")
+      .update({ status: "approved", reseller_id: reseller.id })
+      .eq("id", applicationId);
   }
 
   // --- 5. Send WA onboarding ---

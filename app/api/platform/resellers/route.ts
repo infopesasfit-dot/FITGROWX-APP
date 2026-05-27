@@ -93,30 +93,21 @@ export async function PATCH(req: NextRequest) {
 
   // Mark withdrawal paid
   if (body.type === "pay_withdrawal") {
-    await sb.from("withdrawal_requests").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", body.withdrawalId);
+    const { data: paidWithdrawal, error: payErr } = await sb
+      .rpc("pay_reseller_withdrawal", { p_withdrawal_id: body.withdrawalId })
+      .single();
+    if (payErr) {
+      return NextResponse.json({ error: payErr.message || "No se pudo marcar el retiro como pagado" }, { status: 500 });
+    }
 
-    // Mark those commissions as paid
-    const { data: wr } = await sb.from("withdrawal_requests").select("reseller_id, amount").eq("id", body.withdrawalId).maybeSingle();
+    const paid = paidWithdrawal as { reseller_id?: string; amount?: number | string } | null;
+    const wr = paid
+      ? {
+          reseller_id: paid.reseller_id as string,
+          amount: Number(paid.amount ?? 0),
+        }
+      : null;
     if (wr?.reseller_id) {
-      // Mark all pending commissions up to the withdrawal amount as paid
-      const { data: pendingComms } = await sb
-        .from("reseller_commissions")
-        .select("id, commission_amount")
-        .eq("reseller_id", wr.reseller_id)
-        .eq("status", "pending")
-        .order("created_at", { ascending: true });
-
-      let remaining = wr.amount;
-      const toMark: string[] = [];
-      for (const c of pendingComms ?? []) {
-        if (remaining <= 0) break;
-        toMark.push(c.id);
-        remaining -= c.commission_amount ?? 0;
-      }
-      if (toMark.length) {
-        await sb.from("reseller_commissions").update({ status: "paid" }).in("id", toMark);
-      }
-
       // Notify reseller via WA
       {
         const { data: reseller } = await sb.from("resellers").select("user_id, payout_info").eq("id", wr.reseller_id).maybeSingle();

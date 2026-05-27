@@ -18,32 +18,25 @@ export async function POST() {
     .maybeSingle();
   if (!reseller) return NextResponse.json({ error: "Not a reseller" }, { status: 403 });
 
-  // Check pending amount
-  const { data: pending } = await sb
-    .from("reseller_commissions")
-    .select("commission_amount")
-    .eq("reseller_id", reseller.id)
-    .eq("status", "pending");
-
-  const totalPending = (pending ?? []).reduce((s, c) => s + (c.commission_amount ?? 0), 0);
-  if (totalPending < MIN_WITHDRAWAL) {
-    return NextResponse.json({ error: `Monto mínimo para retiro: $${MIN_WITHDRAWAL.toLocaleString("es-AR")}` }, { status: 400 });
+  const { data: withdrawal, error: withdrawalErr } = await sb
+    .rpc("create_reseller_withdrawal", {
+      p_reseller_id: reseller.id,
+      p_min_amount: MIN_WITHDRAWAL,
+    })
+    .single();
+  if (withdrawalErr) {
+    const msg = withdrawalErr.message ?? "";
+    if (msg.includes("pending_withdrawal_exists")) {
+      return NextResponse.json({ error: "Ya tenés una solicitud pendiente" }, { status: 409 });
+    }
+    if (msg.includes("minimum_withdrawal_not_met")) {
+      return NextResponse.json({ error: `Monto mínimo para retiro: $${MIN_WITHDRAWAL.toLocaleString("es-AR")}` }, { status: 400 });
+    }
+    return NextResponse.json({ error: msg || "No se pudo solicitar el retiro" }, { status: 500 });
   }
 
-  // Check no pending request already
-  const { data: existing } = await sb
-    .from("withdrawal_requests")
-    .select("id")
-    .eq("reseller_id", reseller.id)
-    .in("status", ["pending", "processing"])
-    .maybeSingle();
-  if (existing) return NextResponse.json({ error: "Ya tenés una solicitud pendiente" }, { status: 409 });
-
-  await sb.from("withdrawal_requests").insert({
-    reseller_id: reseller.id,
-    amount:      totalPending,
-    status:      "pending",
-  });
+  const createdWithdrawal = withdrawal as { withdrawal_request_id?: string; amount?: number | string } | null;
+  const totalPending = Number(createdWithdrawal?.amount ?? 0);
 
   // Notify admin via WA
   const motorUrl   = process.env.WA_MOTOR_URL;
@@ -65,5 +58,5 @@ export async function POST() {
     }).catch(() => {});
   }
 
-  return NextResponse.json({ ok: true, amount: totalPending });
+  return NextResponse.json({ ok: true, amount: totalPending, withdrawalId: createdWithdrawal?.withdrawal_request_id });
 }
