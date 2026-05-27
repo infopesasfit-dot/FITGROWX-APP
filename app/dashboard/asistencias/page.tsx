@@ -131,8 +131,8 @@ export default function AsistenciasPage() {
 
     const dayOfWeek = new Date().getDay();
 
-    const [statsRes, presentesRes, clasesRes, pruebaRes] = await Promise.all([
-      fetch(`/api/admin/asistencias-stats?gym_id=${profile.gymId}`),
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const [presentesRes, clasesRes, pruebaRes, monthlyRes] = await Promise.all([
       supabase
         .from("asistencias")
         .select("id, alumno_id, hora, clase_id, gym_classes!clase_id(class_name), alumnos!alumno_id(full_name, planes!plan_id(nombre, accent_color))")
@@ -151,20 +151,39 @@ export default function AsistenciasPage() {
         .eq("gym_id", profile.gymId)
         .eq("clase_gratis_date", today)
         .in("clase_gratis_status", ["registrado", "asistio", "no_show"]),
+      supabase
+        .from("asistencias")
+        .select("fecha")
+        .eq("gym_id", profile.gymId)
+        .gte("fecha", monthStart)
+        .lte("fecha", today),
     ]);
 
-    const stats = statsRes.ok
-      ? await statsRes.json() as {
-          todayCount?: number;
-          totalMonth?: number;
-          weeklyAvg?: number;
-        }
-      : null;
-    if (stats) {
-      setTodayCount(stats.todayCount ?? 0);
-      setTotalMonth(stats.totalMonth ?? 0);
-      setWeeklyAvg(stats.weeklyAvg ?? 0);
+    const presenteRows = (presentesRes.data ?? []) as unknown as Presente[];
+    const monthlyRows = (monthlyRes.data ?? []) as unknown as { fecha: string }[];
+
+    // todayCount directly from presentes list (unified source)
+    const todayCountValue = presenteRows.length;
+    const totalMonthValue = monthlyRows.length;
+
+    // Weekly avg (last 7 days)
+    const dailyMap: Record<string, number> = {};
+    for (const row of monthlyRows) {
+      dailyMap[row.fecha] = (dailyMap[row.fecha] ?? 0) + 1;
     }
+    const start = new Date(monthStart);
+    const end = new Date(today);
+    const dailyCounts: number[] = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().slice(0, 10);
+      dailyCounts.push(dailyMap[key] ?? 0);
+    }
+    const last7 = dailyCounts.slice(-7);
+    const weeklyAvgValue = last7.length > 0 ? Math.round(last7.reduce((s, c) => s + c, 0) / last7.length) : 0;
+
+    setTodayCount(todayCountValue);
+    setTotalMonth(totalMonthValue);
+    setWeeklyAvg(weeklyAvgValue);
 
     const rawClases = (clasesRes.data ?? []) as unknown as Array<{
       id: string; class_name: string; start_time: string; max_capacity: number;
@@ -181,12 +200,11 @@ export default function AsistenciasPage() {
 
     setClasesPrueba((pruebaRes.data ?? []) as unknown as ClasePrueba[]);
 
-    const presenteRows = (presentesRes.data ?? []) as unknown as Presente[];
     setPresentes(presenteRows);
     setPageCache(cacheKey, {
-      todayCount: stats?.todayCount ?? 0,
-      totalMonth: stats?.totalMonth ?? 0,
-      weeklyAvg: stats?.weeklyAvg ?? 0,
+      todayCount: todayCountValue,
+      totalMonth: totalMonthValue,
+      weeklyAvg: weeklyAvgValue,
       presentes: presenteRows,
       todayClasses: nextTodayClasses,
     });
