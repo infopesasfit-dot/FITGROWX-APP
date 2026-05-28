@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createHmac } from "crypto";
 import { NextRequest } from "next/server";
+import { createSupabaseAdminMock } from "../mocks/supabase";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
 vi.mock("@/lib/supabase-admin", () => ({
-  getSupabaseAdminClient: () => ({ from: vi.fn().mockReturnValue({ select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), update: vi.fn().mockReturnThis(), maybeSingle: vi.fn().mockResolvedValue({ data: null }) }) }),
+  getSupabaseAdminClient: () => createSupabaseAdminMock(),
 }));
 
 vi.stubGlobal("fetch", vi.fn().mockResolvedValue({

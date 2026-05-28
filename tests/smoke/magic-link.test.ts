@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { createSupabaseChain, createSupabaseAdminMock } from "../mocks/supabase";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-const mockAdmin = { from: vi.fn() };
+const mockAdmin = createSupabaseAdminMock();
 
 vi.mock("@/lib/supabase-admin", () => ({
   getSupabaseAdminClient: () => mockAdmin,
@@ -28,16 +29,6 @@ function makeRequest(dni: string) {
   });
 }
 
-function mockChain(resolved: object) {
-  const c = { select: vi.fn(), eq: vi.fn(), single: vi.fn(), maybeSingle: vi.fn(), insert: vi.fn() };
-  c.select.mockReturnValue(c);
-  c.eq.mockReturnValue(c);
-  c.insert.mockReturnValue(c);
-  c.single.mockResolvedValue(resolved);
-  c.maybeSingle.mockResolvedValue(resolved);
-  return c;
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("Smoke: magic link (request-access)", () => {
@@ -46,14 +37,14 @@ describe("Smoke: magic link (request-access)", () => {
   it("DNI válido con alumno registrado → 200 + ok:true", async () => {
     mockAdmin.from.mockImplementation((table: string) => {
       if (table === "alumnos")
-        return mockChain({ data: { id: "alu-1", gym_id: "gym-1", full_name: "Ana García", phone: "5491100000000" }, error: null });
+        return createSupabaseChain({ data: { id: "alu-1", gym_id: "gym-1", full_name: "Ana García", phone: "5491100000000" }, error: null });
       if (table === "alumno_tokens")
-        return mockChain({ data: { id: "tok-1" }, error: null });
+        return createSupabaseChain({ data: { id: "tok-1" }, error: null });
       if (table === "gym_settings")
-        return mockChain({ data: { gym_name: "Iron Gym", magiclink_msg: null, slug: "iron-gym" } });
+        return createSupabaseChain({ data: { gym_name: "Iron Gym", magiclink_msg: null, slug: "iron-gym" } });
       if (table === "gyms")
-        return mockChain({ data: { name: "Iron Gym" } });
-      return mockChain({ data: null });
+        return createSupabaseChain({ data: { name: "Iron Gym" } });
+      return createSupabaseChain({ data: null });
     });
 
     const { POST } = await import("@/app/api/alumno/request-access/route");
@@ -66,7 +57,7 @@ describe("Smoke: magic link (request-access)", () => {
 
   it("DNI de alumno no registrado → sigue respondiendo 200 (no expone si existe)", async () => {
     mockAdmin.from.mockImplementation(() =>
-      mockChain({ data: null, error: { message: "No rows found" } })
+      createSupabaseChain({ data: null, error: { message: "No rows found" } })
     );
 
     const { POST } = await import("@/app/api/alumno/request-access/route");

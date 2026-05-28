@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { createSupabaseChain, createSupabaseAdminMock } from "../mocks/supabase";
 
 // ── Session mutable para el test de 401 ───────────────────────────────────────
 let mockSessionData: object = { session: { user: { id: "admin-user-id" } } };
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-const mockAdmin = { from: vi.fn() };
+const mockAdmin = createSupabaseAdminMock();
 
 vi.mock("@/lib/supabase-admin", () => ({
   getSupabaseAdminClient: () => mockAdmin,
@@ -28,16 +29,6 @@ function makeRequest(body: object) {
   });
 }
 
-function makeChain(resolved: object) {
-  const c: Record<string, ReturnType<typeof vi.fn>> = {};
-  ["select","eq","is","maybeSingle","single","insert","update"].forEach(m => {
-    c[m] = vi.fn().mockReturnValue(c);
-  });
-  c.maybeSingle.mockResolvedValue(resolved);
-  c.single.mockResolvedValue(resolved);
-  return c;
-}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe("Smoke: crear alumno", () => {
@@ -47,28 +38,32 @@ describe("Smoke: crear alumno", () => {
   });
 
   it("crea alumno con datos válidos → 200 + id", async () => {
-    const profileChain = makeChain({ data: { gym_id: "gym-123", role: "admin" } });
-    const gymsChain    = makeChain({ data: { plan_type: "ilimitado" } });
+    const profileChain = createSupabaseChain({ data: { gym_id: "gym-123", role: "admin" } });
+    const gymsChain    = createSupabaseChain({ data: { plan_type: "ilimitado" } });
 
-    // plan "ilimitado" → limit=null → count check se saltea → primera llamada es INSERT
     const alumnoData = { id: "nuevo-id", full_name: "Juan Pérez", dni: null, phone: null, email: null, plan_id: null, status: "activo", next_expiration_date: null };
-    const insertChain = {
-      insert: vi.fn().mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: alumnoData, error: null }),
-        }),
-      }),
-    };
+
+    // Crea un nuevo chain cada vez que se llama from("alumnos")
+    // para que cada query tenga su propio estado
+    const createAlumnosChain = () => createSupabaseChain((state) => {
+      if (state.lastSelectOptions?.count === "exact") {
+        return { count: null };
+      }
+      if (state.methodSequence.includes("insert")) {
+        return { data: alumnoData, error: null };
+      }
+      return { data: null };
+    });
 
     mockAdmin.from.mockImplementation((table: string) => {
       if (table === "profiles") return profileChain;
       if (table === "gyms")     return gymsChain;
-      if (table === "alumnos")  return insertChain;
-      return makeChain({ data: null });
+      if (table === "alumnos")  return createAlumnosChain();
+      return createSupabaseChain({ data: null });
     });
 
     const { POST } = await import("@/app/api/admin/alumnos/route");
-    const res  = await POST(makeRequest({ full_name: "Juan Pérez", status: "activo" }));
+    const res  = await POST(makeRequest({ full_name: "Juan Pérez", dni: "12345678", status: "activo" }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -78,15 +73,10 @@ describe("Smoke: crear alumno", () => {
 
   it("rechaza sin full_name → 400", async () => {
     mockAdmin.from.mockImplementation((table: string) => {
-      if (table === "profiles") return makeChain({ data: { gym_id: "gym-123", role: "admin" } });
-      if (table === "gyms")     return makeChain({ data: { plan_type: "ilimitado" } });
-      if (table === "alumnos") {
-        const c = { select: vi.fn(), eq: vi.fn(), is: vi.fn() };
-        c.select.mockReturnValue(c); c.eq.mockReturnValue(c);
-        c.is.mockResolvedValue({ count: 0 });
-        return c;
-      }
-      return makeChain({ data: null });
+      if (table === "profiles") return createSupabaseChain({ data: { gym_id: "gym-123", role: "admin" } });
+      if (table === "gyms")     return createSupabaseChain({ data: { plan_type: "ilimitado" } });
+      if (table === "alumnos") return createSupabaseChain({ count: 0 });
+      return createSupabaseChain({ data: null });
     });
 
     const { POST } = await import("@/app/api/admin/alumnos/route");
