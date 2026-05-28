@@ -1,6 +1,7 @@
 "use client";
 
-import { Ref } from "react";
+import { Ref, useState, useEffect } from "react";
+import QRCode from "qrcode";
 
 interface Session {
   alumno_id: string;
@@ -52,6 +53,23 @@ export function QrModal({
   startScan,
   stopScan,
 }: QrModalProps) {
+  const [qrError, setQrError] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session?.alumno_id) {
+      setQrDataUrl(null);
+      return;
+    }
+    QRCode.toDataURL(`FITGROWX:ID:${session.alumno_id}`, {
+      width: 220,
+      margin: 1,
+      color: { dark: "#FFFFFF", light: "#0D0D14" },
+    })
+      .then(setQrDataUrl)
+      .catch(() => setQrError(true));
+  }, [session?.alumno_id]);
+
   if (!showQR || !session) return null;
 
   return (
@@ -66,7 +84,7 @@ export function QrModal({
           ] as const).map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => { setCheckinMode(key); setCheckinResult(null); }}
+              onClick={() => { setCheckinMode(key); setCheckinResult(null); setQrError(false); }}
               style={{ flex: 1, padding: "8px 0", borderRadius: 10, border: "none", background: checkinMode === key ? "rgba(249,115,22,0.18)" : "transparent", color: checkinMode === key ? "#F97316" : "rgba(255,255,255,0.3)", font: `${checkinMode === key ? "700" : "500"} 0.7rem/1 ${fd}`, cursor: "pointer", transition: "all 0.15s", letterSpacing: "0.02em" }}
             >
               {label}
@@ -79,12 +97,25 @@ export function QrModal({
           <>
             <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16 }}>El staff escanea este codigo</p>
             <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24, padding: 24, position: "relative", overflow: "hidden", marginBottom: 16 }}>
-              <div style={{ position: "absolute", top: 14, left: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "3px 0 0 0" }} />
-              <div style={{ position: "absolute", top: 14, right: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 3px 0 0" }} />
-              <div style={{ position: "absolute", bottom: 14, left: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 0 3px" }} />
-              <div style={{ position: "absolute", bottom: 14, right: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 3px 0" }} />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=FITGROWX:ID:${session.alumno_id}&color=FFFFFF&bgcolor=0D0D14&qzone=1`} alt="QR" width={220} height={220} style={{ display: "block", margin: "0 auto", borderRadius: 4 }} />
+              {!session.alumno_id ? (
+                <p style={{ font: `400 0.8rem/1.4 ${fd}`, color: "#EF4444", textAlign: "center", minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center" }}>No se pudo generar el QR, recargá la página.</p>
+              ) : (
+                <>
+                  <div style={{ position: "absolute", top: 14, left: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "3px 0 0 0" }} />
+                  <div style={{ position: "absolute", top: 14, right: 14, width: 16, height: 16, borderTop: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 3px 0 0" }} />
+                  <div style={{ position: "absolute", bottom: 14, left: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderLeft: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 0 3px" }} />
+                  <div style={{ position: "absolute", bottom: 14, right: 14, width: 16, height: 16, borderBottom: "1.5px solid rgba(249,115,22,0.4)", borderRight: "1.5px solid rgba(249,115,22,0.4)", borderRadius: "0 0 3px 0" }} />
+                  {qrError ? (
+                    <p style={{ font: `400 0.8rem/1.4 ${fd}`, color: "#EF4444", textAlign: "center", minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center" }}>Error al generar QR</p>
+                  ) : (
+                    <>
+                      {qrDataUrl && (
+                        <img src={qrDataUrl} alt="QR" width={220} height={220} style={{ display: "block", margin: "0 auto", borderRadius: 4 }} />
+                      )}
+                    </>
+                  )}
+                </>
+              )}
             </div>
             <p style={{ font: `600 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em", marginBottom: 4 }}>{session.full_name}</p>
             <p style={{ font: `400 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.18)", letterSpacing: "0.1em", marginBottom: 20, fontVariantNumeric: "tabular-nums" }}>DNI {session.dni ?? "—"}</p>

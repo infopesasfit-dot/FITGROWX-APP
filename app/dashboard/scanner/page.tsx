@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { QrCode, CheckCircle, XCircle, RefreshCw, Scan, Copy, Download, ChevronDown } from "lucide-react";
 import { getCachedProfile, invalidateDashboardCache, invalidateAsistenciasCache } from "@/lib/gym-cache";
+import QRCode from "qrcode";
 
 type DetectedBarcode = {
   rawValue?: string;
@@ -59,6 +60,7 @@ export default function ScannerPage() {
   const [copied, setCopied] = useState(false);
   const [openSections, setOpenSections] = useState<Set<number>>(new Set([1]));
   const [isMobile, setIsMobile] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   const toggleSection = (num: number) => {
     setOpenSections(prev => {
@@ -80,6 +82,20 @@ export default function ScannerPage() {
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  useEffect(() => {
+    if (!checkinUrl) {
+      setQrDataUrl(null);
+      return;
+    }
+    QRCode.toDataURL(checkinUrl, {
+      width: isMobile ? 240 : 280,
+      margin: 2,
+      color: { dark: "#1A1D23", light: "#FFFFFF" },
+    })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
+  }, [checkinUrl, isMobile]);
 
   const processQR = useCallback(async (qr_data: string) => {
     if (cooldownRef.current || qr_data === lastQR.current) return;
@@ -382,8 +398,9 @@ export default function ScannerPage() {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
                     {gymId && checkinUrl ? (
                       <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=${isMobile ? 240 : 280}x${isMobile ? 240 : 280}&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=2`} alt="QR del gimnasio" width={isMobile ? 240 : 280} height={isMobile ? 240 : 280} style={{ borderRadius: 18, border: "1px solid #E6E8EC", padding: isMobile ? 10 : 14, background: "white", boxShadow: "0 18px 45px rgba(16,24,40,0.10)" }} />
+                        {qrDataUrl && (
+                          <img src={qrDataUrl} alt="QR del gimnasio" width={isMobile ? 240 : 280} height={isMobile ? 240 : 280} style={{ borderRadius: 18, border: "1px solid #E6E8EC", padding: isMobile ? 10 : 14, background: "white", boxShadow: "0 18px 45px rgba(16,24,40,0.10)" }} />
+                        )}
                         <div style={{ width: "100%", maxWidth: 520, textAlign: "center" }}>
                           <p style={{ font: `750 0.82rem/1 ${fd}`, color: "#171A21", marginBottom: 6 }}>Enlace de check-in</p>
                           <p style={{ font: `500 0.78rem/1.45 ${fd}`, color: "#667085", wordBreak: "break-word" }}>{checkinUrl}</p>
@@ -392,9 +409,19 @@ export default function ScannerPage() {
                           <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: copied ? "#16A34A" : "#171A21", color: "white", border: "none", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s, transform 0.2s" }}>
                             <Copy size={14} />{copied ? "Copiado ✓" : "Copiar enlace"}
                           </button>
-                          <a href={`https://api.qrserver.com/v1/create-qr-code/?size=900x900&data=${encodeURIComponent(checkinUrl)}&color=1A1D23&bgcolor=FFFFFF&qzone=3`} download="qr-checkin-gym.png" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: "#FBFCFD", color: "#171A21", border: "1px solid #D8DCE2", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, textDecoration: "none" }}>
+                          <button
+                            onClick={async () => {
+                              if (!checkinUrl) return;
+                              const big = await QRCode.toDataURL(checkinUrl, { width: 900, margin: 3, color: { dark: '#1A1D23', light: '#FFFFFF' } });
+                              const a = document.createElement('a');
+                              a.href = big;
+                              a.download = 'qr-checkin-gym.png';
+                              a.click();
+                            }}
+                            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: "#FBFCFD", color: "#171A21", border: "1px solid #D8DCE2", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, cursor: "pointer" }}
+                          >
                             <Download size={14} />Descargar QR
-                          </a>
+                          </button>
                         </div>
                       </>
                     ) : (
