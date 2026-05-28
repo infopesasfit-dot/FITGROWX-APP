@@ -968,6 +968,20 @@ export default function AlumnosPage() {
     } catch { setToast("Error al enviar el link."); }
   };
 
+  const handleSendWelcome = async (alumno: Alumno) => {
+    if (!alumno.phone) { setToast("El alumno no tiene WhatsApp habilitado."); return; }
+    setMenuOpenId(null); setMenuPos(null);
+    try {
+      const res = await fetch("/api/alumno/send-welcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alumno_id: alumno.id }),
+      });
+      if (!res.ok) { setToast("No se pudo enviar el link de acceso."); return; }
+      setToast(`Link de acceso reenviado a ${alumno.full_name} ✓`);
+    } catch { setToast("Error al enviar el link de acceso."); }
+  };
+
   return (
     <>
     <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1619,22 +1633,28 @@ export default function AlumnosPage() {
     {menuTarget && menuPos && portalRoot && createPortal(
       <div onClick={e => e.stopPropagation()} style={{ position: "fixed", ...(menuPos.openUp ? { bottom: window.innerHeight - menuPos.top } : { top: menuPos.top }), right: menuPos.right, zIndex: 9999, background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", minWidth: 178, overflow: "hidden" }}>
         {[
-          { label: "📋 Ver Historial", color: t1, action: () => { openFicha(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
-          { label: "💳 Enviar link de pago", color: "#16A34A", action: () => { handleSendPayLink(menuTarget); } },
-          { label: "Asignar Membresía", color: "#FF6A00", action: () => { openMembresiaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
-          ...(["vencido", "pendiente"].includes(menuTarget.status) ? [{ label: "♻️ Reactivar", color: "#16A34A", action: () => { openReactivarModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } }] : []),
-          { label: "Asignar Rutina", color: "#1E50F0", action: () => { openRutinaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
-          { label: "Editar Datos", color: t1, action: () => { openEditModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          { label: "Ver Historial", isDanger: false, action: () => { openFicha(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          { label: "Editar Datos", isDanger: false, action: () => { openEditModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          { label: "Reenviar link de acceso", isDanger: false, action: () => { handleSendWelcome(menuTarget); } },
+          { label: "Asignar Membresía", isDanger: false, action: () => { openMembresiaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          ...(["vencido", "pendiente"].includes(menuTarget.status) ? [{ label: "Reactivar", isDanger: false, action: () => { openReactivarModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } }] : []),
+          { label: "Asignar Rutina", isDanger: false, action: () => { openRutinaModal(menuTarget); setMenuOpenId(null); setMenuPos(null); } },
+          { label: "Enviar link de pago", isDanger: false, action: () => { handleSendPayLink(menuTarget); } },
           menuTarget.status === "pausado"
-            ? { label: "❄️ Descongelar", color: "#22C55E", action: () => { handleDescongelar(menuTarget); setMenuOpenId(null); setMenuPos(null); } }
-            : { label: "❄️ Congelar Membresía", color: "#64748B", action: () => { setFreezeTarget(menuTarget); setFreezeDias("15"); setMenuOpenId(null); setMenuPos(null); } },
-          { label: "Eliminar Alumno", color: "#DC2626", action: () => { handleEliminar(menuTarget.id, menuTarget.full_name); setMenuOpenId(null); setMenuPos(null); } },
+            ? { label: "Descongelar", isDanger: false, action: () => { handleDescongelar(menuTarget); setMenuOpenId(null); setMenuPos(null); } }
+            : { label: "Congelar Membresía", isDanger: false, action: () => { setFreezeTarget(menuTarget); setFreezeDias("15"); setMenuOpenId(null); setMenuPos(null); } },
+          { label: "", isDanger: false, isSeparator: true, action: () => {} },
+          { label: "Eliminar Alumno", isDanger: true, action: () => { handleEliminar(menuTarget.id, menuTarget.full_name); setMenuOpenId(null); setMenuPos(null); } },
         ].map(item => (
+          item.isSeparator ? (
+            <div key="separator" style={{ height: 1, background: "#E6E8EC", margin: "6px 0" }} />
+          ) : (
           <button key={item.label} onClick={item.action}
-            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", font: `500 0.825rem/1 ${fb}`, color: item.color, cursor: "pointer" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-            onMouseLeave={e => (e.currentTarget.style.background = "none")}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", font: `500 0.825rem/1 ${fb}`, color: item.isDanger ? "#DC2626" : t1, cursor: "pointer" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "#FFF4ED", e.currentTarget.style.color = "#F97316")}
+            onMouseLeave={e => (e.currentTarget.style.background = "none", e.currentTarget.style.color = item.isDanger ? "#DC2626" : t1)}
           >{item.label}</button>
+          )
         ))}
       </div>,
       portalRoot
