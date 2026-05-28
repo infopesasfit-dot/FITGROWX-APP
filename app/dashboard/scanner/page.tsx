@@ -243,7 +243,7 @@ export default function ScannerPage() {
   const isSystemIssue = result?.error_code === "system_error";
 
   return (
-    <div style={{ width: "100%", maxWidth: isMobile ? "100%" : 760, margin: "0 auto", padding: isMobile ? "18px 14px 42px" : "34px 24px 56px", display: "flex", flexDirection: "column", gap: isMobile ? 16 : 20, overflowX: "hidden", boxSizing: "border-box" }}>
+    <div style={{ width: "100%", maxWidth: isMobile ? "100%" : 760, margin: "0 auto", padding: isMobile ? "16px 14px 28px" : "28px 24px 40px", display: "flex", flexDirection: "column", gap: isMobile ? 14 : 18, overflowX: "hidden", boxSizing: "border-box" }}>
 
       {/* Header */}
       <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "flex-end", gap: 14, marginBottom: isMobile ? 2 : 4 }}>
@@ -312,15 +312,15 @@ export default function ScannerPage() {
             key={tab.id}
             onClick={() => handleTabClick(tab.id as 1 | 2 | 3)}
             style={{
-              padding: "10px 20px",
+              padding: "7px 16px",
               borderRadius: 9999,
               border: activeTab === tab.id ? "none" : "1px solid #E6E8EC",
               background: activeTab === tab.id ? "#F97316" : "white",
               color: activeTab === tab.id ? "white" : "#1A1D23",
-              font: `${activeTab === tab.id ? "700" : "600"} 0.9rem/1 ${fd}`,
+              font: `${activeTab === tab.id ? "700" : "600"} 0.8rem/1 ${fd}`,
               cursor: "pointer",
               transition: "all 0.2s",
-              boxShadow: activeTab === tab.id ? "0 8px 24px rgba(249,115,22,0.28)" : "none",
+              boxShadow: "none",
             }}
           >
             {tab.label}
@@ -336,8 +336,8 @@ export default function ScannerPage() {
 
       {/* Tab 1: Camera */}
       {activeTab === 1 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ background: "linear-gradient(145deg, #0B0D10, #171A21)", borderRadius: 18, overflow: "hidden", position: "relative", width: "100%", maxHeight: 360 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ background: "linear-gradient(145deg, #0B0D10, #171A21)", borderRadius: 16, overflow: "hidden", position: "relative", width: "100%", height: 280 }}>
             <video ref={videoRef} playsInline muted style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: scanning ? "block" : "none" }} />
             {!scanning && (
               <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "16px" }}>
@@ -366,13 +366,13 @@ export default function ScannerPage() {
             )}
           </div>
           {hasDetector && !scanning && (
-            <button onClick={startCamera} style={{ minHeight: 52, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 22px", background: "#F97316", color: "white", border: "none", borderRadius: 14, font: `800 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 16px 32px rgba(249,115,22,0.28)", width: "100%" }}>
-              <Scan size={16} /> Iniciar/Detener cámara
+            <button onClick={startCamera} style={{ minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px 18px", background: "#F97316", color: "white", border: "none", borderRadius: 12, font: `700 0.8rem/1 ${fd}`, cursor: "pointer", boxShadow: "none", width: "100%" }}>
+              <Scan size={15} /> Iniciar cámara
             </button>
           )}
-          <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 50, padding: "12px 14px", border: "1px solid #E6E8EC", borderRadius: 14, cursor: "pointer", background: "#FBFCFD" }}>
-            <QrCode size={15} color="#6B7280" />
-            <span style={{ font: `650 0.82rem/1 ${fd}`, color: "#374151" }}>Sacar foto del QR</span>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 44, padding: "10px 14px", border: "1px solid #E6E8EC", borderRadius: 12, cursor: "pointer", background: "#FBFCFD", transition: "all 0.2s" }}>
+            <QrCode size={14} color="#6B7280" />
+            <span style={{ font: `650 0.8rem/1 ${fd}`, color: "#374151" }}>Sacar foto del QR</span>
             <input type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handleFileCapture} />
           </label>
         </div>
@@ -380,7 +380,7 @@ export default function ScannerPage() {
 
       {/* Tab 2: Fixed QR */}
       {activeTab === 2 && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
           {gymId && checkinUrl ? (
             <>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: isMobile ? "16px" : "20px" }}>
@@ -395,8 +395,8 @@ export default function ScannerPage() {
                 <p style={{ font: `500 0.78rem/1.5 ${fd}`, color: "#667085", wordBreak: "break-all", padding: "0 8px" }}>{checkinUrl}</p>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, width: "100%", maxWidth: 520, margin: "0 auto" }}>
-                <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: copied ? "#16A34A" : "#171A21", color: "white", border: "none", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s" }}>
-                  <Copy size={14} />{copied ? "Copiado ✓" : "Copiar enlace"}
+                <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 42, padding: "9px 14px", background: copied ? "#16A34A" : "#171A21", color: "white", border: "none", borderRadius: 12, font: `700 0.78rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s" }}>
+                  <Copy size={13} />{copied ? "Copiado ✓" : "Copiar enlace"}
                 </button>
                 <button
                   onClick={async () => {
@@ -407,9 +407,9 @@ export default function ScannerPage() {
                     a.download = 'qr-checkin-gym.png';
                     a.click();
                   }}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: "#FBFCFD", color: "#171A21", border: "1px solid #D8DCE2", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 42, padding: "9px 14px", background: "#FBFCFD", color: "#171A21", border: "1px solid #D8DCE2", borderRadius: 12, font: `700 0.78rem/1 ${fd}`, cursor: "pointer" }}
                 >
-                  <Download size={14} />Descargar QR
+                  <Download size={13} />Descargar QR
                 </button>
               </div>
             </>
@@ -446,7 +446,7 @@ export default function ScannerPage() {
               <button
                 onClick={handleManual}
                 disabled={!manualId.trim() || loading}
-                style={{ minHeight: 52, padding: "12px 22px", background: "#F97316", color: "white", border: "none", borderRadius: 14, font: `800 0.88rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1, width: "100%", boxShadow: manualId.trim() ? "0 14px 28px rgba(249,115,22,0.22)" : "none" }}
+                style={{ minHeight: 44, padding: "10px 18px", background: "#F97316", color: "white", border: "none", borderRadius: 12, font: `700 0.8rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1, width: "100%", boxShadow: "none" }}
               >
                 Registrar entrada
               </button>
