@@ -350,7 +350,7 @@ export default function ScannerPage() {
                 {/* Sección 1: Cámara */}
                 {s.num === 1 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <div style={{ background: "linear-gradient(145deg, #0B0D10, #171A21)", borderRadius: 18, overflow: "hidden", position: "relative", aspectRatio: "16/9", minHeight: isMobile ? 220 : 360 }}>
+                    <div style={{ background: "linear-gradient(145deg, #0B0D10, #171A21)", borderRadius: 18, overflow: "hidden", position: "relative", aspectRatio: "16/9", minHeight: isMobile ? 200 : 0, maxHeight: isMobile ? 320 : 280, width: "100%" }}>
                       <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", display: scanning ? "block" : "none" }} />
                       {!scanning && (
                         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
