@@ -129,7 +129,7 @@ function fuzzyMatch(query: string, target: string): boolean {
   return q.split(/\s+/).every(qw => t.split(/\s+/).some(tw => lev(qw, tw) <= tol));
 }
 
-const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry(), fecha_nacimiento: "", wa_consent: false };
+const EMPTY_FORM = { full_name: "", dni: "", phone: "", email: "", plan_id: "", fecha_inicio: defaultExpiry(), fecha_nacimiento: "", wa_consent: true };
 
 export default function AlumnosPage() {
   const confirm = useBrandConfirm();
