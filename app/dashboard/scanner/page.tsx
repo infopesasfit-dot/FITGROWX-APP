@@ -350,21 +350,15 @@ export default function ScannerPage() {
                 {/* Sección 1: Cámara */}
                 {s.num === 1 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    <div style={{ background: "linear-gradient(145deg, #0B0D10, #171A21)", borderRadius: 18, overflow: "hidden", position: "relative", aspectRatio: "16/9", minHeight: isMobile ? 200 : 0, maxHeight: isMobile ? 320 : 280, width: "100%" }}>
-                      <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", display: scanning ? "block" : "none" }} />
+                    <div style={{ background: "linear-gradient(145deg, #0B0D10, #171A21)", borderRadius: 18, overflow: "hidden", position: "relative", width: "100%", paddingBottom: isMobile ? "calc(100% * 9 / 16)" : "calc(100% * 9 / 16)" }}>
+                      <video ref={videoRef} playsInline muted style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", display: scanning ? "block" : "none" }} />
                       {!scanning && (
-                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14 }}>
+                        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "16px" }}>
                           <div style={{ width: 82, height: 82, borderRadius: "50%", background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(255,255,255,0.08)" }}>
                             <QrCode size={36} color="rgba(255,255,255,0.48)" />
                           </div>
-                          {camError && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#FCA5A5", textAlign: "center", maxWidth: 240, padding: "0 16px" }}>{camError}</p>}
-                          {hasDetector ? (
-                            <button onClick={startCamera} style={{ minHeight: 48, display: "flex", alignItems: "center", gap: 8, padding: "12px 22px", background: "#F97316", color: "white", border: "none", borderRadius: 13, font: `800 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 16px 32px rgba(249,115,22,0.28)" }}>
-                              <Scan size={15} /> Iniciar cámara
-                            </button>
-                          ) : (
-                            <p style={{ font: `400 0.76rem/1.4 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "center", maxWidth: 220, padding: "0 16px" }}>Tu navegador no soporta escaneo en vivo.</p>
-                          )}
+                          {camError && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#FCA5A5", textAlign: "center", maxWidth: 240 }}>{camError}</p>}
+                          {!hasDetector && <p style={{ font: `400 0.76rem/1.4 ${fd}`, color: "rgba(255,255,255,0.35)", textAlign: "center", maxWidth: 220 }}>Tu navegador no soporta escaneo en vivo.</p>}
                         </div>
                       )}
                       {scanning && (
@@ -376,14 +370,19 @@ export default function ScannerPage() {
                         </div>
                       )}
                       {scanning && (
-                        <button onClick={stopCamera} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 11px", font: `600 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>Detener</button>
+                        <button onClick={stopCamera} style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 11px", font: `600 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", cursor: "pointer", zIndex: 10 }}>Detener</button>
                       )}
                       {loading && (
-                        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10 }}>
                           <div style={{ width: 38, height: 38, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.8s linear infinite" }} />
                         </div>
                       )}
                     </div>
+                    {hasDetector && !scanning && (
+                      <button onClick={startCamera} style={{ minHeight: 52, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 22px", background: "#F97316", color: "white", border: "none", borderRadius: 14, font: `800 0.875rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 16px 32px rgba(249,115,22,0.28)", width: "100%" }}>
+                        <Scan size={16} /> Iniciar cámara
+                      </button>
+                    )}
                     {/* Foto del QR (fallback iOS) */}
                     <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minHeight: 50, padding: "12px 14px", border: "1px solid #E6E8EC", borderRadius: 14, cursor: "pointer", background: "#FBFCFD" }}>
                       <QrCode size={15} color="#6B7280" />
@@ -395,18 +394,22 @@ export default function ScannerPage() {
 
                 {/* Sección 2: QR fijo */}
                 {s.num === 2 && (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
                     {gymId && checkinUrl ? (
                       <>
-                        {qrDataUrl && (
-                          <img src={qrDataUrl} alt="QR del gimnasio" width={isMobile ? 240 : 280} height={isMobile ? 240 : 280} style={{ borderRadius: 18, border: "1px solid #E6E8EC", padding: isMobile ? 10 : 14, background: "white", boxShadow: "0 18px 45px rgba(16,24,40,0.10)" }} />
-                        )}
-                        <div style={{ width: "100%", maxWidth: 520, textAlign: "center" }}>
-                          <p style={{ font: `750 0.82rem/1 ${fd}`, color: "#171A21", marginBottom: 6 }}>Enlace de check-in</p>
-                          <p style={{ font: `500 0.78rem/1.45 ${fd}`, color: "#667085", wordBreak: "break-word" }}>{checkinUrl}</p>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: isMobile ? 280 : 340, padding: isMobile ? "16px" : "20px" }}>
+                          {qrDataUrl ? (
+                            <img src={qrDataUrl} alt="QR del gimnasio" width={isMobile ? 240 : 280} height={isMobile ? 240 : 280} style={{ borderRadius: 18, border: "1px solid #E6E8EC", background: "white", boxShadow: "0 18px 45px rgba(16,24,40,0.10)" }} />
+                          ) : (
+                            <div style={{ width: 38, height: 38, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.8s linear infinite" }} />
+                          )}
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, width: "100%", maxWidth: 520 }}>
-                          <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: copied ? "#16A34A" : "#171A21", color: "white", border: "none", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s, transform 0.2s" }}>
+                        <div style={{ width: "100%", textAlign: "center" }}>
+                          <p style={{ font: `750 0.82rem/1 ${fd}`, color: "#171A21", marginBottom: 8 }}>Enlace de check-in</p>
+                          <p style={{ font: `500 0.78rem/1.5 ${fd}`, color: "#667085", wordBreak: "break-all", padding: "0 8px" }}>{checkinUrl}</p>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10, width: "100%", maxWidth: 520, margin: "0 auto" }}>
+                          <button onClick={() => { navigator.clipboard.writeText(checkinUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, padding: "12px 16px", background: copied ? "#16A34A" : "#171A21", color: "white", border: "none", borderRadius: 14, font: `750 0.86rem/1 ${fd}`, cursor: "pointer", transition: "background 0.2s" }}>
                             <Copy size={14} />{copied ? "Copiado ✓" : "Copiar enlace"}
                           </button>
                           <button
@@ -425,8 +428,8 @@ export default function ScannerPage() {
                         </div>
                       </>
                     ) : (
-                      <div style={{ padding: "28px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.8s linear infinite" }} />
+                      <div style={{ padding: "40px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
+                        <div style={{ width: 38, height: 38, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.8s linear infinite" }} />
                         <p style={{ font: `400 0.8rem/1 ${fd}`, color: "#9CA3AF" }}>Cargando QR...</p>
                       </div>
                     )}
@@ -435,7 +438,7 @@ export default function ScannerPage() {
 
                 {/* Sección 3: DNI manual */}
                 {s.num === 3 && (
-                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr auto", gap: 10 }}>
+                  <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 12, width: "100%" }}>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -443,12 +446,12 @@ export default function ScannerPage() {
                       value={manualId}
                       onChange={e => setManualId(e.target.value.replace(/\D/g, ""))}
                       onKeyDown={e => e.key === "Enter" && handleManual()}
-                      style={{ width: "100%", minHeight: 54, padding: "13px 15px", border: "1px solid #D8DCE2", borderRadius: 14, font: `600 1rem/1 ${fd}`, color: "#171A21", outline: "none", boxSizing: "border-box", background: "#FBFCFD" }}
+                      style={{ flex: 1, minHeight: 54, padding: "13px 15px", border: "1px solid #D8DCE2", borderRadius: 14, font: `600 1rem/1 ${fd}`, color: "#171A21", outline: "none", boxSizing: "border-box", background: "#FBFCFD" }}
                     />
                     <button
                       onClick={handleManual}
                       disabled={!manualId.trim() || loading}
-                      style={{ minHeight: 54, padding: "13px 22px", background: "#4F46E5", color: "white", border: "none", borderRadius: 14, font: `800 0.88rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1, whiteSpace: "nowrap", width: isMobile ? "100%" : undefined, boxShadow: manualId.trim() ? "0 14px 28px rgba(79,70,229,0.22)" : "none" }}
+                      style={{ minHeight: 54, padding: "13px 24px", background: "#4F46E5", color: "white", border: "none", borderRadius: 14, font: `800 0.88rem/1 ${fd}`, cursor: !manualId.trim() ? "not-allowed" : "pointer", opacity: !manualId.trim() ? 0.5 : 1, whiteSpace: "nowrap", width: isMobile ? "100%" : "auto", boxShadow: manualId.trim() ? "0 14px 28px rgba(79,70,229,0.22)" : "none" }}
                     >
                       Registrar
                     </button>
