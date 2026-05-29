@@ -138,7 +138,7 @@ export default function PlanesPage() {
   const [mpLoading, setMpLoading] = useState(false);
   const [mpError, setMpError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [billing, setBilling] = useState<"mensual" | "anual">(searchParams.get("billing") === "mensual" ? "mensual" : "anual");
+  const [billing, setBilling] = useState<"mensual" | "anual">(searchParams.get("billing") === "anual" ? "anual" : "mensual");
   const [selectedPlanKey, setSelectedPlanKey] = useState<string>("crecimiento");
 
   useEffect(() => {
@@ -257,19 +257,6 @@ export default function PlanesPage() {
               : trialExpiresAt ? `Tu prueba vence el ${fmtDate(trialExpiresAt)}.` : ""}
           </p>
         </div>
-        {!isSubscribed && (
-          <button
-            onClick={() => { setCheckoutOpen(true); setMpError(null); }}
-            style={{
-              padding: isDesktop ? "12px 20px" : "10px 14px", borderRadius: 13, border: "none", cursor: "pointer",
-              background: ORANGE, color: "white", font: `800 ${isDesktop ? "0.84rem" : "0.75rem"}/1 ${fd}`, whiteSpace: "nowrap",
-              flexShrink: 0, marginLeft: isDesktop ? 0 : "auto",
-              boxShadow: "0 14px 30px rgba(249,115,22,0.22)",
-            }}
-          >
-            Activar plan
-          </button>
-        )}
       </div>
 
       {/* Plan selector */}
