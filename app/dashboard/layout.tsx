@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { getTodayDate, getCurrentTime, DEFAULT_APP_TIME_ZONE } from "@/lib/date-utils";
 import {
   Home, Users, Wallet, TrendingDown, Settings, LogOut,
-  Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
+  Search, Bell, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
   Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
   CheckCircle, HelpCircle, Power, MessageSquare, Smartphone, BarChart3,
@@ -857,12 +857,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {isMobile && <span style={{ flex: 1 }} />}
 
 <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, marginLeft: isMobile ? 0 : "auto" }}>
-            {!isMobile && (
-              <button style={{ position: "relative", background: "none", border: "none", cursor: "pointer", color: isFlujosRoute ? "rgba(255,255,255,0.4)" : "#6B7280", padding: 5, display: "flex", alignItems: "center" }}>
-                <Mail size={19} />
-                <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#EF4444", borderRadius: "50%", border: isFlujosRoute ? "2px solid #0D0F12" : "2px solid white" }} />
-              </button>
-            )}
             {/* ── Notification Bell ── */}
             <div ref={notifRef} style={{ position: "relative" }}>
               <button
