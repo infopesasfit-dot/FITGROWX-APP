@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { getTodayDate, getCurrentTime, DEFAULT_APP_TIME_ZONE } from "@/lib/date-utils";
 import {
   Home, Users, Wallet, TrendingDown, Settings, LogOut,
   Search, Bell, Mail, ChevronLeft, ChevronRight, Menu,
@@ -190,6 +191,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [planType,         setPlanType]         = useState<string | null>(null);
   const [waDisconnected,    setWaDisconnected]    = useState(false);
   const [waBannerDismissed, setWaBannerDismissed] = useState(false);
+  const [diasGraciaRestantes, setDiasGraciaRestantes] = useState(0);
+  const [enGracia, setEnGracia] = useState(false);
+  const [showGraceModal, setShowGraceModal] = useState(false);
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
@@ -312,6 +316,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const expired = diff <= 0;
             setTrialDaysLeft(left);
             setTrialExpired(expired);
+
+            // Período de gracia: días 1-3 post-vencimiento
+            if (expired) {
+              const trialExpireTime = new Date(gym.trial_expires_at).getTime();
+              const nowTime = Date.now();
+              const diasDesdeVencimiento = Math.floor((nowTime - trialExpireTime) / 86_400_000);
+              const graceDaysRemaining = Math.max(0, 3 - diasDesdeVencimiento);
+              setDiasGraciaRestantes(graceDaysRemaining);
+              setEnGracia(graceDaysRemaining >= 1 && graceDaysRemaining <= 3);
+            }
+
             if (!expired && left <= 6) setShowTrialBanner(true);
             if (!expired && left <= 3) {
               const dismissKey = `fitgrowx_trial_modal_d${left}`;
@@ -360,6 +375,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     checkPending();
   }, [gymId]);
+
+  // Show Grace Period Modal (2x per day)
+  useEffect(() => {
+    if (!enGracia || !roleLoaded) return;
+
+    // Calcular slot actual (AM/PM)
+    const timeStr = getCurrentTime(DEFAULT_APP_TIME_ZONE);
+    const hour = parseInt(timeStr.split(":")[0], 10);
+    const slot = hour < 16 ? "AM" : "PM";
+
+    // Leer localStorage
+    const dismissed = localStorage.getItem("gracePeriodDismissed");
+    const today = getTodayDate(DEFAULT_APP_TIME_ZONE);
+
+    // Mostrar si no fue dismissido hoy en este slot
+    if (dismissed !== `${today}:${slot}`) {
+      setShowGraceModal(true);
+    }
+  }, [enGracia, roleLoaded]);
 
   const unreadCount = notifs.filter(n => !n.read).length;
   const notificationsNowMs = notifs.length > 0 ? new Date(notifs[0].created_at).getTime() : 0;
@@ -444,6 +478,82 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     whiteSpace: "nowrap",
   };
 
+
+  // Grace Period Modal Component
+  const GracePeriodModal = () => {
+    const handleClose = () => {
+      const today = getTodayDate(DEFAULT_APP_TIME_ZONE);
+      const timeStr = getCurrentTime(DEFAULT_APP_TIME_ZONE);
+      const hour = parseInt(timeStr.split(":")[0], 10);
+      const slot = hour < 16 ? "AM" : "PM";
+      localStorage.setItem("gracePeriodDismissed", `${today}:${slot}`);
+      setShowGraceModal(false);
+    };
+
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ background: "rgba(255,255,255,0.7)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 24, padding: "36px 32px", maxWidth: 420, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.1)" }}>
+
+          <h2 style={{ font: `800 1.4rem/1.2 ${fd}`, color: "#0F172A", textAlign: "center", marginBottom: 10 }}>Tu prueba terminó</h2>
+          <p style={{ font: `400 0.95rem/1.6 ${fd}`, color: "#475569", textAlign: "center", marginBottom: 28 }}>
+            Tenés <strong>{diasGraciaRestantes}</strong> día{diasGraciaRestantes !== 1 ? "s" : ""} para activar tu plan sin perder acceso a tu información.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={() => {
+                router.push("/dashboard/planes");
+                handleClose();
+              }}
+              style={{ padding: "13px", borderRadius: 13, background: "#F97316", color: "white", border: "none", font: `700 0.9rem/1 ${fd}`, cursor: "pointer", textAlign: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#EA7317")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#F97316")}
+            >
+              Activar mi plan ahora
+            </button>
+            <button
+              onClick={handleClose}
+              style={{ padding: "11px", borderRadius: 13, background: "#1A1D23", color: "white", border: "none", font: `500 0.9rem/1 ${fd}`, cursor: "pointer", textAlign: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#0F1115")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#1A1D23")}
+            >
+              Ahora no, recordame más tarde
+            </button>
+          </div>
+
+          <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280", textAlign: "center", marginTop: 18 }}>
+            Tu acceso sigue activo. Activá tu plan para no perder datos.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // Grace Period Banner Component
+  const GracePeriodBanner = () => {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+        background: "#FEE2E2",
+        borderBottom: "1px solid #FCA5A5",
+        flexShrink: 0,
+        position: "sticky", top: 0, zIndex: 5,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14 }}>⚠️</span>
+          <span style={{ font: `600 0.85rem/1 ${fd}`, color: "#991B1B" }}>
+            Tu prueba terminó. Te quedan <strong>{diasGraciaRestantes}</strong> día{diasGraciaRestantes !== 1 ? "s" : ""} para activar tu plan.
+          </span>
+        </div>
+        <Link href="/dashboard/planes" style={{
+          font: `700 0.8rem/1 ${fd}`, color: "#DC2626", textDecoration: "underline", whiteSpace: "nowrap"
+        }}>
+          Activar ahora →
+        </Link>
+      </div>
+    );
+  };
 
   if (!roleLoaded) {
     return (
@@ -966,6 +1076,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
 
+        {/* ── Grace Period Banner ── */}
+        {role === "admin" && enGracia && !pathname.startsWith("/dashboard/planes") && !pathname.startsWith("/dashboard/suscripcion") && (
+          <GracePeriodBanner />
+        )}
 
         {/* ── Trial countdown banner (day 10+) ── */}
         {role === "admin" && showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
@@ -1200,7 +1314,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── Trial expired paywall ── */}
       {!isSubscribed && trialExpired && role === "admin" && !impersonatedGym
         && !pathname.startsWith("/dashboard/planes")
-        && !pathname.startsWith("/dashboard/suscripcion") && (
+        && !pathname.startsWith("/dashboard/suscripcion")
+        && diasGraciaRestantes < 1 && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
 
@@ -1333,6 +1448,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       )}
+
+      {/* ── Grace Period Modal ── */}
+      {showGraceModal && enGracia
+        && !pathname.startsWith("/dashboard/planes")
+        && !pathname.startsWith("/dashboard/suscripcion")
+        && <GracePeriodModal />}
 
     </div>
     </DashboardPwaShell>
