@@ -167,10 +167,22 @@ export async function proxy(request: NextRequest) {
 
     // ── Trial / subscription gate ────────────────────────────────────────────
     const gym = getGymSummary(profile?.gyms)
+
+    // Calcular período de gracia (días 0-2 = 3 días totales)
+    let enGracia = false
+    if (gym?.trial_expires_at) {
+      const trialExpireTime = new Date(gym.trial_expires_at).getTime()
+      const nowTime = Date.now()
+      const diasDesdeVencimiento = Math.floor((nowTime - trialExpireTime) / 86_400_000)
+      enGracia = diasDesdeVencimiento >= 0 && diasDesdeVencimiento <= 2
+    }
+
+    // Solo bloquear si trial expiró Y NO estamos en gracia Y NO subscrito
     const blocked =
       (gym?.gym_status === 'trial_expired' ||
         (gym?.trial_expires_at ? new Date(gym.trial_expires_at) < new Date() : false)) &&
-      !(gym?.is_subscription_active ?? false)
+      !(gym?.is_subscription_active ?? false) &&
+      !enGracia
 
     const SUBSCRIPTION_PATHS = ['/dashboard/suscripcion', '/dashboard/planes']
     if (blocked && !SUBSCRIPTION_PATHS.some(p => pathname.startsWith(p))) {
