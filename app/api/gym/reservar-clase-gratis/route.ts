@@ -94,16 +94,5 @@ export async function POST(req: NextRequest) {
     void sendWa(gym_id, phoneNorm, msg, { route: "gym/reservar-clase-gratis" });
   }
 
-  // In-app notification for gym
-  try {
-    const body = `${fechaFmt}${hora ? ` a las ${hora}` : ""}${clase_nombre ? ` — ${clase_nombre}` : ""}`;
-    await supabase.from("notifications").insert({
-      gym_id,
-      type:  "clase_gratis_agendada",
-      title: `Clase de prueba agendada: ${prospecto.full_name}`,
-      body,
-    });
-  } catch { /* non-fatal */ }
-
   return NextResponse.json({ ok: true, nombre });
 }
