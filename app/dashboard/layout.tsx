@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getTodayDate, getCurrentTime, DEFAULT_APP_TIME_ZONE } from "@/lib/date-utils";
@@ -197,6 +198,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const menuRef    = useRef<HTMLDivElement>(null);
   const notifRef   = useRef<HTMLDivElement>(null);
+  const notifDropdownRef = useRef<HTMLDivElement>(null);
   const mainRef    = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -346,7 +348,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+      if (
+        notifRef.current && !notifRef.current.contains(e.target as Node) &&
+        notifDropdownRef.current && !notifDropdownRef.current.contains(e.target as Node)
+      ) setNotifOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -870,8 +875,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 )}
               </button>
 
-              {notifOpen && (
-                <div style={{
+              {notifOpen && typeof document !== "undefined" && createPortal(
+                <div ref={notifDropdownRef} style={{
                   position: "fixed", top: isMobile ? "calc(100% + 16px)" : "auto", right: isMobile ? 12 : 20,
                   bottom: isMobile ? "auto" : 20,
                   width: isMobile ? "calc(100vw - 24px)" : 420,
@@ -881,7 +886,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   border: "1px solid rgba(0,0,0,0.08)",
                   borderRadius: 16,
                   boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
-                  zIndex: 50,
+                  zIndex: 9999,
                   overflow: "hidden",
                   animation: "dropIn 0.16s cubic-bezier(0.34,1.56,0.64,1) both",
                   display: "flex",
@@ -925,7 +930,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       ))
                     )}
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
 
