@@ -1198,7 +1198,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* ── Trial expired paywall ── */}
-      {!isSubscribed && trialExpired && role === "admin" && !impersonatedGym && (
+      {!isSubscribed && trialExpired && role === "admin" && !impersonatedGym
+        && !pathname.startsWith("/dashboard/planes")
+        && !pathname.startsWith("/dashboard/suscripcion") && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
           <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
 
