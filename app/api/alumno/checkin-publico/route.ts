@@ -5,7 +5,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 
-type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string | null; planes: unknown; next_expiration_date: string | null };
+type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string | null; planes: unknown; next_expiration_date: string | null; phone: string | null };
 type ExistingRow = { id: string; hora: string | null };
 
 export async function POST(req: NextRequest) {
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   // ── Buscar alumno ───────────────────────────────────────────────────────────
   const { data: alumno, error } = await supabase
     .from("alumnos")
-    .select("id, gym_id, full_name, status, planes(nombre), next_expiration_date")
+    .select("id, gym_id, full_name, status, planes(nombre), next_expiration_date, phone")
     .eq("gym_id", gym_id)
     .eq("id", alumnoId)
     .is("deleted_at", null)
@@ -57,6 +57,33 @@ export async function POST(req: NextRequest) {
   const isActive  = alumnoRow.status === "activo";
 
   if (!isActive || isExpired) {
+    // Si está vencido, crear notificación (anti-spam: máx 1 cada 6 horas)
+    if (isExpired) {
+      try {
+        const recentNotif = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("gym_id", alumnoRow.gym_id)
+          .eq("type", "checkin_vencido")
+          .gte("created_at", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString())
+          .ilike("link", `%${alumnoRow.id}%`)
+          .maybeSingle();
+
+        if (!recentNotif.data) {
+          await supabase.from("notifications").insert({
+            gym_id: alumnoRow.gym_id,
+            type: "checkin_vencido",
+            title: `🚫 ${alumnoRow.full_name} intentó entrar con cuota vencida`,
+            body: `Venció el ${alumnoRow.next_expiration_date}.${alumnoRow.phone ? ` Tel: ${alumnoRow.phone}` : ""}`,
+            link: `/dashboard/alumnos?q=${alumnoRow.id}`,
+            read: false,
+          });
+        }
+      } catch (e) {
+        console.error("[checkin-publico] notif creation failed:", e instanceof Error ? e.message : e);
+      }
+    }
+
     return NextResponse.json({
       ok: false,
       error: isExpired ? "Tu membresía está vencida." : "Tu membresía no está activa.",
