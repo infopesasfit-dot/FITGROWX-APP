@@ -502,8 +502,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <button
               onClick={() => {
-                router.push("/dashboard/planes");
                 handleClose();
+                router.push("/dashboard/planes");
               }}
               style={{ padding: "13px", borderRadius: 13, background: "#F97316", color: "white", border: "none", font: `700 0.9rem/1 ${fd}`, cursor: "pointer", textAlign: "center" }}
               onMouseEnter={e => (e.currentTarget.style.background = "#EA7317")}
