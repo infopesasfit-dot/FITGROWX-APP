@@ -214,7 +214,7 @@ function AlumnoPanelInner() {
   const [apiDown,      setApiDown]      = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [reservando,   setReservando]   = useState<string | null>(null);
-  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null; gym_whatsapp: string | null; cancel_window_hours: number | null } | null>(null);
+  const [gymInfo,      setGymInfo]      = useState<{ gym_name: string | null; logo_url: string | null; accent_color: string | null; has_mp: boolean; plan_type: string | null; payment_info: string | null; gym_whatsapp: string | null; cancel_window_hours: number | null; is_subscription_active: boolean; trial_expires_at: string | null } | null>(null);
   const [loadingPago,  setLoadingPago]  = useState(false);
   const [copiedPayment, setCopiedPayment] = useState(false);
   const [inlineKg,     setInlineKg]     = useState<Record<string, string>>({});
@@ -337,6 +337,19 @@ function AlumnoPanelInner() {
       .catch(() => { setApiDown(true); });
   }, [router, searchParams]);
 
+  // Determinar si mostrar footer
+  const showFooter = useMemo(() => {
+    if (!gymInfo) return false;
+    if (gymInfo.is_subscription_active) return true;
+    if (gymInfo.trial_expires_at) {
+      const trialEnd = new Date(gymInfo.trial_expires_at).getTime();
+      const now = Date.now();
+      const diasDesdeVencimiento = Math.floor((now - trialEnd) / 86_400_000);
+      return diasDesdeVencimiento <= 2;
+    }
+    return false;
+  }, [gymInfo]);
+
   useEffect(() => {
     const check = () => setIsCompactScreen(window.innerWidth <= 430);
     check();
@@ -375,6 +388,8 @@ function AlumnoPanelInner() {
         payment_info: d.gym_info.payment_info ?? null,
         gym_whatsapp: d.gym_info.gym_whatsapp ?? null,
         cancel_window_hours: d.gym_info.cancel_window_hours ?? null,
+        is_subscription_active: Boolean(d.gym_info.is_subscription_active ?? false),
+        trial_expires_at: d.gym_info.trial_expires_at ?? null,
       });
     }
     if (d.asistencias) {
@@ -1227,19 +1242,19 @@ function AlumnoPanelInner() {
       </div>
 
       {/* Branding footer */}
-      <div style={{ textAlign: "center", padding: "28px 16px 20px", borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: 8 }}>
-        <p style={{ font: `400 0.66rem/1.5 ${fd}`, color: "rgba(255,255,255,0.18)", margin: 0 }}>
-          Potenciado por <strong style={{ color: "rgba(255,255,255,0.32)" }}>FitGrowX</strong>
-        </p>
-        <a
-          href="https://fitgrowx.com/start?utm_source=panel_alumno"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ font: `500 0.64rem/1 ${fd}`, color: "rgba(255,255,255,0.22)", textDecoration: "none", letterSpacing: "0.03em" }}
-        >
-          ¿Tenés un gym? Digitalizalo acá →
-        </a>
-      </div>
+      {showFooter && (
+        <div style={{ textAlign: "center", padding: "28px 16px 20px", borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: 8 }}>
+          <p style={{ font: `400 0.66rem/1.5 ${fd}`, color: "rgba(255,255,255,0.18)", margin: 0 }}>
+            Potenciado por <strong style={{ color: "rgba(255,255,255,0.32)" }}>FitGrowX</strong>
+          </p>
+          <a
+            href="/reseller"
+            style={{ font: `500 0.64rem/1 ${fd}`, color: "rgba(255,255,255,0.22)", textDecoration: "none", letterSpacing: "0.03em" }}
+          >
+            Sumá un ingreso recomendando FitGrowX. Conocé más →
+          </a>
+        </div>
+      )}
 
       {/* Hito celebration modal */}
       {pendingHitos.length > 0 && (() => {
