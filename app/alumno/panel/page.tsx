@@ -1243,7 +1243,7 @@ function AlumnoPanelInner() {
 
       {/* Branding footer */}
       {showFooter && (
-        <div style={{ textAlign: "center", padding: "28px 16px 20px", borderTop: "1px solid rgba(255,255,255,0.05)", marginTop: 8 }}>
+        <div style={{ position: "fixed", bottom: isCompactScreen ? 72 : "calc(72px + 20px)", left: 0, right: 0, zIndex: 99, textAlign: "center", padding: "16px 16px 12px", background: "rgba(10,10,15,0.9)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
           <p style={{ font: `400 0.66rem/1.5 ${fd}`, color: "rgba(255,255,255,0.18)", margin: 0 }}>
             Potenciado por <strong style={{ color: "rgba(255,255,255,0.32)" }}>FitGrowX</strong>
           </p>
