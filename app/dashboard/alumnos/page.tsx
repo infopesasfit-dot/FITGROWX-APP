@@ -411,18 +411,6 @@ export default function AlumnosPage() {
       }).then(() => {});
     }
 
-    // Notificación: nuevo alumno registrado
-    fetch("/api/notifications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        gym_id: gymId,
-        type: "new_alumno",
-        title: `Nuevo alumno: ${form.full_name.trim()}`,
-        body: form.phone.trim() ? `Tel: ${form.phone.trim()}` : null,
-      }),
-    }).catch(() => {});
-
     // Bienvenida por WhatsApp — solo si el alumno dio consentimiento
     if (newAlumno?.id && form.phone.trim() && form.wa_consent) {
       fetch("/api/alumno/send-welcome", {
