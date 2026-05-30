@@ -197,18 +197,25 @@ export async function POST(req: NextRequest) {
     const isAnnual = parts[2] === "annual";
     if (!gymId || !isAnnual) return NextResponse.json({ ok: true });
 
-    // Idempotency: annual plans don't store paymentId in mp_preapproval_id,
-    // so we check the webhook log instead.
-    const { data: alreadyProcessed } = await supabaseAdmin
+    // Idempotency: insert-first claim. Partial unique index on (payment_id, event_type)
+    // WHERE status NOT IN ('received','error','ignored') makes concurrent duplicates race
+    // on INSERT — only one wins, the rest get 23505 and return 200 without processing.
+    const { data: claimRow, error: claimErr } = await supabaseAdmin
       .from("mp_webhook_log")
+      .insert({
+        source:     "platform",
+        gym_id:     gymId,
+        payment_id: String(paymentId),
+        event_type: "payment",
+        status:     "processing",
+      })
       .select("id")
-      .eq("payment_id", String(paymentId))
-      .eq("event_type", "payment")
-      .eq("status", "processed")
-      .maybeSingle();
+      .single();
 
-    if (alreadyProcessed) {
-      return NextResponse.json({ ok: true });
+    if (claimErr) {
+      if (claimErr.code === "23505") return NextResponse.json({ ok: true });
+      console.error("MP webhook: failed to claim annual payment", paymentId, claimErr.message);
+      return NextResponse.json({ error: "db_error" }, { status: 500 });
     }
 
     const { data: currentGym } = await supabaseAdmin
@@ -260,7 +267,7 @@ export async function POST(req: NextRequest) {
       .eq("id", gymId);
 
     console.log(`MP webhook: gym ${gymId} → annual payment ${paymentId} → activo hasta ${annualExpiry.toISOString().slice(0, 10)}`);
-    logWebhookPlatform(gymId, String(paymentId), "payment", "processed");
+    await supabaseAdmin.from("mp_webhook_log").update({ status: "processed" }).eq("id", claimRow.id);
 
     createResellerCommission(
       gymId,
@@ -360,33 +367,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // Extender la suscripción mensual un mes en cada cobro recurrente aprobado.
-    // Idempotente: si ya procesamos este payment (MP reenvía), no reextendemos.
-    const { data: alreadyLogged } = await supabaseAdmin
+    // Idempotency: insert-first claim for subscription payment.
+    const { data: claimRow, error: claimErr } = await supabaseAdmin
       .from("mp_webhook_log")
+      .insert({
+        source:     "platform",
+        gym_id:     gymId,
+        payment_id: String(payment.id),
+        event_type: "subscription_authorized_payment",
+        status:     "processing",
+      })
       .select("id")
-      .eq("payment_id", String(payment.id))
-      .eq("event_type", "subscription_authorized_payment")
-      .eq("status", "processed")
-      .maybeSingle();
+      .single();
 
-    if (!alreadyLogged) {
-      const { data: subGym } = await supabaseAdmin
-        .from("gyms")
-        .select("subscription_expires_at")
-        .eq("id", gymId)
-        .maybeSingle();
-      const curExp = subGym?.subscription_expires_at ? new Date(subGym.subscription_expires_at) : null;
-      const base = curExp && curExp > new Date() ? curExp : new Date();
-      await supabaseAdmin
-        .from("gyms")
-        .update({
-          is_subscription_active: true,
-          subscription_expires_at: addOneMonth(base).toISOString(),
-          gym_status: "active",
-        })
-        .eq("id", gymId);
+    if (claimErr) {
+      if (claimErr.code === "23505") return NextResponse.json({ ok: true });
+      console.error("MP webhook: failed to claim authorized payment", payment.id, claimErr.message);
+      return NextResponse.json({ error: "db_error" }, { status: 500 });
     }
+
+    const { data: subGym } = await supabaseAdmin
+      .from("gyms")
+      .select("subscription_expires_at")
+      .eq("id", gymId)
+      .maybeSingle();
+    const curExp = subGym?.subscription_expires_at ? new Date(subGym.subscription_expires_at) : null;
+    const base = curExp && curExp > new Date() ? curExp : new Date();
+    await supabaseAdmin
+      .from("gyms")
+      .update({
+        is_subscription_active: true,
+        subscription_expires_at: addOneMonth(base).toISOString(),
+        gym_status: "active",
+      })
+      .eq("id", gymId);
 
     await createResellerCommission(
       gymId,
@@ -395,7 +409,7 @@ export async function POST(req: NextRequest) {
       "monthly",
       periodMonthFrom(authorizedPayment.debit_date ?? null),
     );
-    logWebhookPlatform(gymId, String(payment.id), "subscription_authorized_payment", "processed");
+    await supabaseAdmin.from("mp_webhook_log").update({ status: "processed" }).eq("id", claimRow.id);
 
     return NextResponse.json({ ok: true });
   }

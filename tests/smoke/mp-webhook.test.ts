@@ -18,6 +18,7 @@ vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
 
 const sbMock = vi.hoisted(() => {
   const tableQueues: Record<string, Array<{ data: any }>> = {};
+  const insertQueues: Record<string, Array<{ data: any; error?: any }>> = {};
   const capturedGymUpdatePayloads: Array<{ table: string; payload: any }> = [];
 
   function enqueue(table: string, response: { data: any }) {
@@ -25,8 +26,14 @@ const sbMock = vi.hoisted(() => {
     tableQueues[table].push(response);
   }
 
+  function enqueueInsert(table: string, response: { data: any; error?: any }) {
+    if (!insertQueues[table]) insertQueues[table] = [];
+    insertQueues[table].push(response);
+  }
+
   function reset() {
     for (const k of Object.keys(tableQueues)) delete tableQueues[k];
+    for (const k of Object.keys(insertQueues)) delete insertQueues[k];
     capturedGymUpdatePayloads.length = 0;
   }
 
@@ -34,7 +41,16 @@ const sbMock = vi.hoisted(() => {
     return {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      insert: vi.fn().mockReturnThis(),
+      // insert returns a sub-chain; .single() is the dequeue point so
+      // fire-and-forget insert() calls don't consume the queue.
+      insert: vi.fn().mockImplementation(() => ({
+        select: vi.fn().mockReturnThis(),
+        single: vi.fn().mockImplementation(() => {
+          const result = (insertQueues[table] ?? []).shift()
+            ?? { data: { id: `mock-${table}-id` }, error: null };
+          return Promise.resolve(result);
+        }),
+      })),
       upsert: vi.fn().mockReturnThis(),
       update: vi.fn().mockImplementation((payload: any) => {
         capturedGymUpdatePayloads.push({ table, payload });
@@ -50,6 +66,7 @@ const sbMock = vi.hoisted(() => {
 
   return {
     enqueue,
+    enqueueInsert,
     reset,
     capturedGymUpdatePayloads,
     mockClient: {
@@ -220,8 +237,6 @@ describe("Annual payment: cancelación mensual al activar anual", () => {
       error: "MP cancel failed",
     });
 
-    // Supabase: idempotency check → aún no procesado
-    sbMock.enqueue("mp_webhook_log", { data: null });
     // Supabase: datos actuales del gym → mensual vivo
     sbMock.enqueue("gyms", {
       data: {
@@ -262,5 +277,81 @@ describe("Annual payment: cancelación mensual al activar anual", () => {
     expect(alertCall![1]).toBe("5491100000000");
     expect(alertCall![2]).toContain(monthlyPreapprovalId);
     expect(alertCall![2]).toContain("gym-test");
+  });
+});
+
+// ── Annual payment: idempotencia ──────────────────────────────────────────────
+
+describe("Annual payment: idempotencia — payment_id duplicado", () => {
+  function buildAnnualPaymentRequest(paymentId: string) {
+    const requestId = "req-dup-1";
+    const ts = String(Date.now());
+    const template = `id:${paymentId};request-id:${requestId};ts:${ts}`;
+    const sig = createHmac("sha256", SECRET).update(template).digest("hex");
+    return new NextRequest(
+      `https://fitgrowx.com/api/mp/webhook?data.id=${paymentId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-signature":  `ts=${ts};v1=${sig}`,
+          "x-request-id": requestId,
+        },
+        body: JSON.stringify({ type: "payment", data: { id: paymentId } }),
+      },
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sbMock.reset();
+    process.env.OWNER_PHONE = "";
+  });
+
+  it("mismo payment_id dos veces → procesa UNA vez, no duplica comisión", async () => {
+    const annualPaymentId = "pay-annual-dup";
+    const { fetchMpWithTimeout } = await import("@/lib/mp-timeout") as any;
+    const { sendWa } = await import("@/lib/wa") as any;
+
+    fetchMpWithTimeout.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: {
+        id: annualPaymentId,
+        status: "approved",
+        external_reference: `gym-dup|crecimiento|annual`,
+        transaction_amount: 10000,
+        date_approved: new Date().toISOString(),
+      },
+    });
+
+    // First call: default insert claim succeeds (mock returns mock-id), gym data provided.
+    sbMock.enqueue("gyms", { data: { mp_preapproval_id: null, subscription_type: "annual", subscription_expires_at: null } });
+    sbMock.enqueue("gym_settings", { data: { gym_name: "Gym Dup", whatsapp: null } });
+
+    const { POST } = await import("@/app/api/mp/webhook/route");
+    const res1 = await POST(buildAnnualPaymentRequest(annualPaymentId));
+    expect(res1.status).toBe(200);
+    expect((await res1.json()).ok).toBe(true);
+
+    const updates1 = sbMock.capturedGymUpdatePayloads.filter(u => u.table === "gyms");
+    expect(updates1).toHaveLength(1); // gym fue actualizado la primera vez
+
+    // Reset captured payloads before second call.
+    sbMock.capturedGymUpdatePayloads.length = 0;
+
+    // Second call: claim INSERT fails → 23505 (ya en procesamiento/procesado).
+    sbMock.enqueueInsert("mp_webhook_log", { data: null, error: { code: "23505", message: "duplicate key value" } });
+
+    const res2 = await POST(buildAnnualPaymentRequest(annualPaymentId));
+    expect(res2.status).toBe(200);
+    expect((await res2.json()).ok).toBe(true);
+
+    // Gym NO fue actualizado en el segundo intento.
+    const updates2 = sbMock.capturedGymUpdatePayloads.filter(u => u.table === "gyms");
+    expect(updates2).toHaveLength(0);
+
+    // WA no se envió en ninguno (whatsapp: null).
+    expect(sendWa).not.toHaveBeenCalled();
   });
 });
