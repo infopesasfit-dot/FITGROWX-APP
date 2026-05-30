@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { z } from "zod";
+import { applyRateLimit } from "@/lib/request-security";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+const messageSchema = z.object({
+  role: z.string(),
+  content: z.string().max(2000, "Mensaje demasiado largo (máx 2000 caracteres)."),
+});
+
+const bodySchema = z.object({
+  messages: z.array(messageSchema).min(1).max(50),
+});
 
 const SYSTEM_PROMPT = `Sos Rex, el dinosaurio asistente de FitGrowX 🦕
 FitGrowX es una plataforma de gestión para gimnasios y boxes en Argentina.
@@ -232,12 +243,25 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
-  const { messages } = await req.json();
-  if (!Array.isArray(messages)) {
-    return NextResponse.json({ error: "messages required" }, { status: 400 });
+  const limit = await applyRateLimit({
+    namespace: "ai:support-chat",
+    identifier: user.id,
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 30,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json({ error: "Límite de chat alcanzado. Reintentá en una hora." }, { status: 429 });
   }
 
-  const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+  const raw = await req.json().catch(() => null);
+  const parsed = bodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos." }, { status: 400 });
+  }
+
+  const messages = parsed.data.messages.slice(-20);
+
+  const history = messages.slice(0, -1).map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
