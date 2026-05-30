@@ -197,23 +197,35 @@ export async function POST(req: NextRequest) {
     const isAnnual = parts[2] === "annual";
     if (!gymId || !isAnnual) return NextResponse.json({ ok: true });
 
-    // Idempotency: skip if already processed this exact payment
+    // Idempotency: annual plans don't store paymentId in mp_preapproval_id,
+    // so we check the webhook log instead.
+    const { data: alreadyProcessed } = await supabaseAdmin
+      .from("mp_webhook_log")
+      .select("id")
+      .eq("payment_id", String(paymentId))
+      .eq("event_type", "payment")
+      .eq("status", "processed")
+      .maybeSingle();
+
+    if (alreadyProcessed) {
+      return NextResponse.json({ ok: true });
+    }
+
     const { data: currentGym } = await supabaseAdmin
       .from("gyms")
       .select("mp_preapproval_id, subscription_expires_at, subscription_type")
       .eq("id", gymId)
       .maybeSingle();
 
-    if (currentGym?.mp_preapproval_id === String(paymentId)) {
-      return NextResponse.json({ ok: true });
-    }
+    // Cancel monthly preapproval if present. Annual activates regardless of cancel outcome.
+    // Success → clear mp_preapproval_id. Failure → preserve it for manual retry + alert owner.
+    const monthlyPreapprovalId =
+      currentGym?.subscription_type === "monthly" ? (currentGym.mp_preapproval_id ?? null) : null;
+    let cancelledMonthly = false;
 
-    // Si había una suscripción mensual viva, cancelarla en MP: de lo contrario
-    // MP la sigue cobrando en paralelo al anual y su preapproval queda huérfano.
-    // Best-effort: si falla, logueamos pero igual activamos el anual.
-    if (currentGym?.subscription_type === "monthly" && currentGym?.mp_preapproval_id) {
+    if (monthlyPreapprovalId) {
       const cancelResult = await fetchMpWithTimeout(
-        `https://api.mercadopago.com/preapproval/${currentGym.mp_preapproval_id}`,
+        `https://api.mercadopago.com/preapproval/${monthlyPreapprovalId}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
@@ -221,8 +233,10 @@ export async function POST(req: NextRequest) {
           retryable: true,
         },
       );
-      if (!cancelResult.ok) {
-        console.error(`MP webhook: no se pudo cancelar preapproval mensual ${currentGym.mp_preapproval_id} al activar anual (gym ${gymId})`);
+      if (cancelResult.ok) {
+        cancelledMonthly = true;
+      } else {
+        console.error(`MP webhook: no se pudo cancelar preapproval mensual ${monthlyPreapprovalId} al activar anual (gym ${gymId})`);
         logWebhookPlatform(gymId, String(paymentId), "payment", "error", "monthly preapproval cancel failed on annual upgrade");
       }
     }
@@ -230,13 +244,16 @@ export async function POST(req: NextRequest) {
     const annualExpiry = new Date();
     annualExpiry.setFullYear(annualExpiry.getFullYear() + 1);
 
+    // Annual plans expire by date (cron), not by preapproval — do NOT store paymentId here.
+    // If monthly cancel succeeded → clear mp_preapproval_id.
+    // If it failed → preserve the id so it can be retried; annual is still activated.
     await supabaseAdmin
       .from("gyms")
       .update({
         is_subscription_active: true,
         subscription_expires_at: annualExpiry.toISOString(),
         subscription_type: "annual",
-        mp_preapproval_id: String(paymentId),
+        ...(monthlyPreapprovalId && cancelledMonthly ? { mp_preapproval_id: null } : {}),
         plan_type: planKey ?? "crecimiento",
         gym_status: "active",
       })
@@ -268,6 +285,20 @@ export async function POST(req: NextRequest) {
           `📅 Válido hasta el ${annualExpiry.toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}\n\n` +
           `Gracias por confiar en FitGrowX. ¡A hacer crecer ${settings.gym_name ?? "tu gym"}! 💪`;
         void sendWa(gymId, settings.whatsapp, msg, { route: "mp/webhook" });
+      }
+
+      if (monthlyPreapprovalId && !cancelledMonthly) {
+        const ownerPhone = normalizePhone(process.env.OWNER_PHONE);
+        if (ownerPhone) {
+          const alertMsg =
+            `⚠️ *Preapproval mensual sin cancelar — Acción requerida*\n\n` +
+            `Gym: *${settings?.gym_name ?? gymId}* (ID: ${gymId})\n` +
+            `Preapproval mensual activo: ${monthlyPreapprovalId}\n\n` +
+            `Cancelarlo manualmente en la cuenta MP de FitGrowX para evitar doble cobro al gym.`;
+          void sendWa("fitgrowx-platform", ownerPhone, alertMsg, { route: "mp/webhook" });
+        } else {
+          console.error(`MP webhook: OWNER_PHONE no configurado — preapproval mensual ${monthlyPreapprovalId} requiere cancelación manual para gym ${gymId}`);
+        }
       }
     }
 
