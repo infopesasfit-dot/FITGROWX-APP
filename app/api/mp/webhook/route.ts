@@ -201,12 +201,31 @@ export async function POST(req: NextRequest) {
     // Idempotency: skip if already processed this exact payment
     const { data: currentGym } = await supabaseAdmin
       .from("gyms")
-      .select("mp_preapproval_id, subscription_expires_at")
+      .select("mp_preapproval_id, subscription_expires_at, subscription_type")
       .eq("id", gymId)
       .maybeSingle();
 
     if (currentGym?.mp_preapproval_id === String(paymentId)) {
       return NextResponse.json({ ok: true });
+    }
+
+    // Si había una suscripción mensual viva, cancelarla en MP: de lo contrario
+    // MP la sigue cobrando en paralelo al anual y su preapproval queda huérfano.
+    // Best-effort: si falla, logueamos pero igual activamos el anual.
+    if (currentGym?.subscription_type === "monthly" && currentGym?.mp_preapproval_id) {
+      const cancelResult = await fetchMpWithTimeout(
+        `https://api.mercadopago.com/preapproval/${currentGym.mp_preapproval_id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+          body: JSON.stringify({ status: "cancelled" }),
+          retryable: true,
+        },
+      );
+      if (!cancelResult.ok) {
+        console.error(`MP webhook: no se pudo cancelar preapproval mensual ${currentGym.mp_preapproval_id} al activar anual (gym ${gymId})`);
+        logWebhookPlatform(gymId, String(paymentId), "payment", "error", "monthly preapproval cancel failed on annual upgrade");
+      }
     }
 
     const annualExpiry = new Date();
