@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { Activity, CreditCard, Heart, LogOut, Shield, Users } from "lucide-react";
+import { Activity, Building2, CreditCard, Heart, LogOut, Shield, Users } from "lucide-react";
 
 export default function PlatformHeader() {
   const router = useRouter();
@@ -94,6 +94,20 @@ export default function PlatformHeader() {
         >
           <Activity size={13} />
           Radar
+        </Link>
+        <Link
+          href="/platform/gyms"
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            font: "600 0.75rem/1 'Inter', sans-serif",
+            color: pathname === "/platform/gyms" ? "#6366f1" : "#6b7280",
+            textDecoration: "none",
+            padding: "4px 8px", borderRadius: 6,
+            background: pathname === "/platform/gyms" ? "rgba(99,102,241,0.08)" : "transparent",
+          }}
+        >
+          <Building2 size={13} />
+          Gyms
         </Link>
       </div>
 
