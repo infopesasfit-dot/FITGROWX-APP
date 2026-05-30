@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const sb = getSupabaseAdminClient();
 
@@ -23,6 +24,9 @@ export async function DELETE(
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? "")) {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   }
+
+  const blocked = await requireGymNotBlocked(profile.gym_id);
+  if (blocked) return blocked;
 
   // Verify row belongs to this gym before deleting
   const { data: row } = await sb

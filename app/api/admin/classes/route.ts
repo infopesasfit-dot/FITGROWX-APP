@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createClassesSchema, patchClassSchema, parseBody } from "@/lib/schemas";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AuthorizedProfile = {
   id: string;
@@ -58,6 +59,11 @@ export async function POST(req: NextRequest) {
     const profile = await getAuthorizedProfile();
     if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
+    if (profile.role !== "platform_owner") {
+      const blocked = await requireGymNotBlocked(profile.gym_id);
+      if (blocked) return blocked;
+    }
+
     const raw = await req.json();
     const parsed = parseBody(createClassesSchema, raw);
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
@@ -100,6 +106,11 @@ export async function PATCH(req: NextRequest) {
   const profile = await getAuthorizedProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
+  if (profile.role !== "platform_owner") {
+    const blocked = await requireGymNotBlocked(profile.gym_id);
+    if (blocked) return blocked;
+  }
+
   const raw = await req.json();
   const parsed = parseBody(patchClassSchema, raw);
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
@@ -136,6 +147,11 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const profile = await getAuthorizedProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  if (profile.role !== "platform_owner") {
+    const blocked = await requireGymNotBlocked(profile.gym_id);
+    if (blocked) return blocked;
+  }
 
   const { id } = await req.json() as { id?: string };
   if (!id) return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });

@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { whatsappSendSchema } from "@/lib/schemas";
 import { applyRateLimit } from "@/lib/request-security";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AuthorizedProfile = {
   gym_id: string | null;
@@ -63,6 +64,12 @@ export async function POST(req: NextRequest) {
   if (!allowed) {
     console.warn(`[WA SEND] ${new Date().toISOString()} ${endpoint} error authz request_id=${requestId} gym_id=${gym_id} phone=${phoneRef} reason=gym_mismatch`);
     return NextResponse.json({ error: "No autorizado para este gimnasio" }, { status: 403 });
+  }
+
+  // Gym bloqueado por impago no puede enviar WA manual (platform_owner exento).
+  if (profile.role !== "platform_owner") {
+    const blocked = await requireGymNotBlocked(gym_id);
+    if (blocked) return blocked;
   }
 
   // Rate limit by gym_id: 20 requests per minute

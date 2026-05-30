@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { createStaffSchema, parseBody } from "@/lib/schemas";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AdminProfile = {
   gym_id: string | null;
@@ -42,6 +43,9 @@ export async function POST(req: NextRequest) {
   const admin = await getAdminGymId(supabase);
   if (!admin) return NextResponse.json({ ok: false }, { status: 403 });
 
+  const blocked = await requireGymNotBlocked(admin.gymId);
+  if (blocked) return blocked;
+
   const raw = await req.json();
   const parsed = parseBody(createStaffSchema, raw);
   if (!parsed.ok) return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
@@ -76,6 +80,9 @@ export async function DELETE(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const admin = await getAdminGymId(supabase);
   if (!admin) return NextResponse.json({ ok: false }, { status: 403 });
+
+  const blocked = await requireGymNotBlocked(admin.gymId);
+  if (blocked) return blocked;
 
   const { id } = await req.json() as { id: string };
   if (!id) return NextResponse.json({ ok: false, error: "id requerido" }, { status: 400 });

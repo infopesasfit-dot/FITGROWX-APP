@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AuthorizedProfile = {
   id: string;
@@ -50,6 +51,11 @@ export async function POST(req: NextRequest) {
   if (!profile) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   if (profile.role !== "platform_owner" && !(profile.role === "admin" && profile.gym_id === gymId)) {
     return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
+  }
+
+  if (profile.role !== "platform_owner") {
+    const blocked = await requireGymNotBlocked(gymId);
+    if (blocked) return blocked;
   }
 
   const baseUrl = process.env.WA_MOTOR_URL;

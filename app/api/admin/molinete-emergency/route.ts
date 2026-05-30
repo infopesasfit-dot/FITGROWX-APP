@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const admin = getSupabaseAdminClient();
 
@@ -23,6 +24,9 @@ async function getAuth(): Promise<{ gymId: string; userId: string } | null> {
 export async function POST() {
   const auth = await getAuth();
   if (!auth) return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
+
+  const blocked = await requireGymNotBlocked(auth.gymId);
+  if (blocked) return blocked;
 
   // Check if gym has any molinete keys configured
   const { data: keys } = await admin

@@ -5,6 +5,7 @@ import { sendWa } from "@/lib/wa";
 import { normalizePhone } from "@/lib/phone";
 import { createAlumnoNotification } from "@/lib/alumno-notif";
 import { sendPushNotification, PushTemplates } from "@/lib/alumno-push-send";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const admin = getSupabaseAdminClient();
 
@@ -35,6 +36,11 @@ function buildCreditLine(accessType: string | null, classesPerWeek: number | nul
 export async function POST(req: NextRequest) {
   const profile = await getAuthorizedProfile();
   if (!profile) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  if (profile.role !== "platform_owner") {
+    const blocked = await requireGymNotBlocked(profile.gym_id);
+    if (blocked) return blocked;
+  }
 
   const body = await req.json();
   const { clase_id, fecha, motivo } = body as { clase_id?: string; fecha?: string; motivo?: string };

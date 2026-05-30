@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendMonthlyDashboardReport } from "@/lib/monthly-dashboard-report-delivery";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AuthorizedProfile = {
   id: string;
@@ -33,6 +34,11 @@ export async function POST(req: NextRequest) {
 
   if (!profile || !profile.gym_id || !["admin", "platform_owner"].includes(profile.role ?? "")) {
     return NextResponse.json({ ok: false, error: "Acceso denegado." }, { status: 403 });
+  }
+
+  if (profile.role !== "platform_owner") {
+    const blocked = await requireGymNotBlocked(profile.gym_id);
+    if (blocked) return blocked;
   }
 
   const body = await req.json().catch(() => ({}));

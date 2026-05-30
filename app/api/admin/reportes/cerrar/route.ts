@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { calculateSnapshot } from "@/lib/dashboard-calculations";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AuthorizedProfile = {
   gym_id: string | null;
@@ -84,6 +85,9 @@ export async function POST(req: NextRequest) {
   }
 
   const gymId = profile.gym_id;
+
+  const blocked = await requireGymNotBlocked(gymId);
+  if (blocked) return blocked;
 
   // Calcular from/to del mes
   const fromDate = new Date(year, month - 1, 1);

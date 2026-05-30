@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const admin = getSupabaseAdminClient();
 
@@ -22,6 +23,9 @@ export async function POST(req: NextRequest) {
 
   if (!profile?.gym_id || profile.role !== "admin")
     return NextResponse.json({ ok: false, error: "Solo administradores pueden anular pagos." }, { status: 403 });
+
+  const blocked = await requireGymNotBlocked(profile.gym_id);
+  if (blocked) return blocked;
 
   const { pago_id } = await req.json() as { pago_id?: string };
   if (!pago_id) return NextResponse.json({ ok: false, error: "pago_id requerido." }, { status: 400 });

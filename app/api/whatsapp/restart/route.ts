@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit } from "@/lib/request-security";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const HEALTH_TIMEOUT_MS = 10_000;
 
@@ -73,6 +74,9 @@ export async function POST(req: NextRequest) {
   }
 
   const gymId = profile.gym_id;
+
+  const blocked = await requireGymNotBlocked(gymId);
+  if (blocked) return blocked;
 
   // ── 3. Apply rate limit (destructive op: 3 attempts per minute) ─────────────
   const rl = await applyRateLimit({

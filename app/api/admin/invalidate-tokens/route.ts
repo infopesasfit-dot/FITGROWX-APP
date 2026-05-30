@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 export async function POST(req: NextRequest) {
   const { alumno_id } = await req.json();
@@ -27,6 +28,11 @@ export async function POST(req: NextRequest) {
 
   if (!["owner", "admin"].includes(profile.role)) {
     return NextResponse.json({ error: "Permiso denegado" }, { status: 403 });
+  }
+
+  if (profile.gym_id) {
+    const blocked = await requireGymNotBlocked(profile.gym_id);
+    if (blocked) return blocked;
   }
 
   // C) Validar ownership cross-tenant

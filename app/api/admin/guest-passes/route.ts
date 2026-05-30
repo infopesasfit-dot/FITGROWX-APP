@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const sb = getSupabaseAdminClient();
 
@@ -8,8 +9,13 @@ async function getGymId(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
   const user = await requireUser();
   if (!user) return null;
-  const { data: profile } = await sb.from("profiles").select("gym_id").eq("id", user.id).maybeSingle();
-  return profile?.gym_id ?? null;
+  const { data: profile } = await sb
+    .from("profiles")
+    .select("gym_id, role")
+    .eq("id", user.id)
+    .maybeSingle<{ gym_id: string | null; role: string | null }>();
+  if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? "")) return null;
+  return profile.gym_id;
 }
 
 export async function GET() {
@@ -29,6 +35,9 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const gymId = await getGymId();
   if (!gymId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const blocked = await requireGymNotBlocked(gymId);
+  if (blocked) return blocked;
 
   const { passId } = await req.json();
 

@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 import { createHash } from "crypto";
 
 const sb = getSupabaseAdminClient();
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await sb.from("profiles").select("gym_id, role").eq("id", user.id).maybeSingle();
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? ""))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const blocked = await requireGymNotBlocked(profile.gym_id);
+  if (blocked) return blocked;
 
   const { alumno_id } = await req.json();
   if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido" }, { status: 400 });

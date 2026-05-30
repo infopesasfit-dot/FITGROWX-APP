@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, createHash } from "crypto";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AuthProfile = { gym_id: string | null; role: string | null };
 
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
   const auth = await getGymId();
   if ("error" in auth) return auth.error;
 
+  const blocked = await requireGymNotBlocked(auth.gymId);
+  if (blocked) return blocked;
+
   const { label } = await req.json().catch(() => ({})) as { label?: string };
 
   const rawKey  = `fgx_${randomBytes(24).toString("hex")}`;
@@ -67,6 +71,9 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const auth = await getGymId();
   if ("error" in auth) return auth.error;
+
+  const blocked = await requireGymNotBlocked(auth.gymId);
+  if (blocked) return blocked;
 
   const { id } = await req.json().catch(() => ({})) as { id?: string };
   if (!id) return NextResponse.json({ ok: false, error: "id requerido." }, { status: 400 });

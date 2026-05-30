@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentTime, getTodayDate, formatTimeInTimeZone } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type AdminProfile = {
   gym_id: string | null;
@@ -35,6 +36,9 @@ export async function POST(req: NextRequest) {
   if (!profileRow.gym_id) {
     return NextResponse.json({ ok: false, error: "Gym inválido." }, { status: 403 });
   }
+
+  const blocked = await requireGymNotBlocked(profileRow.gym_id);
+  if (blocked) return blocked;
 
   const { alumno_id, fecha } = await req.json();
   if (!alumno_id) return NextResponse.json({ ok: false, error: "alumno_id requerido." }, { status: 400 });

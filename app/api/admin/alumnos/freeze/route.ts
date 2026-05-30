@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient, requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { getTodayDate } from "@/lib/date-utils";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const admin = getSupabaseAdminClient();
 
@@ -22,6 +23,9 @@ async function getAdminGymId(): Promise<string | null> {
 export async function POST(req: NextRequest) {
   const gymId = await getAdminGymId();
   if (!gymId) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const blocked = await requireGymNotBlocked(gymId);
+  if (blocked) return blocked;
 
   const body = await req.json() as { alumno_id?: string; dias?: number };
   const { alumno_id, dias } = body;
@@ -58,6 +62,9 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const gymId = await getAdminGymId();
   if (!gymId) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const blocked = await requireGymNotBlocked(gymId);
+  if (blocked) return blocked;
 
   const body = await req.json() as { alumno_id?: string };
   const { alumno_id } = body;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const sb = getSupabaseAdminClient();
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -61,6 +62,9 @@ export async function POST(req: NextRequest) {
   }
 
   const user_gym_id = profile.gym_id;
+
+  const blocked = await requireGymNotBlocked(user_gym_id);
+  if (blocked) return blocked;
 
   // Parse form data (only file and pago_id from client)
   const formData = await req.formData();
