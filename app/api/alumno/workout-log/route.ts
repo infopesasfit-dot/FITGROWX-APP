@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
 
   const { alumno_id, gym_id, fecha, rutina_nombre, series_log, completada, offline } = await req.json();
   if (!alumno_id || !gym_id || !fecha) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
+  if (series_log != null && JSON.stringify(series_log).length > 50_000) {
+    return NextResponse.json({ error: "El registro de series supera el tamaño máximo permitido." }, { status: 413 });
+  }
   if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
     return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
   }
