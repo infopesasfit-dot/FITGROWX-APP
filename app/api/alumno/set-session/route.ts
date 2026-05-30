@@ -5,10 +5,14 @@ import { getPlanNombre } from "@/lib/supabase-relations";
 import { setAlumnoSessionCookie } from "@/lib/alumno-session";
 import { logAlumnoAction, getClientIpFromRequest } from "@/lib/alumno-logging";
 import { getGymPlanStatus } from "@/lib/gym-plan-status";
+import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
 const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
+  const limit = await applyRateLimit({ namespace: "set-session:ip", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 40 });
+  if (!limit.allowed) return NextResponse.json({ error: "Demasiados intentos. Esperá un momento." }, { status: 429 });
+
   const { token } = await req.json();
   const ip = await getClientIpFromRequest(req);
   if (!token) return NextResponse.json({ error: "Token requerido." }, { status: 400 });

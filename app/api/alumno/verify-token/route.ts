@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyRateLimit, getClientIp } from "@/lib/request-security";
 
 const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
+  const limit = await applyRateLimit({ namespace: "verify-token:ip", identifier: getClientIp(req), windowMs: 60_000, maxAttempts: 40 });
+  if (!limit.allowed) return NextResponse.json({ error: "Demasiados intentos. Esperá un momento." }, { status: 429 });
+
   const { token } = await req.json();
   if (!token) return NextResponse.json({ error: "Token requerido." }, { status: 400 });
 
