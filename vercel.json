@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/cumpleanos",
       "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron/wa-queue-flush",
+      "schedule": "* * * * *"
     }
   ]
 }
