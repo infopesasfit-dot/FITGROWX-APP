@@ -311,6 +311,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // Extender la suscripción mensual un mes en cada cobro recurrente aprobado.
+    // Idempotente: si ya procesamos este payment (MP reenvía), no reextendemos.
+    const { data: alreadyLogged } = await supabaseAdmin
+      .from("mp_webhook_log")
+      .select("id")
+      .eq("payment_id", String(payment.id))
+      .eq("event_type", "subscription_authorized_payment")
+      .eq("status", "processed")
+      .maybeSingle();
+
+    if (!alreadyLogged) {
+      const { data: subGym } = await supabaseAdmin
+        .from("gyms")
+        .select("subscription_expires_at")
+        .eq("id", gymId)
+        .maybeSingle();
+      const curExp = subGym?.subscription_expires_at ? new Date(subGym.subscription_expires_at) : null;
+      const base = curExp && curExp > new Date() ? curExp : new Date();
+      await supabaseAdmin
+        .from("gyms")
+        .update({
+          is_subscription_active: true,
+          subscription_expires_at: addOneMonth(base).toISOString(),
+          gym_status: "active",
+        })
+        .eq("id", gymId);
+    }
+
     await createResellerCommission(
       gymId,
       authorizedPayment.transaction_amount ?? 0,

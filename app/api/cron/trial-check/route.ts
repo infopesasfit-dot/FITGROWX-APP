@@ -28,6 +28,21 @@ export async function GET(req: NextRequest) {
   if (expErr) log.push(`Error marcando expirados: ${expErr.message}`);
   else log.push(`Marcados como trial_expired: ${expired?.length ?? 0}`);
 
+  // ── 1b. Expirar suscripciones pagas vencidas (red de seguridad) ───────
+  // Si subscription_expires_at quedó en el pasado pero el booleano sigue en true
+  // (plan anual sin evento de baja, o webhook de cancelación perdido), bajamos el
+  // acceso. El webhook de MP sigue siendo la vía principal; esto evita fugas.
+  const { data: subExpired, error: subErr } = await supabase
+    .from("gyms")
+    .update({ is_subscription_active: false, gym_status: "cancelled" })
+    .eq("is_subscription_active", true)
+    .in("plan_type", ["starter", "crecimiento"])
+    .lt("subscription_expires_at", new Date().toISOString())
+    .select("id");
+
+  if (subErr) log.push(`Error expirando suscripciones pagas: ${subErr.message}`);
+  else log.push(`Suscripciones pagas expiradas: ${subExpired?.length ?? 0}`);
+
   // ── 2. Day-13 and Day-15 WA notifications ────────────────────────────
   // Use "started N+ days ago AND not yet sent" instead of exact date match.
   // This retries the next day if WA was down, so notifications are never permanently lost.

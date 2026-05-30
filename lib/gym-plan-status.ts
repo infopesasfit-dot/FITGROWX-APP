@@ -35,12 +35,17 @@ export async function getGymPlanStatus(gymId: string): Promise<PlanInfo> {
 
   const now = new Date();
 
+  // Una suscripción paga solo cuenta como activa si además no venció.
+  // (Mensual extiende subscription_expires_at en cada cobro; anual fija +1 año.)
+  const subActive = gym.is_subscription_active
+    && (!gym.subscription_expires_at || new Date(gym.subscription_expires_at) > now);
+
   // Suscripción paga activa
-  if (gym.is_subscription_active && gym.plan_type === "crecimiento") {
+  if (subActive && gym.plan_type === "crecimiento") {
     return { status: "paid_active", plan_type: "crecimiento", is_blocked: false, alumno_limit: null, days_remaining: null, message: "Plan Pro activo." };
   }
 
-  if (gym.is_subscription_active && gym.plan_type === "starter") {
+  if (subActive && gym.plan_type === "starter") {
     return { status: "paid_active", plan_type: "starter", is_blocked: false, alumno_limit: STARTER_LIMIT, days_remaining: null, message: "Plan Starter activo." };
   }
 
