@@ -13,8 +13,13 @@ const supabase = createClient(
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
+  const startedAt = Date.now();
   const today = new Date().toISOString().slice(0, 10);
   const log: string[] = [];
+  let d13Sent = 0;
+  let d15Sent = 0;
+
+  try {
 
   // ── 1. Mark trial_expired gyms ────────────────────────────────────────
   const { data: expired, error: expErr } = await supabase
@@ -100,6 +105,7 @@ export async function GET(req: NextRequest) {
 
   for (const gym of d13Gyms ?? []) {
     await sendTrialNotif(gym, 3, "trial_notif_d13_sent_at");
+    d13Sent++;
   }
 
   // Day 15 (1 day left): started 14+ days ago, d15 not sent yet
@@ -113,7 +119,17 @@ export async function GET(req: NextRequest) {
 
   for (const gym of d15Gyms ?? []) {
     await sendTrialNotif(gym, 1, "trial_notif_d15_sent_at");
+    d15Sent++;
   }
 
+  const trialExpiredCount = expired?.length ?? 0;
+  const subExpiredCount = subExpired?.length ?? 0;
+  void supabase.from("cron_runs").insert({ cron_name: "trial-check", status: "ok", duration_ms: Date.now() - startedAt, summary: `${today} · ${trialExpiredCount} expirados, ${subExpiredCount} subs, ${d13Sent + d15Sent} notifs WA`, counts: { trialExpired: trialExpiredCount, subExpired: subExpiredCount, d13Sent, d15Sent, log } });
   return NextResponse.json({ ok: true, date: today, log });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void supabase.from("cron_runs").insert({ cron_name: "trial-check", status: "error", duration_ms: Date.now() - startedAt, summary: msg });
+    console.error("[trial-check] error fatal:", msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

@@ -35,7 +35,13 @@ function nombre(acc: { owner_name?: string | null; company_name: string }) {
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
+  const startedAt = Date.now();
   const log: string[] = [];
+  let trialVence = 0;
+  let trialExpirado = 0;
+  let inactivosSent = 0;
+  let activacionD3 = 0;
+  let primerPagoSent = 0;
 
   if (!process.env.WA_MOTOR_URL) return NextResponse.json({ ok: false, log: ["WA_MOTOR_URL no configurado."] });
 
@@ -43,6 +49,8 @@ export async function GET(req: NextRequest) {
   if (!await isWaConnected(PLAT_SESSION)) {
     return NextResponse.json({ ok: false, log: ["Sesión WA de plataforma no activa. Escaneá el QR primero."] });
   }
+
+  try {
 
   // Cargar todas las plantillas de una sola query
   const { data: templates } = await sb.from("platform_wa_templates").select("key, body, enabled");
@@ -77,6 +85,7 @@ export async function GET(req: NextRequest) {
     const msg  = fill(tpl["trial_vence"] ?? "Tu trial vence en {dias} días, {nombre}.", { nombre: nombre(acc), dias: String(dias) });
     await sb.from("platform_accounts").update({ wa_trial_vence_sent_at: now.toISOString() }).eq("id", acc.id);
     void sendWa(PLAT_SESSION, phone, msg);
+    trialVence++;
     log.push(`✓ Trial vence → ${acc.company_name} (${dias}d)`);
   }
 
@@ -99,6 +108,7 @@ export async function GET(req: NextRequest) {
     const msg = fill(tpl["trial_expirado"] ?? "Hola {nombre}, tu prueba venció hoy. Tus datos siguen guardados.", { nombre: nombre(acc) });
     await sb.from("platform_accounts").update({ wa_trial_expirado_sent_at: now.toISOString() }).eq("id", acc.id);
     void sendWa(PLAT_SESSION, phone, msg);
+    trialExpirado++;
     log.push(`✓ Trial expirado → ${acc.company_name}`);
   }
 
@@ -121,6 +131,7 @@ export async function GET(req: NextRequest) {
     const msg = fill(tpl["inactivo_7d"] ?? "Ey {nombre}! ¿Cómo va el gym?", { nombre: nombre(acc) });
     await sb.from("platform_accounts").update({ wa_inactivo_notif_sent_at: now.toISOString() }).eq("id", acc.id);
     void sendWa(PLAT_SESSION, phone, msg);
+    inactivosSent++;
     log.push(`✓ Inactivo 7d → ${acc.company_name}`);
   }
 
@@ -171,6 +182,7 @@ export async function GET(req: NextRequest) {
     const msg = fill(tpl["activacion_d3"] ?? "Ey {nombre}! ¿Pudiste cargar tus alumnos?", { nombre: nombre(acc) });
     await sb.from("platform_accounts").update({ wa_activacion_d3_sent_at: now.toISOString() }).eq("id", acc.id);
     void sendWa(PLAT_SESSION, phone, msg);
+    activacionD3++;
     log.push(`✓ Día 3 sin alumnos → ${acc.company_name}`);
   }
 
@@ -229,6 +241,7 @@ export async function GET(req: NextRequest) {
     const msg = fill(tpl["primer_pago"] ?? "🎉 {nombre}, tu gym recibió su primer pago en FitGrowX.", { nombre: nombre(acc) });
     await sb.from("platform_accounts").update({ wa_primer_pago_sent_at: now.toISOString() }).eq("id", acc.id);
     void sendWa(PLAT_SESSION, phone, msg);
+    primerPagoSent++;
     log.push(`✓ Primer pago → ${acc.company_name}`);
   }
 
@@ -287,5 +300,13 @@ export async function GET(req: NextRequest) {
   }
 
   log.push(`Completado: ${todayStr}`);
+  const totalNotifs = trialVence + trialExpirado + inactivosSent + activacionD3 + primerPagoSent;
+  void sb.from("cron_runs").insert({ cron_name: "platform-notifs", status: "ok", duration_ms: Date.now() - startedAt, summary: `${todayStr} · ${totalNotifs} notifs enviadas`, counts: { trialVence, trialExpirado, inactivos: inactivosSent, activacionD3, primerPago: primerPagoSent, log } });
   return NextResponse.json({ ok: true, log });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void sb.from("cron_runs").insert({ cron_name: "platform-notifs", status: "error", duration_ms: Date.now() - startedAt, summary: msg });
+    console.error("[platform-notifs] error fatal:", msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

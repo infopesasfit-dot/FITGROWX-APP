@@ -34,17 +34,21 @@ export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
 
+  const startedAt = Date.now();
   const today = new Date();
+  const log: string[] = [];
+  let totalEnviados = 0;
 
+  try {
   const { data: gyms } = await supabase
     .from("gym_settings")
     .select("gym_id, gym_name, clase_gratis_msg_0, clase_gratis_msg_2, clase_gratis_msg_5, clase_gratis_msg_noshow, slug, mp_access_token, payment_info")
     .eq("clase_gratis_activo", true);
 
-  if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con clase gratis activo."] });
-
-  const log: string[] = [];
-  let totalEnviados = 0;
+  if (!gyms?.length) {
+    void supabase.from("cron_runs").insert({ cron_name: "clase-gratis-followup", status: "ok", duration_ms: Date.now() - startedAt, summary: "Sin gyms activos", counts: { enviados: 0, log } });
+    return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con clase gratis activo."] });
+  }
 
   for (const gym of gyms) {
     const canSend = await canSendAutomatedWa(gym.gym_id);
@@ -157,5 +161,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  void supabase.from("cron_runs").insert({ cron_name: "clase-gratis-followup", status: "ok", duration_ms: Date.now() - startedAt, summary: `${totalEnviados} WA enviados`, counts: { enviados: totalEnviados, log } });
   return NextResponse.json({ ok: true, enviados: totalEnviados, log });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void supabase.from("cron_runs").insert({ cron_name: "clase-gratis-followup", status: "error", duration_ms: Date.now() - startedAt, summary: msg });
+    console.error("[clase-gratis-followup] error fatal:", msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

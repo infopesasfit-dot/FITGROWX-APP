@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const startedAt = Date.now();
   const supabase = getSupabaseAdminClient();
   const explicitMonth = req.nextUrl.searchParams.get("month");
   const reportMonthDate = explicitMonth
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest) {
     .not("email", "is", null);
 
   if (gymsError) {
+    void supabase.from("cron_runs").insert({ cron_name: "monthly-dashboard-report", status: "error", duration_ms: Date.now() - startedAt, summary: gymsError.message });
     return NextResponse.json({ error: gymsError.message }, { status: 500 });
   }
 
@@ -84,5 +86,8 @@ export async function GET(req: NextRequest) {
   }
 
   const sent = results.filter((item) => item.status === "sent").length;
+  const skipped = results.filter((item) => item.status === "skipped").length;
+  const errors = results.filter((item) => item.status === "error").length;
+  void supabase.from("cron_runs").insert({ cron_name: "monthly-dashboard-report", status: "ok", duration_ms: Date.now() - startedAt, summary: `Mes ${reportMonth} · ${sent}/${targets.length} enviados`, counts: { sent, skipped, errors, total: targets.length, results } });
   return NextResponse.json({ ok: true, report_month: reportMonth, sent, total: targets.length, results });
 }

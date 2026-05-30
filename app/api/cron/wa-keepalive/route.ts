@@ -52,8 +52,12 @@ export async function GET(req: NextRequest) {
   const headers: Record<string, string> = {};
   if (process.env.WA_MOTOR_API_KEY) headers["x-api-key"] = process.env.WA_MOTOR_API_KEY;
 
+  const startedAt = Date.now();
   const log: string[] = [];
+  let restoredCount = 0;
+  let disconnectedCount = 0;
 
+  try {
   // Gyms que Supabase cree que están activos
   const { data: gyms } = await supabase
     .from("gym_settings")
@@ -110,7 +114,9 @@ export async function GET(req: NextRequest) {
         log.push(`[${gymId}] Sin creds_json guardado — no se puede restaurar automáticamente`);
       }
 
+      if (restored) restoredCount++;
       if (!restored) {
+        disconnectedCount++;
         await supabase
           .from("gym_settings")
           .update({ wa_status: "disconnected", wa_phone: null, wa_battery: null, wa_plugged: null, wa_signal: null })
@@ -152,5 +158,12 @@ export async function GET(req: NextRequest) {
     log.push(`[${gymId}] ✓ ${realStatus}`);
   }
 
+  void supabase.from("cron_runs").insert({ cron_name: "wa-keepalive", status: "ok", duration_ms: Date.now() - startedAt, summary: `${gyms.length} gyms verificados, ${restoredCount} restaurados, ${disconnectedCount} desconectados`, counts: { checked: gyms.length, restored: restoredCount, disconnected: disconnectedCount, log } });
   return NextResponse.json({ ok: true, checked: gyms.length, log });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void supabase.from("cron_runs").insert({ cron_name: "wa-keepalive", status: "error", duration_ms: Date.now() - startedAt, summary: msg });
+    console.error("[wa-keepalive] error fatal:", msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

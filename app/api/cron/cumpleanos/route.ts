@@ -34,18 +34,25 @@ export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
   if (!MOTOR_URL) return NextResponse.json({ ok: false, log: ["WA_MOTOR_URL no configurado"] });
 
+  const startedAt = Date.now();
   const now = new Date();
   const thisYear = now.getFullYear();
   const mm = now.getMonth() + 1;
   const dd = now.getDate();
   const log: string[] = [];
+  let totalEnviados = 0;
 
   const { data: gyms } = await supabase
     .from("gym_settings")
     .select("gym_id, gym_name, cumple_msg")
     .eq("cumple_activo", true);
 
-  if (!gyms?.length) return NextResponse.json({ ok: true, log: ["Sin gyms con cumple activo"] });
+  if (!gyms?.length) {
+    void supabase.from("cron_runs").insert({ cron_name: "cumpleanos", status: "ok", duration_ms: Date.now() - startedAt, summary: "Sin gyms activos", counts: { enviados: 0, log } });
+    return NextResponse.json({ ok: true, log: ["Sin gyms con cumple activo"] });
+  }
+
+  try {
 
   for (const gym of gyms) {
     const canSend = await canSendAutomatedWa(gym.gym_id);
@@ -83,10 +90,18 @@ export async function GET(req: NextRequest) {
       await enqueueWABulk([{ gymId: gym.gym_id, phone, message: msg, dedupKey: `cumple:${alumno.id}:${thisYear}` }]);
       await supabase.from("alumnos").update({ notif_cumple_year: thisYear }).eq("id", alumno.id);
       logWASend(supabase, gym.gym_id, "cumple", alumno.id, alumno.full_name);
+      totalEnviados++;
       log.push(`🎂 ${alumno.full_name} (${gymName}) — encolado`);
     }
   }
 
   log.push(`Completado: ${now.toISOString().slice(0, 10)}`);
+  void supabase.from("cron_runs").insert({ cron_name: "cumpleanos", status: "ok", duration_ms: Date.now() - startedAt, summary: `${totalEnviados} cumpleaños encolados`, counts: { enviados: totalEnviados, log } });
   return NextResponse.json({ ok: true, log });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void supabase.from("cron_runs").insert({ cron_name: "cumpleanos", status: "error", duration_ms: Date.now() - startedAt, summary: msg });
+    console.error("[cumpleanos] error fatal:", msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

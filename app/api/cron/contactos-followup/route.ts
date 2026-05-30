@@ -21,17 +21,21 @@ export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
 
+  const startedAt = Date.now();
   const today = new Date();
+  const log: string[] = [];
+  let totalEnviados = 0;
 
+  try {
   const { data: gyms } = await supabase
     .from("gym_settings")
     .select("gym_id, gym_name, contactos_msg_1, contactos_msg_3, slug, mp_access_token, payment_info")
     .eq("lead_auto_welcome", true);
 
-  if (!gyms?.length) return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con Nuevos Contactos activo."] });
-
-  const log: string[] = [];
-  let totalEnviados = 0;
+  if (!gyms?.length) {
+    void supabase.from("cron_runs").insert({ cron_name: "contactos-followup", status: "ok", duration_ms: Date.now() - startedAt, summary: "Sin gyms activos", counts: { enviados: 0, log } });
+    return NextResponse.json({ ok: true, enviados: 0, log: ["No hay gyms con Nuevos Contactos activo."] });
+  }
 
   for (const gym of gyms) {
     const canSend = await canSendAutomatedWa(gym.gym_id);
@@ -106,5 +110,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  void supabase.from("cron_runs").insert({ cron_name: "contactos-followup", status: "ok", duration_ms: Date.now() - startedAt, summary: `${totalEnviados} WA enviados`, counts: { enviados: totalEnviados, log } });
   return NextResponse.json({ ok: true, enviados: totalEnviados, log });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void supabase.from("cron_runs").insert({ cron_name: "contactos-followup", status: "error", duration_ms: Date.now() - startedAt, summary: msg });
+    console.error("[contactos-followup] error fatal:", msg);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }
