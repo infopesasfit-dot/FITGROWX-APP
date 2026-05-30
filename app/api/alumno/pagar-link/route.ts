@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
+import { createHash, createHmac } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
 
 const supabase = getSupabaseAdminClient();
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
+const MASTER_SECRET = process.env.MP_WEBHOOK_SECRET ?? "";
 
 type AlumnoRow = {
   id: string;
@@ -78,6 +79,8 @@ export async function GET(req: NextRequest) {
   const gymName = settingsData.gym_name ?? "Gimnasio";
   const planNombre = plan?.nombre ?? "Membresía";
 
+  const wt = createHmac("sha256", MASTER_SECRET).update(tokenRow.gym_id).digest("hex").slice(0, 32);
+
   const prefBody = {
     items: [{
       id: `membresia-${alumno.id}`,
@@ -89,7 +92,7 @@ export async function GET(req: NextRequest) {
     }],
     payer: { name: alumno.full_name },
     external_reference: `${tokenRow.gym_id}|${alumno.id}`,
-    notification_url: `${APP_URL}/api/mp/gym-webhook?gym_id=${tokenRow.gym_id}`,
+    notification_url: `${APP_URL}/api/mp/gym-webhook?gym_id=${tokenRow.gym_id}&wt=${wt}`,
     back_urls: {
       success: `${APP_URL}/alumno/panel?pago=ok`,
       failure: `${APP_URL}/alumno/panel?pago=error`,
