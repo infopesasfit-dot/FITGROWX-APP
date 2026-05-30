@@ -55,9 +55,15 @@ export async function GET(req: NextRequest) {
   ]);
 
   if (format === "xlsx") {
-    const XLSX = await import("xlsx");
-    const wb = XLSX.utils.book_new();
+    const { Workbook } = await import("exceljs");
+    const wb = new Workbook();
     const dateStr = new Date().toISOString().slice(0, 10);
+
+    function addSheet(name: string, rows: Record<string, unknown>[]) {
+      const ws = wb.addWorksheet(name);
+      ws.columns = Object.keys(rows[0]).map((k) => ({ header: k, key: k, width: 22 }));
+      ws.addRows(rows);
+    }
 
     // ── Alumnos ──────────────────────────────────────────────────────────────
     const alumnosRows = (alumnos ?? []).map((a: AlumnoRow) => ({
@@ -69,7 +75,7 @@ export async function GET(req: NextRequest) {
       Vencimiento: a.next_expiration_date ?? "",
       "Fecha de alta": a.created_at ? a.created_at.slice(0, 10) : "",
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(alumnosRows), "Alumnos");
+    addSheet("Alumnos", alumnosRows.length ? alumnosRows : [{ Nombre: "", Teléfono: "", Email: "", Estado: "", Plan: "", Vencimiento: "", "Fecha de alta": "" }]);
 
     // ── Pagos ─────────────────────────────────────────────────────────────────
     const pagosRows = (pagos ?? []).map((p: PagoRow) => ({
@@ -80,14 +86,14 @@ export async function GET(req: NextRequest) {
       Estado: p.status ?? "",
       Concepto: p.concepto ?? "",
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pagosRows), "Pagos");
+    addSheet("Pagos", pagosRows.length ? pagosRows : [{ Fecha: "", Alumno: "", Monto: 0, Método: "", Estado: "", Concepto: "" }]);
 
     // ── Asistencias ───────────────────────────────────────────────────────────
     const asistenciasRows = (asistencias ?? []).map((a: AsistenciaRow) => ({
       Alumno: a.alumnos?.full_name ?? a.alumno_id ?? "",
       Fecha: a.fecha ?? "",
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(asistenciasRows.length ? asistenciasRows : [{ Alumno: "", Fecha: "" }]), "Asistencias");
+    addSheet("Asistencias", asistenciasRows.length ? asistenciasRows : [{ Alumno: "", Fecha: "" }]);
 
     // ── Rutinas ───────────────────────────────────────────────────────────────
     const rutinasRows = (rutinas ?? []).map((r: RutinaRow) => ({
@@ -96,7 +102,7 @@ export async function GET(req: NextRequest) {
       Ejercicios: Array.isArray(r.ejercicios) ? r.ejercicios.map((e: Record<string, unknown>) => (e.nombre as string | undefined) ?? (e.name as string | undefined) ?? JSON.stringify(e)).join(", ") : JSON.stringify(r.ejercicios ?? []),
       "Última actualización": r.updated_at ? r.updated_at.slice(0, 10) : "",
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rutinasRows.length ? rutinasRows : [{ Alumno: "", "Nombre rutina": "", Ejercicios: "", "Última actualización": "" }]), "Rutinas");
+    addSheet("Rutinas", rutinasRows.length ? rutinasRows : [{ Alumno: "", "Nombre rutina": "", Ejercicios: "", "Última actualización": "" }]);
 
     // ── Planes ────────────────────────────────────────────────────────────────
     const planesRows = (planes ?? []).map((p: PlanRow) => ({
@@ -105,7 +111,7 @@ export async function GET(req: NextRequest) {
       Período: p.periodo ?? "",
       "Duración (días)": p.duracion_dias ?? "",
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(planesRows.length ? planesRows : [{ Nombre: "", Precio: 0, Período: "", "Duración (días)": "" }]), "Planes");
+    addSheet("Planes", planesRows.length ? planesRows : [{ Nombre: "", Precio: 0, Período: "", "Duración (días)": "" }]);
 
     // ── Prospectos ────────────────────────────────────────────────────────────
     const prospectosRows = (prospectos ?? []).map((p: ProspectoRow) => ({
@@ -115,7 +121,7 @@ export async function GET(req: NextRequest) {
       Estado: p.status ?? "",
       Fecha: p.created_at ? p.created_at.slice(0, 10) : "",
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prospectosRows.length ? prospectosRows : [{ Nombre: "", Teléfono: "", Email: "", Estado: "", Fecha: "" }]), "Prospectos");
+    addSheet("Prospectos", prospectosRows.length ? prospectosRows : [{ Nombre: "", Teléfono: "", Email: "", Estado: "", Fecha: "" }]);
 
     // ── Egresos ───────────────────────────────────────────────────────────────
     const egresosRows = (egresos ?? []).map((e: EgresoRow) => ({
@@ -124,9 +130,9 @@ export async function GET(req: NextRequest) {
       Categoría: e.categoria ?? "",
       Monto: e.monto ?? 0,
     }));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(egresosRows.length ? egresosRows : [{ Fecha: "", Concepto: "", Categoría: "", Monto: 0 }]), "Egresos");
+    addSheet("Egresos", egresosRows.length ? egresosRows : [{ Fecha: "", Concepto: "", Categoría: "", Monto: 0 }]);
 
-    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    const buffer = Buffer.from(await wb.xlsx.writeBuffer());
     const filename = `fitgrowx-${gymSettings?.gym_name?.replace(/\s+/g, "-").toLowerCase() ?? "datos"}-${dateStr}.xlsx`;
 
     return new NextResponse(buffer, {
