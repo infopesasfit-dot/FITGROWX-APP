@@ -60,6 +60,8 @@ function StartPageInner() {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState(false);
 
   useEffect(() => {
     const ref = searchParams.get("ref");
@@ -104,7 +106,7 @@ function StartPageInner() {
     password: password.length >= 6,
   }), [email, password]);
 
-  const canSubmit = validity.email && validity.password && !isSubmitting;
+  const canSubmit = validity.email && validity.password && !isSubmitting && (isLogin || termsAccepted);
 
   const resolveDestinationForUser = async (userId: string) => {
     const { data: profile } = await supabase
@@ -162,6 +164,10 @@ function StartPageInner() {
 
   const handleGoogleSignIn = async () => {
     setAuthError(null);
+    if (!isLogin && !termsAccepted) {
+      setTermsError(true);
+      return;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -259,7 +265,7 @@ function StartPageInner() {
         <LandingHeader
           actionType="button"
           actionLabel={isLogin ? "Crear cuenta" : "Iniciar sesión"}
-          onAction={() => { setIsLogin((v) => !v); setAuthError(null); }}
+          onAction={() => { setIsLogin((v) => !v); setAuthError(null); setTermsAccepted(false); setTermsError(false); }}
         />
 
         {screen === "form" && (
@@ -364,15 +370,22 @@ function StartPageInner() {
                         <p className="mt-1.5 text-[13px] text-white/35">
                           {isLogin ? (
                             <>¿No tenés cuenta?{" "}
-                              <button onClick={() => { setIsLogin(false); setAuthError(null); }} className="text-[#FF6A00] hover:underline">Registrate gratis</button>
+                              <button onClick={() => { setIsLogin(false); setAuthError(null); setTermsAccepted(false); setTermsError(false); }} className="text-[#FF6A00] hover:underline">Registrate gratis</button>
                             </>
                           ) : (
                             <>¿Ya tenés cuenta?{" "}
-                              <button onClick={() => { setIsLogin(true); setAuthError(null); }} className="text-[#FF6A00] hover:underline">Iniciá sesión</button>
+                              <button onClick={() => { setIsLogin(true); setAuthError(null); setTermsAccepted(false); setTermsError(false); }} className="text-[#FF6A00] hover:underline">Iniciá sesión</button>
                             </>
                           )}
                         </p>
                       </div>
+
+                      {/* T&C error para Google (solo registro) */}
+                      {!isLogin && termsError && (
+                        <div className="mb-3 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400 text-center font-medium">
+                          Tenés que aceptar los Términos y la Política de privacidad para continuar.
+                        </div>
+                      )}
 
                       {/* Google — opción principal */}
                       <button
@@ -474,6 +487,23 @@ function StartPageInner() {
                               ¿Olvidaste tu contraseña?
                             </button>
                           </div>
+                        )}
+
+                        {!isLogin && (
+                          <label className="flex items-start gap-3 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={termsAccepted}
+                              onChange={(e) => { setTermsAccepted(e.target.checked); setTermsError(false); }}
+                              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border border-white/20 bg-white/[0.04] accent-[#FF6A00]"
+                            />
+                            <span className={`text-[12px] leading-relaxed transition-colors ${termsError ? "text-red-400" : "text-white/35 group-hover:text-white/50"}`}>
+                              Acepto los{" "}
+                              <Link href="/terminos" target="_blank" className="text-[#FF6A00] hover:underline">Términos y condiciones</Link>
+                              {" "}y la{" "}
+                              <Link href="/privacidad" target="_blank" className="text-[#FF6A00] hover:underline">Política de privacidad</Link>
+                            </span>
+                          </label>
                         )}
 
                         {authError && (

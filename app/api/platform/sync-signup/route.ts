@@ -272,6 +272,8 @@ export async function POST(req: NextRequest) {
           last_seen_at: now.toISOString(),
           // Genera ref_code solo en el primer registro; no sobreescribir uno existente
           ...(existingAccount?.ref_code ? {} : { ref_code: generateRefCode() }),
+          // Registra fecha de aceptación de T&C solo en el primer registro
+          ...(!existingAccount ? { tc_accepted_at: now.toISOString() } : {}),
         },
         { onConflict: "auth_user_id" },
       );
