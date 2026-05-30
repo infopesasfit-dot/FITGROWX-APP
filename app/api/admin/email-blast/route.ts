@@ -3,6 +3,14 @@ import { timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
+import { z } from "zod";
+
+const blastSchema = z.object({
+  subject: z.string().min(1, "subject requerido.").max(200),
+  html:    z.string().max(200_000).optional(),
+  text:    z.string().max(200_000).optional(),
+  filter:  z.enum(["active", "trial", "all"]).optional(),
+}).refine((d) => d.html || d.text, { message: "html o text son requeridos." });
 
 function isAdminAuthorized(req: NextRequest): boolean {
   const bearer   = req.headers.get("authorization")?.replace("Bearer ", "") ?? "";
@@ -26,10 +34,12 @@ export async function POST(req: NextRequest) {
   const limit = await applyRateLimit({ namespace: "email-blast", identifier: ip, windowMs: 3_600_000, maxAttempts: 3 });
   if (!limit.allowed) return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
 
-  const { subject, html, text, filter } = await req.json();
-  if (!subject || (!html && !text)) {
-    return NextResponse.json({ error: "subject y html/text son requeridos" }, { status: 400 });
+  const raw = await req.json().catch(() => null);
+  const parsed = blastSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Datos inválidos." }, { status: 400 });
   }
+  const { subject, html, text, filter } = parsed.data;
 
   const resend = new Resend(process.env.RESEND_API_KEY!);
 
