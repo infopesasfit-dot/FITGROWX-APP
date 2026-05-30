@@ -90,7 +90,7 @@ export default function PrivacidadPage() {
             <ul className="mt-3 list-none space-y-2.5">
               {[
                 "Gestionar la relación contractual con el Establecimiento (facturación, soporte, comunicaciones operativas).",
-                "Permitir al Establecimiento administrar su gymansio: control de asistencia, cobro de membresías, gestión de alumnos y prospectos.",
+                "Permitir al Establecimiento administrar su gimnasio: control de asistencia, cobro de membresías, gestión de alumnos y prospectos.",
                 "Facilitar la comunicación entre el Establecimiento y sus alumnos a través de WhatsApp.",
                 "Registrar y mostrar el progreso físico del alumno, únicamente al propio alumno y al personal autorizado del Establecimiento.",
                 "Enviar recordatorios de vencimiento de membresía y notificaciones operativas.",
