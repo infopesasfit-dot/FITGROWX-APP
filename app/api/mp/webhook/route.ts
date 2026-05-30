@@ -391,8 +391,8 @@ export async function POST(req: NextRequest) {
       } : {}),
       ...(isCancelled ? {
         is_subscription_active: false,
-        subscription_expires_at: null,
-        gym_status: "inactive",
+        subscription_expires_at: new Date().toISOString(), // expirado → el gating bloquea
+        gym_status: "cancelled",
       } : {}),
     })
     .eq("id", gymId);

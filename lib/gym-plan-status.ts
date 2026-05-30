@@ -70,6 +70,12 @@ export async function getGymPlanStatus(gymId: string): Promise<PlanInfo> {
     return { status: "trial_expired", plan_type: "trial", is_blocked: true, alumno_limit: 0, days_remaining: -daysSinceEnd, message: "Tu prueba venció. Suscribite para seguir usando FitGrowX." };
   }
 
+  // Gym con plan pago pero sin suscripción activa (cancelada / pago fallido) → bloquear.
+  // Defensa en profundidad: cubre el caso en que subscription_expires_at quedó null.
+  if (gym.plan_type === "starter" || gym.plan_type === "crecimiento") {
+    return { status: "paid_expired", plan_type: gym.plan_type, is_blocked: true, alumno_limit: 0, days_remaining: null, message: "Tu suscripción venció. Renová para seguir usando FitGrowX." };
+  }
+
   return { status: "unknown", plan_type: gym.plan_type as any, is_blocked: false, alumno_limit: STARTER_LIMIT, days_remaining: null, message: "Estado de plan desconocido." };
 }
 
