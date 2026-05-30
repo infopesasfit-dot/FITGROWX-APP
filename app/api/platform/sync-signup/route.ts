@@ -360,6 +360,27 @@ export async function POST(req: NextRequest) {
           }
         })();
       }
+
+      // Notificar al platform owner por WA sobre nuevo gym (fire-and-forget)
+      const ownerPhone = process.env.OWNER_PHONE;
+      if (ownerPhone) {
+        void (async () => {
+          const trialStart = now.toISOString().slice(0, 10);
+          const msg =
+            `🏋️ Nuevo gym registrado\n` +
+            `Gym: ${companyName}\n` +
+            `Dueño: ${normalizedName || "—"}\n` +
+            `Email: ${normalizedEmail}\n` +
+            `Tel: ${normalizedPhone || "—"}\n` +
+            `Trial desde: ${trialStart}`;
+          await sendWa("fitgrowx-platform", ownerPhone, msg, { route: "sync-signup/owner-alert" });
+        })();
+      } else {
+        void logger.warn("OWNER_PHONE not set — skipping WA alert for new gym", {
+          route: "sync-signup",
+          meta: { gymId: user.id, nombre: companyName },
+        });
+      }
     }
 
     return NextResponse.json({ ok: true, platformLeadId });
