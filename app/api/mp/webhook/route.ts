@@ -173,8 +173,7 @@ export async function POST(req: NextRequest) {
   console.log("[mp-webhook]", JSON.stringify({
     type,
     action: body.action,
-    data,
-    rawBody: body,
+    dataId: (data as { id?: unknown })?.id ?? null,
     timestamp: new Date().toISOString(),
   }));
 

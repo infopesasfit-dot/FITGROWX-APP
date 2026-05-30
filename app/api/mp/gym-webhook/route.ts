@@ -304,6 +304,26 @@ export async function POST(req: NextRequest) {
   const nuevoVencimiento = calcularNuevoVencimiento(alumno.next_expiration_date, plan?.periodo ?? "mensual", plan?.duracion_dias ?? null);
   const today          = getTodayDate();
 
+  // ── Validación monto vs precio del plan (alerta, no bloquea el cobro) ─────────
+  // No castigamos a un alumno que pagó por un problema de configuración: se
+  // registra y extiende igual, pero avisamos al dueño para que reconcilie.
+  const precioEsperado = plan?.precio != null ? Math.round(plan.precio) : null;
+  const montoOk = precioEsperado != null &&
+    Math.abs(payment.transaction_amount - precioEsperado) <= Math.max(precioEsperado * 0.05, 1);
+  if (!plan || !montoOk) {
+    const detalle = !plan
+      ? "alumno sin plan asignado"
+      : `monto $${payment.transaction_amount} ≠ precio del plan $${precioEsperado}`;
+    logWebhook(gymId, paymentId, "error", { amount: payment.transaction_amount, alumnoId, errorMsg: detalle });
+    void supabase.from("notifications").insert({
+      gym_id: gymId,
+      type:   "pago_mp",
+      title:  `⚠️ Revisá un pago de ${alumno.full_name}`,
+      body:   `Pago de $${Math.round(payment.transaction_amount).toLocaleString("es-AR")} — ${detalle}. Verificá el plan o el monto.`,
+      read:   false,
+    });
+  }
+
   // ── Guard: período ya cubierto por pago manual ────────────────────────────────
   // Si la membresía ya vence más allá de la mitad del período del plan,
   // el alumno pagó manualmente después de generar el link → ignorar el webhook.
@@ -315,6 +335,9 @@ export async function POST(req: NextRequest) {
   mitad.setDate(mitad.getDate() + Math.floor(planDays / 2));
   const mitadStr = mitad.toISOString().slice(0, 10);
   if (alumno.next_expiration_date && alumno.next_expiration_date > mitadStr) {
+    // Período ya cubierto (p. ej. pago manual posterior al link). No extendemos,
+    // pero registramos el pago igual (idempotente) para no perder la traza.
+    await registrarPago(gymId, alumnoId, payment.transaction_amount, paymentId, planNombre, today, nuevoVencimiento);
     logWebhook(gymId, paymentId, "duplicate", {
       amount: payment.transaction_amount,
       alumnoId,
