@@ -22,7 +22,7 @@ export default function TerminosPage() {
             Términos y Condiciones
           </h1>
           <p className="mt-4 text-sm text-white/38">
-            Última actualización: abril de 2025 · Vigente desde la fecha de publicación
+            Última actualización: mayo de 2026 · Vigente desde la fecha de publicación
           </p>
         </div>
 
@@ -33,8 +33,7 @@ export default function TerminosPage() {
             <h2 className="mb-3 text-base font-semibold text-white">1. Identificación del prestador</h2>
             <p>
               FitGrowX es una plataforma de software como servicio (SaaS) operada por{" "}
-              <strong className="text-white/80">FitGrowX</strong>, CUIT{" "}
-              <strong className="text-white/80">27-39517020-7</strong>, con domicilio en la República Argentina.
+              <strong className="text-white/80">FitGrowX</strong>, con domicilio en la República Argentina.
               Todo contacto puede canalizarse a través del correo electrónico indicado en la plataforma.
             </p>
           </section>

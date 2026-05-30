@@ -22,7 +22,7 @@ export default function PrivacidadPage() {
             Política de Privacidad
           </h1>
           <p className="mt-4 text-sm text-white/38">
-            Última actualización: abril de 2025 · Cumplimiento Ley N.° 25.326 de Protección de Datos Personales
+            Última actualización: mayo de 2026 · Cumplimiento Ley N.° 25.326 de Protección de Datos Personales
           </p>
         </div>
 
@@ -33,8 +33,7 @@ export default function PrivacidadPage() {
             <h2 className="mb-3 text-base font-semibold text-white">1. Responsable del tratamiento</h2>
             <p>
               El responsable del archivo de datos personales es{" "}
-              <strong className="text-white/80">FitGrowX</strong>, CUIT{" "}
-              <strong className="text-white/80">27-39517020-7</strong>, con domicilio en la República Argentina.
+              <strong className="text-white/80">FitGrowX</strong>, con domicilio en la República Argentina.
               Para consultas relacionadas con el tratamiento de sus datos personales puede contactarnos a través
               del correo electrónico disponible en la plataforma.
             </p>
