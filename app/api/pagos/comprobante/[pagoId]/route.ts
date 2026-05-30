@@ -13,9 +13,9 @@ export async function GET(
 
   // Auth check
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -23,7 +23,7 @@ export async function GET(
   const { data: profile } = await sb
     .from("profiles")
     .select("gym_id")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
   if (!profile?.gym_id) {

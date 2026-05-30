@@ -18,13 +18,13 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return NextResponse.json({ ok: false, error: "No autenticado." }, { status: 401 });
 
   const { data: profile } = await admin
     .from("profiles")
     .select("gym_id, role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .maybeSingle();
 
   if (!profile?.gym_id || !["admin", "staff"].includes(profile.role ?? "")) {

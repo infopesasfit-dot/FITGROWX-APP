@@ -42,11 +42,10 @@ function getMimeFromMagicBytes(buffer: Uint8Array): MimeType | null {
 }
 
 export async function POST(req: NextRequest) {
-  // Auth check via session cookie
   const supabase = await createSupabaseServerClient();
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!session?.user) {
+  if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await sb
     .from("profiles")
     .select("role, gym_id")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
   if (!profile || !["staff", "admin"].includes(profile.role) || !profile.gym_id) {

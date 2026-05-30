@@ -2,8 +2,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { createSupabaseChain, createSupabaseAdminMock } from "../mocks/supabase";
 
-// ── Session mutable para el test de 401 ───────────────────────────────────────
-let mockSessionData: object = { session: { user: { id: "admin-user-id" } } };
+// ── Auth mutable para el test de 401 ─────────────────────────────────────────
+let mockUserData: { user: { id: string } | null } = { user: { id: "admin-user-id" } };
+let mockAuthError: object | null = null;
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ vi.mock("@/lib/supabase-admin", () => ({
 
 vi.mock("@/lib/supabase-server", () => ({
   createSupabaseServerClient: vi.fn(async () => ({
-    auth: { getSession: async () => ({ data: mockSessionData }) },
+    auth: { getUser: async () => ({ data: mockUserData, error: mockAuthError }) },
   })),
 }));
 
@@ -34,7 +35,8 @@ function makeRequest(body: object) {
 describe("Smoke: crear alumno", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSessionData = { session: { user: { id: "admin-user-id" } } };
+    mockUserData  = { user: { id: "admin-user-id" } };
+    mockAuthError = null;
   });
 
   it("crea alumno con datos válidos → 200 + id", async () => {
@@ -88,7 +90,8 @@ describe("Smoke: crear alumno", () => {
   });
 
   it("rechaza si no está autenticado → 401", async () => {
-    mockSessionData = { session: null };
+    mockUserData  = { user: null };
+    mockAuthError = { message: "Not authenticated" };
 
     const { POST } = await import("@/app/api/admin/alumnos/route");
     const res = await POST(makeRequest({ full_name: "Test" }));
