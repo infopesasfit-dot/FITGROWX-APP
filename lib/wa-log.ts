@@ -5,7 +5,7 @@ export interface WaLogEntry {
   tipo: string;
   alumno_id?: string | null;
   alumno_name?: string | null;
-  status?: "sent" | "blocked" | "failed";
+  status?: "sent" | "failed" | "timeout" | "rate_limited" | "blocked";
   latency_ms?: number;
   motor_status_code?: number;
   motor_error?: string;
