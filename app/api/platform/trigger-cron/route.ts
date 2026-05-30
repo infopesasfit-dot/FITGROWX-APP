@@ -23,28 +23,28 @@ export async function POST(req: NextRequest) {
 
   switch (cron) {
     case "vencimientos":
-      res = await fetch(`${appUrl}/api/cron/vencimientos`, { headers: waHeader });
+      res = await fetch(`${appUrl}/api/cron/vencimientos`, { headers: cronHeader });
       break;
     case "ausentes":
-      res = await fetch(`${appUrl}/api/cron/ausentes`, { headers: waHeader });
+      res = await fetch(`${appUrl}/api/cron/ausentes`, { headers: cronHeader });
       break;
     case "trial-check":
-      res = await fetch(`${appUrl}/api/cron/trial-check`, { headers: waHeader });
+      res = await fetch(`${appUrl}/api/cron/trial-check`, { headers: cronHeader });
       break;
     case "monthly-report":
       res = await fetch(`${appUrl}/api/cron/monthly-dashboard-report`, { headers: cronHeader });
       break;
     case "wa-keepalive":
-      res = await fetch(`${appUrl}/api/cron/wa-keepalive`, { headers: waHeader });
+      res = await fetch(`${appUrl}/api/cron/wa-keepalive`, { headers: cronHeader });
       break;
     case "clase-gratis-followup":
-      res = await fetch(`${appUrl}/api/cron/clase-gratis-followup`, { headers: waHeader });
+      res = await fetch(`${appUrl}/api/cron/clase-gratis-followup`, { headers: cronHeader });
       break;
     case "ausentes-trigger":
       if (!gym_id) return NextResponse.json({ error: "gym_id requerido para este cron." }, { status: 400 });
       res = await fetch(`${appUrl}/api/cron/ausentes-trigger`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...waHeader },
+        headers: { "Content-Type": "application/json", ...cronHeader },
         body: JSON.stringify({ gym_id }),
       });
       break;

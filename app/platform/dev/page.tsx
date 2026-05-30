@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Play, AlertTriangle, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import { useBrandAlert } from "@/components/brand-confirm";
+import { useBrandAlert, useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "'Inter', sans-serif";
 
@@ -65,11 +65,20 @@ type LogEntry = {
 
 export default function DevPage() {
   const brandAlert = useBrandAlert();
+  const brandConfirm = useBrandConfirm();
   const [gymId, setGymId] = useState("");
   const [running, setRunning] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   async function trigger(cron: CronDef) {
+    const ok = await brandConfirm({
+      eyebrow: "Producción",
+      title: `¿Ejecutar "${cron.label}"?`,
+      message: "Esta acción corre en producción real. No se puede deshacer.",
+      variant: "danger",
+      confirmLabel: "Ejecutar",
+    });
+    if (!ok) return;
     setRunning(cron.id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -102,11 +111,11 @@ export default function DevPage() {
 
   return (
     <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px", fontFamily: fd }}>
-      {/* Banner */}
-      <div style={{ background: "rgba(234,179,8,0.12)", border: "1px solid rgba(234,179,8,0.35)", borderRadius: 12, padding: "12px 16px", display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 28 }}>
-        <AlertTriangle size={16} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
-        <p style={{ font: `600 0.8rem/1.45 ${fd}`, color: "#92400E", margin: 0 }}>
-          <strong>Solo para testing interno.</strong> Estas acciones ejecutan las automatizaciones reales. Eliminar esta página antes de entregar el sistema a usuarios.
+      {/* Banner — permanent, non-dismissible */}
+      <div style={{ background: "rgba(220,38,38,0.10)", border: "2px solid rgba(220,38,38,0.40)", borderRadius: 12, padding: "12px 16px", display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 28 }}>
+        <AlertTriangle size={16} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
+        <p style={{ font: `700 0.8rem/1.45 ${fd}`, color: "#DC2626", margin: 0 }}>
+          ⚠️ Esta página ejecuta acciones reales en producción. Usá con cuidado.
         </p>
       </div>
 
