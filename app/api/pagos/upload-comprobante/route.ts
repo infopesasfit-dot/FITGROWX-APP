@@ -66,6 +66,12 @@ export async function POST(req: NextRequest) {
   const blocked = await requireGymNotBlocked(user_gym_id);
   if (blocked) return blocked;
 
+  // Early size check via Content-Length header — avoids buffering the entire body
+  const contentLength = Number(req.headers.get("content-length") ?? "0");
+  if (contentLength > MAX_SIZE) {
+    return NextResponse.json({ error: "File too large (max 10 MB)" }, { status: 413 });
+  }
+
   // Parse form data (only file and pago_id from client)
   const formData = await req.formData();
   const file = formData.get("file") as File;
