@@ -10,6 +10,9 @@
 
 ### Seguridad (Bloque 1)
 - **Fix 1.1** `82b07b3` — `getSession()` → `getUser()` en todas las APIs protegidas
+- **Fix 1.2** verificado 2026-05-31 — IDOR push subscriptions: `alumno_id` se toma del token, no del body
+- **Fix 1.3** verificado 2026-05-31 — WA relay: ownership de gym validado + rate limit por `gym_id`
+- **Fix 1.4** verificado 2026-05-31 — Gemini: 20 req/hora por `user.id` ya activo
 - **Fix 1.5** `19d2cu8` — CSP: eliminar `unsafe-eval` de `script-src`
 - **Fix 1.6** `0f48a16` — reemplazar `xlsx@0.18.5` por `exceljs` (CVE prototype pollution)
 - `fcbd1e8` — rate limit + payload cap en support-chat
@@ -40,22 +43,6 @@
 
 ### Infraestructura WA
 - `9e89842` — flush de wa-queue cada minuto (cron)
-
----
-
-## 🔴 Pendiente — bloqueante de launch
-
-### Fix 1.2 — IDOR en push subscriptions
-- `app/api/alumno/push-subscribe/route.ts`, `push-unsubscribe/route.ts`
-- El cliente envía `alumno_id` libre; validar sesión server-side y comparar contra el alumno autenticado.
-
-### Fix 1.3 — WA relay protection
-- `app/api/wa/proxy/route.ts`, `app/api/whatsapp/send/route.ts`
-- Exigir usuario autenticado, resolver `gym_id` server-side, Zod + rate limit por `gym_id`.
-
-### Fix 1.4 — Rate limit + Zod en Gemini
-- `app/api/rutina/sugerir/route.ts`
-- Schema con límites de longitud/enums, rate limit por `user.id`, sanitizar `notas`.
 
 ---
 
