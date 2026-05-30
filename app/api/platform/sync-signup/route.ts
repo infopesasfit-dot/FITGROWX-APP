@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { generateUniqueSlug } from "@/lib/slug-utils";
 import { sendWa } from "@/lib/wa";
+import { logger } from "@/lib/logger";
 
 const supabase = getSupabaseAdminClient();
 
@@ -323,7 +324,12 @@ export async function POST(req: NextRequest) {
             }),
             signal: AbortSignal.timeout(5000),
           });
-        } catch { /* non-fatal */ }
+        } catch (err) {
+          void logger.error("Email alert failed on new gym registration", {
+            route: "sync-signup",
+            meta: { gymId: user.id, nombre: companyName, email: normalizedEmail, err: String(err) },
+          });
+        }
       }
 
       // Mensaje de bienvenida WA desde el número de soporte (fire-and-forget)
