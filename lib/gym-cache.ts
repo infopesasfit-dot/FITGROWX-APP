@@ -27,11 +27,24 @@ export function getImpersonatedGym(): ImpersonatedGym | null {
 export function setImpersonatedGym(data: ImpersonatedGym): void {
   localStorage.setItem("fitgrowx_as_gym", JSON.stringify(data));
   profileEntry = null;
+  void fetch("/api/platform/audit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "impersonate_start", gym_id: data.gym_id, gym_name: data.gym_name }),
+  }).catch(() => {});
 }
 
 export function clearImpersonation(): void {
+  const prev = getImpersonatedGym();
   localStorage.removeItem("fitgrowx_as_gym");
   profileEntry = null;
+  if (prev) {
+    void fetch("/api/platform/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "impersonate_stop", gym_id: prev.gym_id, gym_name: prev.gym_name }),
+    }).catch(() => {});
+  }
 }
 
 interface CacheEntry<T> { data: T; ts: number }

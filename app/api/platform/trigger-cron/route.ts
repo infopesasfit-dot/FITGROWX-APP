@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 const OWNER_EMAIL = process.env.FITGROWX_OWNER_EMAIL ?? "elianafrancoanahi@gmail.com";
 
@@ -53,5 +55,15 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await res.json().catch(() => ({ raw: "no json" }));
+
+  const sb = getSupabaseAdminClient();
+  logPlatformAudit(sb, {
+    actor_id: user.id,
+    action: "cron_trigger",
+    resource_type: "cron",
+    resource_id: cron,
+    meta: { gym_id: gym_id ?? null, http_status: res.status, ok: res.ok },
+  });
+
   return NextResponse.json({ ok: true, status: res.status, result });
 }

@@ -290,7 +290,7 @@ function PlatformPage() {
 
   type OverviewData = {
     sistema: { erroresH1: number; waDesconectados: number };
-    negocio: { mrrMes: number; gymsActivos: number; conversionesMes: number };
+    negocio: { mrrMes: number; gymsActivos: number; conversionesMes: number; churnCount: number; churnRatePct: number; trialToPaidRate: number };
     atencion: { trialsRisk: number; trialsRiskList: { id: string; company_name: string; trial_ends_at: string }[]; inactivos7d: number; prospectosSinSeg: number; feedbackReciente7d: number };
   };
   const [overview, setOverview] = useState<OverviewData | null>(null);
@@ -915,9 +915,12 @@ function PlatformPage() {
                 { label: "MRR mes", value: fmt(negocio.mrrMes), sub: null },
                 { label: "Activos", value: String(negocio.gymsActivos), sub: null },
                 { label: "Conv. mes", value: String(negocio.conversionesMes), sub: null },
+                { label: "Churn mes", value: String(negocio.churnCount ?? 0), sub: negocio.churnRatePct != null ? `${negocio.churnRatePct}%` : null },
+                { label: "Trial→Pago", value: negocio.trialToPaidRate != null ? `${negocio.trialToPaidRate}%` : "—", sub: null },
               ].map((item) => (
                 <div key={item.label} style={{ textAlign: "center" }}>
                   <p style={{ font: `700 1.1rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.03em" }}>{item.value}</p>
+                  {item.sub && <p style={{ font: `500 0.58rem/1 ${fd}`, color: "#6b7280", marginTop: 1 }}>{item.sub}</p>}
                   <p style={{ font: `500 0.6rem/1 ${fd}`, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 3 }}>{item.label}</p>
                 </div>
               ))}

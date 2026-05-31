@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Play, AlertTriangle, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Clock, Play, AlertTriangle, CheckCircle, XCircle, Loader2, RefreshCw } from "lucide-react";
 import { useBrandAlert, useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "'Inter', sans-serif";
@@ -70,6 +70,26 @@ export default function DevPage() {
   const [running, setRunning] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
+  type AuditLog = { id: string; action: string; resource_id: string | null; meta: Record<string, unknown> | null; created_at: string };
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
+  async function fetchAuditLogs() {
+    setAuditLoading(true);
+    try {
+      const { data } = await supabase
+        .from("platform_audit_logs")
+        .select("id, action, resource_id, meta, created_at")
+        .eq("action", "cron_trigger")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      setAuditLogs((data ?? []) as AuditLog[]);
+    } catch { /* */ }
+    finally { setAuditLoading(false); }
+  }
+
+  useEffect(() => { void fetchAuditLogs(); }, []);
+
   async function trigger(cron: CronDef) {
     const ok = await brandConfirm({
       eyebrow: "Producción",
@@ -102,6 +122,7 @@ export default function DevPage() {
         result: data.result ?? data,
         ts: new Date().toLocaleTimeString("es-AR"),
       }, ...prev]);
+      setTimeout(() => void fetchAuditLogs(), 1200);
     } catch (e) {
       setLogs(prev => [{ cron: cron.label, ok: false, result: String(e), ts: new Date().toLocaleTimeString("es-AR") }, ...prev]);
     } finally {
@@ -190,6 +211,52 @@ export default function DevPage() {
           </div>
         </div>
       )}
+
+      {/* Historial de ejecuciones */}
+      <div style={{ marginTop: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Clock size={14} color="#6b7280" />
+            <h2 style={{ font: `700 0.88rem/1 ${fd}`, color: "#111827" }}>Historial de ejecuciones manuales</h2>
+          </div>
+          <button
+            onClick={() => void fetchAuditLogs()}
+            disabled={auditLoading}
+            style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, background: "rgba(0,0,0,0.05)", border: "none", font: `600 0.72rem/1 ${fd}`, color: "#374151", cursor: auditLoading ? "not-allowed" : "pointer", opacity: auditLoading ? 0.5 : 1 }}
+          >
+            <RefreshCw size={11} style={{ animation: auditLoading ? "spin 1s linear infinite" : "none" }} />
+            Actualizar
+          </button>
+        </div>
+        {auditLogs.length === 0 ? (
+          <p style={{ font: `400 0.78rem/1 ${fd}`, color: "#9ca3af" }}>Sin ejecuciones registradas aún.</p>
+        ) : (
+          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden" }}>
+            {auditLogs.map((entry, i) => {
+              const ok = (entry.meta as { ok?: boolean } | null)?.ok !== false;
+              const httpStatus = (entry.meta as { http_status?: number } | null)?.http_status;
+              return (
+                <div key={entry.id} style={{
+                  display: "grid", gridTemplateColumns: "120px 1fr auto",
+                  alignItems: "center", gap: 12, padding: "10px 16px",
+                  borderBottom: i < auditLogs.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none",
+                  background: !ok ? "rgba(239,68,68,0.02)" : "transparent",
+                }}>
+                  <span style={{ font: `600 0.73rem/1 ${fd}`, color: "#374151", fontFamily: "monospace" }}>
+                    {entry.resource_id ?? "—"}
+                  </span>
+                  <span style={{ font: `400 0.7rem/1 ${fd}`, color: "#6b7280" }}>
+                    {httpStatus != null ? `HTTP ${httpStatus}` : "—"}
+                  </span>
+                  <span style={{ font: `400 0.68rem/1 ${fd}`, color: "#9ca3af", whiteSpace: "nowrap" }}>
+                    {new Date(entry.created_at).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

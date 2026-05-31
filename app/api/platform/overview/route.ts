@@ -14,12 +14,15 @@ export async function GET() {
 
   const sb = getSupabaseAdminClient();
 
-  const now      = new Date();
-  const h1ago    = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
-  const d7ago    = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const d2ago    = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const todayStr = now.toISOString().slice(0, 10);
+  const now       = new Date();
+  const h1ago     = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+  const d7ago     = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const d2ago     = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const monthStr  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const todayStr  = now.toISOString().slice(0, 10);
+  // Primer día del mes anterior
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthStr = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, "0")}-01`;
 
   const [
     errorsH1,
@@ -31,6 +34,9 @@ export async function GET() {
     inactivos,
     prospectosSinSeg,
     feedbackReciente,
+    convertedPrevMonth,
+    churnedThisMonth,
+    trialsCohort,
   ] = await Promise.all([
     sb.from("platform_logs")
       .select("id", { count: "exact", head: true })
@@ -77,12 +83,39 @@ export async function GET() {
     sb.from("platform_feedback")
       .select("id", { count: "exact", head: true })
       .gte("created_at", new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+
+    // Gyms que eran 'converted' el mes anterior (para calcular churn base)
+    sb.from("platform_accounts")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "converted")
+      .gte("converted_at", prevMonthStr)
+      .lt("converted_at", monthStr),
+
+    // Gyms que pasaron a churned/cancelled este mes
+    sb.from("platform_accounts")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["churned", "cancelled"])
+      .gte("updated_at", monthStr),
+
+    // Trials iniciados el mismo mes de cohorte del mes actual para tasa conversión
+    sb.from("platform_accounts")
+      .select("id", { count: "exact", head: true })
+      .gte("trial_starts_at", prevMonthStr)
+      .lt("trial_starts_at", monthStr),
   ]);
 
   const mrr = (mrrRows.data ?? []).reduce((s, r) => {
     const val = r.monthly_value ?? PLAN_PRICE[r.subscription_plan ?? ""] ?? 0;
     return s + Number(val);
   }, 0);
+
+  const churnCount    = churnedThisMonth.count ?? 0;
+  const churnBase     = convertedPrevMonth.count ?? 0;
+  const churnRatePct  = churnBase > 0 ? parseFloat(((churnCount / churnBase) * 100).toFixed(1)) : 0;
+
+  const cohortTrials  = trialsCohort.count ?? 0;
+  const trialToPaid   = convertidosMes.count ?? 0;
+  const trialToPaidRate = cohortTrials > 0 ? parseFloat(((trialToPaid / cohortTrials) * 100).toFixed(1)) : 0;
 
   return NextResponse.json({
     sistema: {
@@ -92,13 +125,16 @@ export async function GET() {
     negocio: {
       mrrMes:          mrr,
       gymsActivos:     gymsActivos.count ?? 0,
-      conversionesMes: convertidosMes.count ?? 0,
+      conversionesMes: trialToPaid,
+      churnCount,
+      churnRatePct,
+      trialToPaidRate,
     },
     atencion: {
-      trialsRisk:          trialsRisk.count ?? 0,
-      trialsRiskList:      trialsRisk.data ?? [],
-      inactivos7d:         inactivos.count ?? 0,
-      prospectosSinSeg:    prospectosSinSeg.count ?? 0,
+      trialsRisk:         trialsRisk.count ?? 0,
+      trialsRiskList:     trialsRisk.data ?? [],
+      inactivos7d:        inactivos.count ?? 0,
+      prospectosSinSeg:   prospectosSinSeg.count ?? 0,
       feedbackReciente7d: feedbackReciente.count ?? 0,
     },
   });

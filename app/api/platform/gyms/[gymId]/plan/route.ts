@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 const sb = getSupabaseAdminClient();
 
@@ -27,6 +28,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ gy
   const gymPayload: Record<string, unknown> = { plan_type: plan_type as PlanType };
   if (trial_expires_at) gymPayload.trial_expires_at = trial_expires_at;
 
+  const { data: currentGym } = await sb.from("gyms").select("plan_type,trial_expires_at").eq("id", gymId).maybeSingle();
+
   const { error: gymErr } = await sb.from("gyms").update(gymPayload).eq("id", gymId);
   if (gymErr) return NextResponse.json({ error: gymErr.message }, { status: 500 });
 
@@ -47,14 +50,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ gy
     } catch { /* best-effort mirror */ }
   }
 
-  try {
-    await sb.from("platform_logs").insert({
-      level: "INFO",
-      route: "platform/gyms/plan",
-      message: `Plan changed to ${plan_type} for gym ${gymId} by platform_owner ${user.id}`,
-      meta: { gym_id: gymId, plan_type, trial_expires_at: trial_expires_at ?? null, actor: user.id },
-    });
-  } catch { /* best-effort log */ }
+  logPlatformAudit(sb, {
+    actor_id: user.id,
+    action: "plan_change",
+    resource_type: "gym",
+    resource_id: gymId,
+    before_state: currentGym ? { plan_type: currentGym.plan_type, trial_expires_at: currentGym.trial_expires_at } : null,
+    after_state: { plan_type, trial_expires_at: trial_expires_at ?? null },
+  });
 
   return NextResponse.json({ ok: true });
 }

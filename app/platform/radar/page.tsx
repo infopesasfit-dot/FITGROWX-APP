@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, XCircle, Zap } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Terminal, Wifi, WifiOff, XCircle, Zap } from "lucide-react";
 
 type HealthCheck = {
   status: "ok" | "degraded";
@@ -20,6 +20,28 @@ type LogEntry = {
   created_at: string;
 };
 
+type CronRun = {
+  id: string;
+  cron_name: string;
+  ran_at: string;
+  status: "ok" | "error";
+  duration_ms: number | null;
+  summary: string | null;
+};
+
+type WaHealth = {
+  status: "connected" | "limited" | "blocked";
+  last24h: {
+    sent: number;
+    blocked: number;
+    bounces: number;
+    failed: number;
+    avgLatency: number;
+    blockRatio: number;
+  };
+  alerts: { level: "warning" | "critical"; message: string }[];
+};
+
 type RadarData = {
   errors_last_1h: number;
   errors_last_24h: number;
@@ -28,6 +50,9 @@ type RadarData = {
   alert_threshold_pct: number;
   top_error_routes: { route: string; count: number }[];
   logs: LogEntry[];
+  cron_runs: CronRun[];
+  cron_error_recent: boolean;
+  wa_health: WaHealth | null;
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -234,6 +259,102 @@ export default function RadarPage() {
           ))}
         </div>
       </section>
+
+      {/* Crons recientes */}
+      {radar && radar.cron_runs.length > 0 && (
+        <section style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <Terminal size={13} color="#6b7280" />
+            <p style={{ font: "600 0.7rem/1 'Inter', sans-serif", color: "#9ca3af", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              Crons recientes
+            </p>
+            {radar.cron_error_recent && (
+              <span style={{ padding: "2px 8px", borderRadius: 9999, background: "rgba(239,68,68,0.1)", font: "600 0.65rem/1 'Inter', sans-serif", color: "#ef4444" }}>
+                error en 6h
+              </span>
+            )}
+          </div>
+          <div style={{ background: "#fff", borderRadius: 12, border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden" }}>
+            {radar.cron_runs.map((run, i) => (
+              <div key={run.id} style={{
+                display: "grid", gridTemplateColumns: "140px 1fr auto auto",
+                alignItems: "center", gap: 12, padding: "10px 16px",
+                borderBottom: i < radar.cron_runs.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none",
+                background: run.status === "error" ? "rgba(239,68,68,0.02)" : "transparent",
+              }}>
+                <span style={{ font: "600 0.73rem/1 'Inter', sans-serif", color: "#374151", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {run.cron_name}
+                </span>
+                <span style={{ font: "400 0.72rem/1.4 'Inter', sans-serif", color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {run.summary ?? "—"}
+                </span>
+                <span style={{ font: "400 0.68rem/1 'Inter', sans-serif", color: "#9ca3af", whiteSpace: "nowrap" }}>
+                  {run.duration_ms != null ? `${run.duration_ms}ms` : "—"}
+                </span>
+                <span style={{
+                  padding: "2px 8px", borderRadius: 9999, whiteSpace: "nowrap",
+                  background: run.status === "ok" ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+                  font: "600 0.65rem/1 'Inter', sans-serif",
+                  color: run.status === "ok" ? "#10b981" : "#ef4444",
+                }}>
+                  {run.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* WA Motor */}
+      {radar?.wa_health && (
+        <section style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            {radar.wa_health.status === "connected"
+              ? <Wifi size={13} color="#10b981" />
+              : <WifiOff size={13} color={radar.wa_health.status === "blocked" ? "#ef4444" : "#f59e0b"} />}
+            <p style={{ font: "600 0.7rem/1 'Inter', sans-serif", color: "#9ca3af", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              WA Motor
+            </p>
+            <span style={{
+              padding: "2px 8px", borderRadius: 9999,
+              background: radar.wa_health.status === "connected" ? "rgba(16,185,129,0.08)" : radar.wa_health.status === "blocked" ? "rgba(239,68,68,0.1)" : "rgba(245,158,11,0.1)",
+              font: "600 0.65rem/1 'Inter', sans-serif",
+              color: radar.wa_health.status === "connected" ? "#10b981" : radar.wa_health.status === "blocked" ? "#ef4444" : "#f59e0b",
+            }}>
+              {radar.wa_health.status}
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+            {[
+              { label: "Enviados 24h", value: radar.wa_health.last24h.sent, color: "#6366f1" },
+              { label: "Bloqueados", value: radar.wa_health.last24h.blocked, color: "#ef4444" },
+              { label: "Tasa bloqueo", value: `${radar.wa_health.last24h.blockRatio}%`, color: radar.wa_health.last24h.blockRatio > 5 ? "#ef4444" : "#10b981" },
+              { label: "Latencia prom.", value: `${radar.wa_health.last24h.avgLatency}ms`, color: radar.wa_health.last24h.avgLatency > 3000 ? "#f59e0b" : "#10b981" },
+            ].map((m) => (
+              <div key={m.label} style={{ background: "#fff", borderRadius: 12, border: "1px solid rgba(0,0,0,0.07)", padding: "14px 16px" }}>
+                <p style={{ font: "500 0.7rem/1 'Inter', sans-serif", color: "#9ca3af", marginBottom: 6 }}>{m.label}</p>
+                <p style={{ font: "700 1.3rem/1 'Inter', sans-serif", color: m.color, letterSpacing: "-0.03em" }}>{m.value}</p>
+              </div>
+            ))}
+          </div>
+          {radar.wa_health.alerts.length > 0 && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+              {radar.wa_health.alerts.map((a, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 8,
+                  background: a.level === "critical" ? "rgba(239,68,68,0.06)" : "rgba(245,158,11,0.06)",
+                  border: `1px solid ${a.level === "critical" ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)"}`,
+                }}>
+                  <AlertTriangle size={12} color={a.level === "critical" ? "#ef4444" : "#f59e0b"} />
+                  <span style={{ font: "500 0.73rem/1 'Inter', sans-serif", color: a.level === "critical" ? "#ef4444" : "#92400e" }}>
+                    {a.message}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Top Error Routes */}
       {radar && radar.top_error_routes.length > 0 && (

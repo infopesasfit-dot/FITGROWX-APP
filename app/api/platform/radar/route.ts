@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
+import { getWaHealthMetrics } from "@/lib/wa-dashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET() {
   const h1ago = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
   const h24ago = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const [recentLogs, errorsH1, errorsH24, totalH24, errorRows] = await Promise.all([
+  const [recentLogs, errorsH1, errorsH24, totalH24, errorRows, cronRuns, waHealth] = await Promise.all([
     sb
       .from("platform_logs")
       .select("id, level, route, message, duration_ms, created_at")
@@ -25,6 +26,8 @@ export async function GET() {
     sb.from("platform_logs").select("*", { count: "exact", head: true }).eq("level", "ERROR").gte("created_at", h24ago),
     sb.from("platform_logs").select("*", { count: "exact", head: true }).gte("created_at", h24ago),
     sb.from("platform_logs").select("route").eq("level", "ERROR").gte("created_at", h24ago).not("route", "is", null),
+    sb.from("cron_runs").select("id, cron_name, ran_at, status, duration_ms, summary").order("ran_at", { ascending: false }).limit(20),
+    getWaHealthMetrics(sb).catch(() => null),
   ]);
 
   const routeCounts: Record<string, number> = {};
@@ -39,6 +42,11 @@ export async function GET() {
   const total = totalH24.count ?? 0;
   const err24 = errorsH24.count ?? 0;
 
+  const h6ago = new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString();
+  const cronErrorRecent = (cronRuns.data ?? []).some(
+    (r: { status: string; ran_at: string }) => r.status === "error" && r.ran_at >= h6ago,
+  );
+
   return NextResponse.json({
     errors_last_1h: errorsH1.count ?? 0,
     errors_last_24h: err24,
@@ -47,5 +55,8 @@ export async function GET() {
     alert_threshold_pct: 1,
     top_error_routes: topErrorRoutes,
     logs: recentLogs.data ?? [],
+    cron_runs: cronRuns.data ?? [],
+    cron_error_recent: cronErrorRecent,
+    wa_health: waHealth,
   });
 }
