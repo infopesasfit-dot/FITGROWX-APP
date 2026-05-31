@@ -55,8 +55,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${origin}/onboarding`);
       }
 
-      // Existing user without onboarding done
-      if (!profile.full_name) {
+      // Existing user — check onboarding_completed flag
+      const { data: gymSettings } = await supabase
+        .from("gym_settings")
+        .select("onboarding_completed")
+        .eq("gym_id", user.id)
+        .maybeSingle();
+
+      if (!gymSettings?.onboarding_completed) {
         return NextResponse.redirect(`${origin}/onboarding`);
       }
 
