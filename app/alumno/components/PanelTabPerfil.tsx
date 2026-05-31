@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   Camera, User, ChevronRight, ChevronLeft,
-  Mail, Phone, CreditCard, Shield, Gift, Dumbbell, Scale,
+  CreditCard, Shield, Gift, Dumbbell, Scale,
 } from "lucide-react";
 import { useAlumnoFotos } from "../hooks/useAlumnoFotos";
 
@@ -25,14 +25,6 @@ interface Session {
   email?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
-}
-
-interface Medida {
-  id: string;
-  peso_kg: number;
-  grasa_pct: number | null;
-  cintura_cm: number | null;
-  fecha: string;
 }
 
 interface WorkoutSession {
@@ -57,11 +49,6 @@ interface PanelTabPerfilProps {
 function fmtDate(iso: string) {
   const d = new Date(iso + "T00:00:00");
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
-}
-
-function fmtDateShort(iso: string) {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -170,14 +157,6 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.alumno_id]);
 
-  // Datos: medidas
-  const [medidas,       setMedidas]       = useState<Medida[]>([]);
-  const [medidasLoaded, setMedidasLoaded] = useState(false);
-  const [medPeso,       setMedPeso]       = useState("");
-  const [medGrasa,      setMedGrasa]      = useState("");
-  const [medCintura,    setMedCintura]    = useState("");
-  const [savingMedida,  setSavingMedida]  = useState(false);
-
   // Historial
   const [historial,       setHistorial]       = useState<WorkoutSession[]>([]);
   const [historialLoaded, setHistorialLoaded] = useState(false);
@@ -185,12 +164,6 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
 
   // Lazy-load section data
   useEffect(() => {
-    if (activeSection === "datos" && !medidasLoaded && session) {
-      fetch(`/api/alumno/medidas?alumno_id=${session.alumno_id}`, { credentials: "include" })
-        .then(r => r.ok ? r.json() : { medidas: [] })
-        .then(d => { setMedidas(d.medidas ?? []); setMedidasLoaded(true); })
-        .catch(() => setMedidasLoaded(true));
-    }
     if (activeSection === "historial" && !historialLoaded && session) {
       setHistorialLoading(true);
       fetch("/api/alumno/workout-history", { credentials: "include" })
@@ -199,7 +172,7 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
         .catch(() => setHistorialLoaded(true))
         .finally(() => setHistorialLoading(false));
     }
-  }, [activeSection, medidasLoaded, historialLoaded, session]);
+  }, [activeSection, historialLoaded, session]);
 
   if (!session) return null;
 
@@ -235,36 +208,6 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
       }
       setSavingPerfil(false);
     }
-  };
-
-  const handleSaveMedida = async () => {
-    if (!session || !medPeso.trim()) return;
-    const peso = parseFloat(medPeso);
-    if (isNaN(peso) || peso < 20 || peso > 300) { showToast("Peso inválido (20–300 kg).", false); return; }
-
-    setSavingMedida(true);
-    try {
-      const body: Record<string, unknown> = { alumno_id: session.alumno_id, gym_id: session.gym_id, peso_kg: peso };
-      if (medGrasa.trim())   body.grasa_pct   = parseFloat(medGrasa);
-      if (medCintura.trim()) body.cintura_cm  = parseFloat(medCintura);
-      const res = await fetch("/api/alumno/medidas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(body),
-      });
-      const d = await res.json();
-      if (d.ok && d.medida) {
-        setMedidas(prev => [d.medida as Medida, ...prev]);
-        setMedPeso(""); setMedGrasa(""); setMedCintura("");
-        showToast("Medida registrada");
-      } else {
-        showToast(d.error ?? "Error al registrar medida.", false);
-      }
-    } catch {
-      showToast("Error de conexión.", false);
-    }
-    setSavingMedida(false);
   };
 
   // ── Shared input style ─────────────────────────────────────────────────────
@@ -351,74 +294,6 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
         >
           {savingPerfil ? "Guardando…" : "Guardar datos"}
         </button>
-      </div>
-
-      {/* Divider */}
-      <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "4px 0" }} />
-
-      {/* Medidas */}
-      <div>
-        <p style={{ font: `700 0.78rem/1 ${sy}`, color: "rgba(255,255,255,0.55)", letterSpacing: "-0.01em", marginBottom: 14 }}>
-          Registrar medida
-        </p>
-
-        {/* Last medida */}
-        {medidasLoaded && medidas[0] && (
-          <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, display: "flex", gap: 16 }}>
-            <div>
-              <p style={{ font: `400 0.56rem/1 ${dm}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Última</p>
-              <p style={{ font: `600 0.7rem/1 ${fm}`, color: "rgba(255,255,255,0.5)" }}>{fmtDateShort(medidas[0].fecha)}</p>
-            </div>
-            <div>
-              <p style={{ font: `400 0.56rem/1 ${dm}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Peso</p>
-              <p style={{ font: `600 0.88rem/1 ${fm}`, color: "#FFFFFF" }}>{medidas[0].peso_kg} kg</p>
-            </div>
-            {medidas[0].grasa_pct != null && (
-              <div>
-                <p style={{ font: `400 0.56rem/1 ${dm}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Grasa</p>
-                <p style={{ font: `600 0.88rem/1 ${fm}`, color: "#FFFFFF" }}>{medidas[0].grasa_pct}%</p>
-              </div>
-            )}
-            {medidas[0].cintura_cm != null && (
-              <div>
-                <p style={{ font: `400 0.56rem/1 ${dm}`, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 3 }}>Cintura</p>
-                <p style={{ font: `600 0.88rem/1 ${fm}`, color: "#FFFFFF" }}>{medidas[0].cintura_cm} cm</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{ display: "flex", gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <FieldLabel>Peso (kg) *</FieldLabel>
-              <input style={numInputStyle} type="number" inputMode="decimal" value={medPeso} onChange={e => setMedPeso(e.target.value)} placeholder="70.5" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <FieldLabel>Grasa % (opcional)</FieldLabel>
-              <input style={numInputStyle} type="number" inputMode="decimal" value={medGrasa} onChange={e => setMedGrasa(e.target.value)} placeholder="18.0" />
-            </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <FieldLabel>Cintura cm (opcional)</FieldLabel>
-            <input style={numInputStyle} type="number" inputMode="decimal" value={medCintura} onChange={e => setMedCintura(e.target.value)} placeholder="80" />
-          </div>
-          <button
-            onClick={handleSaveMedida}
-            disabled={savingMedida || !medPeso.trim()}
-            style={{
-              padding: "12px 0", marginTop: 4,
-              background: savingMedida || !medPeso.trim() ? "rgba(255,255,255,0.07)" : "rgba(249,115,22,0.15)",
-              border: `1px solid ${savingMedida || !medPeso.trim() ? "rgba(255,255,255,0.08)" : "rgba(249,115,22,0.3)"}`,
-              borderRadius: 12,
-              font: `600 0.82rem/1 ${dm}`,
-              color: savingMedida || !medPeso.trim() ? "rgba(255,255,255,0.3)" : "#F97316",
-              cursor: savingMedida || !medPeso.trim() ? "not-allowed" : "pointer",
-            }}
-          >
-            {savingMedida ? "Registrando…" : "Registrar medida"}
-          </button>
-        </div>
       </div>
     </div>
   );

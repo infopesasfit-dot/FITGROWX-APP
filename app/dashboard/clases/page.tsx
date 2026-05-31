@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star, Sparkles, AlertTriangle } from "lucide-react";
+import { Calendar, Plus, X, Clock, Users, ChevronDown, ChevronUp, Trash2, Edit2, Star, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getPagoAlumnoSummary } from "@/lib/supabase-relations";
 import { getCachedProfile, getPageCache, setPageCache } from "@/lib/gym-cache";
@@ -84,11 +84,6 @@ export default function ClasesPage() {
   const [loadingRes,    setLoadingRes]    = useState<string | null>(null);
   const [todayDow]                        = useState(() => new Date().getDay());
   const [deleteId,      setDeleteId]      = useState<string | null>(null);
-  const [wodPanel,      setWodPanel]      = useState(false);
-  const [wodModalidad,  setWodModalidad]  = useState("AMRAP");
-  const [wodTimeCap,    setWodTimeCap]    = useState("15");
-  const [wodAiLoading,  setWodAiLoading]  = useState(false);
-  const [wodError,      setWodError]      = useState<string | null>(null);
   const [cancelInstancia,    setCancelInstancia]    = useState<{ clase_id: string; fecha: string } | null>(null);
   const [cancelMotivo,       setCancelMotivo]       = useState("");
   const [cancelLoading,      setCancelLoading]      = useState(false);
@@ -147,7 +142,7 @@ export default function ClasesPage() {
     return () => window.clearTimeout(timeoutId);
   }, [gymId, fetchClases]);
 
-  const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setFormError(null); setWodPanel(false); setWodError(null); setModalOpen(true); };
+  const openAdd = () => { setEditId(null); setForm(EMPTY_FORM); setFormError(null); setModalOpen(true); };
   const openEdit = (c: GymClass) => {
     setEditId(c.id);
     setForm({
@@ -162,8 +157,6 @@ export default function ClasesPage() {
       event_date: c.event_date ?? "",
     });
     setFormError(null);
-    setWodPanel(false);
-    setWodError(null);
     setModalOpen(true);
   };
 
@@ -214,24 +207,6 @@ export default function ClasesPage() {
     setSaving(false);
     setModalOpen(false);
     fetchClases(gymId);
-  };
-
-  const handleGenerarWod = async () => {
-    setWodAiLoading(true);
-    setWodError(null);
-    try {
-      const res = await fetch("/api/rutina/sugerir", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tipo: "wod", modalidad: wodModalidad, time_cap: wodTimeCap }),
-      });
-      const d = await res.json();
-      if (!res.ok || !d.movimientos) { setWodError(d.error ?? "Error al generar el WOD."); setWodAiLoading(false); return; }
-      const lines = [`⚡ WOD · ${d.nombre}`, `${d.modalidad} · ${d.time_cap} min`, "", ...d.movimientos.map((m: { nombre: string; reps: string }) => `${m.reps} ${m.nombre}`)];
-      setForm(p => ({ ...p, notes: lines.join("\n"), class_name: p.class_name || d.nombre }));
-      setWodPanel(false);
-    } catch { setWodError("Error de red. Intentá de nuevo."); }
-    setWodAiLoading(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -661,39 +636,7 @@ export default function ClasesPage() {
 
               {/* Notes / WOD */}
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ font: `500 0.75rem/1 ${fd}`, color: t2 }}>Notas / Entrenamiento (opcional)</span>
-                  <button
-                    type="button"
-                    onClick={() => { setWodPanel(p => !p); setWodError(null); }}
-                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, border: "1px solid rgba(99,102,241,0.25)", background: wodPanel ? "rgba(99,102,241,0.1)" : "transparent", color: "#6366f1", font: `600 0.72rem/1 ${fd}`, cursor: "pointer" }}
-                  >
-                    <Sparkles size={12} /> Generar WOD con IA
-                  </button>
-                </div>
-                {wodPanel && (
-                  <div style={{ background: "#0D0F12", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {["AMRAP", "For Time", "EMOM", "Chipper"].map(m => (
-                        <button key={m} type="button" onClick={() => setWodModalidad(m)}
-                          style={{ padding: "6px 12px", borderRadius: 9999, border: `1px solid ${wodModalidad === m ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.1)"}`, background: wodModalidad === m ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.04)", color: wodModalidad === m ? "#818cf8" : "rgba(255,255,255,0.45)", font: `${wodModalidad === m ? 700 : 400} 0.72rem/1 ${fd}`, cursor: "pointer" }}>
-                          {m}
-                        </button>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ font: `500 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Time cap</span>
-                      <input type="number" min={1} max={90} value={wodTimeCap} onChange={e => setWodTimeCap(e.target.value)}
-                        style={{ width: 54, padding: "5px 8px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, font: `600 0.85rem/1 ${fd}`, color: "white", outline: "none", textAlign: "center" }} />
-                      <span style={{ font: `400 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>min</span>
-                    </div>
-                    {wodError && <p style={{ font: `400 0.75rem/1 ${fd}`, color: "#F87171" }}>{wodError}</p>}
-                    <button type="button" onClick={handleGenerarWod} disabled={wodAiLoading}
-                      style={{ padding: "10px", borderRadius: 10, border: "none", background: wodAiLoading ? "rgba(255,255,255,0.1)" : "#6366f1", color: "white", font: `700 0.82rem/1 ${fd}`, cursor: wodAiLoading ? "not-allowed" : "pointer" }}>
-                      {wodAiLoading ? "Generando..." : "⚡ Generar WOD"}
-                    </button>
-                  </div>
-                )}
+                <span style={{ font: `500 0.75rem/1 ${fd}`, color: t2 }}>Notas / Entrenamiento (opcional)</span>
                 <textarea
                   value={form.notes}
                   onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
