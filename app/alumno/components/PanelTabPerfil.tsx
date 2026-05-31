@@ -112,9 +112,9 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
       />
 
       {/* ── HEADER ─────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "28px 24px 24px" }}>
+      <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 18, padding: "28px 20px 24px" }}>
         {/* Avatar */}
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", flexShrink: 0 }}>
           <div
             onClick={() => avatarInputRef.current?.click()}
             style={{
@@ -152,17 +152,17 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
           </button>
         </div>
 
-        {/* Name + badges */}
-        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
-          <h2 style={{ font: `700 1.7rem/1 ${sy}`, color: "#FFFFFF", letterSpacing: "-0.04em", margin: 0 }}>
+        {/* Name + badge + expiration */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+          <h2 style={{ font: `700 1.55rem/1.1 ${sy}`, color: "#FFFFFF", letterSpacing: "-0.04em", margin: 0 }}>
             {session.full_name}
           </h2>
-          <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <span style={{
               font: `600 0.62rem/1 ${dm}`,
-              color: isActivo ? "#F97316" : "#EF4444",
-              background: isActivo ? "rgba(249,115,22,0.1)" : "rgba(239,68,68,0.1)",
-              border: `1px solid ${isActivo ? "rgba(249,115,22,0.25)" : "rgba(239,68,68,0.25)"}`,
+              color: isActivo ? "#FFFFFF" : "#EF4444",
+              background: isActivo ? "#22C55E" : "rgba(239,68,68,0.1)",
+              border: `1px solid ${isActivo ? "#22C55E" : "rgba(239,68,68,0.25)"}`,
               padding: "5px 11px", borderRadius: 9999, letterSpacing: "0.07em", textTransform: "uppercase",
             }}>
               {isActivo ? "Activo" : "Vencido"}
@@ -177,7 +177,7 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
             )}
           </div>
           {session.expiration && (
-            <p style={{ font: `400 0.72rem/1 ${fm}`, color: "rgba(255,255,255,0.28)", margin: 0, letterSpacing: "0.04em" }}>
+            <p style={{ font: `400 0.7rem/1 ${fm}`, color: "rgba(255,255,255,0.28)", margin: 0, letterSpacing: "0.04em" }}>
               Vence: {formatExpiration(session.expiration)}
             </p>
           )}
