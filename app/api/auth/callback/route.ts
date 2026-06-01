@@ -42,13 +42,18 @@ export async function GET(request: NextRequest) {
           user.user_metadata?.name ??
           "";
 
+        const resellerRef = request.cookies.get("fitgrowx_ref")?.value ?? null;
         await fetch(`${origin}/api/platform/sync-signup`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${access_token}`,
           },
-          body: JSON.stringify({ fullName, email: user.email ?? "" }),
+          body: JSON.stringify({
+            fullName,
+            email: user.email ?? "",
+            ...(resellerRef ? { reseller_ref: resellerRef } : {}),
+          }),
         });
 
         // New user — always send to onboarding to complete setup

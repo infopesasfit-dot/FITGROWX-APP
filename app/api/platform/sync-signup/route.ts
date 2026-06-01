@@ -39,10 +39,11 @@ export async function POST(req: NextRequest) {
       fullName,
       whatsApp,
       refCode,
-    }: { fullName?: string; whatsApp?: string; refCode?: string } = await req.json();
+      reseller_ref,
+    }: { fullName?: string; whatsApp?: string; refCode?: string; reseller_ref?: string } = await req.json();
 
-    // Cookie is the only attribution source (30-day httpOnly).
-    const resellerSlug = req.cookies.get("fitgrowx_ref")?.value;
+    // Body param wins (forwarded from auth/callback server-side fetch); cookie is the fallback for direct browser calls.
+    const resellerSlug = reseller_ref ?? req.cookies.get("fitgrowx_ref")?.value;
 
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData.user) {
