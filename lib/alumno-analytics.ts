@@ -62,7 +62,7 @@ class AlumnoAnalytics {
     });
   }
 
-  trackTabView(alumnoId: string, tab: "calendario" | "entrenamiento" | "metas" | "perfil") {
+  trackTabView(alumnoId: string, tab: "inicio" | "calendario" | "entrenamiento" | "metas" | "perfil") {
     this.track({
       event: "alumno_tab_view",
       alumno_id: alumnoId,

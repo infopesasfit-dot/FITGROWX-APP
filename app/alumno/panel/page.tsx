@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, Suspense, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Calendar, Dumbbell, User, Target, Lock, Eye, Bell } from "lucide-react";
+import { Calendar, Dumbbell, User, Target, Lock, Eye, Bell, Home } from "lucide-react";
 import { useWorkoutSession } from "@/hooks/useWorkoutSession";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { SessionExpiredModal } from "../components/SessionExpiredModal";
@@ -12,6 +12,7 @@ import { PanelTabCalendario } from "../components/PanelTabCalendario";
 import { PanelTabEntrenamiento } from "../components/PanelTabEntrenamiento";
 import { PanelTabMetas } from "../components/PanelTabMetas";
 import { PanelTabPerfil } from "../components/PanelTabPerfil";
+import { PanelTabInicio } from "../components/PanelTabInicio";
 import { QrModal } from "../components/QrModal";
 import { analytics } from "@/lib/alumno-analytics";
 import { useBrandConfirm } from "@/components/brand-confirm";
@@ -79,7 +80,7 @@ function AlumnoPanelInner() {
   const confirm = useBrandConfirm();
 
   const [session,      setSession]      = useState<Session | null>(null);
-  const [tab,          setTab]          = useState<"calendario" | "entrenamiento" | "metas" | "perfil">("calendario");
+  const [tab,          setTab]          = useState<"inicio" | "calendario" | "entrenamiento" | "metas" | "perfil">("inicio");
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [clases,       setClases]       = useState<GymClass[]>([]);
   const [reservas,     setReservas]     = useState<Reserva[]>([]);
@@ -170,7 +171,7 @@ function AlumnoPanelInner() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleTabChange = (newTab: "calendario" | "entrenamiento" | "metas" | "perfil") => {
+  const handleTabChange = (newTab: "inicio" | "calendario" | "entrenamiento" | "metas" | "perfil") => {
     setTab(newTab);
     if (session?.alumno_id) {
       analytics.trackTabView(session.alumno_id, newTab);
@@ -880,7 +881,7 @@ function AlumnoPanelInner() {
       </div>
 
       {/* Hero greeting */}
-      {tab !== "perfil" && <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "18px 16px 10px" : "28px 20px 16px", maxWidth: 520, margin: "0 auto" }}>
+      {tab !== "perfil" && tab !== "inicio" && <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "18px 16px 10px" : "28px 20px 16px", maxWidth: 520, margin: "0 auto" }}>
         {tab === "entrenamiento" && isCompactScreen ? (
           <div style={{ display: "grid", gap: 8 }}>
             <p style={{ font: `500 0.7rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -934,6 +935,17 @@ function AlumnoPanelInner() {
           </div>
         ) : (
           <>
+            {/* TAB — INICIO */}
+            {tab === "inicio" && (
+              <PanelTabInicio
+                session={session}
+                clases={clases}
+                rutina={rutina}
+                asistCount={asistCount}
+                onShowQR={() => { setCheckinMode("qr"); setCheckinResult(null); setShowQR(true); }}
+              />
+            )}
+
             {/* TAB — CALENDARIO */}
             {tab === "calendario" && (
               <PanelTabCalendario
@@ -1230,10 +1242,12 @@ function AlumnoPanelInner() {
         boxShadow: isCompactScreen ? "none" : "0 20px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
         gap: 0,
       }}>
-        {/* Left tabs */}
         {([
-          { key: "calendario", label: "Clases", Icon: Calendar },
+          { key: "inicio",        label: "Inicio",  Icon: Home },
+          { key: "calendario",    label: "Clases",  Icon: Calendar },
           { key: "entrenamiento", label: "Entrena", Icon: Dumbbell },
+          { key: "metas",         label: "Metas",   Icon: Target },
+          { key: "perfil",        label: "Perfil",  Icon: User },
         ] as const).map(({ key, label, Icon }) => {
           const active = tab === key;
           return (
@@ -1247,7 +1261,7 @@ function AlumnoPanelInner() {
                 background: "transparent",
                 border: "none",
                 borderRadius: 20,
-                padding: "8px 6px 5px",
+                padding: "8px 4px 5px",
                 cursor: "pointer",
                 display: "flex",
                 flexDirection: "column",
@@ -1256,79 +1270,8 @@ function AlumnoPanelInner() {
                 gap: 3,
               }}
             >
-              <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
-              <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>
-                {label}
-              </span>
-              <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />
-            </button>
-          );
-        })}
-
-        {/* QR center */}
-        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", margin: "0 3px" }}>
-          <button
-            onClick={() => { setCheckinMode("qr"); setCheckinResult(null); setShowQR(true); }}
-            className="tap-active"
-            style={{
-              position: "relative",
-              bottom: isCompactScreen ? 8 : 16,
-              width: isCompactScreen ? 54 : 62,
-              height: isCompactScreen ? 54 : 62,
-              background: "rgba(12,12,18,0.98)",
-              border: "1px solid rgba(249,115,22,0.4)",
-              borderRadius: 20,
-              cursor: "pointer",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 4,
-              animation: "qrPulse 3s ease-in-out infinite",
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 28 28" fill="none">
-              <path d="M4 11V5a1 1 0 0 1 1-1h6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M17 4h6a1 1 0 0 1 1 1v6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M4 17v6a1 1 0 0 0 1 1h6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
-              <path d="M17 24h6a1 1 0 0 0 1-1v-6" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="14" cy="14" r="2" fill="#F97316" />
-            </svg>
-            <span style={{ font: `700 0.4rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", letterSpacing: "0.18em" }}>
-              SCAN
-            </span>
-          </button>
-          <div style={{ width: 3, height: 3, borderRadius: "50%", background: "#F97316", opacity: 0.5, marginTop: isCompactScreen ? -12 : -18 }} />
-        </div>
-
-        {/* Right tabs */}
-        {([
-          { key: "metas", label: "Metas", Icon: Target },
-          { key: "perfil", label: "Perfil", Icon: User },
-        ] as const).map(({ key, label, Icon }) => {
-          const active = tab === key;
-          return (
-            <button
-              key={key}
-              onClick={() => handleTabChange(key)}
-              className="tap-active"
-              style={{
-                flex: 1,
-                minHeight: 52,
-                background: "transparent",
-                border: "none",
-                borderRadius: 20,
-                padding: "8px 6px 5px",
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 3,
-              }}
-            >
-              <Icon size={20} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
-              <span style={{ font: `${active ? "600" : "400"} 0.6rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.03em" }}>
+              <Icon size={19} color={active ? "#FFFFFF" : "rgba(255,255,255,0.25)"} strokeWidth={active ? 2 : 1.5} />
+              <span style={{ font: `${active ? "600" : "400"} 0.55rem/1 ${fd}`, color: active ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)", letterSpacing: "0.02em" }}>
                 {label}
               </span>
               <div style={{ width: active ? 12 : 0, height: 1.5, background: "#F97316", borderRadius: 99, transition: "width 0.2s ease", marginTop: 1 }} />
