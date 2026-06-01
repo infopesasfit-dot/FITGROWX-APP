@@ -5,6 +5,7 @@ import { normalizePhone } from "@/lib/phone";
 import { logger } from "@/lib/logger";
 import { sendWa as sendWaLib } from "@/lib/wa";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 import { createHash } from "crypto";
 
 const ROUTE = "/api/alumno/send-welcome";
@@ -41,6 +42,9 @@ export async function POST(req: NextRequest) {
   if (!callerProfile?.gym_id || !["admin", "staff"].includes(callerProfile.role ?? "")) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
+
+  const blocked = await requireGymNotBlocked(callerProfile.gym_id);
+  if (blocked) return blocked;
 
   const { alumno_id, type = "welcome" } = await req.json();
   if (!alumno_id) return NextResponse.json({ ok: true });

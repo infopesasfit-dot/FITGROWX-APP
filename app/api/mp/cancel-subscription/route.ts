@@ -53,7 +53,12 @@ export async function POST(req: NextRequest) {
 
   const { error: dbErr } = await supabaseAdmin
     .from("gyms")
-    .update({ is_subscription_active: false, mp_preapproval_id: null })
+    .update({
+      is_subscription_active: false,
+      mp_preapproval_id: null,
+      gym_status: "cancelled",
+      subscription_expires_at: new Date().toISOString(),
+    })
     .eq("id", gym_id);
   if (dbErr) console.error("cancel-subscription: DB update failed:", dbErr.message);
 

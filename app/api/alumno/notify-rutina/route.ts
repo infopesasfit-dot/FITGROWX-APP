@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const supabase = getSupabaseAdminClient();
 
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
   if (!callerProfile?.gym_id || !["admin", "staff"].includes(callerProfile.role ?? "")) {
     return NextResponse.json({ ok: false }, { status: 403 });
   }
+
+  const blocked = await requireGymNotBlocked(callerProfile.gym_id);
+  if (blocked) return blocked;
 
   const { alumno_id } = await req.json();
   if (!alumno_id) return NextResponse.json({ ok: false }, { status: 400 });

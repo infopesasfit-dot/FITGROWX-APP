@@ -25,20 +25,27 @@ function normalizePhone(raw: string | null | undefined): string | null {
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req)) return cronUnauthorized();
 
+  const startedAt = Date.now();
   const log: string[] = [];
 
   if (!process.env.WA_MOTOR_URL) {
-    return NextResponse.json({
-      ok: false,
-      log: ["WA_MOTOR_URL no configurado."],
+    void sb.from("cron_runs").insert({
+      cron_name: "staff-payment-reminders",
+      status: "error",
+      duration_ms: Date.now() - startedAt,
+      summary: "WA_MOTOR_URL no configurado",
     });
+    return NextResponse.json({ ok: false, log: ["WA_MOTOR_URL no configurado."] });
   }
 
   if (!(await isWaConnected(PLAT_SESSION))) {
-    return NextResponse.json({
-      ok: false,
-      log: ["Sesión WA de plataforma no activa."],
+    void sb.from("cron_runs").insert({
+      cron_name: "staff-payment-reminders",
+      status: "error",
+      duration_ms: Date.now() - startedAt,
+      summary: "Sesión WA de plataforma no activa",
     });
+    return NextResponse.json({ ok: false, log: ["Sesión WA de plataforma no activa."] });
   }
 
   const now = new Date();
@@ -53,6 +60,13 @@ export async function GET(req: NextRequest) {
 
   if (!gyms || gyms.length === 0) {
     log.push("— No gyms with staff payment reminders enabled");
+    void sb.from("cron_runs").insert({
+      cron_name: "staff-payment-reminders",
+      status: "ok",
+      duration_ms: Date.now() - startedAt,
+      summary: "No gyms with reminders enabled",
+      counts: { log },
+    });
     return NextResponse.json({ ok: true, log });
   }
 
@@ -180,5 +194,14 @@ export async function GET(req: NextRequest) {
   }
 
   log.push(`Completado: ${now.toISOString().slice(0, 10)}`);
+
+  void sb.from("cron_runs").insert({
+    cron_name: "staff-payment-reminders",
+    status: "ok",
+    duration_ms: Date.now() - startedAt,
+    summary: `${log.filter(l => l.startsWith("✓")).length} reminders sent`,
+    counts: { log },
+  });
+
   return NextResponse.json({ ok: true, log });
 }
