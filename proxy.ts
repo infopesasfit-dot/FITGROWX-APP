@@ -211,5 +211,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/onboarding/:path*', '/onboarding', '/login', '/register', '/start', '/checkout-pro'],
+  matcher: ['/dashboard/:path*', '/platform/:path*', '/platform', '/onboarding/:path*', '/onboarding', '/login', '/register', '/start', '/checkout-pro'],
 }
