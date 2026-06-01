@@ -1,0 +1,5 @@
+ALTER TABLE medidas_corporales
+  ADD COLUMN IF NOT EXISTS musculo_pct NUMERIC(4,1),
+  ADD COLUMN IF NOT EXISTS cadera_cm   NUMERIC(5,1),
+  ADD COLUMN IF NOT EXISTS brazo_cm    NUMERIC(5,1),
+  ADD COLUMN IF NOT EXISTS pierna_cm   NUMERIC(5,1);

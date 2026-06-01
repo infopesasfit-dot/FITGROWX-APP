@@ -10,7 +10,7 @@ const gc = {
   borderRadius: 16,
 };
 
-interface Medida { id: string; peso_kg: number; grasa_pct: number | null; cintura_cm: number | null; fecha: string; }
+interface Medida { id: string; peso_kg: number; fecha: string; }
 
 interface Ranking { pos: number; name: string; count: number; isMe: boolean }
 
@@ -108,21 +108,6 @@ export function PanelTabMetas({
         </div>
       )}
 
-      {/* Peso actual */}
-      {medidas.length > 0 && (() => {
-        const latest = medidas[0];
-        return (
-          <div style={{ ...gc, padding: "18px 20px" }}>
-            <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
-              ⚖️ Peso actual
-            </p>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-              <span style={{ font: `700 2.4rem/1 ${fd}`, color: "#FFFFFF" }}>{latest.peso_kg}</span>
-              <span style={{ font: `500 0.9rem/1 ${fd}`, color: "rgba(255,255,255,0.3)" }}>kg</span>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

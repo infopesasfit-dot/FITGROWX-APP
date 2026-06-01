@@ -6,18 +6,13 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 const supabase = getSupabaseAdminClient();
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const alumno_id = searchParams.get("alumno_id");
-  if (!alumno_id) return NextResponse.json({ error: "alumno_id requerido." }, { status: 400 });
-
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
   const { data } = await supabase
     .from("medidas_corporales")
-    .select("id, peso_kg, grasa_pct, cintura_cm, fecha")
-    .eq("alumno_id", alumno_id)
+    .select("id, peso_kg, grasa_pct, musculo_pct, cintura_cm, cadera_cm, brazo_cm, pierna_cm, fecha")
+    .eq("alumno_id", tokenRow.alumno_id)
     .order("fecha", { ascending: false })
     .limit(30);
 
@@ -25,31 +20,38 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { alumno_id, gym_id, peso_kg, grasa_pct, cintura_cm, notas } = await req.json();
-  if (!alumno_id || !gym_id || peso_kg == null) {
-    return NextResponse.json({ error: "alumno_id, gym_id y peso_kg son requeridos." }, { status: 400 });
-  }
-  if (peso_kg < 20 || peso_kg > 300) {
-    return NextResponse.json({ error: "Peso fuera de rango válido." }, { status: 400 });
-  }
-
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-  if (tokenRow.alumno_id !== alumno_id || tokenRow.gym_id !== gym_id) {
-    return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
+
+  let body: Record<string, unknown>;
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Formato inválido." }, { status: 400 }); }
+
+  const { peso_kg, grasa_pct, musculo_pct, cintura_cm, cadera_cm, brazo_cm, pierna_cm, notas } = body;
+
+  if (peso_kg == null) return NextResponse.json({ error: "peso_kg es requerido." }, { status: 400 });
+  const pesoNum = Number(peso_kg);
+  if (isNaN(pesoNum) || pesoNum < 20 || pesoNum > 300) {
+    return NextResponse.json({ error: "Peso fuera de rango válido (20–300 kg)." }, { status: 400 });
   }
+
+  const row: Record<string, unknown> = {
+    alumno_id: tokenRow.alumno_id,
+    gym_id:    tokenRow.gym_id,
+    peso_kg:   pesoNum,
+    notas:     notas ?? null,
+  };
+  if (grasa_pct   != null) row.grasa_pct   = Number(grasa_pct);
+  if (musculo_pct != null) row.musculo_pct = Number(musculo_pct);
+  if (cintura_cm  != null) row.cintura_cm  = Number(cintura_cm);
+  if (cadera_cm   != null) row.cadera_cm   = Number(cadera_cm);
+  if (brazo_cm    != null) row.brazo_cm    = Number(brazo_cm);
+  if (pierna_cm   != null) row.pierna_cm   = Number(pierna_cm);
 
   const { data, error } = await supabase
     .from("medidas_corporales")
-    .insert({
-      alumno_id,
-      gym_id,
-      peso_kg: Number(peso_kg),
-      grasa_pct: grasa_pct != null ? Number(grasa_pct) : null,
-      cintura_cm: cintura_cm != null ? Number(cintura_cm) : null,
-      notas: notas ?? null,
-    })
-    .select("id, peso_kg, grasa_pct, cintura_cm, fecha")
+    .insert(row)
+    .select("id, peso_kg, grasa_pct, musculo_pct, cintura_cm, cadera_cm, brazo_cm, pierna_cm, fecha")
     .single();
 
   if (error) return NextResponse.json({ error: sanitizeError(error) }, { status: 500 });

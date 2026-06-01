@@ -61,7 +61,7 @@ interface Ejercicio {
 }
 
 interface Peso { id: string; ejercicio: string; peso: number; fecha: string; notas: string | null; }
-interface Medida { id: string; peso_kg: number; grasa_pct: number | null; cintura_cm: number | null; fecha: string; }
+interface Medida { id: string; peso_kg: number; grasa_pct: number | null; musculo_pct: number | null; cintura_cm: number | null; cadera_cm: number | null; brazo_cm: number | null; pierna_cm: number | null; fecha: string; }
 
 function getNext7Days() {
   const days: { date: Date; label: string; iso: string; dow: number }[] = [];
@@ -112,9 +112,6 @@ function AlumnoPanelInner() {
   const [isOffline,      setIsOffline]      = useState(false);
   const [medidas,    setMedidas]    = useState<Medida[]>([]);
   const [medLoading, setMedLoading] = useState(false);
-  const [medPeso,    setMedPeso]    = useState("");
-  const [medGrasa,   setMedGrasa]   = useState("");
-  const [medCintura, setMedCintura] = useState("");
   const [asistTotal,  setAsistTotal]  = useState(0);
   const [ranking,     setRanking]     = useState<{ pos: number; name: string; count: number; isMe: boolean }[]>([]);
   const [myRankPos,   setMyRankPos]   = useState(0);
@@ -289,7 +286,7 @@ function AlumnoPanelInner() {
 
   const fetchMedidas = useCallback(async (s: Session) => {
     setMedLoading(true);
-    const r = await fetch(`/api/alumno/medidas`, {
+    const r = await fetch(`/api/alumno/medidas?alumno_id=${s.alumno_id}`, {
       credentials: "include",
     }).catch(() => null);
     if (r?.ok) {
@@ -339,7 +336,7 @@ function AlumnoPanelInner() {
   }, [session, tab, pesos.length, fetchBootstrap]);
 
   useEffect(() => {
-    if (!session || tab !== "metas" || medidas.length > 0 || medLoading) return;
+    if (!session || (tab !== "metas" && tab !== "entrenamiento") || medidas.length > 0 || medLoading) return;
     void fetchMedidas(session);
   }, [session, tab, medidas.length, medLoading, fetchMedidas]);
 
@@ -406,29 +403,6 @@ function AlumnoPanelInner() {
   const cancelRest = () => {
     if (restRef.current) { clearInterval(restRef.current); restRef.current = null; }
     setRestSeconds(null);
-  };
-
-  const handleSaveMedida = async () => {
-    if (!session || !medPeso.trim()) return;
-    const body: Record<string, unknown> = {
-      peso_kg: parseFloat(medPeso),
-    };
-    if (medGrasa.trim()) body.grasa_pct = parseFloat(medGrasa);
-    if (medCintura.trim()) body.cintura_cm = parseFloat(medCintura);
-    const r = await fetch("/api/alumno/medidas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json",
-    },
-      body: JSON.stringify(body),
-    });
-    const d = await r.json();
-    if (r.ok && d.medida) {
-      setMedidas(prev => [d.medida as Medida, ...prev]);
-      setMedPeso(""); setMedGrasa(""); setMedCintura("");
-      showToast("Medición guardada");
-    } else {
-      showToast("Error al guardar", false);
-    }
   };
 
   const handleReservar = async (clase_id: string, fecha: string) => {
@@ -978,6 +952,12 @@ function AlumnoPanelInner() {
                 setInlineKg={setInlineKg}
                 startRest={startRest}
                 handleFinalize={handleFinalize}
+                medidas={medidas}
+                medidasLoading={medLoading}
+                onAddMedida={m => setMedidas(prev => [m, ...prev])}
+                showToast={showToast}
+                alumnoId={session.alumno_id}
+                gymId={session.gym_id}
               />
             )}
 
