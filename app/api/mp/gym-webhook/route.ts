@@ -258,6 +258,19 @@ export async function POST(req: NextRequest) {
   if (!gymId) return NextResponse.json({ error: "gym_id requerido." }, { status: 400 });
   if (!verificarTokenWebhook(gymId, wt)) return NextResponse.json({ error: "Token inválido." }, { status: 401 });
 
+  // MP HMAC-SHA256 signature validation
+  const xSignature  = req.headers.get("x-signature") ?? "";
+  const sigTs       = xSignature.split(";").find(p => p.startsWith("ts="))?.split("=")[1] ?? "";
+  const sigV1       = xSignature.split(";").find(p => p.startsWith("v1="))?.split("=")[1] ?? "";
+  const sigDataId   = searchParams.get("data.id") ?? "";
+  const sigTemplate = `id:${sigDataId};request-date:${sigTs};`;
+  const sigExpected = createHmac("sha256", MASTER_SECRET).update(sigTemplate).digest("hex");
+  const sigValid    = sigV1.length > 0 && sigV1.length === sigExpected.length &&
+    timingSafeEqual(Buffer.from(sigV1, "hex"), Buffer.from(sigExpected, "hex"));
+  if (!sigValid) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return NextResponse.json({ ok: true }); }
 
