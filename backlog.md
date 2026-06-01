@@ -1,7 +1,7 @@
 # Backlog — FitGrowX pre-launch
 
-**Última actualización:** 2026-05-31  
-**Branch de referencia:** `backup/pre-launch-fixes` (ee01ae3)  
+**Última actualización:** 2026-06-01  
+**Branch de referencia:** `backup/pre-launch-fixes` (75e57dd)  
 **Build:** ✅ verde · **Tests:** ✅ 244/244
 
 ---
@@ -36,6 +36,21 @@
 - `9501217` — dev page: header correcto (`CRON_SECRET`) + confirmaciones antes de ejecutar
 - `ee01ae3` — columnas de métricas WA en `wa_mensajes_log` (`status`, `latency_ms`, `motor_status_code`, `motor_error`)
 - `0a1524f` — log de fallo de email al registrar un gym nuevo
+- `0ae03e3` — tareas pendientes de plataforma completadas (6 fases):
+  - `platform_audit_logs` table + `logPlatformAudit()` helper
+  - lifecycle audit: plan/suscripción loguean before/after; impersonation start/stop auditado
+  - migraciones WA: `wa_motor_events`, `wa_contact_metrics`, `wa_gym_rate_limits`
+  - Radar: sección cron_runs (últimas 20) + panel WA Motor con métricas de bloqueos/latencia
+  - MRR/churn normalizado: `churn_count`, `churn_rate_pct`, `trial_to_paid_rate` en overview API y dashboard
+  - Runbook `/platform/dev`: historial de ejecuciones manuales auditado en `platform_audit_logs`
+
+### Seguridad — sesión 2026-06-01
+- `56d71b7` — agregar `/platform` al matcher de middleware (rutas de plataforma protegidas)
+- `2a4e8fa` — validación HMAC-SHA256 (`x-signature`) en `gym-webhook` (mismo standard que platform webhook)
+- `75e57dd` — RLS habilitado en `wa_queue` y `mp_webhook_log` con políticas por `gym_id`
+
+### Resellers
+- `09a8797` — cookie `fitgrowx_ref` reenviada desde `auth/callback` a `sync-signup` (fetch server-side no propaga cookies del browser)
 
 ### Legal / compliance
 - `a9387c9` + `72489be` — aceptación de términos obligatoria en registro
