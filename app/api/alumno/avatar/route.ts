@@ -18,8 +18,9 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "No se recibió imagen." }, { status: 400 });
 
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Solo se aceptan imágenes." }, { status: 400 });
+  const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return NextResponse.json({ error: "Solo se aceptan JPEG, PNG o WebP." }, { status: 400 });
   }
   if (file.size > 2_097_152) {
     return NextResponse.json({ error: "La imagen supera 2 MB." }, { status: 413 });
