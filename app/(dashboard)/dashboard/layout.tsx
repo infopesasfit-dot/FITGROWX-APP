@@ -1,0 +1,1459 @@
+"use client";
+
+import Link from "next/link";
+import Image from "next/image";
+import { useState, useEffect, useRef, Suspense } from "react";
+import { createPortal } from "react-dom";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { getTodayDate, getCurrentTime, DEFAULT_APP_TIME_ZONE } from "@/lib/date-utils";
+import {
+  Home, Users, Wallet, TrendingDown, Settings, LogOut,
+  Search, Bell, ChevronLeft, ChevronRight, Menu,
+  Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
+  Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
+  CheckCircle, HelpCircle, Power, MessageSquare, Smartphone, BarChart3,
+} from "lucide-react";
+import WelcomeModal from "@/components/dashboard/WelcomeModal";
+import { DinoChatWidget } from "@/components/dashboard/DinoChatWidget";
+import { getGymSummary } from "@/lib/supabase-relations";
+import { getCachedProfile, getImpersonatedGym, clearImpersonation, prefetchDashboard, prefetchRoute, type ImpersonatedGym } from "@/lib/gym-cache";
+import { useNotificationPolling, type Notif } from "@/hooks/useNotificationPolling";
+import { DashboardPwaShell } from "@/components/dashboard/DashboardPwaShell";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
+  sub?: { href: string; label: string }[];
+};
+type NavSection = { section: string; items: NavItem[] };
+
+const NAV_SECTIONS_ADMIN: NavSection[] = [
+  {
+    section: "HOY",
+    items: [
+      { href: "/dashboard",             label: "Inicio",      icon: Home },
+      { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
+    ],
+  },
+  {
+    section: "SOCIOS",
+    items: [
+      { href: "/dashboard/alumnos", label: "Alumnos",           icon: Users },
+      { href: "/dashboard/clases",  label: "Clases y Horarios", icon: CalendarDays },
+    ],
+  },
+  {
+    section: "CAPTACIÓN",
+    items: [
+      {
+        href: "/dashboard/prospectos",
+        label: "Atraer Clientes",
+        icon: Megaphone,
+        sub: [
+          { href: "/dashboard/prospectos", label: "Prospectos" },
+          { href: "/dashboard/landing",    label: "Mi Web / Landing" },
+        ],
+      },
+    ],
+  },
+  {
+    section: "RETENCIÓN",
+    items: [
+      { href: "/dashboard/automatizaciones", label: "Automatizaciones", icon: Zap },
+      { href: "/dashboard/boveda",           label: "Bóveda",           icon: FolderOpen },
+    ],
+  },
+  {
+    section: "FINANZAS",
+    items: [
+      { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
+      { href: "/dashboard/egresos", label: "Egresos",  icon: TrendingDown },
+    ],
+  },
+  {
+    section: "ANÁLISIS",
+    items: [
+      { href: "/dashboard/reportes", label: "Reportes", icon: BarChart3 },
+    ],
+  },
+  {
+    section: "",
+    items: [
+      {
+        href: "/dashboard/ajustes",
+        label: "Configuración",
+        icon: Settings,
+        sub: [
+          { href: "/dashboard/ajustes?tab=general",    label: "General" },
+          { href: "/dashboard/ajustes?tab=conexiones", label: "Conexiones" },
+          { href: "/dashboard/ajustes?tab=equipo",     label: "Equipo" },
+          { href: "/dashboard/membresias",             label: "Membresías" },
+        ],
+      },
+    ],
+  },
+];
+
+const NAV_SECTIONS_STAFF: NavSection[] = [
+  {
+    section: "OPERACIÓN",
+    items: [
+      { href: "/dashboard/asistencias", label: "Asistencias", icon: ClipboardList },
+      { href: "/dashboard/scanner",     label: "Escáner QR",  icon: ScanLine },
+      { href: "/dashboard/alumnos", label: "Alumnos", icon: Users },
+      { href: "/dashboard/clases",  label: "Clases",  icon: CalendarDays },
+    ],
+  },
+];
+
+const ATTRACT_ROUTES = ["/dashboard/prospectos", "/dashboard/landing"];
+const STAFF_ALLOWED_ROUTES = ["/dashboard/alumnos", "/dashboard/clases", "/dashboard/scanner", "/dashboard/asistencias"];
+
+const BOTTOM_NAV_ADMIN = [
+  { href: "/dashboard",         label: "Inicio",   icon: Home },
+  { href: "/dashboard/alumnos", label: "Alumnos",  icon: Users },
+  { href: "/dashboard/scanner", label: "Escáner",  icon: ScanLine },
+  { href: "/dashboard/pagos",   label: "Ingresos", icon: Wallet },
+];
+
+const BOTTOM_NAV_STAFF = [
+  { href: "/dashboard/asistencias", label: "Asist.",  icon: ClipboardList },
+  { href: "/dashboard/alumnos",     label: "Alumnos", icon: Users },
+  { href: "/dashboard/scanner",     label: "Escáner", icon: ScanLine },
+  { href: "/dashboard/clases",      label: "Clases",  icon: CalendarDays },
+];
+
+
+// ── Config sub-nav: isolated so useSearchParams is inside Suspense ────────────
+function ConfigSubNav() {
+  const searchParams = useSearchParams();
+  const currentTab   = searchParams.get("tab");
+  const pathname     = usePathname();
+  if (!pathname.startsWith("/dashboard/ajustes")) return null;
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: -4 }}>
+      {[
+        { href: "/dashboard/ajustes?tab=general",    label: "General",    tab: "general"    },
+        { href: "/dashboard/ajustes?tab=conexiones", label: "Conexiones", tab: "conexiones" },
+        { href: "/dashboard/ajustes?tab=equipo",     label: "Equipo",     tab: "equipo"     },
+      ].map(s => {
+        const active = currentTab === s.tab || (!currentTab && s.tab === "general");
+        return (
+          <Link key={s.href} href={s.href} style={{
+            padding: "7px 16px", borderRadius: 9999, textDecoration: "none",
+            font: `${active ? 700 : 500} 0.8rem/1 ${fd}`,
+            background: active ? "#1A1D23" : "rgba(0,0,0,0.07)",
+            color: active ? "#FFFFFF" : "#6B7280",
+            transition: "all .15s", whiteSpace: "nowrap",
+          }}>
+            {s.label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+const SB_FULL      = 240;
+const SB_COLLAPSED = 64;
+const fd           = "var(--font-inter, 'Inter', sans-serif)";
+const fb           = "var(--font-inter, 'Inter', sans-serif)";
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router   = useRouter();
+  const pathname = usePathname();
+  const isVaultRoute  = pathname.startsWith("/dashboard/boveda");
+  const isFlujosRoute = pathname.startsWith("/dashboard/automatizaciones/flujos");
+
+  const [isMobile,         setIsMobile]         = useState(false);
+  const [mobileNavOpen,    setMobileNavOpen]    = useState(false);
+  const [collapsed,        setCollapsed]        = useState(false);
+  const [menuOpen,         setMenuOpen]         = useState(false);
+  const [userName,         setUserName]         = useState("Admin");
+  const [userInitials,     setUserInitials]     = useState("FG");
+  const [prospectBadge,    setProspectBadge]    = useState(0);
+  const [hasPendingReports, setHasPendingReports] = useState(false);
+  const [trialDaysLeft,    setTrialDaysLeft]    = useState<number | null>(null);
+  const [trialExpired,     setTrialExpired]     = useState(false);
+  const [isSubscribed,     setIsSubscribed]     = useState(false);
+  const [isAnnual,         setIsAnnual]         = useState(false);
+  const [showTrialBanner,  setShowTrialBanner]  = useState(false);
+  const [showAnnualUpsell, setShowAnnualUpsell] = useState(false);
+  const [showTrialModal,   setShowTrialModal]   = useState(false);
+  const [feedbackOpen,    setFeedbackOpen]    = useState(false);
+  const [feedbackText,    setFeedbackText]    = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackDone,    setFeedbackDone]    = useState(false);
+  const [gymLogoUrl,       setGymLogoUrl]       = useState<string | null>(null);
+  const [gymDisplayName,   setGymDisplayName]   = useState<string | null>(null);
+  const [gymSlug,          setGymSlug]          = useState<string | null>(null);
+  const [planType,         setPlanType]         = useState<string | null>(null);
+  const [waDisconnected,    setWaDisconnected]    = useState(false);
+  const [waBannerDismissed, setWaBannerDismissed] = useState(false);
+  const [diasGraciaRestantes, setDiasGraciaRestantes] = useState(0);
+  const [enGracia, setEnGracia] = useState(false);
+  const [showGraceModal, setShowGraceModal] = useState(false);
+
+  const menuRef    = useRef<HTMLDivElement>(null);
+  const notifRef   = useRef<HTMLDivElement>(null);
+  const notifDropdownRef = useRef<HTMLDivElement>(null);
+  const mainRef    = useRef<HTMLDivElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  const [notifOpen,   setNotifOpen]   = useState(false);
+  const [gymId,       setGymId]       = useState<string | null>(null);
+  const { notifs, setNotifs, ensureLoaded, notifLoadedGymId } = useNotificationPolling(gymId);
+  const [role,        setRole]        = useState<"admin" | "staff" | "platform_owner">("admin");
+  const [impersonatedGym, setImpersonatedGym] = useState<ImpersonatedGym | null>(null);
+  const [roleLoaded,  setRoleLoaded]  = useState(false);
+  const [attractOpen, setAttractOpen] = useState(() => ATTRACT_ROUTES.some(r => pathname.startsWith(r)));
+  const [configOpen,  setConfigOpen]  = useState(() => pathname.startsWith("/dashboard/ajustes"));
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const onScroll = () => setScrolled(el.scrollTop > 8);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Close mobile nav on route change
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setMobileNavOpen(false);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [pathname]);
+
+  // Warm dashboard cache in background 1.5 s after layout mounts
+  useEffect(() => {
+    const t = window.setTimeout(() => void prefetchDashboard(), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  // Staff route protection — only runs after role is confirmed from DB
+  useEffect(() => {
+    if (!roleLoaded) return;
+    if (role !== "staff") return;
+    if (pathname === "/dashboard") {
+      router.replace("/dashboard/scanner");
+      return;
+    }
+    const allowed = STAFF_ALLOWED_ROUTES.some(r =>
+      pathname.startsWith(r)
+    );
+    if (!allowed) router.replace("/dashboard/scanner");
+  }, [role, roleLoaded, pathname, router]);
+
+  // Fetch user + trial info once
+  useEffect(() => {
+    (async () => {
+      const cachedProfile = await getCachedProfile();
+      if (!cachedProfile) {
+        setRoleLoaded(true);
+        router.replace("/start?login=1");
+        return;
+      }
+      const gymIdVal = cachedProfile.gymId;
+      const userIdVal = cachedProfile.userId;
+      const roleVal = cachedProfile.role as "admin" | "staff" | "platform_owner";
+
+      setGymId(gymIdVal);
+      setRole(roleVal);
+      setRoleLoaded(true);
+
+      if (roleVal === "platform_owner") {
+        setImpersonatedGym(getImpersonatedGym());
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Actualiza last_seen_at en platform_accounts (fire-and-forget, no bloquea)
+      fetch("/api/platform/ping", { method: "POST" }).catch(() => {});
+
+      const [{ count }, { data: profile }, { data: settings }] = await Promise.all([
+        supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", gymIdVal).eq("status", "pendiente"),
+        supabase.from("profiles").select("gym_id, gyms(trial_expires_at, is_subscription_active, plan_type, gym_status, subscription_type)").eq("id", userIdVal).maybeSingle(),
+        supabase.from("gym_settings").select("logo_url, gym_name, owner_name, wa_status, slug").eq("gym_id", gymIdVal).maybeSingle(),
+      ]);
+
+      setProspectBadge(count ?? 0);
+      setGymLogoUrl(settings?.logo_url ?? null);
+      setGymDisplayName(settings?.gym_name ?? null);
+      setGymSlug(settings?.slug ?? null);
+      if (["needs_reauth", "disconnected"].includes(settings?.wa_status ?? "")) {
+        setWaDisconnected(true);
+      }
+      const displayName = settings?.owner_name?.trim() || user?.email?.split("@")[0] || "Admin";
+      setUserName(displayName);
+      setUserInitials(displayName.split(" ").map((part: string) => part[0]).join("").slice(0, 2).toUpperCase());
+
+      const gym = getGymSummary(profile?.gyms);
+
+      if (gym) {
+        const subscribed = Boolean(gym.is_subscription_active);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const subType = (gym as any).subscription_type ?? "monthly";
+        setIsSubscribed(subscribed);
+        setIsAnnual(subType === "annual");
+        setPlanType((gym as any).plan_type ?? null);
+        if (subscribed && subType !== "annual") {
+          const upsellDismissed = localStorage.getItem("fitgrowx_annual_upsell_dismissed");
+          if (upsellDismissed !== new Date().toDateString()) setShowAnnualUpsell(true);
+        }
+        if (!subscribed) {
+          if (gym.trial_expires_at) {
+            const diff = new Date(gym.trial_expires_at).getTime() - Date.now();
+            const left = Math.max(0, Math.ceil(diff / 86_400_000));
+            const expired = diff <= 0;
+            setTrialDaysLeft(left);
+            setTrialExpired(expired);
+
+            // Período de gracia: días 1-3 post-vencimiento
+            if (expired) {
+              const trialExpireTime = new Date(gym.trial_expires_at).getTime();
+              const nowTime = Date.now();
+              const diasDesdeVencimiento = Math.floor((nowTime - trialExpireTime) / 86_400_000);
+              const graceDaysRemaining = Math.max(0, 3 - diasDesdeVencimiento);
+              setDiasGraciaRestantes(graceDaysRemaining);
+              setEnGracia(graceDaysRemaining >= 1 && graceDaysRemaining <= 3);
+            }
+
+            if (!expired && left <= 6) setShowTrialBanner(true);
+            if (!expired && left <= 3) {
+              const dismissKey = `fitgrowx_trial_modal_d${left}`;
+              const dismissed = localStorage.getItem(dismissKey);
+              if (dismissed !== new Date().toDateString()) setShowTrialModal(true);
+            }
+          } else {
+            // Sin trial activo y sin suscripción → suscripción cancelada / pago fallido
+            setTrialExpired(true);
+          }
+        }
+      }
+    })();
+  }, [router]);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (
+        notifRef.current && !notifRef.current.contains(e.target as Node) &&
+        notifDropdownRef.current && !notifDropdownRef.current.contains(e.target as Node)
+      ) setNotifOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Fetch notifications lazily when panel first opens
+  useEffect(() => {
+    if (!gymId || !notifOpen) return;
+    void ensureLoaded(gymId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gymId, notifOpen]);
+
+  // Check for pending reports on load
+  useEffect(() => {
+    if (!gymId) return;
+
+    const checkPending = async () => {
+      try {
+        const response = await fetch(`/api/admin/reportes/check-pending`);
+        const data = await response.json();
+        if (data.ok) {
+          setHasPendingReports(data.hasPendingReports ?? false);
+        }
+      } catch {}
+    };
+
+    checkPending();
+  }, [gymId]);
+
+  // Show Grace Period Modal (2x per day)
+  useEffect(() => {
+    if (!enGracia || !roleLoaded) return;
+
+    // Calcular slot actual (AM/PM)
+    const timeStr = getCurrentTime(DEFAULT_APP_TIME_ZONE);
+    const hour = parseInt(timeStr.split(":")[0], 10);
+    const slot = hour < 16 ? "AM" : "PM";
+
+    // Leer localStorage
+    const dismissed = localStorage.getItem("gracePeriodDismissed");
+    const today = getTodayDate(DEFAULT_APP_TIME_ZONE);
+
+    // Mostrar si no fue dismissido hoy en este slot
+    if (dismissed !== `${today}:${slot}`) {
+      setShowGraceModal(true);
+    }
+  }, [enGracia, roleLoaded]);
+
+  const unreadCount = notifs.filter(n => !n.read).length;
+  const notificationsNowMs = notifs.length > 0 ? new Date(notifs[0].created_at).getTime() : 0;
+
+  const handleOpenNotifs = () => {
+    setNotifOpen(o => !o);
+    // Mark all as read when opening
+    if (!notifOpen && unreadCount > 0 && gymId) {
+      fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ gym_id: gymId }) })
+        .then(() => setNotifs(prev => prev.map(n => ({ ...n, read: true }))))
+        .catch(() => {});
+    }
+  };
+
+  const notifIconMap: Record<string, React.ReactNode> = {
+    new_alumno:    <UserPlus size={13} color="#1A1D23" />,
+    new_payment:   <DollarSign size={13} color="#1A1D23" />,
+    new_prospecto: <Inbox size={13} color="#6ea8fe" />,
+    wa_disconnected: <Bell size={13} color="#EF4444" />,
+  };
+
+  const timeAgo = (iso: string) => {
+    const diff = notificationsNowMs - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "ahora";
+    if (m < 60) return `hace ${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `hace ${h}h`;
+    return `hace ${Math.floor(h / 24)}d`;
+  };
+
+  const handleSignOut = async () => {
+    setMenuOpen(false);
+    await supabase.auth.signOut();
+    router.push("/start");
+    router.refresh();
+  };
+
+  const w = collapsed ? SB_COLLAPSED : SB_FULL;
+
+  const isActive = (href: string) =>
+    href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+
+  const navItemStyle = (href: string): React.CSSProperties => ({
+    borderRadius: 10,
+    padding: (!isMobile && collapsed) ? "10px 0" : "10px 14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
+    gap: 11,
+    fontSize: "0.875rem",
+    fontWeight: isActive(href) ? 600 : 500,
+    cursor: "pointer",
+    transition: "all 0.14s",
+    textDecoration: "none",
+    fontFamily: fb,
+    position: "relative",
+    background: isActive(href) ? "rgba(255,122,24,0.16)" : "transparent",
+    color: isActive(href) ? "#FFFFFF" : "rgba(255,255,255,0.50)",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+  });
+
+  const logoutStyle: React.CSSProperties = {
+    borderRadius: 10,
+    padding: (!isMobile && collapsed) ? "10px 0" : "10px 14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
+    gap: 11,
+    fontSize: "0.875rem",
+    fontWeight: 500,
+    cursor: "pointer",
+    transition: "all 0.14s",
+    background: "transparent",
+    color: "rgba(255,255,255,0.50)",
+    border: "none",
+    textAlign: "left",
+    width: "100%",
+    fontFamily: fb,
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+  };
+
+
+  // Grace Period Modal Component
+  const GracePeriodModal = () => {
+    const handleClose = () => {
+      const today = getTodayDate(DEFAULT_APP_TIME_ZONE);
+      const timeStr = getCurrentTime(DEFAULT_APP_TIME_ZONE);
+      const hour = parseInt(timeStr.split(":")[0], 10);
+      const slot = hour < 16 ? "AM" : "PM";
+      localStorage.setItem("gracePeriodDismissed", `${today}:${slot}`);
+      setShowGraceModal(false);
+    };
+
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ background: "rgba(255,255,255,0.7)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 24, padding: "36px 32px", maxWidth: 420, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.1)" }}>
+
+          <h2 style={{ font: `800 1.4rem/1.2 ${fd}`, color: "#0F172A", textAlign: "center", marginBottom: 10 }}>Tu prueba terminó</h2>
+          <p style={{ font: `400 0.95rem/1.6 ${fd}`, color: "#475569", textAlign: "center", marginBottom: 28 }}>
+            Tenés <strong>{diasGraciaRestantes}</strong> día{diasGraciaRestantes !== 1 ? "s" : ""} para activar tu plan sin perder acceso a tu información.
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <button
+              onClick={() => {
+                handleClose();
+                router.push("/dashboard/planes");
+              }}
+              style={{ padding: "13px", borderRadius: 13, background: "#F97316", color: "white", border: "none", font: `700 0.9rem/1 ${fd}`, cursor: "pointer", textAlign: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#EA7317")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#F97316")}
+            >
+              Activar mi plan ahora
+            </button>
+            <button
+              onClick={handleClose}
+              style={{ padding: "11px", borderRadius: 13, background: "#1A1D23", color: "white", border: "none", font: `500 0.9rem/1 ${fd}`, cursor: "pointer", textAlign: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#0F1115")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#1A1D23")}
+            >
+              Ahora no, recordame más tarde
+            </button>
+          </div>
+
+          <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280", textAlign: "center", marginTop: 18 }}>
+            Tu acceso sigue activo. Activá tu plan para no perder datos.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // Grace Period Banner Component
+  const GracePeriodBanner = () => {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+        background: "#FEE2E2",
+        borderBottom: "1px solid #FCA5A5",
+        flexShrink: 0,
+        position: "sticky", top: 0, zIndex: 5,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 14 }}>⚠️</span>
+          <span style={{ font: `600 0.85rem/1 ${fd}`, color: "#991B1B" }}>
+            Tu prueba terminó. Te quedan <strong>{diasGraciaRestantes}</strong> día{diasGraciaRestantes !== 1 ? "s" : ""} para activar tu plan.
+          </span>
+        </div>
+        <Link href="/dashboard/planes" style={{
+          font: `700 0.8rem/1 ${fd}`, color: "#DC2626", textDecoration: "underline", whiteSpace: "nowrap"
+        }}>
+          Activar ahora →
+        </Link>
+      </div>
+    );
+  };
+
+  if (!roleLoaded) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#0D0F12" }}>
+        <div style={{ width: 24, height: 24, border: "2px solid rgba(255,255,255,0.12)", borderTopColor: "rgba(255,255,255,0.6)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  return (
+    <DashboardPwaShell>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#0D0F12" }}>
+
+      {/* ── Mobile backdrop ── */}
+      {isMobile && mobileNavOpen && (
+        <div
+          onClick={() => setMobileNavOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 90,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+        />
+      )}
+
+      {/* ── Sidebar ── */}
+      <aside style={{
+        background: "#080909",
+        width: isMobile ? "min(86vw, 320px)" : w,
+        height: "100vh",
+        minHeight: "100vh",
+        position: isMobile ? "fixed" : "relative",
+        top: 0,
+        left: 0,
+        zIndex: isMobile ? 100 : 2,
+        flexShrink: 0,
+        borderRadius: isMobile ? "0 20px 20px 0" : 0,
+        borderRight: "1px solid rgba(255,255,255,0.05)",
+        display: isMobile ? (mobileNavOpen ? "flex" : "none") : "flex",
+        flexDirection: "column",
+        padding: (!isMobile && collapsed) ? "26px 8px" : "26px 16px",
+        overflow: "hidden",
+        transition: "width 0.22s cubic-bezier(0.4,0,0.2,1), padding 0.22s cubic-bezier(0.4,0,0.2,1)",
+      }}>
+
+        {/* Logo + collapse/close toggle */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: (!isMobile && collapsed) ? "center" : "space-between", marginBottom: 32, padding: "0 2px", gap: 8, minHeight: 40, position: "relative", zIndex: 1 }}>
+          {(isMobile || !collapsed) && (
+            <Link href="/dashboard" style={{ flexShrink: 0, textDecoration: "none", color: "inherit", cursor: "pointer" }}>
+              {gymDisplayName
+                ? <span style={{ font: `800 1.05rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", fontStyle: "italic" }}>
+                    {gymDisplayName.split(" ").slice(0, -1).join(" ")}{gymDisplayName.split(" ").length > 1 ? " " : ""}
+                    <span style={{ color: "#F97316" }}>{gymDisplayName.split(" ").slice(-1)[0]}</span>
+                  </span>
+                : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={500} height={150} style={{ height: 36, width: "auto", objectFit: "contain", display: "block", filter: "drop-shadow(0 2px 18px rgba(0,0,0,0.90)) drop-shadow(0 1px 6px rgba(0,0,0,0.70))" }} priority unoptimized />
+              }
+            </Link>
+          )}
+          <button
+            onClick={() => isMobile ? setMobileNavOpen(false) : setCollapsed(c => !c)}
+            title={isMobile ? "Cerrar" : (collapsed ? "Expandir" : "Colapsar")}
+            style={{ width: 28, height: 28, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.55)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "background 0.14s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "white"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+          >
+            {isMobile ? <X size={14} /> : (collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />)}
+          </button>
+        </div>
+
+        {/* Nav top */}
+        <style>{`
+          .sb-nav::-webkit-scrollbar { width: 3px; }
+          .sb-nav::-webkit-scrollbar-track { background: transparent; }
+          .sb-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+          .sb-nav { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.12) transparent; }
+          .sb-nav-active::before {
+            content: "";
+            position: absolute;
+            left: 0; top: 18%; bottom: 18%;
+            width: 3px;
+            border-radius: 0 2px 2px 0;
+            background: #FF7A18;
+          }
+          .sb-item:not(.sb-nav-active):hover {
+            color: rgba(255,255,255,0.88) !important;
+            background: rgba(255,255,255,0.05) !important;
+          }
+          @keyframes notifBellPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+          }
+          .notif-bell-active {
+            animation: notifBellPulse 2s ease-in-out infinite;
+          }
+        `}</style>
+        <nav className="sb-nav" style={{ display: "flex", flexDirection: "column", gap: 0, flex: 1, overflowY: "auto", position: "relative", zIndex: 1 }}>
+          {(role === "staff" ? NAV_SECTIONS_STAFF : NAV_SECTIONS_ADMIN).map(({ section, items }) => (
+            <div key={section || "__nosection"} style={{ marginBottom: 2 }}>
+              {section && (isMobile || !collapsed) ? (
+                <p style={{ font: `600 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", letterSpacing: "0.1em", textTransform: "uppercase" as const, padding: "12px 14px 4px", margin: 0 }}>
+                  {section}
+                </p>
+              ) : section ? (
+                <div style={{ margin: "8px 0 3px", borderTop: "1px solid rgba(255,255,255,0.07)" }} />
+              ) : null}
+
+              {items.map((item) => {
+                const Icon = item.icon;
+
+                /* ── Collapsible group ── */
+                if (item.sub) {
+                  const isAttract = item.href === "/dashboard/prospectos";
+                  const open      = isAttract ? attractOpen : configOpen;
+                  const setOpen   = isAttract ? setAttractOpen : setConfigOpen;
+                  const anyActive = item.sub.some(s => pathname.startsWith(s.href.split("?")[0]) && (isAttract || pathname === "/dashboard/ajustes"));
+
+                  if (!isMobile && collapsed) {
+                    return (
+                      <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={`sb-item${isActive(item.href) ? " sb-nav-active" : ""}`} title={item.label}>
+                        <Icon size={16} style={{ opacity: anyActive ? 1 : 0.65, flexShrink: 0 }} />
+                      </Link>
+                    );
+                  }
+                  return (
+                    <div key={item.href}>
+                      <button
+                        onClick={() => { if (!open) router.push(item.sub![0].href); setOpen(o => !o); }}
+                        style={{
+                          borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center",
+                          gap: 11, width: "100%", border: "none", textAlign: "left" as const, cursor: "pointer",
+                          background: anyActive ? "rgba(255,122,24,0.16)" : "transparent",
+                          color: anyActive ? "#FFFFFF" : "rgba(255,255,255,0.50)",
+                          fontFamily: fb, fontSize: "0.875rem", fontWeight: anyActive ? 600 : 500,
+                          transition: "all 0.14s",
+                        }}
+                      >
+                        <Icon size={16} style={{ opacity: anyActive ? 1 : 0.65, flexShrink: 0 }} />
+                        <span style={{ flex: 1 }}>{item.label}</span>
+                        {isAttract && prospectBadge > 0 && !open && (
+                          <span style={{ background: "#1A1D23", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
+                            {prospectBadge}
+                          </span>
+                        )}
+                        <ChevronDown size={12} style={{ opacity: 0.4, flexShrink: 0, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+                      </button>
+                      {open && (
+                        <div style={{ paddingLeft: 14, marginBottom: 2 }}>
+                          {item.sub.map(s => {
+                            const subActive = pathname.startsWith(s.href.split("?")[0]) && (!s.href.includes("?") || true);
+                            return (
+                              <Link key={s.href} href={s.href} style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: "7px 10px 7px 14px",
+                                borderLeft: `2px solid ${subActive ? "rgba(255,255,255,0.50)" : "rgba(255,255,255,0.09)"}`,
+                                borderRadius: "0 8px 8px 0", marginBottom: 1,
+                                textDecoration: "none", fontSize: "0.82rem",
+                                fontWeight: subActive ? 600 : 400, fontFamily: fb,
+                                color: subActive ? "#FFFFFF" : "rgba(255,255,255,0.42)",
+                                background: subActive ? "rgba(255,255,255,0.05)" : "transparent",
+                                transition: "all 0.12s",
+                              }}>
+                                <span style={{ flex: 1 }}>{s.label}</span>
+                                {s.href === "/dashboard/prospectos" && prospectBadge > 0 && (
+                                  <span style={{ background: "#1A1D23", color: "white", borderRadius: 9999, fontSize: "0.6rem", fontWeight: 700, fontFamily: fd, padding: "2px 6px", lineHeight: 1.4 }}>
+                                    {prospectBadge}
+                                  </span>
+                                )}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                /* ── Regular item ── */
+                return (
+                  <Link key={item.href} href={item.href} style={navItemStyle(item.href)} className={`sb-item${isActive(item.href) ? " sb-nav-active" : ""}`} title={(!isMobile && collapsed) ? item.label : undefined} onMouseEnter={() => prefetchRoute(item.href)}>
+                    <Icon size={16} style={{ opacity: isActive(item.href) ? 1 : 0.65, flexShrink: 0 }} />
+                    {(isMobile || !collapsed) && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+                        <span style={{ flex: 1 }}>{item.label}</span>
+                        {item.href === "/dashboard/reportes" && hasPendingReports && (
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF7A18", flexShrink: 0 }} />
+                        )}
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        <div style={{ marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 8, position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+          {role === "admin" && (
+            <>
+              <Link
+                href="/reseller"
+                title={(!isMobile && collapsed) ? "Ganá comisiones" : undefined}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px",
+                  justifyContent: (!isMobile && collapsed) ? "center" : "flex-start",
+                  borderRadius: 10, textDecoration: "none",
+                  background: "linear-gradient(90deg, rgba(255,122,24,0.14) 0%, rgba(0,0,0,0) 100%)",
+                  border: "1px solid rgba(255,122,24,0.10)",
+                  transition: "all 0.15s",
+                  marginBottom: 2,
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(90deg, rgba(255,122,24,0.22) 0%, rgba(0,0,0,0) 100%)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(90deg, rgba(255,122,24,0.14) 0%, rgba(0,0,0,0) 100%)"; }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF7A18", flexShrink: 0, boxShadow: "0 0 6px #FF7A18" }} />
+                {(isMobile || !collapsed) && (
+                  <>
+                    <span style={{ font: `600 0.825rem/1 ${fd}`, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap", flex: 1 }}>
+                      Ganá comisiones
+                    </span>
+                    <span style={{ font: `700 0.58rem/1 ${fd}`, color: "#FF7A18", background: "rgba(255,122,24,0.18)", border: "1px solid rgba(255,122,24,0.30)", borderRadius: 5, padding: "2px 5px", letterSpacing: "0.06em", flexShrink: 0 }}>
+                      NEW
+                    </span>
+                  </>
+                )}
+              </Link>
+            </>
+          )}
+          {gymSlug && (
+            <a
+              href="/dashboard/preview"
+              className="sb-item"
+              title={(!isMobile && collapsed) ? "Ver app del alumno" : undefined}
+              style={{ display: "flex", alignItems: "center", gap: 11, padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px", justifyContent: (!isMobile && collapsed) ? "center" : "flex-start", borderRadius: 10, textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, color: "rgba(255,255,255,0.50)", fontFamily: fb, transition: "all 0.14s", whiteSpace: "nowrap" }}
+            >
+              <Smartphone size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
+              {(isMobile || !collapsed) && <span>Ver app del alumno</span>}
+            </a>
+          )}
+          <a
+            href="https://wa.me/5491164893435"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sb-item"
+            title={(!isMobile && collapsed) ? "Soporte" : undefined}
+            style={{ display: "flex", alignItems: "center", gap: 11, padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px", justifyContent: (!isMobile && collapsed) ? "center" : "flex-start", borderRadius: 10, textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, color: "rgba(255,255,255,0.50)", fontFamily: fb, transition: "all 0.14s", whiteSpace: "nowrap" }}
+          >
+            <HelpCircle size={16} style={{ opacity: 0.65, flexShrink: 0 }} />
+            {(isMobile || !collapsed) && <span>Soporte</span>}
+          </a>
+          <button onClick={handleSignOut} style={logoutStyle} title={(!isMobile && collapsed) ? "Cerrar sesión" : undefined}>
+            <Power size={15} style={{ opacity: 0.55, flexShrink: 0 }} />
+            {(isMobile || !collapsed) && <span>Cerrar sesión</span>}
+          </button>
+        </div>
+
+      </aside>
+
+      {/* ── Main ── */}
+      <div ref={mainRef} style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, height: "100vh", overflowY: "auto", background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "#F6F6F4" }}>
+
+        {/* Topbar */}
+        <header style={{
+          display: "flex", alignItems: "center", gap: isMobile ? 8 : 14,
+          padding: isMobile ? "10px 14px" : "11px 20px",
+          margin: isMobile ? "0" : "12px 0 0",
+          position: "sticky", top: 0, zIndex: 10,
+          borderRadius: 0,
+          background: isMobile ? "#151515" : isFlujosRoute ? "rgba(13,15,18,0.92)" : "rgba(246,246,244,0.92)",
+          backdropFilter: "blur(20px) saturate(180%)",
+          WebkitBackdropFilter: "blur(20px) saturate(180%)",
+          boxShadow: isMobile ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 16px rgba(0,0,0,0.30)" : (scrolled ? (isFlujosRoute ? "0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.3)" : "0 1px 0 rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05)") : "0 1px 0 rgba(0,0,0,0.05)"),
+          transition: "background 0.25s ease, box-shadow 0.25s ease, backdrop-filter 0.25s ease, border-radius 0.25s ease",
+        }}>
+          {/* Mobile: show gym logo / brand in topbar instead of hamburger */}
+          {isMobile && (
+            <div style={{ flexShrink: 0 }}>
+              {gymDisplayName
+                ? <span style={{ font: `800 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", fontStyle: "italic" }}>
+                    {gymDisplayName.split(" ").slice(0, -1).join(" ")}{gymDisplayName.split(" ").length > 1 ? " " : ""}
+                    <span style={{ color: "#F97316" }}>{gymDisplayName.split(" ").slice(-1)[0]}</span>
+                  </span>
+                : <Image src="/images/logo-fondo-oscuro.png" alt="FitGrowX" width={300} height={90} style={{ height: 24, width: "auto", objectFit: "contain", display: "block" }} priority unoptimized />
+              }
+            </div>
+          )}
+
+          {/* Search — hidden on mobile */}
+          {!isMobile && (
+            <div style={{ position: "relative", flex: 1, maxWidth: 440 }}>
+              <Search size={15} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: isFlujosRoute ? "rgba(255,255,255,0.3)" : "#9CA3AF" }} />
+              <input style={{ width: "100%", padding: "9px 18px 9px 36px", background: isFlujosRoute ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)", border: isFlujosRoute ? "1px solid rgba(255,255,255,0.08)" : "none", borderRadius: 9999, fontSize: "0.85rem", color: isFlujosRoute ? "rgba(255,255,255,0.6)" : "#475569", outline: "none", fontFamily: fb }} placeholder="Buscar alumnos, planes..." />
+            </div>
+          )}
+
+          {/* Spacer on mobile to push actions right */}
+          {isMobile && <span style={{ flex: 1 }} />}
+
+<div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, marginLeft: isMobile ? 0 : "auto" }}>
+            {/* ── Notification Bell ── */}
+            <div ref={notifRef} style={{ position: "relative" }}>
+              <button
+                className={unreadCount > 0 ? "notif-bell-active" : ""}
+                onClick={handleOpenNotifs}
+                style={{ position: "relative", background: isMobile ? "rgba(255,255,255,0.06)" : "none", border: isMobile ? "1px solid rgba(255,255,255,0.08)" : "none", cursor: "pointer", color: isMobile ? "rgba(255,255,255,0.78)" : (isFlujosRoute ? "rgba(255,255,255,0.4)" : "#6B7280"), padding: isMobile ? "0 12px" : 5, minWidth: isMobile ? 44 : undefined, minHeight: 44, borderRadius: isMobile ? 14 : undefined, display: "flex", alignItems: "center", justifyContent: "center", transformOrigin: "center" }}
+              >
+                <Bell size={19} />
+                {unreadCount > 0 && (
+                  <span style={{ position: "absolute", top: 3, right: 3, width: 8, height: 8, background: "#DC2626", borderRadius: "50%", border: `2px solid ${isMobile ? "#151515" : isFlujosRoute ? "#0D0F12" : "white"}`, boxShadow: "0 0 8px rgba(220, 38, 38, 0.5)" }} />
+                )}
+              </button>
+
+              {notifOpen && typeof document !== "undefined" && createPortal(
+                <div ref={notifDropdownRef} style={{
+                  position: "fixed", top: isMobile ? "calc(100% + 16px)" : "auto", right: isMobile ? 12 : 20,
+                  bottom: isMobile ? "auto" : 20,
+                  width: isMobile ? "calc(100vw - 24px)" : 420,
+                  maxWidth: isMobile ? "calc(100vw - 24px)" : 420,
+                  maxHeight: isMobile ? "calc(100vh - 140px)" : "calc(100vh - 120px)",
+                  background: "#FFFFFF",
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  borderRadius: 16,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+                  zIndex: 9999,
+                  overflow: "hidden",
+                  animation: "dropIn 0.16s cubic-bezier(0.34,1.56,0.64,1) both",
+                  display: "flex",
+                  flexDirection: "column",
+                }}>
+                  <div style={{ padding: isMobile ? "12px 14px 10px" : "14px 16px 10px", borderBottom: "1px solid rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                    <span style={{ font: `700 ${isMobile ? "0.8rem" : "0.875rem"}/1 ${fd}`, color: "#1A1D23", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Notificaciones</span>
+                    {notifs.length > 0 && (
+                      <span style={{ font: `500 0.72rem/1 ${fd}`, color: "#9CA3AF", flexShrink: 0 }}>{notifs.length}</span>
+                    )}
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+                    {notifs.length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center" }}>
+                        <Bell size={28} color="#D1D5DB" style={{ margin: "0 auto 10px", display: "block" }} />
+                        <p style={{ font: `500 0.82rem/1 ${fd}`, color: "#9CA3AF", margin: 0 }}>Sin notificaciones</p>
+                      </div>
+                    ) : (
+                      notifs.map(n => (
+                        <div key={n.id} style={{
+                          display: "flex", gap: isMobile ? 8 : 10, padding: isMobile ? "10px 12px" : "11px 16px",
+                          borderBottom: "1px solid rgba(0,0,0,0.04)",
+                          background: n.read ? "transparent" : "rgba(0,0,0,0.02)",
+                          transition: "background 0.12s",
+                        }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: (n.type === "new_alumno" || n.type === "new_payment") ? "rgba(0,0,0,0.06)" : "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            {notifIconMap[n.type] ?? <Bell size={13} color="#6B7280" />}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, font: `600 ${isMobile ? "0.75rem" : "0.82rem"}/1.2 ${fd}`, color: "#1A1D23", wordBreak: "break-word" }}>{n.title}</p>
+                            {n.body && (
+                              n.link
+                                ? <Link href={n.link} style={{ margin: "2px 0 0", display: "block", font: `400 0.75rem/1.4 ${fd}`, color: "#1A1D23", textDecoration: "underline", wordBreak: "break-word" }}>{n.body}</Link>
+                                : <p style={{ margin: "2px 0 0", font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280", wordBreak: "break-word" }}>{n.body}</p>
+                            )}
+                            <p style={{ margin: "4px 0 0", font: `400 0.7rem/1 ${fd}`, color: "#9CA3AF", flexShrink: 0 }}>{timeAgo(n.created_at)}</p>
+                          </div>
+                          {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#DC2626", flexShrink: 0, marginTop: 6 }} />}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>,
+                document.body
+              )}
+            </div>
+
+            {/* ── Profile dropdown ── */}
+            <div ref={menuRef} style={{ position: "relative" }}>
+              <button
+                onClick={() => setMenuOpen(o => !o)}
+                style={{ display: "flex", alignItems: "center", gap: 8, minHeight: isMobile ? 44 : undefined, background: menuOpen ? (isMobile ? "rgba(255,255,255,0.08)" : "#F4F5F9") : "none", border: menuOpen ? (isMobile ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(0,0,0,0.08)") : "1px solid transparent", borderRadius: 10, padding: isMobile ? "5px 10px 5px 5px" : "5px 8px 5px 5px", cursor: "pointer", transition: "all 0.14s" }}
+                onMouseEnter={e => { if (!menuOpen) e.currentTarget.style.background = isMobile ? "rgba(255,255,255,0.08)" : "#F4F5F9"; }}
+                onMouseLeave={e => { if (!menuOpen) e.currentTarget.style.background = "none"; }}
+              >
+                {/* Avatar */}
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.65rem", color: "white", flexShrink: 0, fontFamily: fd }}>
+                  {userInitials}
+                </div>
+                {!isMobile && <span style={{ fontWeight: 600, fontSize: "0.875rem", color: isFlujosRoute ? "rgba(255,255,255,0.75)" : "#1A1D23", whiteSpace: "nowrap", fontFamily: fd }}>{userName}</span>}
+                {!isMobile && <ChevronDown size={13} color={isFlujosRoute ? "rgba(255,255,255,0.3)" : "#9CA3AF"} style={{ transition: "transform 0.18s", transform: menuOpen ? "rotate(180deg)" : "rotate(0deg)" }} />}
+              </button>
+
+              {/* Dropdown */}
+              {menuOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 8px)", right: 0,
+                  width: isMobile ? "min(280px, calc(100vw - 28px))" : 280,
+                  background: "#FFFFFF",
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  borderRadius: 14,
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+                  zIndex: 50,
+                  overflow: "hidden",
+                  animation: "dropIn 0.16s cubic-bezier(0.34,1.56,0.64,1) both",
+                }}>
+                  <style>{`
+                    @keyframes dropIn {
+                      from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+                      to   { opacity: 1; transform: translateY(0)   scale(1); }
+                    }
+                  `}</style>
+
+                  {/* User info */}
+                  <div style={{ padding: "14px 16px", borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.68rem", color: "white", flexShrink: 0, fontFamily: fd }}>
+                        {userInitials}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ font: `700 0.875rem/1 ${fd}`, color: "#1A1D23", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</p>
+                        <p style={{ font: `400 0.72rem/1 ${fb}`, color: "#9CA3AF", marginTop: 3 }}>{role === "staff" ? "Staff" : "Administrador"}</p>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Menu items */}
+                  <div style={{ padding: "6px" }}>
+                    {role === "admin" && (
+                      <Link
+                        href="/dashboard/planes"
+                        onClick={() => setMenuOpen(false)}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, textDecoration: "none", color: "#1A1D23", font: `500 0.845rem/1 ${fb}`, transition: "background 0.12s" }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "#F4F5F9")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,0,0,0.06)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Zap size={13} color="#1A1D23" />
+                        </div>
+                        Planes y Suscripción
+                      </Link>
+                    )}
+                  </div>
+
+                  {/* Sign out */}
+                  <div style={{ padding: "6px", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+                    <button
+                      onClick={handleSignOut}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", borderRadius: 9, width: "100%", background: "none", border: "none", cursor: "pointer", color: "#DC2626", font: `500 0.845rem/1 ${fb}`, textAlign: "left", transition: "background 0.12s" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(220,38,38,0.06)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(220,38,38,0.07)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <LogOut size={13} color="#DC2626" />
+                      </div>
+                      Cerrar sesión
+                    </button>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* ── Impersonation banner ── */}
+        {role === "platform_owner" && impersonatedGym && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: "rgba(37,99,235,0.07)",
+            borderBottom: "1px solid rgba(37,99,235,0.18)",
+            flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
+          }}>
+            <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#2563EB" }}>
+              Viendo dashboard de <strong>{impersonatedGym.gym_name}</strong> como plataforma
+            </span>
+            <button
+              onClick={() => { clearImpersonation(); router.push("/platform"); }}
+              style={{ font: `700 0.72rem/1 ${fd}`, color: "white", background: "#2563EB", padding: "5px 12px", borderRadius: 9999, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              Salir
+            </button>
+          </div>
+        )}
+
+        {/* ── WA disconnected banner ── */}
+        {role === "admin" && waDisconnected && !waBannerDismissed && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: "rgba(220,38,38,0.06)",
+            borderBottom: "1px solid rgba(220,38,38,0.16)",
+            flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <AlertTriangle size={13} color="#DC2626" />
+              <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#DC2626" }}>
+                {isMobile ? "WhatsApp desconectado — los mensajes automáticos están pausados." : "WhatsApp desconectado — ningún mensaje automático se está enviando. Reconectá para reanudar."}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href="/dashboard/ajustes?tab=conexiones" style={{
+                font: `700 0.72rem/1 ${fd}`, color: "white",
+                background: "#DC2626",
+                padding: "5px 12px", borderRadius: 9999, textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>Reconectar</Link>
+              <button onClick={() => setWaBannerDismissed(true)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", display: "flex", padding: 2 }}>
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Grace Period Banner ── */}
+        {role === "admin" && enGracia && !pathname.startsWith("/dashboard/planes") && !pathname.startsWith("/dashboard/suscripcion") && (
+          <GracePeriodBanner />
+        )}
+
+        {/* ── Trial countdown banner (day 10+) ── */}
+        {role === "admin" && showTrialBanner && trialDaysLeft !== null && trialDaysLeft > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: trialDaysLeft <= 2 ? "rgba(220,38,38,0.07)" : "rgba(217,119,6,0.07)",
+            borderBottom: `1px solid ${trialDaysLeft <= 2 ? "rgba(220,38,38,0.18)" : "rgba(217,119,6,0.18)"}`,
+            flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Clock size={13} color={trialDaysLeft <= 2 ? "#DC2626" : "#D97706"} />
+              <span style={{ font: `500 0.8rem/1 ${fd}`, color: trialDaysLeft <= 2 ? "#DC2626" : "#D97706" }}>
+                Tu prueba vence en{" "}
+                <strong>{trialDaysLeft} día{trialDaysLeft !== 1 ? "s" : ""}</strong>.
+                Suscribite para no perder el acceso.
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href="/dashboard/suscripcion" style={{
+                font: `700 0.72rem/1 ${fd}`, color: "white",
+                background: trialDaysLeft <= 2 ? "#DC2626" : "#D97706",
+                padding: "5px 12px", borderRadius: 9999, textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>Ver planes</Link>
+              <button onClick={() => setShowTrialBanner(false)} style={{ background: "none", border: "none", cursor: "pointer", color: trialDaysLeft <= 2 ? "#DC2626" : "#D97706", display: "flex", padding: 2 }}>
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Annual upsell banner (monthly subscribers only) ── */}
+        {role === "admin" && isSubscribed && !isAnnual && showAnnualUpsell && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            gap: 8, padding: isMobile ? "8px 14px" : "9px 20px",
+            background: "rgba(249,115,22,0.06)",
+            borderBottom: "1px solid rgba(249,115,22,0.15)",
+            flexShrink: 0,
+            position: "sticky", top: 0, zIndex: 5,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 14 }}>🎁</span>
+              <span style={{ font: `500 0.8rem/1 ${fd}`, color: "#C2410C" }}>
+                {isMobile ? "Plan anual · 2 meses gratis" : "Plan anual · 2 meses gratis · pago único · Sin cambios en tu workflow."}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href="/dashboard/suscripcion?billing=anual" style={{
+                font: `700 0.72rem/1 ${fd}`, color: "white",
+                background: "#F97316",
+                padding: "5px 12px", borderRadius: 9999, textDecoration: "none",
+                whiteSpace: "nowrap",
+              }}>Ver oferta</Link>
+              <button onClick={() => { setShowAnnualUpsell(false); localStorage.setItem("fitgrowx_annual_upsell_dismissed", new Date().toDateString()); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#C2410C", display: "flex", padding: 2 }}>
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Page content */}
+        <main style={{ flex: 1, padding: isFlujosRoute ? "12px 12px 12px" : (isMobile ? "12px 10px calc(96px + env(safe-area-inset-bottom, 0px))" : "20px 20px 28px"), display: "flex", flexDirection: "column", gap: isFlujosRoute ? 10 : (isMobile ? 14 : 18), background: isVaultRoute ? "#ECEFF3" : isFlujosRoute ? "#0D0F12" : "transparent", overflowX: "hidden", minWidth: 0 }}>
+
+          {/* ── Sub-nav shortcut bar (Atraer Clientes) ── */}
+          {ATTRACT_ROUTES.some(r => pathname.startsWith(r)) && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: -4 }}>
+              {[
+                { href: "/dashboard/prospectos", label: "Prospectos" },
+                { href: "/dashboard/landing",    label: "Mi Web"     },
+              ].map(s => {
+                const active = pathname.startsWith(s.href);
+                return (
+                  <Link key={s.href} href={s.href} style={{
+                    padding: "7px 16px", borderRadius: 9999, textDecoration: "none",
+                    font: `${active ? 700 : 500} 0.8rem/1 ${fd}`,
+                    background: active ? "#1A1D23" : "rgba(0,0,0,0.07)",
+                    color: active ? "#FFFFFF" : "#6B7280",
+                    transition: "all .15s", whiteSpace: "nowrap",
+                  }}>
+                    {s.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── Sub-nav shortcut bar (Configuración) ── */}
+          <Suspense fallback={null}><ConfigSubNav /></Suspense>
+
+          {children}
+
+          {/* ── Footer ── */}
+          {!isMobile && (
+            <footer style={{ padding: "0 2px 4px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" as const }}>
+              <span style={{ font: `400 0.68rem/1 ${fb}`, color: "#B0B8C8" }}>
+                © {new Date().getFullYear()} FitGrowX · Todos los derechos reservados
+              </span>
+              <span style={{ font: `400 0.68rem/1 ${fb}`, color: "#B0B8C8" }}>
+                Soporte:{" "}
+                <a href="https://wa.me/5491164893435" target="_blank" rel="noopener noreferrer" style={{ color: "#B0B8C8", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                  +54 9 11 6590-9374
+                </a>
+              </span>
+            </footer>
+          )}
+        </main>
+        <WelcomeModal />
+      </div>
+
+      {/* ── Mobile Bottom Navigation Bar ── */}
+      {isMobile && (
+        <nav style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 95,
+          background: "rgba(21,21,21,0.86)",
+          backdropFilter: "blur(28px) saturate(160%)",
+          WebkitBackdropFilter: "blur(28px) saturate(160%)",
+          borderTop: "1px solid rgba(255,255,255,0.07)",
+          display: "flex", alignItems: "stretch",
+          paddingBottom: "env(safe-area-inset-bottom, 8px)",
+          boxShadow: "0 -4px 24px rgba(0,0,0,0.18)",
+        }}>
+          {(role === "staff" ? BOTTOM_NAV_STAFF : BOTTOM_NAV_ADMIN).map(({ href, label, icon: Icon }) => {
+            const active = isActive(href);
+            return (
+              <Link key={href} href={href} onMouseEnter={() => prefetchRoute(href)} style={{
+                flex: 1, minHeight: 56, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                gap: 5, padding: "10px 4px 8px", textDecoration: "none",
+                color: active ? "#FFFFFF" : "rgba(255,255,255,0.38)",
+                transition: "color 0.15s",
+              }}>
+                <div style={{
+                  width: 40, height: 30, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: active ? "rgba(255,255,255,0.12)" : "transparent",
+                  transition: "background 0.15s",
+                }}>
+                  <Icon size={19} />
+                </div>
+                <span style={{ font: `${active ? 700 : 400} 0.6rem/1 ${fd}`, letterSpacing: "0.02em" }}>{label}</span>
+              </Link>
+            );
+          })}
+          {/* Más — opens sidebar drawer */}
+          <button onClick={() => setMobileNavOpen(true)} style={{
+            flex: 1, minHeight: 56, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: 5, padding: "10px 4px 8px", background: "none", border: "none", cursor: "pointer",
+            color: mobileNavOpen ? "#FFFFFF" : "rgba(255,255,255,0.38)",
+            transition: "color 0.15s",
+          }}>
+            <div style={{
+              width: 40, height: 30, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+              background: mobileNavOpen ? "rgba(255,255,255,0.12)" : "transparent",
+              transition: "background 0.15s",
+            }}>
+              <Menu size={19} />
+            </div>
+            <span style={{ font: `400 0.6rem/1 ${fd}`, letterSpacing: "0.02em" }}>Más</span>
+          </button>
+        </nav>
+      )}
+
+
+      {/* ── Trial last-24h modal ── */}
+      {/* ── Trial ending modal ── */}
+      {showTrialModal && trialDaysLeft !== null && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.68)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 24, padding: "32px 28px", maxWidth: 400, width: "100%", boxShadow: "0 40px 100px rgba(0,0,0,0.28)", animation: "dropIn 0.28s cubic-bezier(0.16,1,0.3,1) both", position: "relative" }}>
+
+            {/* Urgency bar */}
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 4, borderRadius: "24px 24px 0 0", background: trialDaysLeft <= 1 ? "linear-gradient(90deg,#DC2626,#EF4444)" : "linear-gradient(90deg,#D97706,#F59E0B)" }} />
+
+            <div style={{ textAlign: "center" }}>
+              {/* Icon */}
+              <div style={{ width: 56, height: 56, borderRadius: 16, margin: "0 auto 18px", display: "flex", alignItems: "center", justifyContent: "center", background: trialDaysLeft <= 1 ? "rgba(220,38,38,0.08)" : "rgba(217,119,6,0.08)", border: `1px solid ${trialDaysLeft <= 1 ? "rgba(220,38,38,0.20)" : "rgba(217,119,6,0.20)"}` }}>
+                <Clock size={24} color={trialDaysLeft <= 1 ? "#DC2626" : "#D97706"} />
+              </div>
+
+              {/* Pill */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 12px", borderRadius: 9999, background: trialDaysLeft <= 1 ? "rgba(220,38,38,0.08)" : "rgba(217,119,6,0.08)", marginBottom: 12 }}>
+                <span style={{ font: `700 0.68rem/1 ${fd}`, color: trialDaysLeft <= 1 ? "#DC2626" : "#D97706", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                  {trialDaysLeft <= 1 ? "Últimas 24 horas" : `${trialDaysLeft} días restantes`}
+                </span>
+              </div>
+
+              <h2 style={{ font: `800 1.35rem/1.15 ${fd}`, color: "#0F172A", letterSpacing: "-0.03em", marginBottom: 10 }}>
+                {trialDaysLeft <= 1 ? "Tu prueba vence mañana" : "Tu prueba está por terminar"}
+              </h2>
+              <p style={{ font: `400 0.85rem/1.55 ${fd}`, color: "#64748B", marginBottom: 24 }}>
+                {trialDaysLeft <= 1
+                  ? "Mañana perderás acceso al panel, tus alumnos, automatizaciones y cobros. Activá tu plan ahora para no perder nada."
+                  : `En ${trialDaysLeft} días perdés el acceso a tus alumnos, automatizaciones y cobros. Activá tu plan y seguís sin interrupciones.`}
+              </p>
+
+              {/* What you lose */}
+              <div style={{ background: "#F8FAFC", borderRadius: 14, padding: "14px 16px", marginBottom: 22, textAlign: "left" }}>
+                {["Tus alumnos y pagos", "Automatizaciones de WhatsApp", "Landing y prospectos", "Clases y asistencias"].map((item) => (
+                  <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0" }}>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#CBD5E1", flexShrink: 0 }} />
+                    <span style={{ font: `400 0.78rem/1 ${fd}`, color: "#475569" }}>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Link
+                  href="/dashboard/planes"
+                  onClick={() => {
+                    localStorage.setItem(`fitgrowx_trial_modal_d${trialDaysLeft}`, new Date().toDateString());
+                    setShowTrialModal(false);
+                  }}
+                  style={{ display: "block", padding: "13px", borderRadius: 13, background: "linear-gradient(180deg,#ff7a1a 0%,#ff6000 58%,#de4f00 100%)", color: "white", textDecoration: "none", font: `700 0.875rem/1 ${fd}`, textAlign: "center", boxShadow: "0 8px 24px rgba(255,96,0,0.28)" }}
+                >
+                  Activar plan ahora
+                </Link>
+                <button
+                  onClick={() => {
+                    localStorage.setItem(`fitgrowx_trial_modal_d${trialDaysLeft}`, new Date().toDateString());
+                    setShowTrialModal(false);
+                  }}
+                  style={{ padding: "11px", borderRadius: 13, background: "none", border: "1px solid #E2E8F0", color: "#94A3B8", font: `500 0.82rem/1 ${fd}`, cursor: "pointer" }}
+                >
+                  Recordarme más tarde
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Trial expired paywall ── */}
+      {!isSubscribed && trialExpired && role === "admin" && !impersonatedGym
+        && !pathname.startsWith("/dashboard/planes")
+        && !pathname.startsWith("/dashboard/suscripcion")
+        && diasGraciaRestantes < 1 && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9998, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
+
+            {/* Logo mark */}
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: "linear-gradient(135deg,#ff7a1a,#e05000)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px", boxShadow: "0 12px 32px rgba(255,96,0,0.28)" }}>
+              <Zap size={28} color="white" />
+            </div>
+
+            <p style={{ font: `700 0.68rem/1 ${fd}`, color: "#F97316", textTransform: "uppercase", letterSpacing: "0.10em", marginBottom: 10 }}>
+              {trialDaysLeft === null ? "Suscripción inactiva" : "Período de prueba finalizado"}
+            </p>
+            <h1 style={{ font: `800 2rem/1.1 ${fd}`, color: "#0F172A", letterSpacing: "-0.04em", marginBottom: 12 }}>
+              Tu acceso está pausado
+            </h1>
+            <p style={{ font: `400 0.9rem/1.6 ${fd}`, color: "#64748B", marginBottom: 32, maxWidth: 360, margin: "0 auto 32px" }}>
+              {trialDaysLeft === null
+                ? "Tu suscripción fue cancelada o hubo un problema con el pago. Reactivá tu plan para recuperar el acceso completo."
+                : "Tu período de prueba gratuita terminó. Activá tu plan para retomar el control de tu gimnasio sin perder ningún dato."}
+            </p>
+
+            {/* Reassurance */}
+            <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 16, padding: "16px 20px", marginBottom: 16, textAlign: "left" }}>
+              <p style={{ font: `600 0.78rem/1 ${fd}`, color: "#0F172A", marginBottom: 10 }}>Tus datos están seguros</p>
+              {["Alumnos y pagos guardados", "Automatizaciones conservadas", "Landing y prospectos intactos"].map((item) => (
+                <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+                  <CheckCircle size={13} color="#16A34A" />
+                  <span style={{ font: `400 0.78rem/1 ${fd}`, color: "#475569" }}>{item}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Export while paused */}
+            <div style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 14, padding: "14px 16px", marginBottom: 20, textAlign: "left" }}>
+              <p style={{ font: `500 0.78rem/1.45 ${fd}`, color: "#374151", marginBottom: 10 }}>
+                Si querés llevarte tus datos mientras decidís, podés descargar tu lista de alumnos en cualquier momento.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <a
+                  href="/api/user/export-alumnos-csv"
+                  download
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, background: "rgba(99,102,241,0.1)", color: "#4f46e5", font: `700 0.75rem/1 ${fd}`, textDecoration: "none" }}
+                >
+                  Alumnos CSV
+                </a>
+                <a
+                  href="/api/user/export-data?format=xlsx"
+                  download
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 9, background: "rgba(15,23,42,0.05)", color: "#6b7280", font: `600 0.75rem/1 ${fd}`, textDecoration: "none" }}
+                >
+                  Todo Excel
+                </a>
+              </div>
+            </div>
+
+            <Link
+              href="/dashboard/planes"
+              style={{ display: "block", padding: "15px", borderRadius: 14, background: "linear-gradient(180deg,#ff7a1a 0%,#ff6000 58%,#de4f00 100%)", color: "white", textDecoration: "none", font: `700 0.9rem/1 ${fd}`, textAlign: "center", boxShadow: "0 10px 28px rgba(255,96,0,0.30)", marginBottom: 12 }}
+            >
+              Activar mi plan ahora
+            </Link>
+            <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#94A3B8" }}>
+              ¿Tenés dudas?{" "}
+              <a href={`https://wa.me/${process.env.NEXT_PUBLIC_FITGROWX_SUPPORT_WA ?? "5491100000000"}`} target="_blank" rel="noopener noreferrer" style={{ color: "#F97316", textDecoration: "none", fontWeight: 600 }}>
+                Escribinos por WhatsApp
+              </a>
+            </p>
+          </div>
+        </div>
+      )}
+      {/* ── Feedback floating button (desktop only) ── */}
+      {!isMobile && role === "admin" && !trialExpired && (
+        <button
+          onClick={() => { setFeedbackOpen(true); setFeedbackDone(false); setFeedbackText(""); }}
+          style={{ position: "fixed", bottom: 28, right: 28, zIndex: 200, display: "flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 9999, background: "#111827", border: "none", color: "#F9FAFB", font: `600 0.75rem/1 ${fd}`, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.22)", opacity: 0.82, transition: "opacity 0.15s" }}
+          onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+          onMouseLeave={e => (e.currentTarget.style.opacity = "0.82")}
+        >
+          <MessageSquare size={13} />
+          Feedback
+        </button>
+      )}
+
+      {/* ── Feedback modal ── */}
+      {feedbackOpen && (
+        <div
+          onClick={() => setFeedbackOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 9997, background: "rgba(0,0,0,0.42)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 20, padding: "28px 26px", maxWidth: 420, width: "100%", boxShadow: "0 32px 80px rgba(0,0,0,0.22)" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <div>
+                <p style={{ font: `700 1rem/1 ${fd}`, color: "#111827" }}>Dejanos tu feedback</p>
+                <p style={{ font: `400 0.75rem/1.4 ${fd}`, color: "#6B7280", marginTop: 4 }}>Lo leemos todos los días. Sin filtro.</p>
+              </div>
+              <button onClick={() => setFeedbackOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", padding: 4 }}><X size={18} /></button>
+            </div>
+
+            {feedbackDone ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <CheckCircle size={36} color="#16A34A" style={{ margin: "0 auto 12px", display: "block" }} />
+                <p style={{ font: `600 0.9rem/1.4 ${fd}`, color: "#111827" }}>¡Gracias! Lo revisamos pronto.</p>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="¿Qué mejorarías? ¿Algo que no funciona? ¿Una idea que tenés?..."
+                  rows={5}
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: "1px solid #E5E7EB", font: `400 0.88rem/1.6 ${fd}`, color: "#111827", resize: "vertical", outline: "none", boxSizing: "border-box", background: "#F9FAFB" }}
+                />
+                <button
+                  disabled={feedbackSending || !feedbackText.trim()}
+                  onClick={async () => {
+                    if (!feedbackText.trim()) return;
+                    setFeedbackSending(true);
+                    await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: feedbackText }) }).catch(() => null);
+                    setFeedbackSending(false);
+                    setFeedbackDone(true);
+                  }}
+                  style={{ marginTop: 12, width: "100%", padding: "12px", borderRadius: 12, background: feedbackText.trim() ? "#111827" : "#E5E7EB", border: "none", color: feedbackText.trim() ? "#F9FAFB" : "#9CA3AF", font: `700 0.88rem/1 ${fd}`, cursor: feedbackText.trim() ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                >
+                  {feedbackSending ? "Enviando..." : "Enviar feedback"}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Grace Period Modal ── */}
+      {showGraceModal && enGracia
+        && !pathname.startsWith("/dashboard/planes")
+        && !pathname.startsWith("/dashboard/suscripcion")
+        && <GracePeriodModal />}
+
+    </div>
+    </DashboardPwaShell>
+  );
+}

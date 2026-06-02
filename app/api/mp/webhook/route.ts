@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual } from "crypto";
 import { addOneMonth } from "@/lib/date-utils";
 import { sendWa } from "@/lib/wa";
-import { fetchMpWithTimeout } from "@/lib/mp-timeout";
+import { fetchMpWithTimeout } from "@/lib/mp/timeout";
 
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN!;
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;

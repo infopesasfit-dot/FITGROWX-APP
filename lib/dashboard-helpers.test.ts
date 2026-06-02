@@ -9,7 +9,7 @@ import {
   buildDonutSegments,
   getDinoState,
 } from "./dashboard-helpers";
-import { DashboardMetric } from "./dashboard-types";
+import { DashboardMetric } from "../types/dashboard";
 
 describe("dashboard-helpers", () => {
   describe("initials", () => {

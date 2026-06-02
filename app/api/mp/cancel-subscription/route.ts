@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { fetchMpWithTimeout } from "@/lib/mp-timeout";
+import { fetchMpWithTimeout } from "@/lib/mp/timeout";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 

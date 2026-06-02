@@ -80,7 +80,7 @@ vi.mock("@supabase/supabase-js", () => ({
   createClient: () => sbMock.mockClient,
 }));
 
-vi.mock("@/lib/mp-timeout", () => ({
+vi.mock("@/lib/mp/timeout", () => ({
   fetchMpWithTimeout: vi.fn(),
 }));
 
@@ -214,7 +214,7 @@ describe("Annual payment: cancelación mensual al activar anual", () => {
     const monthlyPreapprovalId = "mp-monthly-preapproval-123";
     const annualPaymentId = "pay-annual-1";
 
-    const { fetchMpWithTimeout } = await import("@/lib/mp-timeout") as any;
+    const { fetchMpWithTimeout } = await import("@/lib/mp/timeout") as any;
     const { sendWa } = await import("@/lib/wa") as any;
 
     // MP: GET payment → aprobado anual
@@ -310,7 +310,7 @@ describe("Annual payment: idempotencia — payment_id duplicado", () => {
 
   it("mismo payment_id dos veces → procesa UNA vez, no duplica comisión", async () => {
     const annualPaymentId = "pay-annual-dup";
-    const { fetchMpWithTimeout } = await import("@/lib/mp-timeout") as any;
+    const { fetchMpWithTimeout } = await import("@/lib/mp/timeout") as any;
     const { sendWa } = await import("@/lib/wa") as any;
 
     fetchMpWithTimeout.mockResolvedValue({

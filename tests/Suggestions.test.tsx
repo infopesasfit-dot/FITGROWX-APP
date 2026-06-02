@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
-import { Suggestions } from "@/app/dashboard/components/Suggestions";
+import { Suggestions } from "@/components/dashboard/Suggestions";
 import { buildSuggestionItems } from "@/lib/dashboard-helpers";
 
 describe("buildSuggestionItems", () => {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
-import { fetchMpWithTimeout } from "@/lib/mp-timeout";
+import { fetchMpWithTimeout } from "@/lib/mp/timeout";
 
 const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

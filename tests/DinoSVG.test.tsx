@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from '@testing-library/react';
-import { DinoSVG } from '@/app/dashboard/components/DinoSVG';
+import { DinoSVG } from '@/components/dashboard/DinoSVG';
 
 describe('DinoSVG', () => {
   beforeEach(() => {

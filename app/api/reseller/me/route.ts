@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
-import { MIN_WITHDRAWAL } from "@/lib/constants";
+import { MIN_WITHDRAWAL } from "@/constants";
 
 const sb = getSupabaseAdminClient();
 

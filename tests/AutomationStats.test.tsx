@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { AutomationStats } from '@/app/dashboard/components/AutomationStats';
+import { AutomationStats } from '@/components/dashboard/AutomationStats';
 
 // Mock useIsDesktop hook
 vi.mock('@/hooks/useIsDesktop', () => ({

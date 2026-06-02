@@ -4,7 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { normalizePhone } from "@/lib/phone";
 import { logAlumnoActivity } from "@/lib/alumno-log";
-import { fetchMpWithTimeout } from "@/lib/mp-timeout";
+import { fetchMpWithTimeout } from "@/lib/mp/timeout";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 

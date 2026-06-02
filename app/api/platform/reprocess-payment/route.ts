@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
-import { fetchMpWithTimeout } from "@/lib/mp-timeout";
+import { fetchMpWithTimeout } from "@/lib/mp/timeout";
 
 export const dynamic = "force-dynamic";
 

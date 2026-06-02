@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import { OnboardingProgress } from '@/app/dashboard/components/OnboardingProgress';
+import { OnboardingProgress } from '@/components/dashboard/OnboardingProgress';
 
 describe('OnboardingProgress', () => {
   const mockOnEnterDemo = vi.fn();

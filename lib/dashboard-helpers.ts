@@ -1,4 +1,4 @@
-import { DashboardMetric, DashboardAlerts, SetupFlags } from "./dashboard-types";
+import { DashboardMetric, DashboardAlerts, SetupFlags } from "../types/dashboard";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Formatting helpers

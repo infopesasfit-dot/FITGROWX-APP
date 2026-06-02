@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { MIN_WITHDRAWAL } from "@/lib/constants";
+import { MIN_WITHDRAWAL } from "@/constants";
 
 const sb = getSupabaseAdminClient();
 

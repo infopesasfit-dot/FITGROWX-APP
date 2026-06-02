@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { OwnerPhoneAlert } from '@/app/dashboard/components/OwnerPhoneAlert';
+import { OwnerPhoneAlert } from '@/components/dashboard/OwnerPhoneAlert';
 
 describe('OwnerPhoneAlert', () => {
   it('renders when ownerPhoneMissing=true and demoMode=false', () => {

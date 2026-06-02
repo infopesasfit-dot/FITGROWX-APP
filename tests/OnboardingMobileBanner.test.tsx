@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
-import { OnboardingMobileBanner } from '@/app/dashboard/components/OnboardingMobileBanner';
+import { OnboardingMobileBanner } from '@/components/dashboard/OnboardingMobileBanner';
 
 describe('OnboardingMobileBanner', () => {
   const mockOnOpenModal = vi.fn();
