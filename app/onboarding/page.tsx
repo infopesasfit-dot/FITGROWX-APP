@@ -2,15 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Building2, CheckCircle, Loader2, Phone, Send, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, Building2, CheckCircle, ChevronDown, Loader2, Phone, User } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+
+const COUNTRIES = [
+  { code: "+54",  flag: "🇦🇷", name: "Argentina" },
+  { code: "+52",  flag: "🇲🇽", name: "México" },
+  { code: "+57",  flag: "🇨🇴", name: "Colombia" },
+  { code: "+56",  flag: "🇨🇱", name: "Chile" },
+  { code: "+51",  flag: "🇵🇪", name: "Perú" },
+  { code: "+598", flag: "🇺🇾", name: "Uruguay" },
+  { code: "+595", flag: "🇵🇾", name: "Paraguay" },
+  { code: "+591", flag: "🇧🇴", name: "Bolivia" },
+  { code: "+593", flag: "🇪🇨", name: "Ecuador" },
+  { code: "+58",  flag: "🇻🇪", name: "Venezuela" },
+  { code: "+55",  flag: "🇧🇷", name: "Brasil" },
+  { code: "+34",  flag: "🇪🇸", name: "España" },
+  { code: "+1",   flag: "🇺🇸", name: "USA" },
+  { code: "+1809",flag: "🇩🇴", name: "Rep. Dom." },
+];
 
 const STEPS = [
   {
     key: "name" as const,
     icon: User,
-    color: "#FF6A00",
-    bg: "rgba(255,106,0,0.14)",
     title: "¿Cuál es tu nombre completo?",
     hint: "Así te vamos a identificar dentro de la plataforma.",
     placeholder: "Ej: Martina López",
@@ -19,8 +34,6 @@ const STEPS = [
   {
     key: "gymName" as const,
     icon: Building2,
-    color: "#2563EB",
-    bg: "rgba(37,99,235,0.14)",
     title: "¿Cómo se llama tu gym?",
     hint: "Aparece en tu dashboard, reportes y mensajes automáticos.",
     placeholder: "Ej: Box Norte, Studio Fit, CrossFit Arena...",
@@ -29,8 +42,6 @@ const STEPS = [
   {
     key: "phone" as const,
     icon: Phone,
-    color: "#16A34A",
-    bg: "rgba(22,163,74,0.14)",
     title: "¿A qué número te contactamos?",
     hint: "Lo usamos para enviarte avisos importantes por WhatsApp.",
     placeholder: "Ej: 1165908374",
@@ -41,18 +52,18 @@ const STEPS = [
 export default function OnboardingPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [step, setStep] = useState(0);
   const [done, setDone] = useState(false);
   const [values, setValues] = useState({ name: "", gymName: "", phone: "" });
   const [countryCode, setCountryCode] = useState("+54");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [gymId, setGymId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(true);
-  const [testWaSending, setTestWaSending] = useState(false);
-  const [testWaSent, setTestWaSent]       = useState(false);
-  const [testWaError, setTestWaError]     = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -83,17 +94,40 @@ export default function OnboardingPage() {
     setTimeout(() => inputRef.current?.focus(), 220);
   }, [step]);
 
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [dropdownOpen]);
+
   const current = STEPS[step];
-  const progress = step / STEPS.length;
+  const rawPhone = values.phone.trim().replace(/\D/g, "");
+  const fullPhoneDigits = `${countryCode.replace(/\D/g, "")}${rawPhone}`;
+  const selectedCountry = COUNTRIES.find(c => c.code === countryCode) ?? COUNTRIES[0];
+
+  const validateStep = (key: keyof typeof values): string | null => {
+    const value = values[key].trim();
+    if (key === "name" && (value.length < 2 || value.length > 100)) return "Ingresá un nombre válido.";
+    if (key === "gymName" && (value.length < 2 || value.length > 80)) return "Ingresá el nombre de tu gym.";
+    if (key === "phone" && (!/^\d{8,15}$/.test(fullPhoneDigits) || rawPhone.length < 8)) return "Ingresá un WhatsApp válido con código de país.";
+    return null;
+  };
 
   const transition = (dir: 1 | -1, cb: () => void) => {
     setVisible(false);
     setTimeout(() => { cb(); setVisible(true); }, 180);
   };
 
-  const canContinue = current.optional || values[current.key].trim().length >= 2;
+  const canContinue = current.optional || !validateStep(current.key);
 
   const handleContinue = async () => {
+    const stepError = validateStep(current.key);
+    if (stepError) { setError(stepError); return; }
+    setError(null);
     if (step < STEPS.length - 1) {
       transition(1, () => setStep(s => s + 1));
       return;
@@ -110,6 +144,9 @@ export default function OnboardingPage() {
     setSaving(true);
     setError(null);
     try {
+      const validationError = STEPS.map(s => validateStep(s.key)).find(Boolean);
+      if (validationError) throw new Error(validationError);
+
       if (userId && values.name.trim()) {
         const { error: e } = await supabase.from("profiles").update({ full_name: values.name.trim() }).eq("id", userId);
         if (e) throw new Error(e.message);
@@ -121,8 +158,7 @@ export default function OnboardingPage() {
       }
 
       if (gymId) {
-        const rawPhone = values.phone.trim().replace(/\D/g, "");
-        const fullPhone = rawPhone ? `${countryCode.replace("+", "")}${rawPhone}` : null;
+        const fullPhone = rawPhone ? fullPhoneDigits : null;
         const slug = values.gymName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || null;
         const { error: e } = await supabase.from("gym_settings").upsert(
           {
@@ -150,88 +186,103 @@ export default function OnboardingPage() {
     if (e.key === "Enter" && canContinue && !saving) void handleContinue();
   };
 
-  const handleTestWa = async () => {
-    if (testWaSending || testWaSent) return;
-    setTestWaSending(true);
-    setTestWaError(null);
-    const rawPhone = values.phone.trim().replace(/\D/g, "");
-    const fullPhone = rawPhone ? `${countryCode.replace("+", "")}${rawPhone}` : "";
-    try {
-      const res = await fetch("/api/onboarding/test-wa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: fullPhone, nombre: values.name, gymName: values.gymName }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) setTestWaError(data.error ?? "No se pudo enviar.");
-      else setTestWaSent(true);
-    } catch {
-      setTestWaError("Sin conexión. Intentá de nuevo.");
-    } finally {
-      setTestWaSending(false);
-    }
-  };
-
   return (
     <main
       className="min-h-screen flex items-center justify-center px-4 py-8"
-      style={{ background: "linear-gradient(160deg, #05070c 0%, #030508 45%, #020304 100%)" }}
+      style={{ background: "#0D1117" }}
     >
       {/* Ambient glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute" style={{ left: "10%", bottom: "-8%", width: "380px", height: "380px", background: "radial-gradient(circle at 50% 50%, rgba(255,160,60,0.22) 0%, rgba(255,100,18,0.28) 22%, rgba(220,68,8,0.12) 50%, transparent 72%)", filter: "blur(60px)", mixBlendMode: "screen" }} />
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 55% 40% at 15% 85%, rgba(255,88,8,0.14) 0%, transparent 60%)", filter: "blur(80px)" }} />
+        <div
+          className="absolute"
+          style={{
+            left: "5%", bottom: "-10%",
+            width: "420px", height: "420px",
+            background: "radial-gradient(circle, rgba(249,115,22,0.16) 0%, rgba(249,115,22,0.06) 45%, transparent 70%)",
+            filter: "blur(90px)",
+          }}
+        />
+        <div
+          className="absolute"
+          style={{
+            right: "0%", top: "5%",
+            width: "280px", height: "280px",
+            background: "radial-gradient(circle, rgba(249,115,22,0.05) 0%, transparent 70%)",
+            filter: "blur(60px)",
+          }}
+        />
       </div>
 
-      <div className="relative z-10 w-full max-w-[460px]">
+      <div className="relative z-10 w-full max-w-[480px]">
         {/* Logo */}
-        <p className="text-center mb-8 text-[13px] font-semibold tracking-[0.14em] uppercase text-white/25">
+        <p
+          className="text-center mb-6"
+          style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.2)" }}
+        >
           FitGrowX
         </p>
 
         {/* Card */}
         <div
-          className="rounded-3xl p-8"
           style={{
-            background: "linear-gradient(160deg, rgba(22,22,28,0.98) 0%, rgba(12,12,16,0.99) 100%)",
-            boxShadow: "0 0 0 1px rgba(255,255,255,0.07), 0 40px 100px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.07)",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            borderRadius: 20,
+            padding: "26px 26px 22px",
           }}
         >
           {done ? (
-            /* ── Success ── */
-            <div className="flex flex-col items-center text-center py-4" style={{ opacity: visible ? 1 : 0, transition: "opacity 0.3s" }}>
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: "rgba(22,163,74,0.15)" }}>
-                <CheckCircle size={32} color="#16A34A" />
+            <div
+              className="flex flex-col items-center text-center py-6"
+              style={{ opacity: visible ? 1 : 0, transition: "opacity 0.3s" }}
+            >
+              <div
+                className="flex items-center justify-center mb-5"
+                style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(249,115,22,0.12)" }}
+              >
+                <CheckCircle size={28} color="#F97316" />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-white mb-3">¡Todo listo!</h1>
-              <p className="text-[14px] text-white/45 leading-relaxed max-w-[300px]">
+              <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 10, letterSpacing: "-0.02em" }}>
+                ¡Todo listo!
+              </h1>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", lineHeight: 1.6, maxWidth: 280 }}>
                 Tu cuenta está configurada. En un momento te llevamos al dashboard.
               </p>
               <div className="mt-6 flex gap-1.5">
                 {[0, 1, 2].map(i => (
-                  <div key={i} className="w-2 h-2 rounded-full bg-[#16A34A]" style={{ opacity: 0.3 + i * 0.35, animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
+                  <div
+                    key={i}
+                    style={{
+                      width: 6, height: 6, borderRadius: "50%",
+                      background: "#F97316",
+                      opacity: 0.3 + i * 0.35,
+                      animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
+                    }}
+                  />
                 ))}
               </div>
             </div>
           ) : (
             <>
-              {/* ── Progress bar ── */}
-              <div className="mb-8">
-                <div className="flex gap-1.5 mb-3">
-                  {STEPS.map((_, i) => (
-                    <div
-                      key={i}
-                      className="h-1 flex-1 rounded-full transition-all duration-500"
-                      style={{ background: i <= step ? "#FF6A00" : "rgba(255,255,255,0.08)" }}
-                    />
-                  ))}
-                </div>
-                <p className="text-[11px] font-semibold tracking-[0.12em] uppercase text-white/25">
-                  Paso {step + 1} de {STEPS.length}
-                </p>
+              {/* Step progress line */}
+              <div className="flex gap-1.5 mb-6">
+                {STEPS.map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      height: 3,
+                      flex: 1,
+                      borderRadius: 99,
+                      background: i <= step ? "#F97316" : "rgba(255,255,255,0.08)",
+                      transition: "background 0.4s",
+                    }}
+                  />
+                ))}
               </div>
 
-              {/* ── Step content ── */}
+              {/* Step content */}
               <div
                 style={{
                   opacity: visible ? 1 : 0,
@@ -239,55 +290,102 @@ export default function OnboardingPage() {
                   transition: "opacity 0.22s ease, transform 0.22s ease",
                 }}
               >
-                {/* Icon */}
-                <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5"
-                  style={{ background: current.bg }}
+                <h1
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 700,
+                    color: "#fff",
+                    marginBottom: 6,
+                    letterSpacing: "-0.02em",
+                    lineHeight: 1.3,
+                  }}
                 >
-                  <current.icon size={24} color={current.color} />
-                </div>
-
-                {/* Heading */}
-                <h1 className="text-[1.45rem] font-bold tracking-tight text-white mb-2 leading-snug">
                   {current.title}
                 </h1>
-                <p className="text-[13px] text-white/40 mb-6 leading-relaxed">{current.hint}</p>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: 18, lineHeight: 1.55 }}>
+                  {current.hint}
+                </p>
+
+                {/* Field label */}
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "rgba(255,255,255,0.55)",
+                    marginBottom: 8,
+                  }}
+                >
+                  {current.key === "name" ? "Nombre" : current.key === "gymName" ? "Nombre del gym" : "WhatsApp"}
+                </p>
 
                 {/* Input */}
                 {current.key === "phone" ? (
-                  <div
-                    className="w-full flex rounded-2xl border overflow-hidden transition-all"
-                    style={{
-                      borderColor: values.phone.trim().length >= 2 ? `${current.color}55` : "rgba(255,255,255,0.08)",
-                      boxShadow: values.phone.trim().length >= 2 ? `0 0 0 3px ${current.color}18` : "none",
-                      background: "rgba(255,255,255,0.05)",
-                    }}
-                  >
-                    <select
-                      value={countryCode}
-                      onChange={e => setCountryCode(e.target.value)}
-                      className="outline-none text-white text-[14px] font-medium bg-transparent border-r pl-4 pr-2 py-0 cursor-pointer flex-shrink-0"
-                      style={{ borderColor: "rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", minWidth: 96 }}
-                    >
-                      {[
-                        { code: "+54", label: "🇦🇷 +54" },
-                        { code: "+52", label: "🇲🇽 +52" },
-                        { code: "+57", label: "🇨🇴 +57" },
-                        { code: "+56", label: "🇨🇱 +56" },
-                        { code: "+51", label: "🇵🇪 +51" },
-                        { code: "+598", label: "🇺🇾 +598" },
-                        { code: "+595", label: "🇵🇾 +595" },
-                        { code: "+591", label: "🇧🇴 +591" },
-                        { code: "+593", label: "🇪🇨 +593" },
-                        { code: "+58", label: "🇻🇪 +58" },
-                        { code: "+55", label: "🇧🇷 +55" },
-                        { code: "+34", label: "🇪🇸 +34" },
-                        { code: "+1", label: "🇺🇸 +1" },
-                        { code: "+1809", label: "🇩🇴 +1809" },
-                      ].map(c => (
-                        <option key={c.code} value={c.code} style={{ background: "#1a1a22", color: "#fff" }}>{c.label}</option>
-                      ))}
-                    </select>
+                  <div className="flex gap-2">
+                    {/* Custom country dropdown */}
+                    <div ref={dropdownRef} style={{ position: "relative", flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => setDropdownOpen(o => !o)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          height: 46,
+                          paddingLeft: 12,
+                          paddingRight: 10,
+                          background: "rgba(0,0,0,0.3)",
+                          border: `1px solid ${dropdownOpen ? "#F97316" : "rgba(255,255,255,0.12)"}`,
+                          borderRadius: 12,
+                          color: "#fff",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          transition: "border-color 0.15s",
+                          outline: "none",
+                        }}
+                      >
+                        <span style={{ fontSize: 16, lineHeight: 1 }}>{selectedCountry.flag}</span>
+                        <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }}>{selectedCountry.code}</span>
+                        <ChevronDown
+                          size={13}
+                          color="rgba(255,255,255,0.4)"
+                          style={{ transform: dropdownOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                        />
+                      </button>
+
+                      {dropdownOpen && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "calc(100% + 6px)",
+                            left: 0,
+                            zIndex: 50,
+                            background: "#161B22",
+                            border: "1px solid rgba(255,255,255,0.10)",
+                            borderRadius: 12,
+                            overflow: "hidden",
+                            width: 210,
+                            maxHeight: 290,
+                            overflowY: "auto",
+                            boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+                          }}
+                        >
+                          {COUNTRIES.map(c => (
+                            <CountryOption
+                              key={c.code}
+                              country={c}
+                              selected={c.code === countryCode}
+                              onSelect={() => { setCountryCode(c.code); setDropdownOpen(false); }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Phone number input */}
                     <input
                       ref={inputRef}
                       type="tel"
@@ -295,7 +393,21 @@ export default function OnboardingPage() {
                       onChange={e => setValues(v => ({ ...v, phone: e.target.value }))}
                       onKeyDown={handleKey}
                       placeholder={current.placeholder}
-                      className="flex-1 h-14 bg-transparent text-white placeholder:text-white/25 px-4 text-[15px] font-medium outline-none"
+                      style={{
+                        flex: 1,
+                        height: 46,
+                        background: "rgba(0,0,0,0.3)",
+                        border: `1px solid ${values.phone.trim().length >= 2 ? "#F97316" : "rgba(255,255,255,0.12)"}`,
+                        borderRadius: 12,
+                        color: "#fff",
+                        fontSize: 15,
+                        fontWeight: 500,
+                        padding: "12px 16px",
+                        outline: "none",
+                        transition: "border-color 0.15s",
+                        boxSizing: "border-box",
+                      }}
+                      className="placeholder:text-white/25 focus:border-[#F97316]"
                     />
                   </div>
                 ) : (
@@ -306,52 +418,26 @@ export default function OnboardingPage() {
                     onChange={e => setValues(v => ({ ...v, [current.key]: e.target.value }))}
                     onKeyDown={handleKey}
                     placeholder={current.placeholder}
-                    className="w-full h-14 rounded-2xl border text-white placeholder:text-white/25 bg-white/[0.05] px-5 text-[15px] font-medium outline-none transition-all"
                     style={{
-                      borderColor: values[current.key].trim().length >= 2
-                        ? `${current.color}55`
-                        : "rgba(255,255,255,0.08)",
-                      boxShadow: values[current.key].trim().length >= 2
-                        ? `0 0 0 3px ${current.color}18`
-                        : "none",
+                      width: "100%",
+                      height: 46,
+                      background: "rgba(0,0,0,0.3)",
+                      border: `1px solid ${values[current.key].trim().length >= 2 ? "#F97316" : "rgba(255,255,255,0.12)"}`,
+                      borderRadius: 12,
+                      color: "#fff",
+                      fontSize: 15,
+                      fontWeight: 500,
+                      padding: "12px 16px",
+                      outline: "none",
+                      boxSizing: "border-box",
+                      transition: "border-color 0.15s",
                     }}
+                    className="placeholder:text-white/25 focus:border-[#F97316]"
                   />
                 )}
 
-                {/* Aha Moment — solo en el paso de teléfono con número válido */}
-                {current.key === "phone" && values.phone.trim().replace(/\D/g, "").length >= 8 && (
-                  <div className="mt-4 rounded-2xl p-4" style={{ background: "rgba(22,163,74,0.09)", border: "1px solid rgba(22,163,74,0.22)" }}>
-                    <p className="text-[12px] font-semibold text-white/60 mb-3 leading-relaxed">
-                      ✨ <span style={{ color: "#4ADE80" }}>Aha Moment</span> — Probá el sistema ahora mismo
-                    </p>
-                    {testWaSent ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(22,163,74,0.2)" }}>
-                          <CheckCircle size={16} color="#4ADE80" />
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-bold" style={{ color: "#4ADE80" }}>¡Revisá tu WhatsApp!</p>
-                          <p className="text-[11px] text-white/40">El mensaje llegó desde FitGrowX</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void handleTestWa()}
-                        disabled={testWaSending}
-                        className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-[13px] font-bold transition-all"
-                        style={{ background: testWaSending ? "rgba(22,163,74,0.12)" : "rgba(22,163,74,0.18)", border: "1px solid rgba(22,163,74,0.35)", color: "#4ADE80", opacity: testWaSending ? 0.7 : 1 }}
-                      >
-                        {testWaSending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
-                        {testWaSending ? "Enviando..." : "Mandarme un mensaje de prueba →"}
-                      </button>
-                    )}
-                    {testWaError && <p className="mt-2 text-[11px] text-red-400">{testWaError}</p>}
-                  </div>
-                )}
-
                 {error && (
-                  <p className="mt-3 text-[12px] text-red-400 text-center">{error}</p>
+                  <p style={{ marginTop: 10, fontSize: 12, color: "#f87171", textAlign: "center" }}>{error}</p>
                 )}
 
                 {/* CTA */}
@@ -359,26 +445,43 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={() => void handleContinue()}
                   disabled={(!canContinue && !current.optional) || saving}
-                  className="mt-4 w-full h-13 rounded-full flex items-center justify-center gap-2 text-[15px] font-semibold text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-35"
+                  className="hover:opacity-90 active:scale-[0.98] transition-all"
                   style={{
-                    background: "linear-gradient(180deg, #ff7a1a 0%, #ff6000 55%, #e05000 100%)",
-                    boxShadow: canContinue ? "0 10px 36px rgba(255,96,0,0.32)" : "none",
-                    height: 52,
+                    marginTop: 18,
+                    width: "100%",
+                    height: 46,
+                    borderRadius: 12,
+                    background: "#F97316",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 700,
+                    border: "none",
+                    cursor: canContinue && !saving ? "pointer" : "not-allowed",
+                    opacity: (!canContinue && !current.optional) || saving ? 0.35 : 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    letterSpacing: "0.01em",
                   }}
                 >
-                  {saving ? "Guardando..." : step < STEPS.length - 1 ? "Continuar" : "Terminar"}
-                  {!saving && <ArrowRight size={16} />}
+                  {saving ? (
+                    <><Loader2 size={15} style={{ animation: "spin 1s linear infinite" }} /> Guardando...</>
+                  ) : (
+                    <>{step < STEPS.length - 1 ? "Continuar" : "Terminar"} <ArrowRight size={15} /></>
+                  )}
                 </button>
 
-                {/* Bottom nav */}
+                {/* Back */}
                 {step > 0 && (
-                  <div className="mt-4 flex items-center">
+                  <div className="mt-3">
                     <button
                       type="button"
                       onClick={handleBack}
-                      className="flex items-center gap-1.5 text-[12px] text-white/30 hover:text-white/60 transition-colors"
+                      className="flex items-center gap-1.5 text-white/30 hover:text-white/60 transition-colors"
+                      style={{ fontSize: 12, background: "none", border: "none", cursor: "pointer" }}
                     >
-                      <ArrowLeft size={13} /> Volver
+                      <ArrowLeft size={12} /> Volver
                     </button>
                   </div>
                 )}
@@ -389,11 +492,51 @@ export default function OnboardingPage() {
 
         {/* Bottom hint */}
         {!done && (
-          <p className="text-center mt-5 text-[11px] text-white/18 leading-relaxed">
+          <p style={{ textAlign: "center", marginTop: 14, fontSize: 11, color: "rgba(255,255,255,0.18)", lineHeight: 1.5 }}>
             Podés actualizar estos datos en cualquier momento desde Ajustes.
           </p>
         )}
       </div>
     </main>
+  );
+}
+
+function CountryOption({
+  country,
+  selected,
+  onSelect,
+}: {
+  country: { code: string; flag: string; name: string };
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        width: "100%",
+        padding: "9px 14px",
+        background: selected ? "rgba(249,115,22,0.12)" : hovered ? "rgba(249,115,22,0.07)" : "transparent",
+        color: selected || hovered ? "#F97316" : "rgba(255,255,255,0.75)",
+        fontSize: 13,
+        fontWeight: selected ? 600 : 400,
+        cursor: "pointer",
+        textAlign: "left",
+        border: "none",
+        transition: "background 0.1s, color 0.1s",
+      }}
+    >
+      <span style={{ fontSize: 15, lineHeight: 1 }}>{country.flag}</span>
+      <span style={{ flex: 1 }}>{country.name}</span>
+      <span style={{ color: "rgba(255,255,255,0.35)", fontSize: 12 }}>{country.code}</span>
+    </button>
   );
 }
