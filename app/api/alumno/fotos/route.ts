@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
+  const { data: demoRow } = await supabase.from("alumnos").select("is_demo").eq("id", tokenRow.alumno_id).single();
+  if (demoRow?.is_demo) return NextResponse.json({ fotos: [] });
+
   const { data: rows, error } = await supabase
     .from("progreso_fotos")
     .select("id, storage_path, fecha, notas, privada, created_at")
@@ -38,6 +41,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+
+  const { data: demoRowPost } = await supabase.from("alumnos").select("is_demo").eq("id", tokenRow.alumno_id).single();
+  if (demoRowPost?.is_demo) return NextResponse.json({ error: "No disponible en modo preview" }, { status: 403 });
 
   let formData: FormData;
   try { formData = await req.formData(); }

@@ -219,12 +219,12 @@ export async function calculateSnapshot(
     admin.from("prospectos").select("created_at, phone, clase_gratis_date").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", thisMonthTo),
     admin.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", oldestMonthKey).lte("date", thisMonthTo),
     admin.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", oldestMonthKey).lte("fecha", thisMonthTo),
-    admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date, planes!plan_id(precio, nombre)").eq("gym_id", gymId).is("deleted_at", null),
+    admin.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date, planes!plan_id(precio, nombre)").eq("gym_id", gymId).eq("is_demo", false).is("deleted_at", null),
     admin.from("reservas").select("fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", thisMonthTo),
     admin.from("asistencias").select("alumno_id, fecha, hora").eq("gym_id", gymId).gte("fecha", thirtyStr).lte("fecha", todayStr),
     admin.from("gym_classes").select("day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
     admin.from("wa_mensajes_log").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("sent_at", `${thisMonthFrom}T00:00:00Z`).lte("sent_at", `${thisMonthTo}T23:59:59Z`),
-    admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).not("deleted_at", "is", null).gte("deleted_at", `${from}T00:00:00`).lte("deleted_at", `${to}T23:59:59`),
+    admin.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("is_demo", false).not("deleted_at", "is", null).gte("deleted_at", `${from}T00:00:00`).lte("deleted_at", `${to}T23:59:59`),
     admin.from("cron_runs").select("ran_at, status, summary").eq("cron_name", "vencimientos").order("ran_at", { ascending: false }).limit(1),
   ]);
 

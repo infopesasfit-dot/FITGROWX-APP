@@ -407,6 +407,13 @@ async function enviarFollowupsPostVencimiento(
           message:  mensaje,
           dedupKey: `venc_${step}:${alumno.id}:${alumno.next_expiration_date}`,
         }]);
+        void createAlumnoNotification(supabase, {
+          alumno_id: alumno.id,
+          gym_id:    gym.gym_id,
+          type:      "cuota_vencimiento",
+          title:     step === "d3" ? "Tu membresía venció hace 3 días" : "Tu membresía venció hace 7 días",
+          body:      `Tu membresía venció el ${alumno.next_expiration_date}. Renovála para recuperar tu acceso.`,
+        });
         const { error: upErr } = await supabase.from("alumnos")
           .update({ [columna]: alumno.next_expiration_date })
           .eq("id", alumno.id);
@@ -469,6 +476,13 @@ async function enviarNotificacionesVenceHoy(
         message:  mensaje,
         dedupKey: `vence_hoy:${alumno.id}:${todayStr}`,
       }]);
+      void createAlumnoNotification(supabase, {
+        alumno_id: alumno.id,
+        gym_id:    gym.gym_id,
+        type:      "cuota_vencimiento",
+        title:     "Tu membresía vence hoy",
+        body:      "Tu membresía vence hoy. Renovála para no perder tu acceso.",
+      });
       const { error: upErr } = await supabase.from("alumnos")
         .update({ notif_vence_hoy_para: todayStr })
         .eq("id", alumno.id);

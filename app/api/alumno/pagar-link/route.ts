@@ -52,6 +52,13 @@ export async function GET(req: NextRequest) {
 
   const portalUrl = `${APP_URL}/alumno/auth?token=${token}`;
 
+  const { data: demoRow } = await supabase
+    .from("alumnos")
+    .select("is_demo")
+    .eq("id", tokenRow.alumno_id)
+    .single();
+  if (demoRow?.is_demo) return NextResponse.redirect(portalUrl);
+
   const [{ data: alumnoData }, { data: settingsData }] = await Promise.all([
     supabase
       .from("alumnos")

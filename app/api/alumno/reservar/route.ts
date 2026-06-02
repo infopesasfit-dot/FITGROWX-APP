@@ -38,6 +38,9 @@ export async function POST(req: NextRequest) {
   const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
   if (!rateLimit.allowed) return rateLimit.response!;
 
+  const { data: demoRow } = await supabase.from("alumnos").select("is_demo").eq("id", tokenRow.alumno_id).single();
+  if (demoRow?.is_demo) return NextResponse.json({ error: "No disponible en modo preview" }, { status: 403 });
+
   const { data: clase } = await supabase.from("gym_classes").select("max_capacity, class_name, gym_id, day_of_week").eq("id", clase_id).single();
   if (!clase) return NextResponse.json({ error: "Clase no encontrada." }, { status: 404 });
   if (clase.gym_id !== tokenRow.gym_id) return NextResponse.json({ error: "Clase inválida para este gimnasio." }, { status: 403 });
