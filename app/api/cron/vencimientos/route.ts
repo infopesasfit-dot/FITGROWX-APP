@@ -8,6 +8,7 @@ import { enqueueWABulk } from "@/lib/wa-queue";
 import { getTodayDate } from "@/lib/date-utils";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
 import { createHash } from "crypto";
+import { createAlumnoNotification } from "@/lib/alumno-notif";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -540,6 +541,13 @@ async function enviarRecordatoriosProximos(
         message:  mensaje,
         dedupKey: `recordatorio:${alumno.id}:${alumno.next_expiration_date}`,
       }]);
+      void createAlumnoNotification(supabase, {
+        alumno_id: alumno.id,
+        gym_id:    gym.gym_id,
+        type:      "cuota_vencimiento",
+        title:     "Tu cuota vence pronto",
+        body:      `Tu membresía vence el ${fechaVto}. Renovála para seguir entrenando.`,
+      });
       const { error: upErr } = await supabase.from("alumnos")
         .update({ notif_vencimiento_para: alumno.next_expiration_date })
         .eq("id", alumno.id);

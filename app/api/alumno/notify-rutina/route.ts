@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
+import { createAlumnoNotification } from "@/lib/alumno-notif";
 import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 const supabase = getSupabaseAdminClient();
@@ -61,6 +62,13 @@ export async function POST(req: NextRequest) {
     .replace(/\{gym\}/gi, gymName);
 
   void sendWa(alumno.gym_id, normalizePhone(alumno.phone), msg, { route: "alumno/notify-rutina" });
+  void createAlumnoNotification(supabase, {
+    alumno_id: alumno.id,
+    gym_id:    alumno.gym_id,
+    type:      "rutina_asignada",
+    title:     "Nueva rutina asignada",
+    body:      "Tu entrenador te asignó una nueva rutina. ¡A entrenar!",
+  });
 
   return NextResponse.json({ ok: true });
 }
