@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { logPlatformAudit } from "@/lib/platform-audit";
-
-const OWNER_EMAIL = process.env.FITGROWX_OWNER_EMAIL ?? "elianafrancoanahi@gmail.com";
+import { assertPlatformOwner } from "@/lib/auth-platform";
 
 export async function POST(req: NextRequest) {
-  const supabase = await createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || user.email !== OWNER_EMAIL) {
+  const user = await assertPlatformOwner();
+  if (!user) {
     return NextResponse.json({ error: "No autorizado." }, { status: 403 });
   }
 
