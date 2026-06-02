@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { CheckCircle2, CalendarDays, ClipboardList, QrCode } from "lucide-react";
@@ -78,8 +79,7 @@ function PreviewInner() {
         <div style={{ padding: "16px 20px 14px", background: "#1A1D23", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {isPro && gym.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={gym.logo_url} alt={gymName} style={{ height: 32, width: "auto", objectFit: "contain", maxWidth: 100 }} />
+              <Image src={gym.logo_url} alt={gymName} width={100} height={32} unoptimized style={{ height: 32, width: "auto", objectFit: "contain", maxWidth: 100 }} />
             ) : (
               <span style={{ font: `800 1rem/1 ${fd}`, color: "#FFFFFF", fontStyle: "italic", letterSpacing: "-0.03em" }}>
                 {gymName.split(" ").slice(0, -1).join(" ")}{gymName.split(" ").length > 1 ? " " : ""}

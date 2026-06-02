@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export function PwaShell({ children }: { children: React.ReactNode }) {
   const [showBanner, setShowBanner] = useState(false);
@@ -68,7 +69,7 @@ export function PwaShell({ children }: { children: React.ReactNode }) {
         }}>
           <style>{`@keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }`}</style>
           <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(249,115,22,0.15)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img src="/images/logo-favicon-fitgrowx.png" alt="FitGrowX" style={{ width: 26, height: 26, objectFit: "contain" }} />
+            <Image src="/images/logo-favicon-fitgrowx.png" alt="FitGrowX" width={32} height={32} style={{ objectFit: "contain" }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ font: "700 0.82rem/1.2 'Inter', sans-serif", color: "#FFFFFF", marginBottom: 3 }}>

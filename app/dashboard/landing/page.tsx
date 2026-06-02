@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile } from "@/lib/gym-cache";
@@ -120,8 +121,7 @@ function LivePreview({
           {/* Avatar / Logo */}
           <div style={{ width: 72, height: 72, borderRadius: "50%", background: `linear-gradient(135deg, ${accent}40, ${accent}10)`, border: `2px solid ${accent}60`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
             {logoUrl
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={logoUrl} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover" }} />
+              ? <Image src={logoUrl} alt="" width={52} height={52} unoptimized style={{ borderRadius: "50%", objectFit: "cover" }} />
               : <span style={{ font: `800 1.4rem/1 ${fd}`, color: accent }}>{gymName?.[0] ?? "G"}</span>
             }
           </div>
@@ -164,8 +164,7 @@ function LivePreview({
       {/* Hero */}
       <div style={{ padding: "48px 28px 32px", textAlign: "center" }}>
         {logoUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={logoUrl} alt={gymName} style={{ height: 44, width: "auto", objectFit: "contain", margin: "0 auto 24px", display: "block" }} />
+          <Image src={logoUrl} alt={gymName} width={200} height={44} unoptimized style={{ height: 44, width: "auto", objectFit: "contain", margin: "0 auto 24px", display: "block" }} />
         )}
         {!logoUrl && gymName && (
           <p style={{ font: `800 0.75rem/1 ${fd}`, color: accent, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 24 }}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import {
   Camera, User, ChevronRight, ChevronLeft,
   CreditCard, Shield, Gift, Dumbbell, Scale,
@@ -348,8 +349,7 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
           {fotos.map(f => (
             <div key={f.id}>
               <div style={{ paddingBottom: "100%", borderRadius: 10, overflow: "hidden", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", position: "relative" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={f.foto_url} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+                <Image src={f.foto_url} alt="" fill unoptimized style={{ objectFit: "cover" }} />
               </div>
               <p style={{ font: `400 0.58rem/1 ${fm}`, color: "rgba(255,255,255,0.3)", textAlign: "center", margin: "5px 0 4px", letterSpacing: "0.02em" }}>
                 {new Date(f.fecha + "T00:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
@@ -505,8 +505,7 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
                 }}
               >
                 {avatarUrl
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ? <Image src={avatarUrl} alt="" fill unoptimized style={{ objectFit: "cover" }} />
                   : <span style={{ font: `700 1.5rem/1 ${sy}`, color: "#fff" }}>{initials}</span>
                 }
                 {avatarUploading && (

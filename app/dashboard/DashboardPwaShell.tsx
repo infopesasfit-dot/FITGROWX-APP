@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const ACCENT = "#2563EB";
@@ -101,7 +102,7 @@ export function DashboardPwaShell({ children }: { children: React.ReactNode }) {
             background: `rgba(37,99,235,0.08)`,
             flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <img src="/images/logo-favicon-fitgrowx.png" alt="FitGrowX" style={{ width: 28, height: 28, objectFit: "contain" }} />
+            <Image src="/images/logo-favicon-fitgrowx.png" alt="FitGrowX" width={32} height={32} style={{ objectFit: "contain" }} />
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>

@@ -15,6 +15,7 @@ import { PanelTabPerfil } from "../components/PanelTabPerfil";
 import { PanelTabInicio } from "../components/PanelTabInicio";
 import { QrModal } from "../components/QrModal";
 import { analytics } from "@/lib/alumno-analytics";
+import Image from "next/image";
 import { useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "'Inter', sans-serif";
@@ -732,8 +733,7 @@ function AlumnoPanelInner() {
             </svg>
           </div>
           {gymInfo?.plan_type === "crecimiento" && gymInfo?.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={gymInfo.logo_url} alt={gymName} style={{ height: 28, maxWidth: 140, objectFit: "contain", margin: "0 auto 24px", display: "block", opacity: 0.4, filter: "grayscale(1)" }} />
+            <Image src={gymInfo.logo_url} alt={gymName} width={140} height={28} unoptimized style={{ height: 28, maxWidth: 140, width: "auto", objectFit: "contain", margin: "0 auto 24px", display: "block", opacity: 0.4, filter: "grayscale(1)" }} />
           ) : (
             <p style={{ font: `300 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.18)", letterSpacing: "0.3em", textTransform: "uppercase", marginBottom: 24 }}>{gymName}</p>
           )}
@@ -840,8 +840,7 @@ function AlumnoPanelInner() {
       <div style={{ position: "sticky", top: 0, zIndex: 50, backdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", WebkitBackdropFilter: isCompactScreen ? "blur(18px)" : "blur(32px)", background: "rgba(10,10,15,0.9)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: isCompactScreen ? "12px 16px" : "13px 20px" }}>
         <div style={{ maxWidth: 520, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {gymInfo?.plan_type === "crecimiento" && gymInfo?.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={gymInfo.logo_url} alt={gymInfo.gym_name ?? "Logo"} style={{ height: 28, maxWidth: 120, objectFit: "contain", borderRadius: 6 }} />
+            <Image src={gymInfo.logo_url} alt={gymInfo.gym_name ?? "Logo"} width={120} height={28} unoptimized style={{ height: 28, maxWidth: 120, width: "auto", objectFit: "contain", borderRadius: 6 }} />
           ) : (
             <span style={{ font: `800 0.95rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.03em", fontStyle: "italic" }}>
               {(() => { const parts = (gymInfo?.gym_name ?? "FitGrowX").split(" "); return <>{parts.slice(0, -1).join(" ")}{parts.length > 1 ? " " : ""}<span style={{ color: gymInfo?.accent_color ?? "#F97316" }}>{parts.slice(-1)[0]}</span></>; })()}
@@ -1123,7 +1122,7 @@ function AlumnoPanelInner() {
             </div>
             {/* Gym logo or name */}
             {gymInfo?.plan_type === "crecimiento" && gymInfo?.logo_url
-              ? <img src={gymInfo.logo_url} alt="" style={{ height: 24, maxWidth: 120, objectFit: "contain", opacity: 0.5, filter: "grayscale(1)" }} />
+              ? <Image src={gymInfo.logo_url} alt="" width={120} height={24} unoptimized style={{ height: 24, maxWidth: 120, width: "auto", objectFit: "contain", opacity: 0.5, filter: "grayscale(1)" }} />
               : <p style={{ font: `300 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.28em", textTransform: "uppercase" }}>{gymInfo?.gym_name ?? ""}</p>
             }
             {/* Main copy */}
