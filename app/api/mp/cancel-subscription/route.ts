@@ -62,5 +62,12 @@ export async function POST(req: NextRequest) {
     .eq("id", gym_id);
   if (dbErr) console.error("cancel-subscription: DB update failed:", dbErr.message);
 
+  // Cancel pending commissions — already-paid commissions are left intact.
+  void supabaseAdmin
+    .from("reseller_commissions")
+    .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+    .eq("gym_id", gym_id)
+    .eq("status", "pending");
+
   return NextResponse.json({ ok: true });
 }

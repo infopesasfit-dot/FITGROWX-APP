@@ -497,9 +497,9 @@ export async function POST(req: NextRequest) {
   console.log(`MP webhook: gym ${gymId} → preapproval ${id} → ${status}`);
   logWebhookPlatform(gymId, id, "preapproval", "processed");
 
-  if (isActive) {
-    createResellerCommission(gymId, preapproval.auto_recurring?.transaction_amount ?? 0, id, "monthly").catch(() => {});
-  }
+  // Commission is only created on subscription_authorized_payment (actual confirmed payment),
+  // NOT on preapproval (authorization only — no money collected yet). Creating on both events
+  // would double-count because the refs differ and the unique constraint wouldn't catch it.
 
   // ── Bonus de referido: aplica solo en el primer pago (alreadyActive era false) ──
   if (isActive && !alreadyActive) {
@@ -557,6 +557,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (isCancelled) {
+    // Cancel pending commissions — already-paid commissions are left intact.
+    void supabaseAdmin
+      .from("reseller_commissions")
+      .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
+      .eq("gym_id", gymId)
+      .eq("status", "pending");
+
     const { data: settings } = await supabaseAdmin
       .from("gym_settings")
       .select("gym_name, whatsapp")
