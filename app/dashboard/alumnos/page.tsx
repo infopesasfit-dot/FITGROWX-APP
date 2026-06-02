@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useDeferredValue } from "react";
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { Search, Plus, Users, TrendingUp, DollarSign, MoreVertical, X, User, Phone, CalendarDays, Mail, Sparkles, Trash2, CheckCircle, ClipboardCheck, Star, Download, ChevronDown, FileSpreadsheet, History } from "lucide-react";
 import { Tooltip } from "@/components/tooltip";
@@ -246,7 +247,14 @@ export default function AlumnosPage() {
     handleAISugerir,
     EMPTY_EJ,
     EMPTY_MOV,
-  } = useRutinaModal(gymId, setToast);
+    isBulk,
+    bulkCount,
+    templates,
+    templatesLoading,
+    saveAsTemplate,   setSaveAsTemplate,
+    applyTemplate,
+    deleteTemplate,
+  } = useRutinaModal(gymId, setToast, () => setSelectedIds(new Set()));
 
   const loadPlanes = useCallback(async (gid: string) => {
     const cacheKey = `planes_${gid}`;
@@ -818,6 +826,12 @@ export default function AlumnosPage() {
     setMembresiaError(null);
     setBulkMembresiaOpen(true);
     if (planes.length === 0 && gymId) await loadPlanes(gymId);
+  };
+
+  const openBulkRutinaModal = () => {
+    const selected = alumnos.filter(a => selectedIds.has(a.id));
+    if (selected.length === 0) return;
+    openRutinaModal(selected);
   };
 
   const handleMembresiaSubmit = async (e: React.FormEvent) => {
@@ -2403,8 +2417,7 @@ export default function AlumnosPage() {
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
                         {fichaProgreso.fotos.map(f => (
                           <div key={f.id} style={{ position: "relative", borderRadius: 8, overflow: "hidden", aspectRatio: "1", background: "#F3F4F6" }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={f.foto_url} alt={f.fecha} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
+                            <Image src={f.foto_url} alt={f.fecha} fill unoptimized style={{ objectFit: "cover" }} />
                             <span style={{ position: "absolute", bottom: 3, left: 3, font: `400 0.48rem/1 ${fb}`, color: "rgba(255,255,255,0.85)", background: "rgba(0,0,0,0.5)", padding: "2px 4px", borderRadius: 3 }}>{f.fecha}</span>
                           </div>
                         ))}
@@ -2531,11 +2544,15 @@ export default function AlumnosPage() {
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "relative", zIndex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ width: 44, height: 44, borderRadius: "50%", background: "rgba(249,115,22,0.12)", border: "1.5px solid rgba(249,115,22,0.25)", display: "flex", alignItems: "center", justifyContent: "center", font: `800 0.9rem/1 ${fd}`, color: "white", flexShrink: 0 }}>
-                  {rutinaTarget.full_name.split(" ").slice(0,2).map(w => w[0]).join("").toUpperCase()}
+                  {isBulk ? <Sparkles size={18} /> : (!Array.isArray(rutinaTarget) && rutinaTarget.full_name.split(" ").slice(0,2).map((w: string) => w[0]).join("").toUpperCase())}
                 </div>
                 <div>
-                  <p style={{ font: `300 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.45)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 5 }}>Entrenamiento para</p>
-                  <h2 style={{ font: `800 1.2rem/1.1 ${fd}`, color: "white", letterSpacing: "-0.025em" }}>{rutinaTarget.full_name}</h2>
+                  <p style={{ font: `300 0.6rem/1 ${fd}`, color: "rgba(255,255,255,0.45)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 5 }}>
+                    {isBulk ? "Asignando rutina a" : "Entrenamiento para"}
+                  </p>
+                  <h2 style={{ font: `800 1.2rem/1.1 ${fd}`, color: "white", letterSpacing: "-0.025em" }}>
+                    {isBulk ? `${bulkCount} alumno${bulkCount !== 1 ? "s" : ""}` : (!Array.isArray(rutinaTarget) && rutinaTarget.full_name)}
+                  </h2>
                 </div>
               </div>
               <button onClick={() => setRutinaModalOpen(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.6)", flexShrink: 0, marginTop: 2 }}>
@@ -2590,6 +2607,31 @@ export default function AlumnosPage() {
 
           {/* ── Body (scrollable) ── */}
           <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+
+            {/* Templates */}
+            {(templatesLoading || templates.length > 0) && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: "block", font: `500 0.72rem/1 ${fb}`, color: t2, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em" }}>Usar template</label>
+                {templatesLoading ? (
+                  <p style={{ font: `400 0.78rem/1 ${fb}`, color: t3 }}>Cargando...</p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {templates.map(tpl => (
+                      <div key={tpl.id} style={{ display: "flex", alignItems: "center", gap: 4, background: "#F0F2F8", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 9999, padding: "5px 10px 5px 12px" }}>
+                        <button
+                          onClick={() => applyTemplate(tpl)}
+                          style={{ background: "none", border: "none", font: `600 0.75rem/1 ${fd}`, color: t1, cursor: "pointer", padding: 0 }}
+                        >{tpl.nombre}</button>
+                        <button
+                          onClick={() => deleteTemplate(tpl.id)}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: t3, padding: 0, display: "flex", alignItems: "center" }}
+                        ><X size={11} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Nombre de la rutina */}
             <div style={{ marginBottom: 20 }}>
@@ -2723,25 +2765,39 @@ export default function AlumnosPage() {
             {publicado ? (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "14px", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)", borderRadius: 12, animation: "publishPop 0.4s cubic-bezier(0.22,1,0.36,1)" }}>
                 <CheckCircle size={20} color="#FF6A00" />
-                <span style={{ font: `700 0.9rem/1 ${fd}`, color: "#FF6A00" }}>¡Enviado al Alumno!</span>
+                <span style={{ font: `700 0.9rem/1 ${fd}`, color: "#FF6A00" }}>{isBulk ? `¡Asignado a ${bulkCount} alumnos!` : "¡Enviado al Alumno!"}</span>
               </div>
             ) : (
-              <button
-                onClick={handleRutinaSave}
-                disabled={rutinaSaving}
-                style={{
-                  width: "100%", padding: "14px",
-                  background: rutinaSaving ? "#9CA3AF" : "#111318",
-                  color: "white", border: rutinaSaving ? "none" : "1px solid rgba(255,255,255,0.1)", borderRadius: 12,
-                  font: `700 1rem/1 ${fd}`, cursor: rutinaSaving ? "not-allowed" : "pointer",
-                  boxShadow: rutinaSaving ? "none" : "0 4px 16px rgba(0,0,0,0.4)",
-                  letterSpacing: "0.01em", transition: "opacity 0.15s",
-                }}
-                onMouseEnter={e => { if (!rutinaSaving) e.currentTarget.style.opacity = "0.92"; }}
-                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
-              >
-                {rutinaSaving ? "Publicando..." : "Publicar Entrenamiento"}
-              </button>
+              <>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={saveAsTemplate}
+                    onChange={e => setSaveAsTemplate(e.target.checked)}
+                    style={{ width: 15, height: 15, accentColor: "#7C3AED", cursor: "pointer" }}
+                  />
+                  <span style={{ font: `500 0.78rem/1 ${fb}`, color: t2 }}>Guardar como template para usar después</span>
+                </label>
+                <button
+                  onClick={handleRutinaSave}
+                  disabled={rutinaSaving}
+                  style={{
+                    width: "100%", padding: "14px",
+                    background: rutinaSaving ? "#9CA3AF" : "#111318",
+                    color: "white", border: rutinaSaving ? "none" : "1px solid rgba(255,255,255,0.1)", borderRadius: 12,
+                    font: `700 1rem/1 ${fd}`, cursor: rutinaSaving ? "not-allowed" : "pointer",
+                    boxShadow: rutinaSaving ? "none" : "0 4px 16px rgba(0,0,0,0.4)",
+                    letterSpacing: "0.01em", transition: "opacity 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!rutinaSaving) e.currentTarget.style.opacity = "0.92"; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
+                >
+                  {rutinaSaving
+                    ? (isBulk ? "Asignando..." : "Publicando...")
+                    : (isBulk ? `Asignar a ${bulkCount} alumno${bulkCount !== 1 ? "s" : ""}` : "Publicar Entrenamiento")
+                  }
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -2758,6 +2814,10 @@ export default function AlumnosPage() {
           onClick={openBulkMembresiaModal}
           style={{ padding: "7px 13px", borderRadius: 9, background: "#FF6A00", border: "none", color: "white", font: `600 0.78rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
         ><Star size={12} /> Asignar membresía</button>
+        <button
+          onClick={openBulkRutinaModal}
+          style={{ padding: "7px 13px", borderRadius: 9, background: "rgba(124,58,237,0.85)", border: "none", color: "white", font: `600 0.78rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+        ><Sparkles size={12} /> Asignar rutina</button>
         <button
           onClick={handleBulkEliminar}
           style={{ padding: "7px 11px", borderRadius: 9, background: "rgba(220,38,38,0.16)", border: "1px solid rgba(248,113,113,0.35)", color: "#FCA5A5", font: `600 0.78rem/1 ${fd}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
