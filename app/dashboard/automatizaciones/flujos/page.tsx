@@ -490,7 +490,7 @@ export default function FlujosPage() {
       const mañanaStr = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
       const [{ count: cC }, { count: cB }, { count: cCG }, { count: cD }] = await Promise.all([
         supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", id).gte("created_at", todayStr).lt("created_at", mañanaStr),
-        supabase.from("alumnos").select("*",    { count: "exact", head: true }).eq("gym_id", id).is("deleted_at", null).gte("created_at", todayStr).lt("created_at", mañanaStr),
+        supabase.from("alumnos").select("*",    { count: "exact", head: true }).eq("gym_id", id).is("deleted_at", null).eq("is_demo", false).gte("created_at", todayStr).lt("created_at", mañanaStr),
         supabase.from("prospectos").select("*", { count: "exact", head: true }).eq("gym_id", id).eq("clase_gratis_date", todayStr),
         supabase.from("asistencias").select("*",{ count: "exact", head: true }).eq("gym_id", id).eq("fecha", todayStr),
       ]);

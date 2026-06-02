@@ -273,7 +273,7 @@ export default function DashboardPage() {
       if (!profile) return;
       const [settingsRes, alumnosRes, planesRes, profileRes, gymRes] = await Promise.all([
         supabase.from("gym_settings").select("whatsapp_connected, slug, mp_access_token, payment_info, onboarding_completed").eq("gym_id", profile.gymId).maybeSingle(),
-        supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).is("deleted_at", null),
+        supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).is("deleted_at", null).eq("is_demo", false),
         supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId),
         supabase.from("profiles").select("phone").eq("id", profile.userId).maybeSingle(),
         supabase.from("gyms").select("is_subscription_active, plan_type, trial_expires_at").eq("id", profile.gymId).maybeSingle(),

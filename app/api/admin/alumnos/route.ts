@@ -39,6 +39,7 @@ export async function GET() {
         .select("id, dni, full_name, phone, plan_id, status, next_expiration_date, frozen_since, pausa_hasta, deuda_pendiente, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
         .eq("gym_id", gymId)
         .is("deleted_at", null)
+        .eq("is_demo", false)
         .order("full_name"),
       admin
         .from("planes")

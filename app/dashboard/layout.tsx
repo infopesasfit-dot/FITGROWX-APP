@@ -791,9 +791,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
           {gymSlug && (
             <a
-              href={`/gym/${gymSlug}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/dashboard/preview"
               className="sb-item"
               title={(!isMobile && collapsed) ? "Ver app del alumno" : undefined}
               style={{ display: "flex", alignItems: "center", gap: 11, padding: (!isMobile && collapsed) ? "9px 0" : "9px 12px", justifyContent: (!isMobile && collapsed) ? "center" : "flex-start", borderRadius: 10, textDecoration: "none", fontSize: "0.875rem", fontWeight: 500, color: "rgba(255,255,255,0.50)", fontFamily: fb, transition: "all 0.14s", whiteSpace: "nowrap" }}

@@ -80,6 +80,7 @@ function AlumnoPanelInner() {
   const confirm = useBrandConfirm();
 
   const [session,      setSession]      = useState<Session | null>(null);
+  const [isPreview,    setIsPreview]    = useState(false);
   const [tab,          setTab]          = useState<"inicio" | "calendario" | "entrenamiento" | "metas" | "perfil">("inicio");
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [clases,       setClases]       = useState<GymClass[]>([]);
@@ -144,6 +145,10 @@ function AlumnoPanelInner() {
     });
     return map;
   }, [pesos]);
+
+  useEffect(() => {
+    if (sessionStorage.getItem("fitgrowx_preview") === "1") setIsPreview(true);
+  }, []);
 
   useEffect(() => {
     const update = () => setIsOffline(!navigator.onLine);
@@ -407,6 +412,7 @@ function AlumnoPanelInner() {
 
   const handleReservar = async (clase_id: string, fecha: string) => {
     if (!session) return;
+    if (isPreview) { showToast("Modo preview — las reservas no están habilitadas.", false); return; }
     const key = `${clase_id}|${fecha}`;
     setReservando(key);
     try {
@@ -454,6 +460,7 @@ function AlumnoPanelInner() {
 
   const handleInlineKgSave = async (ejercicio: string) => {
     if (!session) return;
+    if (isPreview) { showToast("Modo preview — el registro de pesos no está habilitado.", false); return; }
     const val = inlineKg[ejercicio];
     if (!val || isNaN(parseFloat(val))) return;
     const kgNum = parseFloat(val);
@@ -618,6 +625,7 @@ function AlumnoPanelInner() {
 
   const handlePagar = async () => {
     if (!session || loadingPago) return;
+    if (isPreview) { showToast("Modo preview — los pagos no están habilitados.", false); return; }
     setLoadingPago(true);
     try {
       const res = await fetch("/api/alumno/pagar", {
@@ -854,6 +862,15 @@ function AlumnoPanelInner() {
         </div>
       </div>
 
+      {/* Preview mode banner */}
+      {isPreview && (
+        <div style={{ position: "sticky", top: 57, zIndex: 49, background: "#F97316", padding: "9px 16px", textAlign: "center" }}>
+          <span style={{ font: `600 0.78rem/1 ${fd}`, color: "#FFFFFF", letterSpacing: "0.01em" }}>
+            👁 Modo preview — así ven la app tus alumnos
+          </span>
+        </div>
+      )}
+
       {/* Hero greeting */}
       {tab !== "perfil" && tab !== "inicio" && <div style={{ position: "relative", zIndex: 1, padding: tab === "entrenamiento" && isCompactScreen ? "18px 16px 10px" : "28px 20px 16px", maxWidth: 520, margin: "0 auto" }}>
         {tab === "entrenamiento" && isCompactScreen ? (
@@ -984,6 +1001,7 @@ function AlumnoPanelInner() {
                 gymName={gymInfo?.gym_name ?? null}
                 logoUrl={gymInfo?.logo_url ?? null}
                 rutina={rutina}
+                isPreview={isPreview}
               />
             )}
           </>

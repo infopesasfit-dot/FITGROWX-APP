@@ -237,8 +237,8 @@ export default function MembresiasPage() {
 
     // Phase 2: alumnos counts — background, doesn't block rendering
     const [{ data: alumnosData }, { count: activos }] = await Promise.all([
-      supabase.from("alumnos").select("plan_id").eq("gym_id", profile.gymId).not("plan_id", "is", null).is("deleted_at", null),
-      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).eq("status", "activo").is("deleted_at", null),
+      supabase.from("alumnos").select("plan_id").eq("gym_id", profile.gymId).not("plan_id", "is", null).is("deleted_at", null).eq("is_demo", false),
+      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", profile.gymId).eq("status", "activo").is("deleted_at", null).eq("is_demo", false),
     ]);
     const counts: Record<string, number> = {};
     (alumnosData ?? []).forEach((a: { plan_id: string }) => {

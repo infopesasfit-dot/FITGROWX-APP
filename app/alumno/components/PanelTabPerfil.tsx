@@ -42,6 +42,7 @@ interface PanelTabPerfilProps {
   gymName: string | null;
   logoUrl: string | null;
   rutina?: { nombre: string } | null;
+  isPreview?: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -126,7 +127,7 @@ function SettingsRow({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, rutina }: PanelTabPerfilProps) {
+export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, rutina, isPreview = false }: PanelTabPerfilProps) {
   const {
     fotos, fotosLoading, fotoUploading, nuevaFotoPrivada, setNuevaFotoPrivada,
     fotoInputRef, handleFotoUpload, handleTogglePrivada, handleDeleteFoto,
@@ -186,6 +187,7 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
 
   const handleSavePerfil = async () => {
     if (!session) return;
+    if (isPreview) { showToast("Modo preview — guardar perfil no está habilitado.", false); return; }
     const update: Record<string, string> = {};
     if (editNombre.trim() && editNombre.trim() !== session.full_name) update.full_name = editNombre.trim();
     if (editPhone !== (session.phone ?? "")) update.phone = editPhone;
@@ -302,14 +304,14 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
     <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "0 16px 32px" }}>
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
         <button
-          onClick={() => fotoInputRef.current?.click()}
-          disabled={fotoUploading}
+          onClick={() => { if (!isPreview) fotoInputRef.current?.click(); else showToast("Modo preview — upload no habilitado.", false); }}
+          disabled={fotoUploading || isPreview}
           style={{
             flex: 1, padding: "13px 0",
-            background: fotoUploading ? "rgba(249,115,22,0.4)" : "linear-gradient(135deg,#F97316,#EA580C)",
+            background: (fotoUploading || isPreview) ? "rgba(249,115,22,0.4)" : "linear-gradient(135deg,#F97316,#EA580C)",
             border: "none", borderRadius: 12,
             font: `600 0.85rem/1 ${dm}`, color: "#fff",
-            cursor: fotoUploading ? "not-allowed" : "pointer",
+            cursor: (fotoUploading || isPreview) ? "not-allowed" : "pointer",
           }}
         >
           {fotoUploading ? "Subiendo…" : "Subir foto"}
@@ -492,12 +494,12 @@ export function PanelTabPerfil({ session, logout, showToast, gymName, logoUrl, r
             {/* Avatar */}
             <div style={{ position: "relative", flexShrink: 0 }}>
               <div
-                onClick={() => avatarInputRef.current?.click()}
+                onClick={() => { if (!isPreview) avatarInputRef.current?.click(); else showToast("Modo preview — upload no habilitado.", false); }}
                 style={{
                   width: 72, height: 72, borderRadius: "50%",
                   background: avatarUrl ? "transparent" : "#F97316",
                   border: "2px solid rgba(249,115,22,0.35)",
-                  overflow: "hidden", cursor: "pointer",
+                  overflow: "hidden", cursor: isPreview ? "not-allowed" : "pointer",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   position: "relative",
                 }}

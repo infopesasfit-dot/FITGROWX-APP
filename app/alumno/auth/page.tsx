@@ -11,6 +11,7 @@ function AuthInner() {
   const searchParams = useSearchParams();
   const token        = searchParams.get("token");
   const gymSlug      = searchParams.get("gym");
+  const isPreview    = searchParams.get("preview") === "1";
 
   const [status, setStatus] = useState<"verifying" | "error">(token ? "verifying" : "error");
   const [error,  setError]  = useState<string | null>(token ? null : "Token no encontrado.");
@@ -29,6 +30,7 @@ function AuthInner() {
       .then(r => r.json())
       .then(data => {
         if (!data.ok) { setError(data.error ?? "Error al verificar."); setStatus("error"); return; }
+        if (isPreview) sessionStorage.setItem("fitgrowx_preview", "1");
         router.replace("/alumno/panel");
       })
       .catch(() => { setError("Error de conexión."); setStatus("error"); });

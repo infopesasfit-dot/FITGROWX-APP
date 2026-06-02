@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const { data: alumno } = await supabase
     .from("alumnos")
-    .select("id, dni, full_name, status, plan_id, next_expiration_date, deuda_pendiente, email, phone, avatar_url, planes!plan_id(nombre)")
+    .select("id, dni, full_name, status, plan_id, next_expiration_date, deuda_pendiente, email, phone, avatar_url, is_demo, planes!plan_id(nombre)")
     .eq("id", tokenRow.alumno_id)
     .eq("gym_id", tokenRow.gym_id)
     .single();
@@ -39,5 +39,6 @@ export async function GET(req: NextRequest) {
     email: alumno.email ?? null,
     phone: alumno.phone ?? null,
     avatar_url: alumno.avatar_url ?? null,
+    is_demo: alumno.is_demo ?? false,
   });
 }
