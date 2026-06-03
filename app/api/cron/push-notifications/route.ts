@@ -1,5 +1,7 @@
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,11 +23,8 @@ if (process.env.VAPID_SUBJECT && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && pro
   }
 }
 
-export async function POST(req: Request) {
-  // Verify cron secret
-  if (req.headers.get("x-cron-secret") !== process.env.CRON_SECRET) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+  if (!isCronAuthorized(req)) return cronUnauthorized();
 
   if (!webpushConfigured) {
     console.log("[push-cron] Web-push not configured, skipping");
