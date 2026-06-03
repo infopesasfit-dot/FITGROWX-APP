@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Notify admin
-  const ownerPhone = process.env.OWNER_PHONE;
+  const ownerPhone = (process.env.OWNER_PHONE ?? process.env.ALERT_PHONE);
   if (ownerPhone) {
     void sendWa(
       "fitgrowx-platform",

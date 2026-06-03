@@ -40,7 +40,7 @@ export async function POST() {
 
   // Notify admin via WA
   const motorUrl   = process.env.WA_MOTOR_URL;
-  const ownerPhone = process.env.OWNER_PHONE;
+  const ownerPhone = (process.env.OWNER_PHONE ?? process.env.ALERT_PHONE);
   const appUrl     = process.env.NEXT_PUBLIC_APP_URL ?? "https://fitgrowx.com";
 
   if (motorUrl && ownerPhone) {

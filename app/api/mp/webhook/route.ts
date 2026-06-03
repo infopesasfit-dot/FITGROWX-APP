@@ -123,7 +123,7 @@ async function createResellerCommission(
     console.warn(
       `Reseller commission BLOCKED: possible self-referral (${selfReferralMatches.join(", ")}) for gym ${gymId}, reseller ${reseller.id}, cuit=${reseller.cuit ?? "n/a"} — no commission created`,
     );
-    const ownerPhone = normalizePhone(process.env.OWNER_PHONE);
+    const ownerPhone = normalizePhone((process.env.OWNER_PHONE ?? process.env.ALERT_PHONE));
     if (ownerPhone) {
       const alertMsg =
         `⚠️ *Comisión de reseller bloqueada — posible self-referral*\n\n` +
@@ -316,7 +316,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (monthlyPreapprovalId && !cancelledMonthly) {
-        const ownerPhone = normalizePhone(process.env.OWNER_PHONE);
+        const ownerPhone = normalizePhone((process.env.OWNER_PHONE ?? process.env.ALERT_PHONE));
         if (ownerPhone) {
           const alertMsg =
             `⚠️ *Preapproval mensual sin cancelar — Acción requerida*\n\n` +

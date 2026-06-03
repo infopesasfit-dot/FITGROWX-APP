@@ -246,7 +246,7 @@ export async function GET(req: NextRequest) {
   }
 
   // ── 6. Resumen diario al owner ──────────────────────────────────────────
-  const ownerPhone = normalizePhone(process.env.OWNER_PHONE);
+  const ownerPhone = normalizePhone((process.env.OWNER_PHONE ?? process.env.ALERT_PHONE));
   if (ownerPhone) {
     const h1ago   = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
     const d7ago   = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();

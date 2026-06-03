@@ -363,7 +363,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Notificar al platform owner por WA sobre nuevo gym (fire-and-forget)
-      const ownerPhone = process.env.OWNER_PHONE;
+      const ownerPhone = (process.env.OWNER_PHONE ?? process.env.ALERT_PHONE);
       if (ownerPhone) {
         void (async () => {
           const trialStart = now.toISOString().slice(0, 10);
