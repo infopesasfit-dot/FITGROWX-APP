@@ -239,6 +239,12 @@ function AjustesContent() {
   const [molineteLabelModal, setMolineteLabelModal] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [apiKeyRegenerating, setApiKeyRegenerating] = useState(false);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
+
   const loadMolineteKeys = useCallback(async () => {
     setMolineteLoading(true);
     const res = await fetch("/api/admin/molinete-key").catch(() => null);
@@ -264,6 +270,17 @@ function AjustesContent() {
     setMolineteKeyCopied(false);
     setMolineteNewLabel("");
     setMolineteLabelModal(false);
+  };
+
+  const handleRegenerateApiKey = async () => {
+    setApiKeyRegenerating(true);
+    const res = await fetch("/api/dashboard/api-key", { method: "DELETE" }).catch(() => null);
+    if (res?.ok) {
+      const data = await res.json();
+      if (data.ok) setApiKey(data.api_key);
+    }
+    setApiKeyRegenerating(false);
+    setApiKeyVisible(true);
   };
 
   const handleRevokeKey = async (id: string) => {
@@ -419,6 +436,12 @@ function AjustesContent() {
 
       fetch("/api/gym/webhook-url").then(r => r.json()).then(d => { if (d.url) setWebhookUrl(d.url); }).catch(() => {});
       loadMolineteKeys();
+
+      setApiKeyLoading(true);
+      fetch("/api/dashboard/api-key")
+        .then((r) => r.json())
+        .then((d) => { if (d.ok) setApiKey(d.api_key); })
+        .finally(() => setApiKeyLoading(false));
 
       fetch("/api/admin/staff")
         .then((response) => response.json())
@@ -1324,6 +1347,69 @@ function AjustesContent() {
                   Al generar una key, el sistema te da un mensaje listo para mandarle a tu técnico con todo lo que necesita para configurar el molinete.
                 </p>
               </div>
+            </SectionCard>
+
+            {/* API & Agentes IA */}
+            <SectionCard
+              icon={<Zap size={18} color="white" />}
+              title="API & Agentes IA"
+              desc="Usá esta clave para conectar FitGrowX con Claude, GPT y otros agentes de IA vía el protocolo MCP."
+            >
+              {apiKeyLoading ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: t3, font: `400 0.82rem/1 ${fb}` }}>
+                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Cargando...
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, position: "relative" }}>
+                      <input
+                        readOnly
+                        value={apiKey
+                          ? (apiKeyVisible ? apiKey : `${"•".repeat(28)}${apiKey.slice(-8)}`)
+                          : "—"}
+                        style={{ ...mutedInputStyle, fontFamily: fm, letterSpacing: apiKeyVisible ? "0.04em" : undefined, paddingRight: 44 }}
+                      />
+                      <button
+                        onClick={() => setApiKeyVisible(v => !v)}
+                        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: t3, display: "flex", alignItems: "center" }}
+                        title={apiKeyVisible ? "Ocultar" : "Mostrar"}
+                      >
+                        {apiKeyVisible ? <Lock size={14} /> : <Key size={14} />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (apiKey) {
+                          navigator.clipboard.writeText(apiKey);
+                          setApiKeyCopied(true);
+                          setTimeout(() => setApiKeyCopied(false), 2000);
+                        }
+                      }}
+                      disabled={!apiKey}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(15,23,42,0.08)", background: apiKeyCopied ? "rgba(22,163,74,0.08)" : "#F8FAFC", color: apiKeyCopied ? "#166534" : t2, font: `700 0.78rem/1 ${fd}`, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                    >
+                      <Copy size={13} />
+                      {apiKeyCopied ? "Copiado" : "Copiar"}
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleRegenerateApiKey}
+                    disabled={apiKeyRegenerating}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "10px 14px", borderRadius: 12, border: "1px solid rgba(239,68,68,0.18)", background: "white", color: "#DC2626", font: `700 0.78rem/1 ${fd}`, cursor: apiKeyRegenerating ? "not-allowed" : "pointer", opacity: apiKeyRegenerating ? 0.6 : 1, alignSelf: "flex-start" }}
+                  >
+                    <RefreshCw size={13} style={apiKeyRegenerating ? { animation: "spin 1s linear infinite" } : undefined} />
+                    {apiKeyRegenerating ? "Regenerando..." : "Regenerar clave"}
+                  </button>
+                  <div style={{ padding: "12px 14px", background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <Zap size={14} color={t3} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <p style={{ font: `400 0.78rem/1.5 ${fb}`, color: t2, margin: 0 }}>
+                      Endpoint MCP: <code style={{ font: `600 0.76rem/1 ${fm}`, background: "rgba(15,23,42,0.05)", padding: "2px 6px", borderRadius: 6 }}>/api/mcp</code>
+                      {" · "}Documentación completa en <code style={{ font: `600 0.76rem/1 ${fm}`, background: "rgba(15,23,42,0.05)", padding: "2px 6px", borderRadius: 6 }}>docs/MCP.md</code>
+                    </p>
+                  </div>
+                </div>
+              )}
             </SectionCard>
 
           </div>
