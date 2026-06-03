@@ -31,7 +31,7 @@ function periodMonthFrom(value: string | null | undefined) {
 // Same user_id is a definitive self-referral; email/phone matches are strong
 // heuristics for the case where the reseller signed up the gym under a second
 // account. Callers must NOT pay a commission when this returns any match.
-async function detectSelfReferral(
+export async function detectSelfReferral(
   gym: { user_id?: string | null; email?: string | null; whatsapp?: string | null },
   reseller: { id: string; user_id?: string | null; name?: string | null; cuit?: string | null },
 ): Promise<string[]> {
