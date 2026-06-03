@@ -1,7 +1,7 @@
 # Backlog — FitGrowX pre-launch
 
-**Última actualización:** 2026-06-01  
-**Branch de referencia:** `backup/pre-launch-fixes` (75e57dd)  
+**Última actualización:** 2026-06-04  
+**Branch de referencia:** `backup/pre-launch-fixes` (fe0d1f6)  
 **Build:** ✅ verde · **Tests:** ✅ 244/244
 
 ---
@@ -58,6 +58,12 @@
 
 ### Infraestructura WA
 - `9e89842` — flush de wa-queue cada minuto (cron)
+
+### SEO y contenido — sesión 2026-06-04
+- `fe0d1f6` — espejo público `/recursos` (index + `/[categoria]` + `/[categoria]/[slug]`): metadata, canonical, OG, Article JSON-LD, links internos, CTA → /start; 13 páginas SSG desde `boveda/data.ts`, sin auth
+- `fe0d1f6` — Bóveda sacada del sidebar del dashboard; SectionCard "Recursos y guías" agregada en Ajustes → /dashboard/boveda
+- `fe0d1f6` — 3 páginas pilares SEO estáticas con contenido real, JSON-LD (FAQPage/Article/SoftwareApplication), links internos y CTA: `/software-para-gimnasios`, `/excel-vs-software-para-gimnasios`, `/automatizacion-whatsapp-gimnasios`
+- `fe0d1f6` — sitemap.ts expandido: +3 pillar pages + /recursos + 4 categorías + 13 recursos (total ~26 URLs nuevas)
 
 ---
 
