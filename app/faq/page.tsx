@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, HelpCircle } from "lucide-react";
 import { LandingHeader } from "@/components/landing-header";
 import { FAQ_ITEMS } from "@/lib/guide-content";
+import { FaqJsonLd } from "@/components/SeoJsonLd";
 
 export const metadata = {
   title: "FAQ — FitGrowX",
@@ -11,6 +12,7 @@ export const metadata = {
 export default function FaqPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white antialiased font-sans">
+      <FaqJsonLd />
       <LandingHeader actionType="link" actionLabel="Prueba gratis" actionHref="/start" />
 
       <section className="relative overflow-hidden px-6 pb-12 pt-28 lg:px-10 lg:pt-32">

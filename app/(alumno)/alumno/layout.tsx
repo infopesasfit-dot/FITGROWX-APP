@@ -4,6 +4,7 @@ import { PwaShell } from "@/components/alumno/PwaShell";
 export const metadata: Metadata = {
   title: "Mi Panel | FitGrowX",
   description: "Tu panel de entrenamiento y membresía",
+  robots: { index: false, follow: false },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

@@ -6,6 +6,7 @@ import { HeroSection } from "@/components/hero-section";
 import { LandingHeader } from "@/components/landing-header";
 import { LogosSection } from "@/components/logos-section";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
+import { SoftwareApplicationJsonLd, OrganizationJsonLd, FaqJsonLd } from "@/components/SeoJsonLd";
 
 const BenefitsSection = dynamic(() => import("@/components/benefits-section").then((m) => m.BenefitsSection));
 const DemoSection = dynamic(() => import("@/components/demo-section").then((m) => m.DemoSection));
@@ -19,6 +20,9 @@ const plans = FITGROWX_PLANS;
 export default function Home() {
   return (
     <main className="relative isolate min-h-screen font-sans text-white antialiased bg-[#050505]">
+      <SoftwareApplicationJsonLd />
+      <OrganizationJsonLd />
+      <FaqJsonLd />
       <div
         className="fixed inset-0 z-[99] pointer-events-none opacity-[0.018] mix-blend-overlay"
         style={{

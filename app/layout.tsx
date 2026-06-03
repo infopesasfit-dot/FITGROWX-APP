@@ -18,12 +18,56 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const SITE_DESCRIPTION =
+  "FitGrowX es un software de gestión y crecimiento para gimnasios en LATAM que centraliza alumnos, cobros, WhatsApp, QR, staff, clases y app del alumno.";
+
 export const metadata: Metadata = {
-  title: "FitGrowX | Software y crecimiento para gimnasios",
-  description:
-    "FitGrowX combina gestion, cobros por WhatsApp y una Boveda de Crecimiento para ayudar a los gimnasios a recuperar el control y escalar.",
+  metadataBase: new URL("https://fitgrowx.com"),
+  title: "FitGrowX — Software de gestión para gimnasios en LATAM",
+  description: SITE_DESCRIPTION,
+  keywords: [
+    "software para gimnasios",
+    "gestión de gimnasios",
+    "cobros gimnasio",
+    "WhatsApp gimnasio",
+    "app alumno gimnasio",
+    "software gimnasio Argentina",
+    "software gimnasio México",
+  ],
   icons: {
     icon: "/favicon.ico",
+  },
+  alternates: {
+    canonical: "/",
+    languages: {
+      "es-AR": "/",
+      "es-MX": "/",
+      "es-CO": "/",
+      "es-CL": "/",
+      "es-UY": "/",
+    },
+  },
+  openGraph: {
+    type: "website",
+    siteName: "FitGrowX",
+    title: "FitGrowX — Software de gestión para gimnasios en LATAM",
+    description: SITE_DESCRIPTION,
+    url: "https://fitgrowx.com",
+    locale: "es_AR",
+    images: [
+      {
+        url: "/images/og-fitgrowx.png",
+        width: 1200,
+        height: 630,
+        alt: "FitGrowX — Software de gestión para gimnasios en LATAM",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FitGrowX — Software de gestión para gimnasios en LATAM",
+    description: SITE_DESCRIPTION,
+    images: ["/images/og-fitgrowx.png"],
   },
 };
 
