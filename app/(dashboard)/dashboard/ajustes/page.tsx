@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Copy,
   CreditCard,
+  FolderOpen,
   ImagePlus,
   Key,
   Loader2,
@@ -871,6 +872,22 @@ function AjustesContent() {
                 </SectionCard>
               );
             })()}
+
+            {/* ── Recursos y guías ── */}
+            <SectionCard icon={<FolderOpen size={18} color="white" />} title="Recursos y guías" desc="Playbooks, scripts y checklists para vender más, retener alumnos y ordenar tu operación.">
+              <Link
+                href="/dashboard/boveda"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "10px 16px", borderRadius: 12, textDecoration: "none",
+                  background: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.18)",
+                  color: "#C2410C", font: `700 0.8rem/1 ${fd}`, whiteSpace: "nowrap",
+                }}
+              >
+                <FolderOpen size={13} />
+                Abrir Bóveda
+              </Link>
+            </SectionCard>
 
             {/* ── Reportes ── */}
             <SectionCard

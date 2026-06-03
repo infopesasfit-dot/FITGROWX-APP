@@ -11,7 +11,7 @@ import {
   Home, Users, Wallet, TrendingDown, Settings, LogOut,
   Search, Bell, ChevronLeft, ChevronRight, Menu,
   Zap, ChevronDown, Megaphone, CalendarDays, ScanLine,
-  Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, FolderOpen, ClipboardList,
+  Clock, AlertTriangle, X, UserPlus, DollarSign, Inbox, ClipboardList,
   CheckCircle, HelpCircle, Power, MessageSquare, Smartphone, BarChart3,
 } from "lucide-react";
 import WelcomeModal from "@/components/dashboard/WelcomeModal";
@@ -62,7 +62,6 @@ const NAV_SECTIONS_ADMIN: NavSection[] = [
     section: "RETENCIÓN",
     items: [
       { href: "/dashboard/automatizaciones", label: "Automatizaciones", icon: Zap },
-      { href: "/dashboard/boveda",           label: "Bóveda",           icon: FolderOpen },
     ],
   },
   {
