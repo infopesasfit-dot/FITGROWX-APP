@@ -94,23 +94,15 @@ function PlanCard({
             ${fmt(price)}
           </span>
           <span className="text-xs font-medium text-white/30 uppercase tracking-widest">/mes</span>
-          {billing === "anual" && (
-            <span
-              className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-              style={{ background: "rgba(249,115,22,0.15)", color: "#F97316" }}
-            >
-              −20%
-            </span>
-          )}
         </div>
 
         {billing === "anual" ? (
           <p className="mt-1.5 text-[11px] font-light text-white/30">
-            ${fmt(plan.annualTotal)} ARS/año · ahorrás ${fmt(plan.savings)}
+            ${fmt(plan.annualTotal)} ARS/año · 2 meses gratis incluidos
           </p>
         ) : (
           <p className="mt-1.5 text-[11px] font-light text-white/25">
-            Anual: ahorrás <span style={{ color: "rgba(255,140,58,0.7)" }}>${fmt(plan.savings)}</span>/año
+            Anual: <span style={{ color: "rgba(255,140,58,0.7)" }}>2 meses gratis</span> incluidos
           </p>
         )}
 
@@ -181,7 +173,7 @@ export function PricingSection({ plans }: { plans: FitgrowxPlanDefinition[] }) {
                     color: billing === "anual" ? "#F97316" : "rgba(255,255,255,0.3)",
                   }}
                 >
-                  −20%
+                  2 meses gratis
                 </span>
               )}
             </button>
