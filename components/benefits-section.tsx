@@ -67,7 +67,7 @@ export function BenefitsSection() {
           className="mx-auto max-w-3xl text-center mb-16 lg:mb-20"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
+          viewport={{ once: true, amount: 0 }}
           transition={{ duration: 0.75, ease: EASE }}
         >
           <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-5">Producto</h2>
@@ -82,7 +82,7 @@ export function BenefitsSection() {
           className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16 lg:mb-20"
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4 }}
+          viewport={{ once: true, amount: 0 }}
           transition={{ duration: 0.8, ease: EASE, delay: 0.1 }}
         >
           <Stat value={98}  suffix="%" label="de socios que renuevan" />

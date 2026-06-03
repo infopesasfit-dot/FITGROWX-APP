@@ -18,7 +18,7 @@ export function VideoSection() {
           className="text-center mb-12 lg:mb-16"
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.5 }}
+          viewport={{ once: true, amount: 0 }}
           transition={{ duration: 0.75, ease: EASE }}
         >
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-4">Demo</p>
@@ -32,7 +32,7 @@ export function VideoSection() {
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, amount: 0.25 }}
+          viewport={{ once: true, amount: 0 }}
           transition={{ duration: 0.85, ease: EASE, delay: 0.1 }}
           className="relative"
         >

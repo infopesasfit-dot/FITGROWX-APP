@@ -50,7 +50,7 @@ function PlanCard({
       className="relative overflow-hidden rounded-3xl p-7 flex flex-col"
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0 }}
       transition={{ duration: 0.75, ease: EASE, delay }}
       style={{
         background: "linear-gradient(160deg, rgba(255,255,255,0.035) 0%, rgba(0,0,0,0.70) 100%)",
@@ -147,7 +147,7 @@ export function PricingSection({ plans }: { plans: FitgrowxPlanDefinition[] }) {
         variants={headVariant}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, amount: 0.4 }}
+        viewport={{ once: true, amount: 0 }}
       >
         <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-4">Precios</h2>
         <p className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.08]">
@@ -194,7 +194,7 @@ export function PricingSection({ plans }: { plans: FitgrowxPlanDefinition[] }) {
         className="mx-auto grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2"
         initial={{ opacity: 0, scale: 0.97 }}
         whileInView={{ opacity: 1, scale: 1 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: true, amount: 0 }}
         transition={{ duration: 0.7, ease: EASE, delay: 0.05 }}
       >
         <PlanCard plan={starter} billing={billing} features={STARTER_FEATURES} delay={0} />
@@ -206,7 +206,7 @@ export function PricingSection({ plans }: { plans: FitgrowxPlanDefinition[] }) {
         className="mt-8 flex flex-col items-center gap-3"
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.5 }}
+        viewport={{ once: true, amount: 0 }}
         transition={{ duration: 0.6, ease: EASE, delay: 0.2 }}
       >
         <Link
