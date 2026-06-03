@@ -2,6 +2,45 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getGymSummary } from '@/lib/supabase-relations'
 
+// ── CSP Nonce ───────────────────────────────────────────────────────────────
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com https://vercel.live`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://va.vercel-scripts.com https://challenges.cloudflare.com https://vercel.live",
+    "frame-src https://challenges.cloudflare.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+}
+
+function buildHeadersWithNonce(
+  request: NextRequest,
+  nonce: string,
+  cookieUpdates?: Array<{ name: string; value: string }>,
+): Headers {
+  const headers = new Headers(request.headers);
+  headers.set('x-nonce', nonce);
+
+  if (cookieUpdates?.length) {
+    const cookieMap = new Map<string, string>();
+    const rawCookie = request.headers.get('cookie') ?? '';
+    rawCookie.split(';').forEach(part => {
+      const trimmed = part.trim();
+      const eq = trimmed.indexOf('=');
+      if (eq > 0) cookieMap.set(trimmed.slice(0, eq).trim(), trimmed.slice(eq + 1));
+    });
+    cookieUpdates.forEach(({ name, value }) => cookieMap.set(name, value));
+    headers.set('cookie', Array.from(cookieMap.entries()).map(([k, v]) => `${k}=${v}`).join('; '));
+  }
+
+  return headers;
+}
+
 // ── Payload Limiting ────────────────────────────────────────────────────────
 const PAYLOAD_LIMITS: Record<string, number> = {
   "/api/admin/email-blast": 5_000_000,      // 5MB
@@ -95,7 +134,10 @@ export async function proxy(request: NextRequest) {
     return payloadError;
   }
 
-  let response = NextResponse.next({ request: { headers: request.headers } })
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const csp = buildCsp(nonce);
+
+  let response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce) } })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -109,7 +151,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value)
           })
-          response = NextResponse.next({ request })
+          response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce, cookiesToSet) } })
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options)
           })
@@ -207,6 +249,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  response.headers.set('Content-Security-Policy', csp);
   return response
 }
 
