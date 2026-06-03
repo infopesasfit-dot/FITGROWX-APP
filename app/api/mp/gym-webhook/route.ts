@@ -54,7 +54,7 @@ function verificarTokenWebhook(gymId: string, tokenRecibido: string): boolean {
   }
 }
 
-export { generarTokenWebhook };
+export { generarTokenWebhook, verificarTokenWebhook, calcularNuevoVencimiento };
 
 // ── Cálculo de vencimiento ────────────────────────────────────────────────────
 
