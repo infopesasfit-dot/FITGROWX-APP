@@ -3,13 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { TurnstileWidget } from "@/components/turnstile-widget";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
 
 type Benefit  = { icon: string; title: string; desc: string };
 type Template = "energia" | "pro" | "impact" | "link";
@@ -460,12 +454,9 @@ export default function GymLandingPage() {
   useEffect(() => {
     if (!slug) return;
     (async () => {
-      const { data } = await supabase
-        .from("gym_settings")
-        .select("gym_id, gym_name, logo_url, accent_color, landing_title, landing_subtitle, landing_desc, landing_cta_text, landing_template, landing_benefits")
-        .eq("slug", slug)
-        .maybeSingle();
-      if (!data) { setNotFound(true); setLoading(false); return; }
+      const res = await fetch(`/api/gym/landing?slug=${encodeURIComponent(slug)}`);
+      if (!res.ok) { setNotFound(true); setLoading(false); return; }
+      const data = await res.json();
       setGym(data);
       setLoading(false);
     })();
