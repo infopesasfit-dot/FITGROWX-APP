@@ -3,10 +3,14 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getGymSummary } from '@/lib/supabase-relations'
 
 // ── CSP Nonce ───────────────────────────────────────────────────────────────
-function buildCsp(nonce: string): string {
+function buildCsp(nonce: string, allowUnsafeInline = false): string {
+  const scriptSrc = allowUnsafeInline
+    ? `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://vercel.live`
+    : `script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com https://vercel.live`;
+
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com https://vercel.live`,
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
@@ -135,7 +139,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  const csp = buildCsp(nonce);
+  const csp = buildCsp(nonce, request.nextUrl.pathname === '/start');
 
   let response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce) } })
 
