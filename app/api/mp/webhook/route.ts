@@ -27,12 +27,16 @@ function periodMonthFrom(value: string | null | undefined) {
   return d.toISOString().slice(0, 7);
 }
 
-async function logPossibleSelfReferralWarning(
+// Returns the list of self-referral signals matched (empty = none).
+// Same user_id is a definitive self-referral; email/phone matches are strong
+// heuristics for the case where the reseller signed up the gym under a second
+// account. Callers must NOT pay a commission when this returns any match.
+async function detectSelfReferral(
   gym: { user_id?: string | null; email?: string | null; whatsapp?: string | null },
   reseller: { id: string; user_id?: string | null; name?: string | null; cuit?: string | null },
-  gymId: string,
-) {
-  if (!gym.user_id || !reseller.user_id || gym.user_id === reseller.user_id) return;
+): Promise<string[]> {
+  if (!gym.user_id || !reseller.user_id) return [];
+  if (gym.user_id === reseller.user_id) return ["same_user"];
 
   const matches: string[] = [];
   let resellerEmail = "";
@@ -64,11 +68,7 @@ async function logPossibleSelfReferralWarning(
   if (normalizeEmail(gym.email) && normalizeEmail(gym.email) === resellerEmail) matches.push("email");
   if (normalizePhone(gym.whatsapp) && normalizePhone(gym.whatsapp) === resellerPhone) matches.push("phone");
 
-  if (matches.length) {
-    console.warn(
-      `Reseller commission warning: possible self-referral (${matches.join(", ")}) for gym ${gymId}, reseller ${reseller.id}, cuit=${reseller.cuit ?? "n/a"}`,
-    );
-  }
+  return matches;
 }
 
 function logWebhookPlatform(
@@ -114,7 +114,28 @@ async function createResellerCommission(
     .maybeSingle();
   if (!reseller || reseller.status !== "active") return;
 
-  await logPossibleSelfReferralWarning(gym, reseller, gymId);
+  // Self-referral guard: never auto-pay a commission when the gym and the
+  // reseller look like the same person. Skip the commission (like the
+  // self_referral flag) and alert the platform owner to review manually.
+  const selfReferralMatches = await detectSelfReferral(gym, reseller);
+  if (selfReferralMatches.length > 0) {
+    const wouldBe = Math.round(paymentAmount * (reseller.commission_pct / 100));
+    console.warn(
+      `Reseller commission BLOCKED: possible self-referral (${selfReferralMatches.join(", ")}) for gym ${gymId}, reseller ${reseller.id}, cuit=${reseller.cuit ?? "n/a"} — no commission created`,
+    );
+    const ownerPhone = normalizePhone(process.env.OWNER_PHONE);
+    if (ownerPhone) {
+      const alertMsg =
+        `⚠️ *Comisión de reseller bloqueada — posible self-referral*\n\n` +
+        `Gym ID: ${gymId}\n` +
+        `Reseller: ${reseller.name ?? reseller.id} (${reseller.id})\n` +
+        `Coincidencia: ${selfReferralMatches.join(", ")}\n` +
+        `Monto que se habría pagado: $${wouldBe.toLocaleString("es-AR")}\n\n` +
+        `No se creó comisión. Revisalo en /platform y, si es legítima, cargala manualmente.`;
+      void sendWa("fitgrowx-platform", ownerPhone, alertMsg, { route: "mp/webhook" });
+    }
+    return;
+  }
 
   const commissionAmount = Math.round(paymentAmount * (reseller.commission_pct / 100));
 
