@@ -249,6 +249,7 @@ export async function GET(req: NextRequest) {
   const ownerPhone = normalizePhone((process.env.OWNER_PHONE ?? process.env.ALERT_PHONE));
   if (ownerPhone) {
     const h1ago   = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const d1ago   = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
     const d7ago   = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
@@ -258,6 +259,7 @@ export async function GET(req: NextRequest) {
       { count: trialsRiskCount },
       { count: inactivosCount },
       { count: prospectosSinSeg },
+      { count: webhookErrors },
       mrrResult,
     ] = await Promise.all([
       sb.from("platform_logs").select("id", { count: "exact", head: true }).eq("level", "ERROR").gte("created_at", h1ago),
@@ -265,6 +267,7 @@ export async function GET(req: NextRequest) {
       sb.from("platform_accounts").select("id", { count: "exact", head: true }).in("status", ["trial_active", "trial_risk"]).lte("trial_ends_at", new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)).gte("trial_ends_at", todayStr),
       sb.from("platform_accounts").select("id", { count: "exact", head: true }).in("status", ["trial_active", "trial_risk", "converted"]).not("last_seen_at", "is", null).lt("last_seen_at", d7ago),
       sb.from("prospectos").select("id", { count: "exact", head: true }).not("next_follow_up_at", "is", null).lt("next_follow_up_at", new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString().slice(0, 10)).neq("status", "convertido"),
+      sb.from("mp_webhook_log").select("id", { count: "exact", head: true }).eq("status", "error").gte("received_at", d1ago),
       sb.from("pagos").select("amount").eq("status", "validado").gte("date", monthStr).lte("date", todayStr),
     ]);
 
@@ -273,6 +276,7 @@ export async function GET(req: NextRequest) {
 
     const alertLines: string[] = [];
     if ((erroresH1 ?? 0) > 0)         alertLines.push(`❌ ${erroresH1} errores sistema (última hora)`);
+    if ((webhookErrors ?? 0) > 0)      alertLines.push(`🔴 ${webhookErrors} webhook${webhookErrors !== 1 ? "s" : ""} de pago con error (24h)`);
     if ((waDesconectados ?? 0) > 0)    alertLines.push(`📵 ${waDesconectados} sesión${waDesconectados !== 1 ? "es" : ""} WA desconectada${waDesconectados !== 1 ? "s" : ""}`);
     if ((trialsRiskCount ?? 0) > 0)    alertLines.push(`⏰ ${trialsRiskCount} trial${trialsRiskCount !== 1 ? "s" : ""} vence${trialsRiskCount === 1 ? "" : "n"} en ≤3 días`);
     if ((inactivosCount ?? 0) > 0)     alertLines.push(`😴 ${inactivosCount} gym${inactivosCount !== 1 ? "s" : ""} inactivo${inactivosCount !== 1 ? "s" : ""} 7d+`);
