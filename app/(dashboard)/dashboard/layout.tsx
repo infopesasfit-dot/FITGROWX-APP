@@ -431,6 +431,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleSignOut = async () => {
     setMenuOpen(false);
+
+    // Clear PII from localStorage
+    Object.keys(localStorage)
+      .filter(k => k.startsWith("fgx_") || k.startsWith("fitgrowx_"))
+      .forEach(k => localStorage.removeItem(k));
+
+    // Clear sessionStorage entirely
+    sessionStorage.clear();
+
+    // Delete all app caches
+    if (typeof caches !== "undefined") {
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map(k => caches.delete(k)));
+    }
+
     await supabase.auth.signOut();
     router.push("/start");
     router.refresh();
