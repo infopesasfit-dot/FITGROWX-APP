@@ -225,8 +225,7 @@ export async function proxy(request: NextRequest) {
 
     // Solo bloquear si trial expiró Y NO estamos en gracia Y NO subscrito
     const blocked =
-      (gym?.gym_status === 'trial_expired' ||
-        (gym?.trial_expires_at ? new Date(gym.trial_expires_at) < new Date() : false)) &&
+      (gym?.trial_expires_at ? new Date(gym.trial_expires_at) < new Date() : false) &&
       !(gym?.is_subscription_active ?? false) &&
       !enGracia
 

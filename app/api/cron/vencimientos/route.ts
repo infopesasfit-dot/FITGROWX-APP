@@ -215,6 +215,7 @@ async function notificarInasistentes(log: string[], todayStr: string): Promise<v
     .from("alumnos")
     .select("id, gym_id, full_name, phone, notif_inasistencia_sent_at")
     .eq("status", "activo")
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .not("phone", "is", null)
     .or(`notif_inasistencia_sent_at.is.null,notif_inasistencia_sent_at.lte.${cutoffNotif7d}`);
@@ -297,6 +298,7 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
     .from("alumnos")
     .update({ status: "vencido" })
     .eq("status", "activo")
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .not("next_expiration_date", "is", null)
     .lt("next_expiration_date", todayStr)
@@ -308,6 +310,7 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
     .from("alumnos")
     .update({ status: "activo" })
     .eq("status", "vencido")
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .not("next_expiration_date", "is", null)
     .gte("next_expiration_date", todayStr)
@@ -320,6 +323,7 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
     .from("alumnos")
     .select("id, frozen_since, next_expiration_date")
     .eq("status", "pausado")
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .not("pausa_hasta", "is", null)
     .lt("pausa_hasta", todayStr);
@@ -369,6 +373,7 @@ async function enviarFollowupsPostVencimiento(
       .select("id, full_name, phone, next_expiration_date, notif_vencido_d3_para, notif_vencido_d7_para")
       .eq("gym_id", gym.gym_id)
       .eq("status", "vencido")
+      .eq("is_demo", false)
       .is("deleted_at", null)
       .not("phone", "is", null)
       .not("next_expiration_date", "is", null)
@@ -449,6 +454,7 @@ async function enviarNotificacionesVenceHoy(
       .select("id, full_name, phone, next_expiration_date")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
+      .eq("is_demo", false)
       .is("deleted_at", null)
       .eq("next_expiration_date", todayStr)
       .not("phone", "is", null)
@@ -517,6 +523,7 @@ async function enviarRecordatoriosProximos(
       .select("id, full_name, phone, next_expiration_date, notif_vencimiento_para")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
+      .eq("is_demo", false)
       .is("deleted_at", null)
       .not("phone", "is", null)
       .not("next_expiration_date", "is", null)
@@ -576,6 +583,35 @@ async function enviarRecordatoriosProximos(
   return enviados;
 }
 
+// ── Bloque 6: Sincronizar CRM → churned cuando trial vence ───────────────────
+
+async function sincronizarCRMTrialVencido(log: string[]): Promise<void> {
+  const now = new Date().toISOString();
+
+  const { data: gymsVencidos, error: gErr } = await supabase
+    .from("gyms")
+    .select("id")
+    .eq("plan_type", "trial")
+    .eq("is_subscription_active", false)
+    .not("trial_expires_at", "is", null)
+    .lt("trial_expires_at", now);
+
+  if (gErr) { console.error("[vencimientos] sincronizarCRMTrialVencido gyms:", gErr.message); return; }
+  if (!gymsVencidos?.length) return;
+
+  const gymIds = gymsVencidos.map((g: { id: string }) => g.id);
+
+  const { data: updated, error: aErr } = await supabase
+    .from("platform_accounts")
+    .update({ status: "churned" })
+    .in("gym_id", gymIds)
+    .not("status", "in", '("churned","converted")')
+    .select("id");
+
+  if (aErr) { console.error("[vencimientos] sincronizarCRMTrialVencido accounts:", aErr.message); return; }
+  if (updated?.length) log.push(`📊 ${updated.length} cuenta(s) CRM marcadas como churned por trial vencido`);
+}
+
 // ── Handler principal ─────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -590,6 +626,7 @@ export async function GET(req: NextRequest) {
     await notificarTransferenciasPendientes(log);
     await notificarInasistentes(log, todayStr);
     await sincronizarStatus(todayStr, log);
+    await sincronizarCRMTrialVencido(log);
 
     const { data: gyms, error: gymsErr } = await supabase
       .from("gym_settings")
