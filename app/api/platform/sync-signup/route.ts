@@ -263,6 +263,7 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       .upsert(
         {
           auth_user_id: user.id,
+          gym_id: user.id,
           platform_lead_id: platformLeadId,
           company_name: companyName,
           owner_name: valueOrNull(normalizedName) ?? existingProfile?.full_name ?? null,
