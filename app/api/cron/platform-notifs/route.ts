@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { sendWa, isWaConnected } from "@/lib/wa";
 import { aggregateWaMetrics, clearExpiredCooldowns } from "@/lib/wa-metrics-aggregator";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -54,10 +55,20 @@ export async function GET(req: NextRequest) {
   try {
 
   // Agregar métricas WA del último período y limpiar cooldowns vencidos
-  await Promise.allSettled([
+  const [waResult, cooldownResult] = await Promise.allSettled([
     aggregateWaMetrics(sb),
     clearExpiredCooldowns(sb),
   ]);
+  if (waResult.status === "rejected") {
+    const error = waResult.reason;
+    void logger.error("WA aggregator failed", { route: "cron/platform-notifs", meta: { error } });
+    log.push(`⚠️ aggregateWaMetrics falló: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  if (cooldownResult.status === "rejected") {
+    const error = cooldownResult.reason;
+    void logger.error("clearExpiredCooldowns failed", { route: "cron/platform-notifs", meta: { error } });
+    log.push(`⚠️ clearExpiredCooldowns falló: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   // Cargar todas las plantillas de una sola query
   const { data: templates } = await sb.from("platform_wa_templates").select("key, body, enabled");
