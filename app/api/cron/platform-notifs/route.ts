@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isCronAuthorized, cronUnauthorized } from "@/lib/request-security";
 import { sendWa, isWaConnected } from "@/lib/wa";
+import { aggregateWaMetrics, clearExpiredCooldowns } from "@/lib/wa-metrics-aggregator";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+
+  // Agregar métricas WA del último período y limpiar cooldowns vencidos
+  await Promise.allSettled([
+    aggregateWaMetrics(sb),
+    clearExpiredCooldowns(sb),
+  ]);
 
   // Cargar todas las plantillas de una sola query
   const { data: templates } = await sb.from("platform_wa_templates").select("key, body, enabled");
@@ -167,6 +174,7 @@ export async function GET(req: NextRequest) {
       .from("alumnos")
       .select("id", { count: "exact", head: true })
       .eq("gym_id", profile.gym_id)
+      .eq("is_demo", false)
       .is("deleted_at", null);
 
     if ((alumnosCount ?? 0) > 0) {

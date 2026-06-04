@@ -21,8 +21,7 @@ export async function aggregateWaMetrics(supabase: SupabaseClient): Promise<void
   const blockRatio = (totalBlocked / totalSent) * 100;
 
   await supabase.from("wa_platform_metrics").insert({
-    period_start: hourAgo.toISOString(),
-    period_end: now.toISOString(),
+    window_start: hourAgo.toISOString(),
     total_sent: totalSent,
     total_blocked: totalBlocked,
     total_failed: totalFailed,
