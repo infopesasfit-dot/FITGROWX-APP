@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { assertPlatformOwner } from "@/lib/auth-platform";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 export const dynamic = "force-dynamic";
 
-async function assertPlatformOwner() {
-  const sbUser = await createSupabaseServerClient();
-  const { data: { user } } = await sbUser.auth.getUser();
-  if (!user) return null;
-  const sb = getSupabaseAdminClient();
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  return profile?.role === "platform_owner" ? sb : null;
-}
+const sb = getSupabaseAdminClient();
 
 export async function GET(req: NextRequest) {
-  const sb = await assertPlatformOwner();
-  if (!sb) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { searchParams } = new URL(req.url);
   const filter = searchParams.get("filter") ?? "all"; // all | errors | pending
@@ -36,14 +29,25 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const sb = await assertPlatformOwner();
-  if (!sb) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id, status } = await req.json() as { id: string; status: string };
   if (!id || !status) return NextResponse.json({ error: "id y status requeridos" }, { status: 400 });
 
+  const { data: before } = await sb.from("mp_webhook_log").select("status, gym_id, payment_id, event_type").eq("id", id).maybeSingle();
+
   const { error } = await sb.from("mp_webhook_log").update({ status }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  logPlatformAudit(sb, {
+    actor_id: actor.id,
+    action: "mark_webhook_resolved",
+    resource_type: "mp_webhook_log",
+    resource_id: id,
+    before_state: before ?? null,
+    after_state: { status, gym_id: before?.gym_id ?? null, payment_id: before?.payment_id ?? null },
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 const sb = getSupabaseAdminClient();
 
@@ -16,7 +17,8 @@ async function assertPlatformOwner() {
 
 // PATCH /api/platform/leads — update platform_lead status
 export async function PATCH(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => null);
   const { id, status } = body ?? {};
@@ -24,21 +26,44 @@ export async function PATCH(req: NextRequest) {
   if (!id || typeof id !== "string") return NextResponse.json({ error: "id requerido." }, { status: 400 });
   if (!VALID_STATUSES.includes(status)) return NextResponse.json({ error: "status inválido." }, { status: 400 });
 
+  const { data: before } = await sb.from("platform_leads").select("status, full_name, email").eq("id", id).maybeSingle();
+
   const { error } = await sb.from("platform_leads").update({ status }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  logPlatformAudit(sb, {
+    actor_id: actor.id,
+    action: "update_lead_status",
+    resource_type: "platform_lead",
+    resource_id: id,
+    before_state: before ?? null,
+    after_state: { status },
+  });
 
   return NextResponse.json({ ok: true });
 }
 
 // DELETE /api/platform/leads?id=<uuid>
 export async function DELETE(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id requerido." }, { status: 400 });
 
+  const { data: before } = await sb.from("platform_leads").select("status, full_name, email, phone").eq("id", id).maybeSingle();
+
   const { error } = await sb.from("platform_leads").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  logPlatformAudit(sb, {
+    actor_id: actor.id,
+    action: "delete_lead",
+    resource_type: "platform_lead",
+    resource_id: id,
+    before_state: before ?? null,
+    after_state: null,
+  });
 
   return NextResponse.json({ ok: true });
 }

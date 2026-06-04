@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { fetchMpWithTimeout } from "@/lib/mp/timeout";
+import { assertPlatformOwner } from "@/lib/auth-platform";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 export const dynamic = "force-dynamic";
 
-async function assertPlatformOwner() {
-  const sbUser = await createSupabaseServerClient();
-  const { data: { user } } = await sbUser.auth.getUser();
-  if (!user) return null;
-  const sb = getSupabaseAdminClient();
-  const { data: profile } = await sb.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  return profile?.role === "platform_owner" ? sb : null;
-}
+const sb = getSupabaseAdminClient();
 
 function calcExpiry(current: string | null, periodo: string, duracionDias: number | null): string {
   const hoy  = new Date();
@@ -30,8 +24,8 @@ function calcExpiry(current: string | null, periodo: string, duracionDias: numbe
 }
 
 export async function POST(req: NextRequest) {
-  const sb = await assertPlatformOwner();
-  if (!sb) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { payment_id, gym_id, log_id } = await req.json() as { payment_id: string; gym_id: string; log_id?: string };
   if (!payment_id || !gym_id) return NextResponse.json({ error: "payment_id y gym_id requeridos" }, { status: 400 });
@@ -76,6 +70,7 @@ export async function POST(req: NextRequest) {
     .select("id, full_name, gym_id, plan_id, next_expiration_date, planes(nombre, precio, periodo, duracion_dias)")
     .eq("id", alumnoId)
     .eq("gym_id", gym_id)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .single();
 
@@ -115,6 +110,25 @@ export async function POST(req: NextRequest) {
   if (log_id) {
     await sb.from("mp_webhook_log").update({ status: "processed", error_msg: null }).eq("id", log_id);
   }
+
+  logPlatformAudit(sb, {
+    actor_id: actor.id,
+    action: "reprocess_payment",
+    resource_type: "alumno",
+    resource_id: alumnoId,
+    before_state: {
+      status: "unknown",
+      next_expiration_date: alumno.next_expiration_date,
+    },
+    after_state: {
+      gym_id,
+      payment_id,
+      log_id: log_id ?? null,
+      nuevo_vencimiento: nuevoVenc,
+      amount: payment.transaction_amount,
+      pago: isDuplicate ? "ya_existia" : "insertado",
+    },
+  });
 
   return NextResponse.json({
     ok: true,

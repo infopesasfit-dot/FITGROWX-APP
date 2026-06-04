@@ -74,6 +74,7 @@ export async function GET() {
     sb.from("alumnos")
       .select("id", { count: "exact", head: true })
       .gte("created_at", `${todayStr}T00:00:00`)
+      .eq("is_demo", false)
       .is("deleted_at", null),
 
     sb.from("pagos")
@@ -106,6 +107,7 @@ export async function GET() {
     sb.from("alumnos")
       .select("id, full_name, gym_id", { count: "exact" })
       .eq("next_expiration_date", todayStr)
+      .eq("is_demo", false)
       .is("deleted_at", null)
       .limit(10),
 
@@ -135,6 +137,7 @@ export async function GET() {
 
     sb.from("alumnos")
       .select("id, full_name, gym_id, status")
+      .eq("is_demo", false)
       .or("full_name.ilike.%varios%,full_name.ilike.%general%,full_name.ilike.%todos%,full_name.ilike.%clase%,full_name.ilike.%grupo%,full_name.ilike.%temp%,full_name.ilike.%prueba%")
       .is("deleted_at", null)
       .limit(20),
@@ -150,6 +153,7 @@ export async function GET() {
     sb.from("alumnos")
       .select("id, gym_id, full_name")
       .eq("status", "activo")
+      .eq("is_demo", false)
       .is("deleted_at", null),
   ]);
 
@@ -206,7 +210,7 @@ export async function GET() {
     pagos_pendientes_count: pagosPendCount,
     pagos_pendientes:       pagosPendientes.data ?? [],
     pagos_hoy_total:        pagosHoyTotal,
-    mrr_mes:                mrrTotal,
+    revenue_bruto_mes:      mrrTotal,
 
     // Alumnos
     alumnos_nuevos_hoy:    alumnosHoy.count ?? 0,

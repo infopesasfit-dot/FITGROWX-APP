@@ -912,13 +912,13 @@ function PlatformPage() {
             {/* Negocio */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24 }}>
               {[
-                { label: "MRR mes", value: fmt(negocio.mrrMes), sub: null },
-                { label: "Activos", value: String(negocio.gymsActivos), sub: null },
-                { label: "Conv. mes", value: String(negocio.conversionesMes), sub: null },
-                { label: "Churn mes", value: String(negocio.churnCount ?? 0), sub: negocio.churnRatePct != null ? `${negocio.churnRatePct}%` : null },
-                { label: "Trial→Pago", value: negocio.trialToPaidRate != null ? `${negocio.trialToPaidRate}%` : "—", sub: null },
+                { label: "MRR mes", value: fmt(negocio.mrrMes), sub: null, tooltip: "Valor contractual mensual de gyms activos (plan × cantidad)" as string | undefined },
+                { label: "Activos", value: String(negocio.gymsActivos), sub: null, tooltip: undefined },
+                { label: "Conv. mes", value: String(negocio.conversionesMes), sub: null, tooltip: undefined },
+                { label: "Churn mes", value: String(negocio.churnCount ?? 0), sub: negocio.churnRatePct != null ? `${negocio.churnRatePct}%` : null, tooltip: undefined },
+                { label: "Trial→Pago", value: negocio.trialToPaidRate != null ? `${negocio.trialToPaidRate}%` : "—", sub: null, tooltip: undefined },
               ].map((item) => (
-                <div key={item.label} style={{ textAlign: "center" }}>
+                <div key={item.label} title={item.tooltip} style={{ textAlign: "center" }}>
                   <p style={{ font: `700 1.1rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.03em" }}>{item.value}</p>
                   {item.sub && <p style={{ font: `500 0.58rem/1 ${fd}`, color: "#6b7280", marginTop: 1 }}>{item.sub}</p>}
                   <p style={{ font: `500 0.6rem/1 ${fd}`, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 3 }}>{item.label}</p>

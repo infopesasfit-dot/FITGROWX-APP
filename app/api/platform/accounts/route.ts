@@ -61,11 +61,14 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/platform/accounts?id=<uuid>[&permanent=true]
 export async function DELETE(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const id        = req.nextUrl.searchParams.get("id");
   const permanent = req.nextUrl.searchParams.get("permanent") === "true";
   if (!id) return NextResponse.json({ error: "id requerido." }, { status: 400 });
+
+  const { data: accountBefore } = await sb.from("platform_accounts").select("status, company_name, owner_name, email, auth_user_id, gym_id").eq("id", id).maybeSingle();
 
   if (permanent) {
     // Resolve gym_id via auth_user_id on the account
@@ -104,6 +107,15 @@ export async function DELETE(req: NextRequest) {
   // Always remove the CRM row itself
   const { error } = await sb.from("platform_accounts").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  logPlatformAudit(sb, {
+    actor_id: actor.id,
+    action: "delete_account",
+    resource_type: "platform_account",
+    resource_id: id,
+    before_state: accountBefore ?? null,
+    after_state: { permanent },
+  });
 
   return NextResponse.json({ ok: true });
 }

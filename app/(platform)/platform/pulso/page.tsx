@@ -60,7 +60,7 @@ type PulsoData = {
   pagos_pendientes_count: number;
   pagos_pendientes: PagosPendientes[];
   pagos_hoy_total: number;
-  mrr_mes: number;
+  revenue_bruto_mes: number;
   alumnos_nuevos_hoy: number;
   alumnos_vencen_hoy: number;
   alumnos_vencen_sample: AlumnoVence[];
@@ -94,7 +94,7 @@ function fmtTime(ts: string) {
 type Severity = "ok" | "warn" | "critical";
 
 function Card({
-  label, value, sub, severity = "ok", icon: Icon, onClick,
+  label, value, sub, severity = "ok", icon: Icon, onClick, tooltip,
 }: {
   label: string;
   value: string | number;
@@ -102,6 +102,7 @@ function Card({
   severity?: Severity;
   icon: React.ElementType;
   onClick?: () => void;
+  tooltip?: string;
 }) {
   const colors: Record<Severity, { accent: string; bg: string; text: string }> = {
     ok:       { accent: "#10b981", bg: "rgba(16,185,129,0.07)",  text: "#065f46" },
@@ -112,6 +113,7 @@ function Card({
   return (
     <div
       onClick={onClick}
+      title={tooltip}
       style={{
         background: "#fff",
         border: `1.5px solid ${severity !== "ok" ? c.accent : "#e5e7eb"}`,
@@ -270,9 +272,10 @@ export default function PulsoPage() {
           <Card
             label="Pagos registrados hoy"
             value={fmtMoney(data.pagos_hoy_total)}
-            sub={`MRR del mes: ${fmtMoney(data.mrr_mes)}`}
+            sub={`Revenue bruto del mes: ${fmtMoney(data.revenue_bruto_mes)}`}
             severity="ok"
             icon={TrendingUp}
+            tooltip="Suma de pagos de alumnos validados este mes en todos los gyms"
           />
           <Card
             label="Alumnos nuevos hoy"

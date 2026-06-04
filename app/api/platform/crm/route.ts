@@ -5,6 +5,7 @@ import { sendWa } from "@/lib/wa";
 import { applyRateLimit } from "@/lib/request-security";
 import { isWithinAllowedWindow, checkWaContactCooldown, getWaPlatformHealth } from "@/lib/wa-restrictions";
 import { logWASendWithMetrics } from "@/lib/wa-log";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 const sb = getSupabaseAdminClient();
 
@@ -133,6 +134,22 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[platform-crm/send-wa] user=${user.id} account=${account_id ?? "lead"} tpl=${template_key} phone=${normalizedPhone} ok=${result.ok} latency=${result.latencyMs}ms`);
+
+    logPlatformAudit(sb, {
+      actor_id: user.id,
+      action: "send_manual_wa",
+      resource_type: "platform_account",
+      resource_id: account_id ?? alumno_id ?? null,
+      after_state: {
+        phone: normalizedPhone,
+        template_key: template_key ?? "manual",
+        gym_id: gymId ?? null,
+        ok: result.ok,
+        blocked: result.blocked ?? false,
+        latency_ms: result.latencyMs,
+      },
+    });
+
     if (!result.ok) return NextResponse.json({ error: "No se pudo enviar. Verificá que el WA de plataforma esté conectado." }, { status: 500 });
     return NextResponse.json({ ok: true, latencyMs: result.latencyMs });
   }
@@ -143,17 +160,35 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
 
     if (account_id) {
+      const { data: before } = await sb.from("platform_accounts").select("status, gym_id").eq("id", account_id).maybeSingle();
       const { error } = await sb.from("platform_accounts")
         .update({ last_contact_at: now, status: "trial_active" })
         .eq("id", account_id)
         .not("status", "in", '("converted","churned")');
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      logPlatformAudit(sb, {
+        actor_id: user.id,
+        action: "mark_contacted",
+        resource_type: "platform_account",
+        resource_id: account_id,
+        before_state: before ?? null,
+        after_state: { status: "trial_active", last_contact_at: now, gym_id: before?.gym_id ?? null },
+      });
     } else if (lead_id) {
+      const { data: before } = await sb.from("platform_leads").select("status").eq("id", lead_id).maybeSingle();
       const { error } = await sb.from("platform_leads")
         .update({ status: "contacted", last_contact_at: now })
         .eq("id", lead_id)
         .eq("status", "new");
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      logPlatformAudit(sb, {
+        actor_id: user.id,
+        action: "mark_contacted",
+        resource_type: "platform_lead",
+        resource_id: lead_id,
+        before_state: before ?? null,
+        after_state: { status: "contacted", last_contact_at: now },
+      });
     } else {
       return NextResponse.json({ error: "account_id o lead_id requerido." }, { status: 400 });
     }
