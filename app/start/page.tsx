@@ -108,17 +108,6 @@ function StartPageInner() {
 
   const canSubmit = validity.email && validity.password && !isSubmitting && (isLogin || termsAccepted);
 
-  const resolveDestinationForUser = async (userId: string) => {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .limit(1)
-      .maybeSingle();
-
-    return profile?.role === "platform_owner" ? "/platform" : "/dashboard";
-  };
-
   const syncPlatformSignup = async (
     accessToken: string,
     payload: Record<string, string>,
@@ -142,12 +131,18 @@ function StartPageInner() {
     e.preventDefault();
     if (!forgotEmail.trim()) return;
     setForgotLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
+    const res = await fetch("/api/auth/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: forgotEmail.trim(),
+        redirectTo: `${window.location.origin}/reset-password`,
+      }),
     });
+    const data = await res.json() as { ok?: boolean; error?: string };
     setForgotLoading(false);
-    if (error) {
-      setAuthError(error.message);
+    if (!res.ok) {
+      setAuthError(data.error ?? "Error al enviar el email.");
     } else {
       setForgotSent(true);
       setAuthError(null);
@@ -157,7 +152,11 @@ function StartPageInner() {
   const handleResend = async () => {
     if (!email || resendLoading) return;
     setResendLoading(true);
-    await supabase.auth.resend({ type: "signup", email });
+    await fetch("/api/auth/resend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
     setResendLoading(false);
     setResendSent(true);
   };
@@ -185,18 +184,24 @@ function StartPageInner() {
 
     try {
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        if (!data.user) throw new Error("No se pudo obtener el usuario autenticado.");
-
-        const destination = await resolveDestinationForUser(data.user.id);
-        window.location.href = destination;
+        const res = await fetch("/api/auth/signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json() as { destination?: string; error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Error al iniciar sesión.");
+        window.location.href = data.destination ?? "/dashboard";
       } else {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
-        if (signUpError) throw signUpError;
-        if (!signUpData.user) throw new Error("No se pudo crear el usuario.");
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json() as { needsVerification?: boolean; accessToken?: string; error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Error al registrarse.");
 
-        if (!signUpData.session) {
+        if (data.needsVerification) {
           // Email confirmation enabled: tell user to check inbox
           setScreen("verify");
           return;
@@ -204,8 +209,8 @@ function StartPageInner() {
 
         // Email confirmation disabled (legacy / local dev): proceed immediately
         const syncPayload: Record<string, string> = { email };
-        if (refCode)      syncPayload.refCode      = refCode;
-        await syncPlatformSignup(signUpData.session.access_token, syncPayload);
+        if (refCode) syncPayload.refCode = refCode;
+        await syncPlatformSignup(data.accessToken!, syncPayload);
         if (refCode)      localStorage.removeItem("fitgrowx_ref");
         if (resellerSlug) localStorage.removeItem("fitgrowx_reseller");
         fetch("/api/reseller/track", { method: "DELETE" }).catch(() => {});
@@ -213,15 +218,7 @@ function StartPageInner() {
         router.push("/onboarding");
       }
     } catch (err: unknown) {
-      const raw = err instanceof Error ? err.message : "";
-      const friendly =
-        raw.toLowerCase().includes("invalid login credentials") ||
-        raw.toLowerCase().includes("invalid credentials")
-          ? "Usuario o contraseña incorrectos."
-          : raw.toLowerCase().includes("email not confirmed")
-          ? "Confirmá tu email antes de ingresar."
-          : raw || "Ocurrió un error inesperado.";
-      setAuthError(friendly);
+      setAuthError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
     } finally {
       setIsSubmitting(false);
     }
