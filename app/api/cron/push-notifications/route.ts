@@ -31,6 +31,9 @@ export async function GET(req: NextRequest) {
     return Response.json({ ok: true, message: "Web-push not configured" });
   }
 
+  const startedAt = Date.now();
+  const log: string[] = [];
+
   try {
     let sentCount = 0;
     let failedCount = 0;
@@ -52,6 +55,7 @@ export async function GET(req: NextRequest) {
 
     if (subError) {
       console.error("[push-cron] Error fetching subscriptions:", subError);
+      void supabase.from("cron_runs").insert({ cron_name: "push-notifications", status: "error", duration_ms: Date.now() - startedAt, summary: subError.message });
       return Response.json({ error: "Failed to fetch subscriptions" }, { status: 500 });
     }
 
@@ -203,6 +207,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+    void supabase.from("cron_runs").insert({ cron_name: "push-notifications", status: "ok", duration_ms: Date.now() - startedAt, summary: `${todayStr} · ${sentCount} enviados · ${failedCount} fallidos`, counts: { sentCount, failedCount, total: (subscriptions || []).length, log } });
     return Response.json({
       ok: true,
       sentCount,
@@ -210,6 +216,8 @@ export async function GET(req: NextRequest) {
       total: (subscriptions || []).length,
     });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    void supabase.from("cron_runs").insert({ cron_name: "push-notifications", status: "error", duration_ms: Date.now() - startedAt, summary: msg });
     console.error("[push-cron] Error:", err);
     return Response.json({ error: "Server error" }, { status: 500 });
   }
