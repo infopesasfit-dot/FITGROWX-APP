@@ -9,6 +9,7 @@ import { getTodayDate } from "@/lib/date-utils";
 import { ensureGymBranding } from "@/lib/messaging-helpers";
 import { createHash } from "crypto";
 import { createAlumnoNotification } from "@/lib/alumno-notif";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 // ── Cliente y constantes ──────────────────────────────────────────────────────
 
@@ -597,19 +598,41 @@ async function sincronizarCRMTrialVencido(log: string[]): Promise<void> {
     .lt("trial_expires_at", now);
 
   if (gErr) { console.error("[vencimientos] sincronizarCRMTrialVencido gyms:", gErr.message); return; }
-  if (!gymsVencidos?.length) return;
 
-  const gymIds = gymsVencidos.map((g: { id: string }) => g.id);
+  if (gymsVencidos?.length) {
+    const gymIds = gymsVencidos.map((g: { id: string }) => g.id);
 
-  const { data: updated, error: aErr } = await supabase
+    const { data: updated, error: aErr } = await supabase
+      .from("platform_accounts")
+      .update({ status: "churned" })
+      .in("gym_id", gymIds)
+      .not("status", "in", '("churned","converted")')
+      .select("id");
+
+    if (aErr) { console.error("[vencimientos] sincronizarCRMTrialVencido accounts:", aErr.message); return; }
+    if (updated?.length) {
+      log.push(`📊 ${updated.length} cuenta(s) CRM marcadas como churned por trial vencido`);
+      for (const gymId of gymIds) {
+        logPlatformAudit(supabase, {
+          actor_id: "cron:vencimientos",
+          action: "auto_churn_trial",
+          resource_type: "platform_account",
+          resource_id: gymId,
+          before_state: { status: "trial_active" },
+          after_state: { status: "churned" },
+          meta: { reason: "trial_expired" },
+        });
+      }
+    }
+  }
+
+  const { count: sinGymId } = await supabase
     .from("platform_accounts")
-    .update({ status: "churned" })
-    .in("gym_id", gymIds)
-    .not("status", "in", '("churned","converted")')
-    .select("id");
+    .select("id", { count: "exact", head: true })
+    .is("gym_id", null)
+    .not("status", "in", '("churned","converted")');
 
-  if (aErr) { console.error("[vencimientos] sincronizarCRMTrialVencido accounts:", aErr.message); return; }
-  if (updated?.length) log.push(`📊 ${updated.length} cuenta(s) CRM marcadas como churned por trial vencido`);
+  if (sinGymId) log.push(`${sinGymId} cuentas sin gym_id — no sincronizadas`);
 }
 
 // ── Handler principal ─────────────────────────────────────────────────────────
