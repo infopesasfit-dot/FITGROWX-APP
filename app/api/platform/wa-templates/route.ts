@@ -1,3 +1,4 @@
+// Auth: verifica rol platform_owner localmente via profiles.role check en authorize().
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";

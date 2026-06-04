@@ -1,3 +1,4 @@
+// Auth: bearer de Supabase del usuario recién registrado. No es endpoint de platform owner.
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { generateUniqueSlug } from "@/lib/slug-utils";

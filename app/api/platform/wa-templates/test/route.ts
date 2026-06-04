@@ -1,3 +1,4 @@
+// Auth: igual que wa-templates — verifica rol platform_owner via profiles.role en authorize().
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";

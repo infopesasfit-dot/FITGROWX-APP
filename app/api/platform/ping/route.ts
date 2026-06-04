@@ -1,3 +1,4 @@
+// Auth: cualquier usuario autenticado. Solo actualiza last_seen_at, no expone datos.
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
