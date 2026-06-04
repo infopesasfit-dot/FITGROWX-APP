@@ -41,11 +41,9 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       fullName,
       whatsApp,
       refCode,
-      reseller_ref,
-    }: { fullName?: string; whatsApp?: string; refCode?: string; reseller_ref?: string } = await req.json();
+    }: { fullName?: string; whatsApp?: string; refCode?: string } = await req.json();
 
-    // Body param wins (forwarded from auth/callback server-side fetch); cookie is the fallback for direct browser calls.
-    const resellerSlug = reseller_ref ?? req.cookies.get("fitgrowx_ref")?.value;
+    const resellerSlug = req.cookies.get("fitgrowx_ref")?.value ?? null;
 
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData.user) {
