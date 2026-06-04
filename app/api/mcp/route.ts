@@ -349,20 +349,21 @@ function buildServer(gymId: string): McpServer {
       if (!alumno) return { content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: "Alumno no encontrado." }) }] };
 
       const { randomUUID } = await import("crypto");
-      const token = randomUUID();
+      const rawToken = randomUUID();
+      const tokenHash = createHash("sha256").update(rawToken).digest("hex");
       const expiresAt = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
 
       const { error } = await sb.from("alumno_tokens").insert({
         alumno_id,
         gym_id: gymId,
-        token,
+        token: tokenHash,
         expires_at: expiresAt,
         type: "pago",
       });
 
       if (error) return { content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: error.message }) }] };
 
-      const url = `${APP_URL}/pagar/${token}?monto=${monto}${descripcion ? `&desc=${encodeURIComponent(descripcion)}` : ""}`;
+      const url = `${APP_URL}/pagar/${rawToken}?monto=${monto}${descripcion ? `&desc=${encodeURIComponent(descripcion)}` : ""}`;
       return {
         content: [{
           type: "text" as const,
