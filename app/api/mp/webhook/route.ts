@@ -120,24 +120,19 @@ async function createResellerCommission(
   // reseller look like the same person. Skip the commission (like the
   // self_referral flag) and alert the platform owner to review manually.
   const selfReferralMatches = await detectSelfReferral(gym, reseller);
+  if (selfReferralMatches.includes("same_user")) {
+    void logger.warn("Reseller commission BLOCKED: same-user self-referral", {
+      route: "/api/mp/webhook",
+      meta: { gymId, resellerId: reseller.id, cuit: reseller.cuit ?? "n/a" },
+    });
+    return;
+  }
   if (selfReferralMatches.length > 0) {
-    const wouldBe = Math.round(paymentAmount * (reseller.commission_pct / 100));
-    void logger.warn("Reseller commission BLOCKED: possible self-referral", {
+    // email/phone heuristic match — warn but do not block; may be a legitimate reseller
+    void logger.warn("Reseller commission: possible self-referral signal (email/phone) — proceeding", {
       route: "/api/mp/webhook",
       meta: { gymId, resellerId: reseller.id, cuit: reseller.cuit ?? "n/a", matches: selfReferralMatches.join(", ") },
     });
-    const ownerPhone = normalizePhone((process.env.OWNER_PHONE ?? process.env.ALERT_PHONE));
-    if (ownerPhone) {
-      const alertMsg =
-        `⚠️ *Comisión de reseller bloqueada — posible self-referral*\n\n` +
-        `Gym ID: ${gymId}\n` +
-        `Reseller: ${reseller.name ?? reseller.id} (${reseller.id})\n` +
-        `Coincidencia: ${selfReferralMatches.join(", ")}\n` +
-        `Monto que se habría pagado: $${wouldBe.toLocaleString("es-AR")}\n\n` +
-        `No se creó comisión. Revisalo en /platform y, si es legítima, cargala manualmente.`;
-      void sendWa("fitgrowx-platform", ownerPhone, alertMsg, { route: "mp/webhook" });
-    }
-    return;
   }
 
   const commissionAmount = Math.round(paymentAmount * (reseller.commission_pct / 100));
