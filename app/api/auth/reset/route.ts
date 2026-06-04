@@ -22,8 +22,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email requerido." }, { status: 400 });
   }
 
-  const allowed = ["https://fitgrowx.com", "http://localhost:3000"];
-  if (redirectTo && !allowed.some((d) => redirectTo.startsWith(d))) {
+  const allowedOrigins = new Set(["https://fitgrowx.com", "https://www.fitgrowx.com", "https://app.fitgrowx.com", "http://localhost:3000"]);
+  try {
+    const url = redirectTo ? new URL(redirectTo) : null;
+    if (url && !allowedOrigins.has(url.origin)) {
+      return NextResponse.json({ error: "redirectTo inválido" }, { status: 400 });
+    }
+  } catch {
     return NextResponse.json({ error: "redirectTo inválido" }, { status: 400 });
   }
 
