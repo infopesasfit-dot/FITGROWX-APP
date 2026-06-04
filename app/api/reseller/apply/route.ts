@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit } from "@/lib/request-security";
 import { sendWa } from "@/lib/wa";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const sb = getSupabaseAdminClient();
 
@@ -56,7 +57,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Demasiados intentos. Probá de nuevo en una hora." }, { status: 429 });
   }
 
-  const { name, email, whatsapp, colleague_count, social_links, motivation, country } = await req.json();
+  const { name, email, whatsapp, colleague_count, social_links, motivation, country, turnstileToken } = await req.json();
+
+  const ts = await verifyTurnstileToken(req, turnstileToken);
+  if (!ts.ok) return NextResponse.json({ error: ts.error }, { status: ts.status });
 
   if (!name?.trim() || !email?.trim() || !whatsapp?.trim()) {
     return NextResponse.json({ error: "Nombre, email y WhatsApp son requeridos" }, { status: 400 });

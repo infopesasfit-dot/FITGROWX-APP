@@ -1,11 +1,12 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Archivo_Black, JetBrains_Mono } from "next/font/google";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 // Next.js fonts - applied via CSS variables globally
 const archivoBlack = Archivo_Black({
@@ -95,7 +96,9 @@ function LoginContent() {
   const [focused,     setFocused]     = useState(false);
   const [status,      setStatus]      = useState<"idle"|"loading"|"sent">("idle");
   const [touched,     setTouched]     = useState(false);
-  const [errMsg,      setErrMsg]      = useState<string|null>(null);
+  const [errMsg,          setErrMsg]          = useState<string|null>(null);
+  const [turnstileToken,  setTurnstileToken]  = useState<string | null>(null);
+  const handleTurnstileChange = useCallback((t: string | null) => setTurnstileToken(t), []);
   // PWA install
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -164,7 +167,7 @@ function LoginContent() {
     const res  = await fetch("/api/alumno/request-access", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dni: digits }),
+      body: JSON.stringify({ dni: digits, turnstileToken }),
     }).catch(() => null);
     const data = await res?.json().catch(() => null) as { error?: string }|null;
     if (!res?.ok) { setErrMsg(data?.error ?? "Error al enviar."); setStatus("idle"); return; }
@@ -325,10 +328,12 @@ function LoginContent() {
           )}
         </div>
 
+        <TurnstileWidget onTokenChange={handleTurnstileChange} theme="dark" />
+
         {/* CTA */}
         <button
           onClick={submit}
-          disabled={!isValid || status === "loading"}
+          disabled={!isValid || status === "loading" || !turnstileToken}
           style={{
             marginTop:4, width:"100%", height:60, borderRadius:18,
             border: isValid ? "none" : `1px solid ${rgb(accent,0.35)}`,
@@ -336,7 +341,7 @@ function LoginContent() {
             color: isValid ? "#1a0d00" : rgb(accent,0.7),
             fontSize:15.5, fontWeight:700, letterSpacing:"0.005em", fontFamily:FB,
             display:"flex", alignItems:"center", justifyContent:"space-between",
-            padding:"0 22px", cursor: isValid ? "pointer" : "not-allowed",
+            padding:"0 22px", cursor: (isValid && turnstileToken) ? "pointer" : "not-allowed",
             transition:"all 0.2s",
             boxShadow: isValid ? `0 12px 40px ${rgb(accent,0.35)}, inset 0 1px 0 rgba(255,255,255,0.22)` : "none",
           }}

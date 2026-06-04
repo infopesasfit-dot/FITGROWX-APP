@@ -5,6 +5,7 @@ import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
 import { getTodayDate } from "@/lib/date-utils";
 import { reservarClaseGratisSchema } from "@/lib/schemas";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const supabase = getSupabaseAdminClient();
 
@@ -34,7 +35,13 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Datos inválidos." }, { status: 400 });
   }
-  const { gym_id, phone, name, clase_id, fecha, hora, clase_nombre } = parsed.data;
+  const { gym_id, phone, name, clase_id, fecha, hora, clase_nombre, turnstile_token } = parsed.data;
+
+  // Verify Turnstile on the lookup step only (confirm step re-uses the same session)
+  if (!fecha) {
+    const ts = await verifyTurnstileToken(req, turnstile_token);
+    if (!ts.ok) return NextResponse.json({ error: ts.error }, { status: ts.status });
+  }
 
   const phoneNorm = normalizePhone(phone);
   let prospecto = await findProspecto(gym_id, phoneNorm);

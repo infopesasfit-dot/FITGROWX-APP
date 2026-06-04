@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendWa } from "@/lib/wa";
 import { normalizePhone } from "@/lib/phone";
-import { applyRateLimit } from "@/lib/request-security";
+import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const sb = getSupabaseAdminClient();
 
@@ -12,12 +13,10 @@ export async function POST(
 ) {
   const { token } = await params;
 
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-           || req.headers.get("x-real-ip")
-           || "unknown";
+  const ip = getClientIp(req);
   const rl = await applyRateLimit({
     namespace: "guest-pass-claim",
-    identifier: `${ip}::${token}`,
+    identifier: `${normalizeIdentifier(ip)}::${token}`,
     windowMs: 60 * 60 * 1000,
     maxAttempts: 5,
   });
@@ -28,7 +27,10 @@ export async function POST(
     );
   }
 
-  const { name, phone } = await req.json();
+  const { name, phone, turnstileToken } = await req.json();
+
+  const ts = await verifyTurnstileToken(req, turnstileToken);
+  if (!ts.ok) return NextResponse.json({ error: ts.error }, { status: ts.status });
 
   if (!name?.trim() || !phone?.trim()) {
     return NextResponse.json({ error: "Nombre y teléfono requeridos" }, { status: 400 });
@@ -52,6 +54,13 @@ export async function POST(
   if (pass.status !== "pending") return NextResponse.json({ error: "Pase ya utilizado" }, { status: 409 });
   if (new Date(pass.expires_at) < new Date()) return NextResponse.json({ error: "Pase vencido" }, { status: 410 });
 
+  // Fetch alumno name + gym settings for WA messages
+  const [{ data: alumno }, { data: settings }] = await Promise.all([
+    sb.from("alumnos").select("full_name").eq("id", pass.alumno_id).eq("is_demo", false).maybeSingle(),
+    sb.from("gym_settings").select("gym_name, whatsapp").eq("gym_id", pass.gym_id).maybeSingle(),
+  ]);
+  if (!alumno) return NextResponse.json({ error: "Pase inválido" }, { status: 404 });
+
   const now = new Date().toISOString();
   await sb.from("guest_passes").update({
     status:     "claimed",
@@ -59,12 +68,6 @@ export async function POST(
     lead_phone: phone.trim(),
     claimed_at: now,
   }).eq("id", pass.id);
-
-  // Fetch alumno name + gym settings for WA messages
-  const [{ data: alumno }, { data: settings }] = await Promise.all([
-    sb.from("alumnos").select("full_name").eq("id", pass.alumno_id).maybeSingle(),
-    sb.from("gym_settings").select("gym_name, whatsapp").eq("gym_id", pass.gym_id).maybeSingle(),
-  ]);
 
   const gymName    = settings?.gym_name ?? "el gym";
   const alumnoName = (alumno?.full_name ?? "").split(" ")[0] || "tu amigo";

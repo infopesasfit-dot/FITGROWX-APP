@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 const ORANGE = "#F97316";
 const FM = "'JetBrains Mono', 'Fira Mono', monospace";
@@ -137,13 +138,16 @@ const PROOF = [
 const EMPTY = { name: "", email: "", whatsapp: "", colleague_count: "", social_links: "", motivation: "" };
 
 export default function ResellerLanding() {
-  const [gyms,      setGyms]      = useState(10);
-  const [form,      setForm]      = useState(EMPTY);
-  const [country,   setCountry]   = useState("AR");
-  const [sending,   setSending]   = useState(false);
-  const [sent,      setSent]      = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
+  const [gyms,           setGyms]           = useState(10);
+  const [form,           setForm]           = useState(EMPTY);
+  const [country,        setCountry]        = useState("AR");
+  const [sending,        setSending]        = useState(false);
+  const [sent,           setSent]           = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  const handleTurnstileChange = useCallback((t: string | null) => setTurnstileToken(t), []);
 
   const tier           = calcTier(gyms);
   const monthly        = Math.round(gyms * PRO_PRICE * tier.pct / 100);
@@ -167,7 +171,7 @@ export default function ResellerLanding() {
     const r = await fetch("/api/reseller/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, whatsapp: phoneValidation.formatted, country }),
+      body: JSON.stringify({ ...form, whatsapp: phoneValidation.formatted, country, turnstileToken }),
     });
     const d = await r.json();
     setSending(false);
@@ -488,7 +492,9 @@ export default function ResellerLanding() {
                 <p style={{ font: `500 0.78rem/1 ${FS}`, color: "#F87171", background: "rgba(248,113,113,0.07)", padding: "10px 14px", borderRadius: 10 }}>{error}</p>
               )}
 
-              <button onClick={handleSubmit} disabled={sending}
+              <TurnstileWidget onTokenChange={handleTurnstileChange} theme="dark" />
+
+              <button onClick={handleSubmit} disabled={sending || !turnstileToken}
                 style={{ width: "100%", padding: "17px 0", background: sending ? "rgba(249,115,22,0.45)" : `linear-gradient(135deg, ${ORANGE} 0%, #EA580C 100%)`, border: "none", borderRadius: 14, font: `600 0.95rem/1 ${FS}`, color: "#FFFFFF", cursor: sending ? "not-allowed" : "pointer", boxShadow: sending ? "none" : `0 8px 28px ${ORANGE}30`, marginTop: 4, letterSpacing: "-0.01em" }}>
                 {sending ? "Enviando..." : "Enviar postulación →"}
               </button>

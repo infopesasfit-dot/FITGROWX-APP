@@ -88,13 +88,14 @@ export const createLeadSchema = z.object({
 
 // ─── Public: reservar clase gratis ───────────────────────────────────────────
 export const reservarClaseGratisSchema = z.object({
-  gym_id:      uuidField,
-  phone:       z.string().min(6).max(LIMITS.phone),
-  name:        z.string().max(LIMITS.lead_name).optional().nullable(),
-  clase_id:    uuidField.optional().nullable(),
-  fecha:       dateField.optional().nullable(),
-  hora:        z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
-  clase_nombre:z.string().max(LIMITS.clase_nombre).optional().nullable(),
+  gym_id:          uuidField,
+  phone:           z.string().min(6).max(LIMITS.phone),
+  name:            z.string().max(LIMITS.lead_name).optional().nullable(),
+  clase_id:        uuidField.optional().nullable(),
+  fecha:           dateField.optional().nullable(),
+  hora:            z.string().regex(/^\d{2}:\d{2}$/).optional().nullable(),
+  clase_nombre:    z.string().max(LIMITS.clase_nombre).optional().nullable(),
+  turnstile_token: z.string().optional(),
 });
 
 // ─── Public: reservar clase ───────────────────────────────────────────────────

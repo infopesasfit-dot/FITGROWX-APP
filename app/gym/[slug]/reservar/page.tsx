@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,14 +46,17 @@ export default function ReservarPage() {
   const [loading,   setLoading]   = useState(true);
   const [notFound,  setNotFound]  = useState(false);
 
-  const [step,      setStep]      = useState<"phone" | "slots" | "confirm" | "done">("phone");
-  const [phone,     setPhone]     = useState("");
-  const [inputName, setInputName] = useState("");
-  const [nombre,    setNombre]    = useState("");
-  const [selected,  setSelected]  = useState<Selection | null>(null);
-  const [saving,    setSaving]    = useState(false);
-  const [error,     setError]     = useState<string | null>(null);
-  const [lookingUp, setLookingUp] = useState(false);
+  const [step,           setStep]           = useState<"phone" | "slots" | "confirm" | "done">("phone");
+  const [phone,          setPhone]          = useState("");
+  const [inputName,      setInputName]      = useState("");
+  const [nombre,         setNombre]         = useState("");
+  const [selected,       setSelected]       = useState<Selection | null>(null);
+  const [saving,         setSaving]         = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [lookingUp,      setLookingUp]      = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  const handleTurnstileChange = useCallback((t: string | null) => setTurnstileToken(t), []);
 
   useEffect(() => {
     if (!slug) return;
@@ -95,7 +99,7 @@ export default function ReservarPage() {
     const res  = await fetch("/api/gym/reservar-clase-gratis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gym_id: gym.gym_id, phone: phone.trim(), name: inputName.trim() || undefined }),
+      body: JSON.stringify({ gym_id: gym.gym_id, phone: phone.trim(), name: inputName.trim() || undefined, turnstile_token: turnstileToken }),
     });
     const data = await res.json();
     setLookingUp(false);
@@ -196,10 +200,11 @@ export default function ReservarPage() {
               />
             </div>
             {error && <p style={{ font: `400 0.8rem/1.4 ${fd}`, color: "#F87171", margin: 0 }}>{error}</p>}
+            <TurnstileWidget onTokenChange={handleTurnstileChange} theme="dark" />
             <button
               type="submit"
-              disabled={lookingUp}
-              style={{ padding: "14px", borderRadius: 13, border: "none", background: ACCENT, color: "#FFFFFF", font: `700 0.95rem/1 ${fd}`, cursor: lookingUp ? "default" : "pointer", opacity: lookingUp ? .7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+              disabled={lookingUp || !turnstileToken}
+              style={{ padding: "14px", borderRadius: 13, border: "none", background: ACCENT, color: "#FFFFFF", font: `700 0.95rem/1 ${fd}`, cursor: (lookingUp || !turnstileToken) ? "default" : "pointer", opacity: (lookingUp || !turnstileToken) ? .7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
             >
               {lookingUp && <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,.4)", borderTopColor: "white", animation: "spin .7s linear infinite" }} />}
               {lookingUp ? "Buscando…" : "Ver horarios disponibles →"}

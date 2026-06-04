@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp, normalizeIdentifier } from "@/lib/request-security";
 import { normalizePhone } from "@/lib/phone";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const REQUEST_ACCESS_RESPONSE = {
   ok: true,
@@ -11,7 +12,7 @@ const REQUEST_ACCESS_RESPONSE = {
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
-  const { dni } = await req.json();
+  const { dni, turnstileToken } = await req.json();
   const dniClean = String(dni ?? "").replace(/\D/g, "");
   if (!dniClean) return NextResponse.json({ error: "DNI requerido." }, { status: 400 });
   if (dniClean.length < 7 || dniClean.length > 8) {
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
     }, { status: 429 });
   }
 
+  const ts = await verifyTurnstileToken(req, turnstileToken);
+  if (!ts.ok) return NextResponse.json({ error: ts.error }, { status: ts.status });
+
   const dniLimit = await applyRateLimit({
     namespace: "request-access:dni",
     identifier: dniClean,
@@ -48,6 +52,7 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, gym_id, full_name, phone")
     .eq("dni", dniClean)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .single();
 

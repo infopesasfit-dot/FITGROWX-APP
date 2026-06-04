@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 
 const fd = "'Inter', system-ui, sans-serif";
 
@@ -13,10 +14,13 @@ type PassState =
 
 export default function GuestPassPage() {
   const { token } = useParams<{ token: string }>();
-  const [state,    setState]    = useState<PassState>({ phase: "loading" });
-  const [name,     setName]     = useState("");
-  const [phone,    setPhone]    = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [state,          setState]          = useState<PassState>({ phase: "loading" });
+  const [name,           setName]           = useState("");
+  const [phone,          setPhone]          = useState("");
+  const [submitting,     setSubmitting]     = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+
+  const handleTurnstileChange = useCallback((t: string | null) => setTurnstileToken(t), []);
 
   useEffect(() => {
     fetch(`/api/guest-pass/${token}`)
@@ -46,7 +50,7 @@ export default function GuestPassPage() {
     const r = await fetch(`/api/guest-pass/${token}/claim`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+      body: JSON.stringify({ name: name.trim(), phone: phone.trim(), turnstileToken }),
     });
     const d = await r.json();
     setSubmitting(false);
@@ -140,11 +144,12 @@ export default function GuestPassPage() {
               <p style={{ font: `400 0.65rem/1.4 ${fd}`, color: "rgba(255,255,255,0.2)", textAlign: "center", margin: 0 }}>
                 El código aparece en pantalla al confirmar. También intentamos enviártelo por WhatsApp.
               </p>
+              <TurnstileWidget onTokenChange={handleTurnstileChange} theme="dark" />
             </div>
 
             <button
               onClick={handleClaim}
-              disabled={submitting || !name.trim() || phone.replace(/\D/g, "").length < 8}
+              disabled={submitting || !name.trim() || phone.replace(/\D/g, "").length < 8 || !turnstileToken}
               style={{ width: "100%", padding: "15px 0", background: submitting ? "rgba(249,115,22,0.5)" : `linear-gradient(135deg, ${accent} 0%, #EA580C 100%)`, border: "none", borderRadius: 16, font: `700 0.95rem/1 ${fd}`, color: "#FFFFFF", cursor: submitting ? "not-allowed" : "pointer", opacity: (!name.trim() || phone.replace(/\D/g, "").length < 8) ? 0.5 : 1 }}
             >
               {submitting ? "Reclamando..." : "Reclamar mi pase 🎟️"}
