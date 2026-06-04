@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash, createHmac } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
+import { withApiHandler } from "@/lib/api-error";
 
 const supabase = getSupabaseAdminClient();
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
@@ -35,7 +36,7 @@ function calcNewExpiry(current: string | null, periodo: string, duracion_dias: n
 // GET /api/alumno/pagar-link?token=xxx
 // Validates token → creates MP preference → redirects to checkout.
 // If gym has no MP, redirects to the portal (lock screen fallback).
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest): Promise<NextResponse> {
   const token = req.nextUrl.searchParams.get("token");
   if (!token) return NextResponse.redirect(`${APP_URL}/alumno/login`);
 
@@ -123,3 +124,5 @@ export async function GET(req: NextRequest) {
   const mpData = await mpRes.json() as { init_point: string };
   return NextResponse.redirect(mpData.init_point);
 }
+
+export const GET = withApiHandler(handleGet);

@@ -4,13 +4,14 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createAlumnoNotification } from "@/lib/alumno-notif";
 import { sendPushNotification, PushTemplates } from "@/lib/alumno-push-send";
-import { sanitizeError } from "@/lib/api-error";
+import { sanitizeError, withApiHandler } from "@/lib/api-error";
+import { assertAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 
 type StaffProfile = { gym_id: string | null; role: string | null };
 
 const supabase = getSupabaseAdminClient();
 
-export async function GET(req: NextRequest) {
+async function handleGet(req: NextRequest): Promise<NextResponse> {
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ rutina: data ?? null });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest): Promise<NextResponse> {
   const body = await req.json();
   const tokenRow = await getValidAlumnoToken(req);
 
@@ -48,6 +49,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
   } else {
+    const blocked = await assertAlumnoActionAllowed(tokenRow);
+    if (blocked) return blocked;
     // Alumno auth path - derive identity from token
     alumno_id = tokenRow.alumno_id;
     gym_id = tokenRow.gym_id;
@@ -82,3 +85,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const GET  = withApiHandler(handleGet);
+export const POST = withApiHandler(handlePost);

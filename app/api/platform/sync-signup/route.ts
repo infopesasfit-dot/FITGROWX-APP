@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { generateUniqueSlug } from "@/lib/slug-utils";
 import { sendWa } from "@/lib/wa";
 import { logger } from "@/lib/logger";
+import { withApiHandler } from "@/lib/api-error";
 
 const supabase = getSupabaseAdminClient();
 
@@ -26,7 +27,7 @@ function getDaysUntil(value: string) {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest): Promise<NextResponse> {
   try {
     const authHeader = req.headers.get("authorization");
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -224,7 +225,7 @@ export async function POST(req: NextRequest) {
       { count: clasesCount },
       { count: prospectosCount },
     ] = await Promise.all([
-      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", user.id).is("deleted_at", null),
+      supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", user.id).eq("is_demo", false).is("deleted_at", null),
       supabase.from("planes").select("id", { count: "exact", head: true }).eq("gym_id", user.id),
       supabase.from("gym_classes").select("id", { count: "exact", head: true }).eq("gym_id", user.id),
       supabase.from("prospectos").select("id", { count: "exact", head: true }).eq("gym_id", user.id),
@@ -386,9 +387,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, platformLeadId });
   } catch (error) {
+    void logger.error("sync-signup unhandled error", {
+      route: "/api/platform/sync-signup",
+      meta: { error: String(error) },
+    });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Unexpected sync error" },
       { status: 500 },
     );
   }
 }
+
+export const POST = withApiHandler(handlePost);

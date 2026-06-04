@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { withApiHandler } from "@/lib/api-error";
 import { createAlumnoNotification } from "@/lib/alumno-notif";
 import { sendPushNotification, PushTemplates } from "@/lib/alumno-push-send";
 import { sendWa } from "@/lib/wa";
@@ -24,7 +25,7 @@ const Schema = z.object({
   }),
 });
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest): Promise<NextResponse> {
   const sessionClient = await createSupabaseServerClient();
   const { data: { user } } = await sessionClient.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
@@ -86,6 +87,7 @@ export async function POST(req: NextRequest) {
       .from("alumnos")
       .select("full_name, phone")
       .eq("id", alumno_id)
+      .eq("is_demo", false)
       .single<{ full_name: string; phone: string | null }>();
 
     if (alumno?.phone) {
@@ -99,3 +101,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true, assigned, failed });
 }
+
+export const POST = withApiHandler(handlePost);

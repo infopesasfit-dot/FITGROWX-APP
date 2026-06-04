@@ -4,6 +4,8 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { addOneMonth } from "@/lib/date-utils";
 import { sendWa } from "@/lib/wa";
 import { fetchMpWithTimeout } from "@/lib/mp/timeout";
+import { logger } from "@/lib/logger";
+import { withApiHandler } from "@/lib/api-error";
 
 const MP_ACCESS_TOKEN   = process.env.MP_ACCESS_TOKEN!;
 const MP_WEBHOOK_SECRET = process.env.MP_WEBHOOK_SECRET;
@@ -120,9 +122,10 @@ async function createResellerCommission(
   const selfReferralMatches = await detectSelfReferral(gym, reseller);
   if (selfReferralMatches.length > 0) {
     const wouldBe = Math.round(paymentAmount * (reseller.commission_pct / 100));
-    console.warn(
-      `Reseller commission BLOCKED: possible self-referral (${selfReferralMatches.join(", ")}) for gym ${gymId}, reseller ${reseller.id}, cuit=${reseller.cuit ?? "n/a"} — no commission created`,
-    );
+    void logger.warn("Reseller commission BLOCKED: possible self-referral", {
+      route: "/api/mp/webhook",
+      meta: { gymId, resellerId: reseller.id, cuit: reseller.cuit ?? "n/a", matches: selfReferralMatches.join(", ") },
+    });
     const ownerPhone = normalizePhone((process.env.OWNER_PHONE ?? process.env.ALERT_PHONE));
     if (ownerPhone) {
       const alertMsg =
@@ -156,7 +159,7 @@ async function createResellerCommission(
     .maybeSingle();
 
   if (insertError) {
-    console.error(`Reseller commission: insert failed for payment ref ${paymentRef}:`, insertError.message);
+    void logger.error("Reseller commission insert failed", { route: "/api/mp/webhook", meta: { paymentRef, error: insertError.message } });
     return;
   }
 
@@ -168,9 +171,9 @@ async function createResellerCommission(
   console.log(`Reseller commission: gym ${gymId} → reseller ${reseller.id} → $${commissionAmount} (${paymentType})`);
 }
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest): Promise<NextResponse> {
   if (!MP_WEBHOOK_SECRET) {
-    console.error("MP_WEBHOOK_SECRET no configurado");
+    void logger.error("MP_WEBHOOK_SECRET no configurado", { route: "/api/mp/webhook" });
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
   }
 
@@ -235,7 +238,7 @@ export async function POST(req: NextRequest) {
 
     if (claimErr) {
       if (claimErr.code === "23505") return NextResponse.json({ ok: true });
-      console.error("MP webhook: failed to claim annual payment", paymentId, claimErr.message);
+      void logger.error("MP webhook: failed to claim annual payment", { route: "/api/mp/webhook", meta: { paymentId, error: claimErr.message } });
       return NextResponse.json({ error: "db_error" }, { status: 500 });
     }
 
@@ -264,7 +267,7 @@ export async function POST(req: NextRequest) {
       if (cancelResult.ok) {
         cancelledMonthly = true;
       } else {
-        console.error(`MP webhook: no se pudo cancelar preapproval mensual ${monthlyPreapprovalId} al activar anual (gym ${gymId})`);
+        void logger.error("MP webhook: no se pudo cancelar preapproval mensual al activar anual", { route: "/api/mp/webhook", meta: { gymId, preapprovalId: monthlyPreapprovalId } });
         logWebhookPlatform(gymId, String(paymentId), "payment", "error", "monthly preapproval cancel failed on annual upgrade");
       }
     }
@@ -325,7 +328,7 @@ export async function POST(req: NextRequest) {
             `Cancelarlo manualmente en la cuenta MP de FitGrowX para evitar doble cobro al gym.`;
           void sendWa("fitgrowx-platform", ownerPhone, alertMsg, { route: "mp/webhook" });
         } else {
-          console.error(`MP webhook: OWNER_PHONE no configurado — preapproval mensual ${monthlyPreapprovalId} requiere cancelación manual para gym ${gymId}`);
+          void logger.error("MP webhook: OWNER_PHONE no configurado — preapproval mensual requiere cancelación manual", { route: "/api/mp/webhook", meta: { gymId, preapprovalId: monthlyPreapprovalId } });
         }
       }
     }
@@ -343,7 +346,7 @@ export async function POST(req: NextRequest) {
       retryable: true,
     });
     if (!authorizedPaymentResult.ok) {
-      console.error("MP webhook: no se pudo consultar authorized payment", data.id, authorizedPaymentResult.error);
+      void logger.error("MP webhook: no se pudo consultar authorized payment", { route: "/api/mp/webhook", meta: { authorizedPaymentId: data.id, error: String(authorizedPaymentResult.error) } });
       return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
     }
 
@@ -383,7 +386,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!gymId) {
-      console.error("MP webhook: authorized payment sin gym_id", data.id, authorizedPayment.preapproval_id ?? null);
+      void logger.error("MP webhook: authorized payment sin gym_id", { route: "/api/mp/webhook", meta: { authorizedPaymentId: data.id, preapprovalId: authorizedPayment.preapproval_id ?? null } });
       logWebhookPlatform(null, String(data.id), "subscription_authorized_payment", "error", "missing gym_id");
       return NextResponse.json({ ok: true });
     }
@@ -403,7 +406,7 @@ export async function POST(req: NextRequest) {
 
     if (claimErr) {
       if (claimErr.code === "23505") return NextResponse.json({ ok: true });
-      console.error("MP webhook: failed to claim authorized payment", payment.id, claimErr.message);
+      void logger.error("MP webhook: failed to claim authorized payment", { route: "/api/mp/webhook", meta: { paymentId: payment.id, error: claimErr.message } });
       return NextResponse.json({ error: "db_error" }, { status: 500 });
     }
 
@@ -446,7 +449,7 @@ export async function POST(req: NextRequest) {
   });
   if (!mpResult.ok) {
     // Transient MP API error — return 500 so MP retries
-    console.error("MP webhook: no se pudo consultar preapproval", data.id);
+    void logger.error("MP webhook: no se pudo consultar preapproval", { route: "/api/mp/webhook", meta: { preapprovalId: data.id } });
     return NextResponse.json({ error: "mp_api_error" }, { status: 500 });
   }
 
@@ -510,7 +513,7 @@ export async function POST(req: NextRequest) {
     .eq("id", gymId);
 
   if (dbErr) {
-    console.error(`MP webhook: DB update failed para gym ${gymId}:`, dbErr.message);
+    void logger.error("MP webhook: DB update failed on preapproval", { route: "/api/mp/webhook", meta: { gymId, error: dbErr.message } });
     logWebhookPlatform(gymId, id, "preapproval", "error", dbErr.message);
     return NextResponse.json({ error: "db_error" }, { status: 500 });
   }
@@ -572,7 +575,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (err) {
-        console.error("MP webhook: referral bonus error:", err instanceof Error ? err.message : err);
+        void logger.error("MP webhook: referral bonus error", { route: "/api/mp/webhook", meta: { gymId, error: err instanceof Error ? err.message : String(err) } });
       }
     })();
   }
@@ -600,6 +603,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withApiHandler(handlePost);
 
 export async function GET() {
   return NextResponse.json({ ok: true });

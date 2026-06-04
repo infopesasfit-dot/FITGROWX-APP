@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { logger } from "@/lib/logger";
+import { withApiHandler } from "@/lib/api-error";
 import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { normalizePhone } from "@/lib/phone";
 import { logAlumnoActivity } from "@/lib/alumno-log";
@@ -103,7 +105,7 @@ async function enviarMensajeWA(gymId: string, phone: string, message: string): P
       signal: AbortSignal.timeout(3000),
     });
   } catch (e) {
-    console.error(`[gym-webhook] enviarMensajeWA gym=${gymId}:`, e instanceof Error ? e.message : e);
+    void logger.error("enviarMensajeWA failed", { route: "/api/mp/gym-webhook", meta: { gymId, error: String(e) } });
   }
 }
 
@@ -116,7 +118,7 @@ async function consultarPagoMP(paymentId: string, accessToken: string): Promise<
     retryable: true,
   });
   if (!result.ok) {
-    console.error(`[gym-webhook] consultarPagoMP paymentId=${paymentId} HTTP ${result.status}`);
+    void logger.error("consultarPagoMP failed", { route: "/api/mp/gym-webhook", meta: { paymentId, status: result.status } });
     return null;
   }
   return result.data as MPPayment;
@@ -152,7 +154,7 @@ async function registrarPago(
   if (!error) return "ok";
   if (error.code === "23505") return "duplicado";
 
-  console.error("[gym-webhook] registrarPago:", error.message, { gymId, alumnoId, paymentId });
+  void logger.error("registrarPago failed", { route: "/api/mp/gym-webhook", meta: { gymId, alumnoId, paymentId, error: error.message } });
   return "error";
 }
 
@@ -162,7 +164,7 @@ async function extenderMembresia(alumnoId: string, today: string, nuevoVencimien
   const { error } = await supabase.from("alumnos")
     .update({ status: "activo", last_payment_date: today, next_expiration_date: nuevoVencimiento })
     .eq("id", alumnoId);
-  if (error) console.error(`[gym-webhook] extenderMembresia alumno=${alumnoId}:`, error.message);
+  if (error) void logger.error("extenderMembresia failed", { route: "/api/mp/gym-webhook", meta: { alumnoId, error: error.message } });
 }
 
 async function convertirProspectoSiExiste(gymId: string, phone: string): Promise<void> {
@@ -173,7 +175,7 @@ async function convertirProspectoSiExiste(gymId: string, phone: string): Promise
     .eq("phone", phone)
     .not("clase_gratis_date", "is", null)
     .neq("clase_gratis_status", "convertido");
-  if (error) console.error("[gym-webhook] convertirProspecto:", error.message);
+  if (error) void logger.error("convertirProspecto failed", { route: "/api/mp/gym-webhook", meta: { gymId, error: error.message } });
 }
 
 async function crearNotificacionInApp(
@@ -190,7 +192,7 @@ async function crearNotificacionInApp(
     body:   `$${Math.round(monto).toLocaleString("es-AR")} — ${planNombre}. Membresía renovada hasta el ${vencimiento}.`,
     read:   false,
   });
-  if (error) console.error("[gym-webhook] crearNotificacionInApp:", error.message);
+  if (error) void logger.error("crearNotificacionInApp failed", { route: "/api/mp/gym-webhook", meta: { gymId, error: error.message } });
 }
 
 async function notificarDueno(
@@ -250,7 +252,7 @@ function logWebhook(
 
 // ── Handler principal ─────────────────────────────────────────────────────────
 
-export async function POST(req: NextRequest) {
+async function handlePost(req: NextRequest): Promise<NextResponse> {
   const { searchParams } = new URL(req.url);
   const gymId = searchParams.get("gym_id");
   const wt    = searchParams.get("wt") ?? "";
@@ -411,3 +413,5 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withApiHandler(handlePost);
