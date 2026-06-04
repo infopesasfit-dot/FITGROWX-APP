@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
 import { logPlatformAudit } from "@/lib/platform-audit";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,10 @@ export async function GET(req: NextRequest) {
   if (filter === "pending") query = query.eq("status", "received");
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/webhook-log", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, logs: data ?? [] });
 }
@@ -38,7 +42,10 @@ export async function PATCH(req: NextRequest) {
   const { data: before } = await sb.from("mp_webhook_log").select("status, gym_id, payment_id, event_type").eq("id", id).maybeSingle();
 
   const { error } = await sb.from("mp_webhook_log").update({ status }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/webhook-log", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   logPlatformAudit(sb, {
     actor_id: actor.id,

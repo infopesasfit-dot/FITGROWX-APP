@@ -6,6 +6,7 @@ import { applyRateLimit } from "@/lib/request-security";
 import { isWithinAllowedWindow, checkWaContactCooldown, getWaPlatformHealth } from "@/lib/wa-restrictions";
 import { logWASendWithMetrics } from "@/lib/wa-log";
 import { logPlatformAudit } from "@/lib/platform-audit";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 
@@ -165,7 +166,10 @@ export async function POST(req: NextRequest) {
         .update({ last_contact_at: now, status: "trial_active" })
         .eq("id", account_id)
         .not("status", "in", '("converted","churned")');
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+      void logger.error("db error", { route: "/platform/crm", meta: { error } });
+      return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+      }
       logPlatformAudit(sb, {
         actor_id: user.id,
         action: "mark_contacted",
@@ -180,7 +184,10 @@ export async function POST(req: NextRequest) {
         .update({ status: "contacted", last_contact_at: now })
         .eq("id", lead_id)
         .eq("status", "new");
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+      void logger.error("db error", { route: "/platform/crm", meta: { error } });
+      return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+      }
       logPlatformAudit(sb, {
         actor_id: user.id,
         action: "mark_contacted",
@@ -207,7 +214,10 @@ export async function POST(req: NextRequest) {
 
     const followUp = new Date(Date.now() + daysNum * 86_400_000).toISOString();
     const { error } = await sb.from("platform_accounts").update({ next_follow_up_at: followUp }).eq("id", account_id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+    void logger.error("db error", { route: "/platform/crm", meta: { error } });
+    return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+    }
     return NextResponse.json({ ok: true, next_follow_up_at: followUp });
   }
 

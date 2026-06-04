@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { applyRateLimit } from "@/lib/request-security";
 
 const sb = getSupabaseAdminClient();
 
@@ -18,6 +19,14 @@ export async function PATCH(req: NextRequest) {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rl = await applyRateLimit({
+    namespace: "reseller-profile",
+    identifier: user.id,
+    windowMs: 60 * 1000,
+    maxAttempts: 10,
+  });
+  if (!rl.allowed) return NextResponse.json({ error: "Demasiados intentos. Probá de nuevo en un minuto." }, { status: 429 });
 
   const { data: reseller } = await sb
     .from("resellers")

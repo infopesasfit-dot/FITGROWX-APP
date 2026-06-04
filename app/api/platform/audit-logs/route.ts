@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,10 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error, count } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/audit-logs", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   // Fetch distinct actions for the filter dropdown (cheap — small cardinality)
   const { data: actionRows } = await sb

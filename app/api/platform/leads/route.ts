@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { logPlatformAudit } from "@/lib/platform-audit";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 
@@ -29,7 +30,10 @@ export async function PATCH(req: NextRequest) {
   const { data: before } = await sb.from("platform_leads").select("status, full_name, email").eq("id", id).maybeSingle();
 
   const { error } = await sb.from("platform_leads").update({ status }).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/leads", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   logPlatformAudit(sb, {
     actor_id: actor.id,
@@ -54,7 +58,10 @@ export async function DELETE(req: NextRequest) {
   const { data: before } = await sb.from("platform_leads").select("status, full_name, email, phone").eq("id", id).maybeSingle();
 
   const { error } = await sb.from("platform_leads").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/leads", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   logPlatformAudit(sb, {
     actor_id: actor.id,

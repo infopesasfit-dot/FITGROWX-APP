@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
       .select("id, full_name, phone, ultima_notif_inactividad, ultima_notif_inactividad_3")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
+      .eq("is_demo", false)
       .is("deleted_at", null)
       .not("phone", "is", null);
 

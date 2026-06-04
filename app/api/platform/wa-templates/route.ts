@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { logger } from "@/lib/logger";
 
 const VALID_KEYS = new Set(["bienvenida", "trial_vence", "reactivacion", "inactivo_7d", "activacion_d3", "trial_expirado", "primer_pago"]);
 
@@ -38,6 +39,9 @@ export async function POST(req: NextRequest) {
   if (typeof enabled === "boolean") upsertData.enabled = enabled;
 
   const { error } = await sb.from("platform_wa_templates").upsert(upsertData, { onConflict: "key" });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/wa-templates", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

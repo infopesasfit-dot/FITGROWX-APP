@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
+import { logger } from "@/lib/logger";
 
 const BUCKET = "progreso-fotos";
 const SIGNED_URL_TTL = 60 * 60 * 6; // 6 hours
@@ -39,11 +41,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-
-  const { data: demoRowPost } = await supabase.from("alumnos").select("is_demo").eq("id", tokenRow.alumno_id).single();
-  if (demoRowPost?.is_demo) return NextResponse.json({ error: "No disponible en modo preview" }, { status: 403 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   let formData: FormData;
   try { formData = await req.formData(); }
@@ -76,7 +76,10 @@ export async function POST(req: NextRequest) {
     .from(BUCKET)
     .upload(storagePath, bytes, { contentType: file.type, upsert: false });
 
-  if (storageError) return NextResponse.json({ error: storageError.message }, { status: 500 });
+if (storageError) {
+  void logger.error("db error", { route: "/alumno/fotos", meta: { storageError } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   const { data: row, error: dbError } = await supabase
     .from("progreso_fotos")
@@ -86,7 +89,8 @@ export async function POST(req: NextRequest) {
 
   if (dbError) {
     await supabase.storage.from(BUCKET).remove([storagePath]);
-    return NextResponse.json({ error: dbError.message }, { status: 500 });
+    void logger.error("db error inserting foto record", { route: "/api/alumno/fotos", meta: { dbError } });
+    return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
   }
 
   const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, SIGNED_URL_TTL);
@@ -95,8 +99,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   const { foto_id, privada } = await req.json();
   if (!foto_id || typeof privada !== "boolean") {

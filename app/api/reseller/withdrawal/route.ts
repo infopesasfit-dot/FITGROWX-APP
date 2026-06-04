@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { MIN_WITHDRAWAL } from "@/constants";
+import { applyRateLimit } from "@/lib/request-security";
 
 const sb = getSupabaseAdminClient();
 
@@ -9,6 +10,14 @@ export async function POST() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rl = await applyRateLimit({
+    namespace: "reseller-withdrawal",
+    identifier: user.id,
+    windowMs: 60 * 60 * 1000,
+    maxAttempts: 5,
+  });
+  if (!rl.allowed) return NextResponse.json({ error: "Demasiados intentos. Probá de nuevo más tarde." }, { status: 429 });
 
   const { data: reseller } = await sb
     .from("resellers")

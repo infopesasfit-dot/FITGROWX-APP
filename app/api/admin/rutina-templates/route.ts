@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const supabase = getSupabaseAdminClient();
 
@@ -22,7 +23,10 @@ export async function GET() {
     .select("id, nombre, objetivo, rutinatipo, ejercicios, notas, created_at")
     .eq("gym_id", gymId)
     .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/admin/rutina-templates", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
   return NextResponse.json({ templates: data });
 }
 
@@ -45,6 +49,9 @@ export async function POST(req: NextRequest) {
     .insert({ ...parsed.data, gym_id: gymId })
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/admin/rutina-templates", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
   return NextResponse.json({ template: data });
 }

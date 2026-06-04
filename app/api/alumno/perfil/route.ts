@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { logger } from "@/lib/logger";
 
 const supabase = getSupabaseAdminClient();
 
@@ -12,8 +13,9 @@ const perfilSchema = z.object({
 }).strict();
 
 export async function PATCH(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   let body: unknown;
   try { body = await req.json(); }
@@ -39,6 +41,9 @@ export async function PATCH(req: NextRequest) {
     .eq("id", tokenRow.alumno_id)
     .eq("gym_id", tokenRow.gym_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/alumno/perfil", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

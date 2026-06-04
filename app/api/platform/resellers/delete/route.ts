@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 
@@ -48,7 +49,10 @@ export async function POST(req: NextRequest) {
     .from("resellers")
     .update({ status: "deleted", updated_at: new Date().toISOString() })
     .eq("id", resellerId);
-  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+if (updateErr) {
+  void logger.error("db error", { route: "/platform/resellers/delete", meta: { updateErr } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   await writeResellerAuditLog({
     actor_id: actor.id,

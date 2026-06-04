@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
+import { logger } from "@/lib/logger";
 
 const admin = getSupabaseAdminClient();
 
@@ -52,7 +53,10 @@ export async function POST(req: NextRequest) {
     .update({ status: "anulado" })
     .eq("id", pago_id);
 
-  if (voidErr) return NextResponse.json({ ok: false, error: voidErr.message }, { status: 500 });
+if (voidErr) {
+  void logger.error("db error", { route: "/admin/pagos/void", meta: { voidErr } });
+  return NextResponse.json({ ok: false, error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   // If not a membresia payment, no expiry rollback needed
   if (pago.concepto !== "membresia") {
@@ -90,6 +94,7 @@ export async function POST(req: NextRequest) {
         .from("alumnos")
         .select("plan_id, planes(duracion_dias)")
         .eq("id", pago.alumno_id)
+        .eq("is_demo", false)
         .is("deleted_at", null)
         .maybeSingle();
 
@@ -111,7 +116,10 @@ export async function POST(req: NextRequest) {
     })
     .eq("id", pago.alumno_id);
 
-  if (updateErr) return NextResponse.json({ ok: false, error: updateErr.message }, { status: 500 });
+if (updateErr) {
+  void logger.error("db error", { route: "/admin/pagos/void", meta: { updateErr } });
+  return NextResponse.json({ ok: false, error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   // Invalidate dashboard snapshot
   const monthKey = new Date().toISOString().slice(0, 7);

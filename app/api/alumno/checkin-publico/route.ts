@@ -4,6 +4,7 @@ import { getCurrentTime, getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { assertAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 
 type AlumnoRow = { id: string; gym_id: string; full_name: string; status: string | null; planes: unknown; next_expiration_date: string | null; phone: string | null };
 type ExistingRow = { id: string; hora: string | null };
@@ -22,6 +23,8 @@ export async function POST(req: NextRequest) {
   let alumnoId: string | null = null;
 
   if (tokenRow && tokenRow.gym_id === gym_id) {
+    const blocked = await assertAlumnoActionAllowed(tokenRow);
+    if (blocked) return blocked;
     alumnoId = tokenRow.alumno_id;
   }
 
@@ -39,6 +42,7 @@ export async function POST(req: NextRequest) {
     .select("id, gym_id, full_name, status, planes(nombre), next_expiration_date, phone")
     .eq("gym_id", gym_id)
     .eq("id", alumnoId)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .maybeSingle();
   const alumnoRow = alumno as AlumnoRow | null;

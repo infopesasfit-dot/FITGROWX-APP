@@ -6,6 +6,7 @@ import { normalizePhone } from "@/lib/phone";
 import { createAlumnoNotification } from "@/lib/alumno-notif";
 import { sendPushNotification, PushTemplates } from "@/lib/alumno-push-send";
 import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
+import { logger } from "@/lib/logger";
 
 const admin = getSupabaseAdminClient();
 
@@ -61,7 +62,8 @@ export async function POST(req: NextRequest) {
     .insert({ gym_id: profile.gym_id, clase_id, fecha, motivo: motivo ?? null, cancelled_by: profile.id });
   if (insErr) {
     if (insErr.code === "23505") return NextResponse.json({ error: "Esta instancia ya fue cancelada." }, { status: 409 });
-    return NextResponse.json({ error: insErr.message }, { status: 500 });
+    void logger.error("db error inserting cancellation", { route: "/api/admin/clase/cancelar-instancia", meta: { insErr } });
+    return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
   }
 
   // Fetch ALL affected reservations: both confirmada and cancelada_tarde

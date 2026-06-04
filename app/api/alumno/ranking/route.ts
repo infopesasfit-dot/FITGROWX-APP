@@ -19,6 +19,14 @@ export async function GET(req: NextRequest) {
   const alumno_id = tokenRow.alumno_id;
   const gym_id = tokenRow.gym_id;
 
+  const { data: requester } = await supabase
+    .from("alumnos")
+    .select("is_demo")
+    .eq("id", alumno_id)
+    .eq("gym_id", gym_id)
+    .maybeSingle();
+  if (requester?.is_demo) return NextResponse.json({ top: [], myPos: 0, myEntry: null });
+
   const monthStart = new Date();
   monthStart.setDate(1);
   const monthStartStr = monthStart.toISOString().slice(0, 10);
@@ -49,12 +57,13 @@ export async function GET(req: NextRequest) {
     .from("alumnos")
     .select("id, full_name")
     .in("id", idsToFetch)
+    .eq("is_demo", false)
     .is("deleted_at", null);
 
   const nameMap: Record<string, string> = {};
   for (const a of alumnos ?? []) nameMap[a.id] = a.full_name;
 
-  const top = sorted.slice(0, 10).map(([id, count], i) => ({
+  const top = sorted.filter(([id]) => Boolean(nameMap[id])).slice(0, 10).map(([id, count], i) => ({
     pos:   i + 1,
     name:  anonName(nameMap[id] ?? "?", id === alumno_id),
     count,

@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     .select("id, status, gym_id")
     .eq("id", alumno_id)
     .eq("gym_id", gymId)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .maybeSingle();
 
@@ -75,6 +76,7 @@ export async function DELETE(req: NextRequest) {
     .select("id, status, gym_id, frozen_since, next_expiration_date")
     .eq("id", alumno_id)
     .eq("gym_id", gymId)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .maybeSingle();
 

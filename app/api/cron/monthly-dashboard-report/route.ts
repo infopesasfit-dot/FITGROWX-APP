@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 
   if (gymsError) {
     void supabase.from("cron_runs").insert({ cron_name: "monthly-dashboard-report", status: "error", duration_ms: Date.now() - startedAt, summary: gymsError.message });
-    return NextResponse.json({ error: gymsError.message }, { status: 500 });
+    return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
   }
 
   const rawTargets = (gyms ?? []) as GymTarget[];

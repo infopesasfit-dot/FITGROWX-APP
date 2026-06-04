@@ -2,12 +2,14 @@ import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 
 const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   const { alumno_id, gym_id, fecha, rutina_nombre, series_log, completada, offline } = await req.json();
   if (!alumno_id || !gym_id || !fecha) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });

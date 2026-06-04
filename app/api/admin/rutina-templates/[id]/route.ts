@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { logger } from "@/lib/logger";
 
 const supabase = getSupabaseAdminClient();
 
@@ -25,6 +26,9 @@ export async function DELETE(
     .delete()
     .eq("id", id)
     .eq("gym_id", profile.gym_id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/admin/rutina-templates/[id]", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

@@ -4,6 +4,7 @@ import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getTodayDate } from "@/lib/date-utils";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 
 const supabase = getSupabaseAdminClient();
 
@@ -25,8 +26,9 @@ export async function POST(req: NextRequest) {
   const { ejercicio, peso, notas } = await req.json();
   if (!ejercicio || peso == null) return NextResponse.json({ error: "Parámetros faltantes." }, { status: 400 });
 
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60 * 1000, maxAttempts: 30 });
   if (!rateLimit.allowed) return rateLimit.response!;

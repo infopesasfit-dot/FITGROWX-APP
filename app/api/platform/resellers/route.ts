@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { sendWa } from "@/lib/wa";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 const VALID_RESELLER_TIERS = new Set(["standard", "premium", "franchise"]);
@@ -122,7 +123,10 @@ export async function POST(req: NextRequest) {
     user_id:        userId,
   }).select().single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/resellers", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
   await writeResellerAuditLog({
     actor_id: actor.id,
     entity_type: "reseller",
@@ -155,7 +159,8 @@ export async function PATCH(req: NextRequest) {
       .rpc("pay_reseller_withdrawal", { p_withdrawal_id: body.withdrawalId })
       .single();
     if (payErr) {
-      return NextResponse.json({ error: payErr.message || "No se pudo marcar el retiro como pagado" }, { status: 500 });
+      void logger.error("db error paying withdrawal", { route: "/api/platform/resellers", meta: { payErr } });
+      return NextResponse.json({ error: "No se pudo marcar el retiro como pagado." }, { status: 500 });
     }
 
     const paid = paidWithdrawal as { reseller_id?: string; amount?: number | string } | null;
@@ -218,7 +223,10 @@ export async function PATCH(req: NextRequest) {
     .eq("id", resellerId)
     .select("id, commission_pct, tier, status, payout_info")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/resellers", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   await writeResellerAuditLog({
     actor_id: actor.id,

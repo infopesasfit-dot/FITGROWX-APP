@@ -48,7 +48,7 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
 
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData.user) {
-      return NextResponse.json({ error: authError?.message ?? "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
 
     const user = authData.user;
@@ -103,7 +103,8 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       { onConflict: "id" },
     );
     if (profileUpsertError) {
-      return NextResponse.json({ error: profileUpsertError.message }, { status: 500 });
+      void logger.error("db error upserting profile", { route: "/api/platform/sync-signup", meta: { profileUpsertError } });
+      return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
     }
 
     const resolvedGymName = gymSettings?.gym_name ?? existingGym?.gym_name ?? existingGym?.name ?? companyName;
@@ -123,7 +124,8 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       { onConflict: "gym_id" },
     );
     if (gymSettingsUpsertError) {
-      return NextResponse.json({ error: gymSettingsUpsertError.message }, { status: 500 });
+      void logger.error("db error upserting gym_settings", { route: "/api/platform/sync-signup", meta: { gymSettingsUpsertError } });
+      return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
     }
 
     const now = new Date();
@@ -165,7 +167,8 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       { onConflict: "id" },
     );
     if (gymUpsertError) {
-      return NextResponse.json({ error: gymUpsertError.message }, { status: 500 });
+      void logger.error("db error upserting gym", { route: "/api/platform/sync-signup", meta: { gymUpsertError } });
+      return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
     }
 
     const { data: existingLead } = await supabase
@@ -192,7 +195,8 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
         })
         .eq("id", platformLeadId);
       if (leadUpdateError) {
-        return NextResponse.json({ error: leadUpdateError.message }, { status: 500 });
+        void logger.error("db error updating lead", { route: "/api/platform/sync-signup", meta: { leadUpdateError } });
+        return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
       }
     } else {
       const { data: insertedLead, error: leadError } = await supabase
@@ -210,7 +214,8 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
         .single();
 
       if (leadError) {
-        return NextResponse.json({ error: leadError.message }, { status: 500 });
+        void logger.error("db error inserting lead", { route: "/api/platform/sync-signup", meta: { leadError } });
+        return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
       }
 
       platformLeadId = insertedLead.id;
@@ -281,7 +286,8 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       );
 
     if (accountError) {
-      return NextResponse.json({ error: accountError.message }, { status: 500 });
+      void logger.error("db error upserting account", { route: "/api/platform/sync-signup", meta: { accountError } });
+      return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
     }
 
     // Registrar referido: si vino con ?ref=, buscar el referente y crear la fila

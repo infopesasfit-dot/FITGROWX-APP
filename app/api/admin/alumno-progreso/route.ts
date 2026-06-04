@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     .select("id")
     .eq("id", alumno_id)
     .eq("gym_id", profile.gym_id)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .maybeSingle();
   if (!belongs) return NextResponse.json({ error: "Alumno no encontrado." }, { status: 404 });

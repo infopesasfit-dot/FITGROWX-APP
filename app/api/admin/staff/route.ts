@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient , requireUser } from "@/lib/supabase-server";
 import { createStaffSchema, parseBody } from "@/lib/schemas";
 import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
+import { logger } from "@/lib/logger";
 
 type AdminProfile = {
   gym_id: string | null;
@@ -57,7 +58,10 @@ export async function POST(req: NextRequest) {
     password,
     email_confirm: true,
   });
-  if (authError) return NextResponse.json({ ok: false, error: authError.message }, { status: 400 });
+if (authError) {
+  void logger.error("db error", { route: "/admin/staff", meta: { authError } });
+  return NextResponse.json({ ok: false, error: "Error interno. Intente nuevamente." }, { status: 400 });
+  }
 
   const { error: profileError } = await supabaseAdmin.from("profiles").insert({
     id: newUser.user.id,
@@ -69,7 +73,8 @@ export async function POST(req: NextRequest) {
 
   if (profileError) {
     await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
-    return NextResponse.json({ ok: false, error: profileError.message }, { status: 500 });
+    void logger.error("db error inserting profile for staff", { route: "/api/admin/staff", meta: { profileError } });
+    return NextResponse.json({ ok: false, error: "Error interno al crear el perfil. Intente nuevamente." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, id: newUser.user.id });

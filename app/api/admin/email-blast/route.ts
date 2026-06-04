@@ -4,6 +4,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { Resend } from "resend";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const blastSchema = z.object({
   subject: z.string().min(1, "subject requerido.").max(200),
@@ -52,7 +53,8 @@ export async function POST(req: NextRequest) {
     .eq("role", "admin");
 
   if (profilesErr) {
-    return NextResponse.json({ error: profilesErr.message }, { status: 500 });
+    void logger.error("db error fetching profiles", { route: "/api/admin/email-blast", meta: { profilesErr } });
+    return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
   }
 
   // Filter gyms if requested (e.g. only active subscriptions)

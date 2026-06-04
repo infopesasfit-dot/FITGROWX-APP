@@ -54,6 +54,7 @@ export async function GET() {
       .eq("gym_id", gymId)
       .eq("next_expiration_date", todayStr)
       .eq("status", "activo")
+      .eq("is_demo", false)
       .is("deleted_at", null),
   ]);
 

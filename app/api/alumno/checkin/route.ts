@@ -5,6 +5,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { normalizePhone } from "@/lib/phone";
 import { sendWa } from "@/lib/wa";
+import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
 
 type StaffProfile = {
   gym_id: string | null;
@@ -62,6 +63,9 @@ export async function POST(req: NextRequest) {
     }, { status: 403 });
   }
 
+  const blocked = await requireGymNotBlocked(profileRow.gym_id);
+  if (blocked) return blocked;
+
   const { qr_data } = await req.json();
 
   if (!qr_data || !qr_data.startsWith("FITGROWX:")) {
@@ -94,6 +98,7 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, gym_id, full_name, status, phone, planes(nombre, accent_color), next_expiration_date")
     .eq("gym_id", profileRow.gym_id)
+    .eq("is_demo", false)
     .is("deleted_at", null);
 
   const { data: alumno, error } = await (byId

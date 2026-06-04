@@ -20,9 +20,10 @@ export async function GET(
   if (pass.status === "used") return NextResponse.json({ error: "Pase ya utilizado" }, { status: 409 });
 
   const [{ data: alumno }, { data: settings }] = await Promise.all([
-    sb.from("alumnos").select("full_name").eq("id", pass.alumno_id).maybeSingle(),
+    sb.from("alumnos").select("full_name").eq("id", pass.alumno_id).eq("is_demo", false).maybeSingle(),
     sb.from("gym_settings").select("gym_name, accent_color, whatsapp").eq("gym_id", pass.gym_id).maybeSingle(),
   ]);
+  if (!alumno) return NextResponse.json({ error: "Pase inválido" }, { status: 404 });
 
   // If already claimed, return success state directly (same browser re-open)
   const gymWhatsapp = (settings as { whatsapp?: string | null } | null)?.whatsapp ?? null;

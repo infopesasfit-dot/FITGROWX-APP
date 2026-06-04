@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { logger } from "@/lib/logger";
 
 const BUCKET = "alumno-avatars";
 const SIGNED_URL_TTL = 365 * 24 * 60 * 60;
@@ -8,8 +9,9 @@ const SIGNED_URL_TTL = 365 * 24 * 60 * 60;
 const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   let formData: FormData;
   try { formData = await req.formData(); }
@@ -41,7 +43,10 @@ export async function POST(req: NextRequest) {
     .from(BUCKET)
     .upload(storagePath, bytes, { contentType: file.type, upsert: true });
 
-  if (storageError) return NextResponse.json({ error: storageError.message }, { status: 500 });
+if (storageError) {
+  void logger.error("db error", { route: "/alumno/avatar", meta: { storageError } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   const { data: signed } = await supabase.storage
     .from(BUCKET)
@@ -52,9 +57,13 @@ export async function POST(req: NextRequest) {
   const { error: dbError } = await supabase
     .from("alumnos")
     .update({ avatar_url: signed.signedUrl })
-    .eq("id", tokenRow.alumno_id);
+    .eq("id", tokenRow.alumno_id)
+    .eq("gym_id", tokenRow.gym_id);
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+if (dbError) {
+  void logger.error("db error", { route: "/alumno/avatar", meta: { dbError } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, avatar_url: signed.signedUrl });
 }

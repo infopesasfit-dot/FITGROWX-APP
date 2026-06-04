@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { pushSubscribeSchema } from "@/lib/schemas";
 
@@ -7,10 +7,9 @@ const supabase = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
   try {
-    const tokenRow = await getValidAlumnoToken(req);
-    if (!tokenRow) {
-      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-    }
+    const access = await requireAlumnoActionAllowed(req);
+    if ("response" in access) return access.response;
+    const { tokenRow } = access;
 
     let raw: unknown;
     try {

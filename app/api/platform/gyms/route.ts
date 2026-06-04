@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 
@@ -12,7 +13,10 @@ export async function GET() {
     .from("platform_accounts")
     .select("id,company_name,owner_name,phone,email,status,subscription_plan,monthly_value,trial_starts_at,trial_ends_at,converted_at,activation_score,last_contact_at,last_seen_at,tc_accepted_at,auth_user_id")
     .order("trial_ends_at", { ascending: false, nullsFirst: false });
-  if (accErr) return NextResponse.json({ error: accErr.message }, { status: 500 });
+if (accErr) {
+  void logger.error("db error", { route: "/platform/gyms", meta: { accErr } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   const authUserIds = (accounts ?? []).map((a) => a.auth_user_id).filter(Boolean) as string[];
   if (!authUserIds.length) return NextResponse.json({ gyms: [], total: 0 });
@@ -40,7 +44,7 @@ export async function GET() {
 
   // 5. Active member counts per gym
   const { data: memberCounts } = gymIds.length
-    ? await sb.from("alumnos").select("gym_id").in("gym_id", gymIds).is("deleted_at", null).eq("status", "activo")
+    ? await sb.from("alumnos").select("gym_id").in("gym_id", gymIds).is("deleted_at", null).eq("status", "activo").eq("is_demo", false)
     : { data: [] };
   const memberCountMap = new Map<string, number>();
   for (const row of memberCounts ?? []) {

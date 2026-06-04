@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
 import { logPlatformAudit } from "@/lib/platform-audit";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 
@@ -31,7 +32,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ gy
   const { data: currentGym } = await sb.from("gyms").select("plan_type,trial_expires_at").eq("id", gymId).maybeSingle();
 
   const { error: gymErr } = await sb.from("gyms").update(gymPayload).eq("id", gymId);
-  if (gymErr) return NextResponse.json({ error: gymErr.message }, { status: 500 });
+if (gymErr) {
+  void logger.error("db error", { route: "/platform/gyms/[gymId]/plan", meta: { gymErr } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   // Mirror subscription_plan to platform_accounts via the profiles join
   const { data: profile } = await sb

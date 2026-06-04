@@ -4,6 +4,7 @@ import { addMonths, getTodayDate } from "@/lib/date-utils";
 import { fetchMpWithTimeout } from "@/lib/mp/timeout";
 import { assertPlatformOwner } from "@/lib/auth-platform";
 import { logPlatformAudit } from "@/lib/platform-audit";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +97,8 @@ export async function POST(req: NextRequest) {
   });
   const isDuplicate = pagoErr?.code === "23505";
   if (pagoErr && !isDuplicate) {
-    return NextResponse.json({ error: `DB error al insertar pago: ${pagoErr.message}` }, { status: 500 });
+    void logger.error("db error inserting pago", { route: "/api/platform/reprocess-payment", meta: { pagoErr } });
+    return NextResponse.json({ error: "Error al registrar el pago. Intente nuevamente." }, { status: 500 });
   }
 
   // 5. Actualizar membresía
@@ -104,7 +106,10 @@ export async function POST(req: NextRequest) {
     .update({ status: "activo", last_payment_date: today, next_expiration_date: nuevoVenc })
     .eq("id", alumnoId)
     .is("deleted_at", null);
-  if (alumnoErr) return NextResponse.json({ error: `DB error al extender membresía: ${alumnoErr.message}` }, { status: 500 });
+  if (alumnoErr) {
+    void logger.error("db error updating alumno", { route: "/api/platform/reprocess-payment", meta: { alumnoErr } });
+    return NextResponse.json({ error: "Error al extender la membresía. Intente nuevamente." }, { status: 500 });
+  }
 
   // 6. Marcar log como procesado
   if (log_id) {

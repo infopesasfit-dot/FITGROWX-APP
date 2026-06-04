@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
+import { logger } from "@/lib/logger";
 
 type AuthorizedProfile = {
   gym_id: string | null;
@@ -39,7 +40,10 @@ export async function POST(req: NextRequest) {
     .update({ plan_type })
     .eq("id", gym_id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/gym/select-plan", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

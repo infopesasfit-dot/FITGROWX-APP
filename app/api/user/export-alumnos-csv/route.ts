@@ -26,6 +26,7 @@ export async function GET() {
     .from("alumnos")
     .select("full_name, phone, email, dni, status, next_expiration_date, created_at, planes(nombre)")
     .eq("gym_id", profile.gym_id)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .order("full_name");
 

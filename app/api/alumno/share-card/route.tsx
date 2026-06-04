@@ -41,6 +41,7 @@ export async function GET(req: Request) {
     .from("alumnos")
     .select("full_name, gym_id")
     .eq("id", alumnoId)
+    .eq("is_demo", false)
     .maybeSingle();
 
   const { data: settings } = alumno?.gym_id

@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   const { data: tokenRow, error } = await supabase
     .from("alumno_tokens")
-    .select("id, alumno_id, gym_id")
+    .select("id, alumno_id, gym_id, expires_at")
     .eq("token", tokenHash)
     .gt("expires_at", now)
     .single();
@@ -31,18 +31,6 @@ export async function POST(req: NextRequest) {
   if (error || !tokenRow) {
     console.warn("[auth] login_failed", { reason: "Invalid token", ip });
     return NextResponse.json({ error: "Enlace inválido o expirado." }, { status: 401 });
-  }
-
-  // Token válido. Extendemos expires_at a 30 días desde este uso.
-  // No marcamos used_at — el link puede reutilizarse mientras no expire.
-  const { error: updateError } = await supabase
-    .from("alumno_tokens")
-    .update({ expires_at: thirtyDays })
-    .eq("id", tokenRow.id);
-
-  if (updateError) {
-    console.warn("[auth] login_failed", { reason: "DB update failed", ip });
-    return NextResponse.json({ error: "Error al procesar el ingreso." }, { status: 500 });
   }
 
   const plan = await getGymPlanStatus(tokenRow.gym_id);
@@ -56,10 +44,24 @@ export async function POST(req: NextRequest) {
 
   const { data: alumno } = await supabase
     .from("alumnos")
-    .select("id, dni, full_name, phone, status, plan_id, next_expiration_date, planes!plan_id(nombre, accent_color, precio)")
+    .select("id, dni, full_name, phone, status, plan_id, next_expiration_date, is_demo, planes!plan_id(nombre, accent_color, precio)")
     .eq("id", tokenRow.alumno_id)
     .is("deleted_at", null)
     .single();
+
+  if (!alumno?.is_demo) {
+    // Token válido. Extendemos expires_at a 30 días desde este uso.
+    // No marcamos used_at — el link puede reutilizarse mientras no expire.
+    const { error: updateError } = await supabase
+      .from("alumno_tokens")
+      .update({ expires_at: thirtyDays })
+      .eq("id", tokenRow.id);
+
+    if (updateError) {
+      console.warn("[auth] login_failed", { reason: "DB update failed", ip });
+      return NextResponse.json({ error: "Error al procesar el ingreso." }, { status: 500 });
+    }
+  }
 
   await logAlumnoAction({
     alumno_id: tokenRow.alumno_id,
@@ -82,5 +84,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return setAlumnoSessionCookie(res, token);
+  const maxAge = alumno?.is_demo
+    ? Math.max(1, Math.floor((new Date(tokenRow.expires_at).getTime() - Date.now()) / 1000))
+    : undefined;
+
+  return setAlumnoSessionCookie(res, token, maxAge);
 }

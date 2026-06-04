@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { requireGymNotBlocked } from "@/lib/require-gym-not-blocked";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   const { alumno_id } = await req.json();
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("gym_id")
     .eq("id", alumno_id)
+    .eq("is_demo", false)
     .is("deleted_at", null)
     .single();
 
@@ -61,8 +63,8 @@ export async function POST(req: NextRequest) {
     .gt("expires_at", new Date().toISOString());
 
   if (error) {
-    console.error("[invalidate-tokens]", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    void logger.error("db error invalidating tokens", { route: "/api/admin/invalidate-tokens", meta: { error } });
+    return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

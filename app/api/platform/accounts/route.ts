@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
 import { logPlatformAudit } from "@/lib/platform-audit";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 
@@ -39,7 +40,10 @@ export async function PATCH(req: NextRequest) {
   }
 
   const { error } = await sb.from("platform_accounts").update(payload).eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/accounts", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   // Sync gyms.trial_expires_at when extending a trial
   const gymId = current?.gym_id;
@@ -106,7 +110,10 @@ export async function DELETE(req: NextRequest) {
 
   // Always remove the CRM row itself
   const { error } = await sb.from("platform_accounts").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+if (error) {
+  void logger.error("db error", { route: "/platform/accounts", meta: { error } });
+  return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
+  }
 
   logPlatformAudit(sb, {
     actor_id: actor.id,

@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
       .from("alumnos")
       .select("id, full_name, phone, dni, status, next_expiration_date, planes!plan_id(nombre, accent_color, precio, duracion_dias)")
       .eq("gym_id", gymId)
+      .eq("is_demo", false)
       .is("deleted_at", null);
 
     if (phone && dni) {

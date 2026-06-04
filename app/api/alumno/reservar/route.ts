@@ -6,6 +6,7 @@ import { getTodayDate } from "@/lib/date-utils";
 import { applyAlumnoRateLimit } from "@/lib/alumno-rate-limit";
 import { logAlumnoAction } from "@/lib/alumno-logging";
 import { reservarClaseAlumnoSchema } from "@/lib/schemas";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 
 const supabase = getSupabaseAdminClient();
 
@@ -32,14 +33,12 @@ export async function POST(req: NextRequest) {
   const { clase_id, fecha } = parsed.data;
   if (fecha < getTodayDate()) return NextResponse.json({ error: "No podés reservar clases pasadas." }, { status: 400 });
 
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
   if (!rateLimit.allowed) return rateLimit.response!;
-
-  const { data: demoRow } = await supabase.from("alumnos").select("is_demo").eq("id", tokenRow.alumno_id).single();
-  if (demoRow?.is_demo) return NextResponse.json({ error: "No disponible en modo preview" }, { status: 403 });
 
   const { data: clase } = await supabase.from("gym_classes").select("max_capacity, class_name, gym_id, day_of_week").eq("id", clase_id).single();
   if (!clase) return NextResponse.json({ error: "Clase no encontrada." }, { status: 404 });
@@ -129,8 +128,9 @@ export async function DELETE(req: NextRequest) {
   }
   const { clase_id, fecha } = parsed.data;
 
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60 * 1000, maxAttempts: 20 });
   if (!rateLimit.allowed) return rateLimit.response!;

@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     .from("alumnos")
     .select("id, gym_id, full_name, status, next_expiration_date")
     .eq("gym_id", keyRow.gym_id)
+    .eq("is_demo", false)
     .is("deleted_at", null);
 
   const { data: alumno } = await (byId ? base.eq("id", lookup) : base.eq("dni", lookup)).maybeSingle<{

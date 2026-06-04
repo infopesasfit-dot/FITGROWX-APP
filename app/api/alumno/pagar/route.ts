@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
-import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { addMonths } from "@/lib/date-utils";
 import { logAlumnoAction } from "@/lib/alumno-logging";
@@ -43,8 +43,9 @@ function calcNewExpiry(current: string | null, periodo: string, duracion_dias: n
 }
 
 export async function POST(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   const rateLimit = await applyAlumnoRateLimit(req, tokenRow.alumno_id, { windowMs: 60_000, maxAttempts: 5 });
   if (!rateLimit.allowed) return rateLimit.response!;

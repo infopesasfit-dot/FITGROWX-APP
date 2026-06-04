@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidAlumnoToken } from "@/lib/alumno-token";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { randomBytes } from "crypto";
 
 const sb = getSupabaseAdminClient();
 
 export async function POST(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   const { alumno_id, gym_id } = tokenRow;
 

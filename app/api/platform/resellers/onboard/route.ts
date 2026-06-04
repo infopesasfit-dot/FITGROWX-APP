@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { sendWa } from "@/lib/wa";
+import { logger } from "@/lib/logger";
 
 const sb = getSupabaseAdminClient();
 
@@ -101,7 +102,8 @@ export async function POST(req: NextRequest) {
       options: { redirectTo },
     });
     if (invErr || !ld?.user?.id) {
-      return NextResponse.json({ error: invErr?.message ?? "Error creando usuario" }, { status: 500 });
+      void logger.error("auth error creating invite", { route: "/api/platform/resellers/onboard", meta: { invErr } });
+      return NextResponse.json({ error: "No se pudo crear el usuario. Intente nuevamente." }, { status: 500 });
     }
     userId = ld.user.id;
     magicLink = ld.properties?.action_link ?? "";
@@ -190,7 +192,8 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-    return NextResponse.json({ error: rErr.message }, { status: 500 });
+    void logger.error("db error in reseller onboard", { route: "/api/platform/resellers/onboard", meta: { rErr } });
+    return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
   }
 
   await writeResellerAuditLog({

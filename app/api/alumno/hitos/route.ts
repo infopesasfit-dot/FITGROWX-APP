@@ -3,6 +3,7 @@ import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createHmac } from "crypto";
 import { sendWa } from "@/lib/wa";
+import { assertAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 
 const sb = getSupabaseAdminClient();
 
@@ -33,6 +34,8 @@ function sign(alumnoId: string, hito: string): string {
 export async function GET(req: NextRequest) {
   const tokenRow = await getValidAlumnoToken(req);
   if (!tokenRow) return NextResponse.json({ hitos: [] });
+  const blocked = await assertAlumnoActionAllowed(tokenRow);
+  if (blocked) return blocked;
 
   const { alumno_id, gym_id } = tokenRow;
 

@@ -2,6 +2,7 @@ import { sanitizeError } from "@/lib/api-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidAlumnoToken } from "@/lib/alumno-token";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requireAlumnoActionAllowed } from "@/lib/alumno-action-guard";
 
 const supabase = getSupabaseAdminClient();
 
@@ -20,8 +21,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const tokenRow = await getValidAlumnoToken(req);
-  if (!tokenRow) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  const access = await requireAlumnoActionAllowed(req);
+  if ("response" in access) return access.response;
+  const { tokenRow } = access;
 
   let body: Record<string, unknown>;
   try { body = await req.json(); }

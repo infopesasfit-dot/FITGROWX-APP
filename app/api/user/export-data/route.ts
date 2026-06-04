@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     { data: asistencias },
   ] = await Promise.all([
     admin.from("gym_settings").select("gym_name, owner_name, email, whatsapp, slug").eq("gym_id", gymId).maybeSingle(),
-    admin.from("alumnos").select("id, full_name, phone, email, status, next_expiration_date, created_at, planes!plan_id(nombre)").eq("gym_id", gymId).is("deleted_at", null).order("full_name"),
+    admin.from("alumnos").select("id, full_name, phone, email, status, next_expiration_date, created_at, planes!plan_id(nombre)").eq("gym_id", gymId).eq("is_demo", false).is("deleted_at", null).order("full_name"),
     admin.from("pagos").select("id, alumno_id, amount, method, status, date, concepto, alumnos!alumno_id(full_name)").eq("gym_id", gymId).order("date", { ascending: false }),
     admin.from("planes").select("id, nombre, precio, periodo, duracion_dias").eq("gym_id", gymId),
     admin.from("prospectos").select("id, full_name, phone, email, status, created_at").eq("gym_id", gymId).order("created_at", { ascending: false }),
