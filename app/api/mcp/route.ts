@@ -4,7 +4,37 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { sendWa } from "@/lib/wa";
 import { normalizePhone } from "@/lib/phone";
+import { createHash, timingSafeEqual } from "crypto";
+import { applyRateLimit } from "@/lib/request-security";
 import { z } from "zod";
+
+function sha256hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+const WRITE_TOOLS = new Set([
+  "send_whatsapp",
+  "send_bulk_whatsapp",
+  "update_alumno_status",
+  "assign_rutina",
+  "create_payment_link",
+]);
+
+type McpContent = { content: [{ type: "text"; text: string }] };
+
+async function rlGuard(gymId: string, toolName: string): Promise<McpContent | null> {
+  const isWrite = WRITE_TOOLS.has(toolName);
+  const rl = await applyRateLimit({
+    namespace: isWrite ? "mcp:write" : "mcp:read",
+    identifier: `${gymId}:${toolName}`,
+    windowMs: 60_000,
+    maxAttempts: isWrite ? 5 : 30,
+  });
+  if (!rl.allowed) {
+    return { content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: "Rate limit exceeded" }) }] };
+  }
+  return null;
+}
 
 const sb = getSupabaseAdminClient();
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fitgrowx.com").replace(/\/$/, "");
@@ -13,12 +43,28 @@ async function getGymIdFromApiKey(req: Request): Promise<string | null> {
   const auth = req.headers.get("authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : null;
   if (!token) return null;
+
+  const tokenHash = sha256hex(token);
+
   const { data } = await sb
     .from("gym_settings")
-    .select("gym_id")
-    .eq("api_key", token)
+    .select("gym_id, api_key")
+    .eq("api_key", tokenHash)
     .maybeSingle();
-  return data?.gym_id ?? null;
+
+  if (!data?.api_key) return null;
+
+  const stored = Buffer.from(data.api_key, "hex");
+  const computed = Buffer.from(tokenHash, "hex");
+  if (stored.length !== computed.length || !timingSafeEqual(stored, computed)) return null;
+
+  // Fire-and-forget: record last usage
+  sb.from("gym_settings")
+    .update({ api_key_last_used_at: new Date().toISOString() })
+    .eq("gym_id", data.gym_id)
+    .then(() => {});
+
+  return data.gym_id;
 }
 
 function buildServer(gymId: string): McpServer {
@@ -34,6 +80,8 @@ function buildServer(gymId: string): McpServer {
     "Resumen general del gym: alumnos activos, MRR, alumnos por vencer en 7 días y última asistencia registrada.",
     {},
     async () => {
+      const denied = await rlGuard(gymId, "get_gym_summary");
+      if (denied) return denied;
       const today = new Date().toISOString().slice(0, 10);
       const in7 = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
 
@@ -83,6 +131,8 @@ function buildServer(gymId: string): McpServer {
       limit: z.number().int().min(1).max(100).default(20).describe("Máximo de resultados (default 20)"),
     },
     async ({ status, search, limit }) => {
+      const denied = await rlGuard(gymId, "list_alumnos");
+      if (denied) return denied;
       let query = sb
         .from("alumnos")
         .select("id, full_name, dni, phone, status, next_expiration_date, planes!plan_id(nombre, precio)")
@@ -113,6 +163,8 @@ function buildServer(gymId: string): McpServer {
       search: z.string().optional().describe("Nombre o DNI del alumno"),
     },
     async ({ alumno_id, search }) => {
+      const denied = await rlGuard(gymId, "get_alumno");
+      if (denied) return denied;
       if (!alumno_id && !search) {
         return { content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: "Necesitás alumno_id o search." }) }] };
       }
@@ -147,6 +199,8 @@ function buildServer(gymId: string): McpServer {
       days: z.number().int().min(1).max(90).default(7).describe("Días hacia adelante (default 7)"),
     },
     async ({ days }) => {
+      const denied = await rlGuard(gymId, "list_expiring");
+      if (denied) return denied;
       const today = new Date().toISOString().slice(0, 10);
       const future = new Date(Date.now() + (days ?? 7) * 864e5).toISOString().slice(0, 10);
 
@@ -175,6 +229,8 @@ function buildServer(gymId: string): McpServer {
     "Clases disponibles del gym con horarios y capacidad máxima.",
     {},
     async () => {
+      const denied = await rlGuard(gymId, "list_clases");
+      if (denied) return denied;
       const { data, error } = await sb
         .from("gym_classes")
         .select("id, class_name, day_of_week, start_time, max_capacity")
@@ -202,6 +258,8 @@ function buildServer(gymId: string): McpServer {
     "Resumen de pagos del mes actual: cobrado, pendiente y vencido.",
     {},
     async () => {
+      const denied = await rlGuard(gymId, "get_payments_summary");
+      if (denied) return denied;
       const now = new Date();
       const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
@@ -246,6 +304,8 @@ function buildServer(gymId: string): McpServer {
       mensaje: z.string().min(1).max(4000).describe("Mensaje a enviar"),
     },
     async ({ alumno_id, mensaje }) => {
+      const denied = await rlGuard(gymId, "send_whatsapp");
+      if (denied) return denied;
       const { data: alumno } = await sb
         .from("alumnos")
         .select("full_name, phone")
@@ -276,6 +336,8 @@ function buildServer(gymId: string): McpServer {
       descripcion: z.string().optional().describe("Descripción del pago"),
     },
     async ({ alumno_id, monto, descripcion }) => {
+      const denied = await rlGuard(gymId, "create_payment_link");
+      if (denied) return denied;
       const { data: alumno } = await sb
         .from("alumnos")
         .select("full_name, phone, plan_id")
@@ -319,6 +381,8 @@ function buildServer(gymId: string): McpServer {
       motivo: z.string().optional().describe("Motivo del cambio (se guarda en notas internas)"),
     },
     async ({ alumno_id, status, motivo }) => {
+      const denied = await rlGuard(gymId, "update_alumno_status");
+      if (denied) return denied;
       const { data: alumno } = await sb
         .from("alumnos")
         .select("full_name, status")
@@ -360,6 +424,8 @@ function buildServer(gymId: string): McpServer {
       notas: z.string().optional().describe("Notas adicionales para el alumno"),
     },
     async ({ alumno_id, nombre, ejercicios, notas }) => {
+      const denied = await rlGuard(gymId, "assign_rutina");
+      if (denied) return denied;
       const { data: alumno } = await sb
         .from("alumnos")
         .select("full_name")
@@ -397,6 +463,8 @@ function buildServer(gymId: string): McpServer {
       mensaje: z.string().min(1).max(4000).describe("Mensaje a enviar (podés usar {nombre} y {gym})"),
     },
     async ({ filter, mensaje }) => {
+      const denied = await rlGuard(gymId, "send_bulk_whatsapp");
+      if (denied) return denied;
       const { data: gymSettings } = await sb
         .from("gym_settings")
         .select("gym_name")
