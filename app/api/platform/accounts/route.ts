@@ -47,8 +47,16 @@ if (error) {
 
   // Sync gyms.trial_expires_at when extending a trial
   const gymId = current?.gym_id;
+  let gymSyncWarning: string | undefined;
   if (gymId && (status === "trial_setup" || status === "trial_active") && payload.trial_ends_at) {
-    await sb.from("gyms").update({ trial_expires_at: payload.trial_ends_at }).eq("id", gymId);
+    const { error: gymError } = await sb
+      .from("gyms")
+      .update({ trial_expires_at: payload.trial_ends_at })
+      .eq("id", gymId);
+    if (gymError) {
+      void logger.error("gym sync failed on extend trial", { route: "/platform/accounts", meta: { gymId, error: gymError } });
+      gymSyncWarning = "trial actualizado en CRM pero no se pudo sincronizar el gym";
+    }
   }
 
   logPlatformAudit(sb, {
@@ -60,7 +68,7 @@ if (error) {
     after_state: { ...payload, gym_id: gymId ?? null },
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(gymSyncWarning ? { ok: true, warning: gymSyncWarning } : { ok: true });
 }
 
 // DELETE /api/platform/accounts?id=<uuid>[&permanent=true]
