@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Activity, AlertTriangle, CheckCircle2, Clock, RefreshCw, Terminal, Wifi, WifiOff, XCircle, Zap } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Clock, CreditCard, ExternalLink, RefreshCw, Terminal, Wifi, WifiOff, XCircle, Zap } from "lucide-react";
 
 type HealthCheck = {
   status: "ok" | "degraded";
@@ -42,6 +42,15 @@ type WaHealth = {
   alerts: { level: "warning" | "critical"; message: string }[];
 };
 
+type PaymentWebhookError = {
+  id: string;
+  gym_id: string | null;
+  event_type: string | null;
+  status: string;
+  error_msg: string | null;
+  received_at: string;
+};
+
 type RadarData = {
   errors_last_1h: number;
   errors_last_24h: number;
@@ -53,6 +62,9 @@ type RadarData = {
   cron_runs: CronRun[];
   cron_error_recent: boolean;
   wa_health: WaHealth | null;
+  payment_errors: PaymentWebhookError[];
+  payment_stats: { processed: number; error: number; duplicate: number };
+  hasPaymentErrors: boolean;
 };
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -351,6 +363,73 @@ export default function RadarPage() {
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Pagos */}
+      {radar && (
+        <section style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <CreditCard size={13} color="#6b7280" />
+            <p style={{ font: "600 0.7rem/1 'Inter', sans-serif", color: "#9ca3af", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+              Pagos
+            </p>
+            {radar.hasPaymentErrors && (
+              <span style={{ padding: "2px 8px", borderRadius: 9999, background: "rgba(239,68,68,0.1)", font: "600 0.65rem/1 'Inter', sans-serif", color: "#ef4444" }}>
+                errores recientes
+              </span>
+            )}
+            <a
+              href="/platform/pagos"
+              style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, font: "500 0.72rem/1 'Inter', sans-serif", color: "#6366f1", textDecoration: "none" }}
+            >
+              Ver detalle <ExternalLink size={11} />
+            </a>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 12 }}>
+            {[
+              { label: "Procesados 24h", value: radar.payment_stats.processed, color: "#10b981" },
+              { label: "Errores 24h", value: radar.payment_stats.error, color: radar.payment_stats.error > 0 ? "#ef4444" : "#10b981" },
+              { label: "Duplicados 24h", value: radar.payment_stats.duplicate, color: radar.payment_stats.duplicate > 0 ? "#f59e0b" : "#10b981" },
+            ].map((s) => (
+              <div key={s.label} style={{ background: "#fff", borderRadius: 12, border: "1px solid rgba(0,0,0,0.07)", padding: "14px 16px" }}>
+                <p style={{ font: "500 0.7rem/1 'Inter', sans-serif", color: "#9ca3af", marginBottom: 6 }}>{s.label}</p>
+                <p style={{ font: "700 1.3rem/1 'Inter', sans-serif", color: s.color, letterSpacing: "-0.03em" }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+          {radar.payment_errors.length > 0 && (
+            <div style={{ background: "#fff", borderRadius: 12, border: "1px solid rgba(239,68,68,0.15)", overflow: "hidden" }}>
+              {radar.payment_errors.map((e, i) => (
+                <div key={e.id} style={{
+                  display: "grid", gridTemplateColumns: "1fr 120px 160px",
+                  alignItems: "center", gap: 12, padding: "10px 16px",
+                  borderBottom: i < radar.payment_errors.length - 1 ? "1px solid rgba(0,0,0,0.04)" : "none",
+                  background: "rgba(239,68,68,0.02)",
+                }}>
+                  <div>
+                    <p style={{ font: "500 0.75rem/1.4 'Inter', sans-serif", color: "#374151", marginBottom: 2 }}>
+                      {e.error_msg ?? "Error desconocido"}
+                    </p>
+                    <p style={{ font: "400 0.67rem/1 'Inter', sans-serif", color: "#9ca3af", fontFamily: "monospace" }}>
+                      {e.event_type ?? "—"} · gym: {e.gym_id ?? "—"}
+                    </p>
+                  </div>
+                  <span style={{ padding: "2px 8px", borderRadius: 9999, background: "rgba(239,68,68,0.08)", font: "600 0.65rem/1 'Inter', sans-serif", color: "#ef4444", justifySelf: "start" }}>
+                    {e.status}
+                  </span>
+                  <span style={{ font: "400 0.68rem/1 'Inter', sans-serif", color: "#d1d5db", whiteSpace: "nowrap", justifySelf: "end" }}>
+                    {fmt(e.received_at)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {radar.payment_errors.length === 0 && (
+            <div style={{ background: "#fff", borderRadius: 12, border: "1px solid rgba(16,185,129,0.15)", padding: "16px", textAlign: "center", font: "400 0.78rem/1 'Inter', sans-serif", color: "#10b981" }}>
+              Sin errores de pago recientes
             </div>
           )}
         </section>

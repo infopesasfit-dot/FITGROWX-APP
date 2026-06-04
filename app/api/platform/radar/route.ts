@@ -16,7 +16,7 @@ export async function GET() {
   const h1ago = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
   const h24ago = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const [recentLogs, errorsH1, errorsH24, totalH24, errorRows, cronRuns, waHealth] = await Promise.all([
+  const [recentLogs, errorsH1, errorsH24, totalH24, errorRows, cronRuns, waHealth, webhookErrors, webhookProcessed, webhookErrorCount, webhookDuplicateCount] = await Promise.all([
     sb
       .from("platform_logs")
       .select("id, level, route, message, duration_ms, created_at")
@@ -28,6 +28,10 @@ export async function GET() {
     sb.from("platform_logs").select("route").eq("level", "ERROR").gte("created_at", h24ago).not("route", "is", null),
     sb.from("cron_runs").select("id, cron_name, ran_at, status, duration_ms, summary").order("ran_at", { ascending: false }).limit(20),
     getWaHealthMetrics(sb).catch(() => null),
+    sb.from("mp_webhook_log").select("id, gym_id, event_type, status, error_msg, received_at").eq("status", "error").order("received_at", { ascending: false }).limit(10),
+    sb.from("mp_webhook_log").select("*", { count: "exact", head: true }).eq("status", "processed").gte("received_at", h24ago),
+    sb.from("mp_webhook_log").select("*", { count: "exact", head: true }).eq("status", "error").gte("received_at", h24ago),
+    sb.from("mp_webhook_log").select("*", { count: "exact", head: true }).eq("status", "duplicate").gte("received_at", h24ago),
   ]);
 
   const routeCounts: Record<string, number> = {};
@@ -47,6 +51,9 @@ export async function GET() {
     (r: { status: string; ran_at: string }) => r.status === "error" && r.ran_at >= h6ago,
   );
 
+  const paymentErrorsData = webhookErrors.data ?? [];
+  const hasPaymentErrors = paymentErrorsData.length > 0;
+
   return NextResponse.json({
     errors_last_1h: errorsH1.count ?? 0,
     errors_last_24h: err24,
@@ -58,5 +65,12 @@ export async function GET() {
     cron_runs: cronRuns.data ?? [],
     cron_error_recent: cronErrorRecent,
     wa_health: waHealth,
+    payment_errors: paymentErrorsData,
+    payment_stats: {
+      processed: webhookProcessed.count ?? 0,
+      error: webhookErrorCount.count ?? 0,
+      duplicate: webhookDuplicateCount.count ?? 0,
+    },
+    hasPaymentErrors,
   });
 }
