@@ -21,9 +21,13 @@ export function cronUnauthorized() {
 }
 
 export function getClientIp(req: NextRequest) {
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) return forwardedFor.split(",")[0]?.trim() ?? "unknown";
-  return req.headers.get("x-real-ip") ?? "unknown";
+  const xRealIp = req.headers.get("x-real-ip");
+  if (xRealIp) return xRealIp.trim();
+
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",").at(-1)!.trim();
+
+  return "127.0.0.1";
 }
 
 export function normalizeIdentifier(value: string) {
