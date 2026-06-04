@@ -293,7 +293,7 @@ export async function GET(req: NextRequest) {
     const msg = [
       `📊 *FitGrowX — Resumen ${new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}*`,
       ``,
-      `💰 MRR del mes: *${fmtArs(mrr)}*`,
+      `💰 Ingresos alumnos del mes: *${fmtArs(mrr)}*`,
       ``,
       alertLines.length > 0
         ? `⚠️ *Requiere atención:*\n${alertLines.join("\n")}`
