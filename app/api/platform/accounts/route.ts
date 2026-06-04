@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { assertPlatformOwner } from "@/lib/auth-platform";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 const sb = getSupabaseAdminClient();
 
@@ -9,13 +10,21 @@ type AccountStatus = typeof VALID_STATUSES[number];
 
 // PATCH /api/platform/accounts — update platform_account status
 export async function PATCH(req: NextRequest) {
-  if (!await assertPlatformOwner()) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const actor = await assertPlatformOwner();
+  if (!actor) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => null);
-  const { id, status } = body ?? {};
+  const { id, status, trial_ends_at } = body ?? {};
 
   if (!id || typeof id !== "string") return NextResponse.json({ error: "id requerido." }, { status: 400 });
   if (!VALID_STATUSES.includes(status)) return NextResponse.json({ error: "status inválido." }, { status: 400 });
+
+  // Fetch current row for before_state and gym_id resolution
+  const { data: current } = await sb
+    .from("platform_accounts")
+    .select("status, trial_starts_at, trial_ends_at, converted_at, gym_id")
+    .eq("id", id)
+    .maybeSingle();
 
   const payload: Record<string, unknown> = { status: status as AccountStatus };
 
@@ -24,11 +33,28 @@ export async function PATCH(req: NextRequest) {
   }
   if (status === "trial_setup" || status === "trial_active") {
     payload.trial_starts_at = new Date().toISOString();
-    payload.trial_ends_at   = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    payload.trial_ends_at   = trial_ends_at
+      ? new Date(trial_ends_at).toISOString()
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
   }
 
   const { error } = await sb.from("platform_accounts").update(payload).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Sync gyms.trial_expires_at when extending a trial
+  const gymId = current?.gym_id;
+  if (gymId && (status === "trial_setup" || status === "trial_active") && payload.trial_ends_at) {
+    await sb.from("gyms").update({ trial_expires_at: payload.trial_ends_at }).eq("id", gymId);
+  }
+
+  logPlatformAudit(sb, {
+    actor_id: actor.id,
+    action: "extend_trial",
+    resource_type: "platform_account",
+    resource_id: id,
+    before_state: current ?? null,
+    after_state: { ...payload, gym_id: gymId ?? null },
+  });
 
   return NextResponse.json({ ok: true });
 }
