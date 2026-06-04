@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 
 const admin = getSupabaseAdminClient();
+
+function sha256hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
 
 async function getGymId(): Promise<string | null> {
   const supabase = await createSupabaseServerClient();
@@ -24,32 +28,37 @@ export async function GET() {
 
   const { data: settings } = await admin
     .from("gym_settings")
-    .select("api_key")
+    .select("api_key, api_key_last_used_at")
     .eq("gym_id", gymId)
     .maybeSingle();
 
-  let apiKey = settings?.api_key as string | null;
-
-  if (!apiKey) {
-    apiKey = randomUUID();
+  // No key yet — generate, hash, store, return raw once
+  if (!settings?.api_key) {
+    const rawKey = randomUUID();
     await admin
       .from("gym_settings")
-      .update({ api_key: apiKey })
+      .update({ api_key: sha256hex(rawKey) })
       .eq("gym_id", gymId);
+    return NextResponse.json({ ok: true, api_key: rawKey });
   }
 
-  return NextResponse.json({ ok: true, api_key: apiKey });
+  // Key exists — never recoverable again
+  return NextResponse.json({
+    ok: true,
+    api_key: null,
+    api_key_last_used_at: settings.api_key_last_used_at ?? null,
+  });
 }
 
 export async function DELETE() {
   const gymId = await getGymId();
   if (!gymId) return NextResponse.json({ ok: false, error: "No autorizado." }, { status: 401 });
 
-  const newKey = randomUUID();
+  const rawKey = randomUUID();
   await admin
     .from("gym_settings")
-    .update({ api_key: newKey })
+    .update({ api_key: sha256hex(rawKey), api_key_last_used_at: null })
     .eq("gym_id", gymId);
 
-  return NextResponse.json({ ok: true, api_key: newKey });
+  return NextResponse.json({ ok: true, api_key: rawKey });
 }
