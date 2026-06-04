@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getGymSummary } from '@/lib/supabase-relations'
+import { enforceApiPayloadLimit } from '@/lib/payload-limit'
 
 // ── CSP Nonce ───────────────────────────────────────────────────────────────
 function buildCsp(nonce: string, allowUnsafeInline = false): string {
@@ -45,84 +46,6 @@ function buildHeadersWithNonce(
   return headers;
 }
 
-// ── Payload Limiting ────────────────────────────────────────────────────────
-const PAYLOAD_LIMITS: Record<string, number> = {
-  "/api/admin/email-blast": 5_000_000,      // 5MB
-  "/api/alumno/fotos": 10_000_000,          // 10MB
-  "/api/mp/webhook": 500_000,               // 500KB
-  "/api/mp/gym-webhook": 500_000,           // 500KB
-  "/api/webhooks/wa-motor": 500_000,        // 500KB
-  "/api/whatsapp/webhook": 500_000,         // 500KB
-};
-
-const WEBHOOK_PATHS = [
-  "/api/mp/webhook",
-  "/api/mp/gym-webhook",
-  "/api/webhooks/wa-motor",
-  "/api/whatsapp/webhook",
-];
-
-function formatSize(bytes: number): string {
-  return bytes >= 1_000_000
-    ? `${(bytes / 1_000_000).toFixed(1)}MB`
-    : `${Math.round(bytes / 1000)}KB`;
-}
-
-function getPayloadLimit(pathname: string): number {
-  for (const [prefix, limit] of Object.entries(PAYLOAD_LIMITS)) {
-    if (pathname === prefix || pathname.startsWith(prefix + "/")) {
-      return limit;
-    }
-  }
-  return 100_000; // Default 100KB
-}
-
-function isWebhookPath(pathname: string): boolean {
-  return WEBHOOK_PATHS.some(
-    (webhook) => pathname === webhook || pathname.startsWith(webhook + "/")
-  );
-}
-
-function validatePayloadLimit(req: NextRequest): NextResponse | null {
-  const method = req.method.toUpperCase();
-  const pathname = req.nextUrl.pathname;
-
-  // Apply only to /api/* with body methods
-  if (!pathname.startsWith("/api/") || !["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
-    return null;
-  }
-
-  const maxBytes = getPayloadLimit(pathname);
-  const contentLength = req.headers.get("content-length");
-
-  if (!contentLength) {
-    if (isWebhookPath(pathname)) {
-      return null;
-    }
-    return NextResponse.json(
-      { error: "Content-Length header requerido." },
-      { status: 411 }
-    );
-  }
-
-  const bytes = parseInt(contentLength, 10);
-  if (isNaN(bytes)) {
-    return NextResponse.json(
-      { error: "Content-Length inválido." },
-      { status: 411 }
-    );
-  }
-
-  if (bytes > maxBytes) {
-    return NextResponse.json(
-      { error: `Payload demasiado grande. Máximo permitido: ${formatSize(maxBytes)}.` },
-      { status: 413 }
-    );
-  }
-
-  return null;
-}
-
 // ── Rutas por rol ──────────────────────────────────────────────────────────
 const ADMIN_ONLY   = ['/dashboard/ajustes', '/dashboard/pagos', '/dashboard/automatizaciones', '/dashboard/prospectos']
 const STUDENT_ONLY = ['/dashboard/mi-progreso']
@@ -133,7 +56,7 @@ function matchesAny(pathname: string, routes: string[]) {
 
 export async function proxy(request: NextRequest) {
   // ── Payload limit check (applies to /api/* only) ────────────────────────────
-  const payloadError = validatePayloadLimit(request);
+  const payloadError = enforceApiPayloadLimit(request);
   if (payloadError) {
     return payloadError;
   }
@@ -257,5 +180,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/platform/:path*', '/platform', '/onboarding/:path*', '/onboarding', '/login', '/register', '/start', '/checkout-pro'],
+  matcher: ['/api/:path*', '/dashboard/:path*', '/platform/:path*', '/platform', '/onboarding/:path*', '/onboarding', '/login', '/register', '/start', '/checkout-pro'],
 }
