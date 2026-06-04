@@ -22,6 +22,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email requerido." }, { status: 400 });
   }
 
+  const allowed = ["https://fitgrowx.com", "http://localhost:3000"];
+  if (redirectTo && !allowed.some((d) => redirectTo.startsWith(d))) {
+    return NextResponse.json({ error: "redirectTo inválido" }, { status: 400 });
+  }
+
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     redirectTo,
