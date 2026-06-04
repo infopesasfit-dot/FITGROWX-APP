@@ -4,12 +4,13 @@ export async function aggregateWaMetrics(supabase: SupabaseClient): Promise<void
   const now = new Date();
   const hourAgo = new Date(now.getTime() - 3600000);
 
-  const { data: logs } = await supabase
+  const { data: logs, error: logsError } = await supabase
     .from("wa_mensajes_log")
     .select("status, latency_ms")
     .gte("sent_at", hourAgo.toISOString())
     .lt("sent_at", now.toISOString());
 
+  if (logsError) throw new Error(`WA metrics query failed: ${logsError.message}`);
   if (!logs || logs.length === 0) return;
 
   const totalSent = logs.length;
@@ -20,7 +21,7 @@ export async function aggregateWaMetrics(supabase: SupabaseClient): Promise<void
   );
   const blockRatio = (totalBlocked / totalSent) * 100;
 
-  await supabase.from("wa_platform_metrics").insert({
+  const { error: insertError } = await supabase.from("wa_platform_metrics").insert({
     window_start: hourAgo.toISOString(),
     total_sent: totalSent,
     total_blocked: totalBlocked,
@@ -28,6 +29,8 @@ export async function aggregateWaMetrics(supabase: SupabaseClient): Promise<void
     avg_latency_ms: avgLatency,
     block_ratio: Math.round(blockRatio * 100) / 100,
   });
+
+  if (insertError) throw new Error(`WA metrics insert failed: ${insertError.message}`);
 }
 
 export async function clearExpiredCooldowns(supabase: SupabaseClient): Promise<void> {
