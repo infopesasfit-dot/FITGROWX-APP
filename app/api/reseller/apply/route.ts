@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { applyRateLimit } from "@/lib/request-security";
+import { applyRateLimit, getClientIp } from "@/lib/request-security";
 import { sendWa } from "@/lib/wa";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 
@@ -44,9 +44,7 @@ function validatePhoneByCountry(phone: string, country: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-           || req.headers.get("x-real-ip")
-           || "unknown";
+  const ip = getClientIp(req);
   const rl = await applyRateLimit({
     namespace: "reseller-apply",
     identifier: ip,

@@ -14,8 +14,4 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
   return true;
 }
 
-export function getClientIp(req: Request): string {
-  return (req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown")
-    .split(",")[0]
-    .trim();
-}
+export { getClientIp } from "@/lib/request-security";
