@@ -83,6 +83,12 @@ export async function DELETE(req: NextRequest) {
   const { data: accountBefore } = await sb.from("platform_accounts").select("status, company_name, owner_name, email, auth_user_id, gym_id").eq("id", id).maybeSingle();
 
   if (permanent) {
+    // Require explicit confirmation in the body for irreversible deletion
+    const { confirm_delete } = await req.json().catch(() => ({}));
+    if (confirm_delete !== "CONFIRMAR_BORRADO_PERMANENTE") {
+      return NextResponse.json({ error: "Se requiere confirmación explícita" }, { status: 400 });
+    }
+
     // Resolve gym_id via auth_user_id on the account
     const { data: account } = await sb.from("platform_accounts").select("auth_user_id").eq("id", id).maybeSingle();
     const authUserId = account?.auth_user_id;
@@ -92,6 +98,12 @@ export async function DELETE(req: NextRequest) {
       const gymId = profileRow?.gym_id;
 
       if (gymId) {
+        // Block permanent deletion of a gym with an active subscription/status
+        const { data: gym } = await sb.from("gyms").select("gym_status, is_subscription_active").eq("id", gymId).single();
+        if (gym?.is_subscription_active || gym?.gym_status === "active") {
+          return NextResponse.json({ error: "No se puede borrar un gym con suscripción activa" }, { status: 409 });
+        }
+
         // All user IDs for this gym (to delete auth users after)
         const { data: gymUsers } = await sb.from("profiles").select("id").eq("gym_id", gymId);
         const userIds = (gymUsers ?? []).map((p: { id: string }) => p.id);

@@ -225,6 +225,8 @@ function PlatformPage() {
   const [contactingId,   setContactingId]   = useState<string | null>(null);
   const [deletingId,     setDeletingId]     = useState<string | null>(null);
   const [deleteModal,    setDeleteModal]    = useState<{ id: string; company_name: string; auth_user_id: string | null } | null>(null);
+  const [confirmText,    setConfirmText]    = useState("");
+  const PERMANENT_DELETE_PHRASE = "CONFIRMAR_BORRADO_PERMANENTE";
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -746,10 +748,16 @@ function PlatformPage() {
 
   const deleteAccount = useCallback(async (id: string, name: string, permanent: boolean) => {
     setDeleteModal(null);
+    setConfirmText("");
     setDeletingId(id);
     try {
       const url = `/api/platform/accounts?id=${id}${permanent ? "&permanent=true" : ""}`;
-      const res = await fetch(url, { method: "DELETE" });
+      const res = await fetch(url, {
+        method: "DELETE",
+        ...(permanent
+          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm_delete: PERMANENT_DELETE_PHRASE }) }
+          : {}),
+      });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
       setAccounts(prev => prev.filter(a => a.id !== id));
       setStats(prev => ({ ...prev, platformAccounts: Math.max(0, prev.platformAccounts - 1) }));
@@ -1280,7 +1288,7 @@ function PlatformPage() {
                                   </button>
                                   {/* Eliminar cuenta */}
                                   <button
-                                    onClick={() => setDeleteModal({ id: a.id, company_name: a.company_name, auth_user_id: a.auth_user_id })}
+                                    onClick={() => { setConfirmText(""); setDeleteModal({ id: a.id, company_name: a.company_name, auth_user_id: a.auth_user_id }); }}
                                     disabled={deletingId === a.id}
                                     title="Eliminar cuenta"
                                     style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.10)", color: "#EF4444", border: "none", cursor: "pointer" }}
@@ -2194,7 +2202,7 @@ function PlatformPage() {
       {/* ── Modal: elegir tipo de borrado ── */}
       {deleteModal && (
         <div
-          onClick={() => setDeleteModal(null)}
+          onClick={() => { setDeleteModal(null); setConfirmText(""); }}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <div
@@ -2222,28 +2230,36 @@ function PlatformPage() {
               </button>
 
               {deleteModal.auth_user_id && (
-                <button
-                  onClick={async () => {
-                    if (!await confirm({
-                      eyebrow: "Borrado permanente",
-                      title: `¿Eliminar "${deleteModal.company_name}"?`,
-                      message: "Esto eliminará el gym, todos los alumnos, pagos, membresías y usuarios. No se puede deshacer.",
-                      confirmLabel: "Eliminar todo",
-                      variant: "danger",
-                    })) return;
-                    deleteAccount(deleteModal.id, deleteModal.company_name, true);
-                  }}
-                  style={{ padding: "11px 16px", borderRadius: 10, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#DC2626", font: `600 0.88rem/1 ${fd}`, cursor: "pointer", textAlign: "left" }}
-                >
-                  Borrado permanente
-                  <span style={{ display: "block", font: `400 0.76rem/1.4 ${fb}`, color: "#EF4444", marginTop: 3, opacity: 0.8 }}>
-                    Elimina el gym y todo su contenido (alumnos, pagos, membresías, usuarios).
-                  </span>
-                </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px", borderRadius: 10, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)" }}>
+                  <p style={{ font: `600 0.88rem/1.2 ${fd}`, color: "#DC2626", margin: 0 }}>
+                    Borrado permanente
+                    <span style={{ display: "block", font: `400 0.76rem/1.4 ${fb}`, color: "#EF4444", marginTop: 3, opacity: 0.85 }}>
+                      Elimina el gym y todo su contenido (alumnos, pagos, membresías, usuarios). No se puede deshacer.
+                    </span>
+                  </p>
+                  <label style={{ font: `500 0.74rem/1.3 ${fb}`, color: "#991B1B" }}>
+                    Escribí <strong>{PERMANENT_DELETE_PHRASE}</strong> para confirmar:
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmText}
+                    onChange={e => setConfirmText(e.target.value)}
+                    placeholder={PERMANENT_DELETE_PHRASE}
+                    autoComplete="off"
+                    style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid rgba(239,68,68,0.4)", background: "#fff", color: "#111827", font: `500 0.82rem/1 ${fb}`, outline: "none" }}
+                  />
+                  <button
+                    disabled={confirmText !== PERMANENT_DELETE_PHRASE}
+                    onClick={() => deleteAccount(deleteModal.id, deleteModal.company_name, true)}
+                    style={{ padding: "11px 16px", borderRadius: 10, border: "none", background: confirmText === PERMANENT_DELETE_PHRASE ? "#DC2626" : "rgba(239,68,68,0.35)", color: "#fff", font: `600 0.88rem/1 ${fd}`, cursor: confirmText === PERMANENT_DELETE_PHRASE ? "pointer" : "not-allowed" }}
+                  >
+                    Eliminar todo permanentemente
+                  </button>
+                </div>
               )}
 
               <button
-                onClick={() => setDeleteModal(null)}
+                onClick={() => { setDeleteModal(null); setConfirmText(""); }}
                 style={{ padding: "9px 16px", borderRadius: 10, border: "1px solid rgba(148,163,184,0.3)", background: "transparent", color: "#64748B", font: `500 0.84rem/1 ${fd}`, cursor: "pointer" }}
               >
                 Cancelar
