@@ -92,8 +92,8 @@ function buildServer(gymId: string): McpServer {
         { data: planes },
         { data: settings },
       ] = await Promise.all([
-        sb.from("alumnos").select("id, plan_id").eq("gym_id", gymId).eq("status", "active").is("deleted_at", null).eq("is_demo", false),
-        sb.from("alumnos").select("id").eq("gym_id", gymId).eq("status", "active").is("deleted_at", null).eq("is_demo", false).lte("next_expiration_date", in7).gte("next_expiration_date", today),
+        sb.from("alumnos").select("id, plan_id").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null).eq("is_demo", false),
+        sb.from("alumnos").select("id").eq("gym_id", gymId).eq("status", "activo").is("deleted_at", null).eq("is_demo", false).lte("next_expiration_date", in7).gte("next_expiration_date", today),
         sb.from("asistencias").select("fecha").eq("gym_id", gymId).order("fecha", { ascending: false }).limit(1).maybeSingle(),
         sb.from("planes").select("id, precio").eq("gym_id", gymId).eq("active", true),
         sb.from("gym_settings").select("gym_name").eq("gym_id", gymId).maybeSingle(),
@@ -126,7 +126,7 @@ function buildServer(gymId: string): McpServer {
     "list_alumnos",
     "Lista alumnos del gym con filtros opcionales.",
     {
-      status: z.enum(["active", "expired", "blocked"]).optional().describe("Filtrar por estado"),
+      status: z.enum(["activo", "vencido", "pendiente", "pausado"]).optional().describe("Filtrar por estado"),
       search: z.string().optional().describe("Buscar por nombre o DNI"),
       limit: z.number().int().min(1).max(100).default(20).describe("Máximo de resultados (default 20)"),
     },
@@ -208,7 +208,7 @@ function buildServer(gymId: string): McpServer {
         .from("alumnos")
         .select("id, full_name, phone, next_expiration_date, planes!plan_id(nombre, precio)")
         .eq("gym_id", gymId)
-        .eq("status", "active")
+        .eq("status", "activo")
         .is("deleted_at", null)
         .eq("is_demo", false)
         .gte("next_expiration_date", today)
@@ -363,7 +363,7 @@ function buildServer(gymId: string): McpServer {
 
       if (error) return { content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: error.message }) }] };
 
-      const url = `${APP_URL}/pagar/${rawToken}?monto=${monto}${descripcion ? `&desc=${encodeURIComponent(descripcion)}` : ""}`;
+      const url = `${APP_URL}/api/alumno/pagar-link?token=${rawToken}`;
       return {
         content: [{
           type: "text" as const,
@@ -375,10 +375,10 @@ function buildServer(gymId: string): McpServer {
 
   server.tool(
     "update_alumno_status",
-    "Cambia el estado de un alumno (active, expired, blocked).",
+    "Cambia el estado de un alumno (activo, vencido, pendiente, pausado).",
     {
       alumno_id: z.string().uuid().describe("UUID del alumno"),
-      status: z.enum(["active", "expired", "blocked"]).describe("Nuevo estado"),
+      status: z.enum(["activo", "vencido", "pendiente", "pausado"]).describe("Nuevo estado"),
       motivo: z.string().optional().describe("Motivo del cambio (se guarda en notas internas)"),
     },
     async ({ alumno_id, status, motivo }) => {
@@ -483,7 +483,7 @@ function buildServer(gymId: string): McpServer {
           .from("alumnos")
           .select("id, full_name, phone")
           .eq("gym_id", gymId)
-          .eq("status", "active")
+          .eq("status", "activo")
           .is("deleted_at", null)
           .eq("is_demo", false)
           .gte("next_expiration_date", today)
@@ -494,7 +494,7 @@ function buildServer(gymId: string): McpServer {
           .from("alumnos")
           .select("id, full_name, phone")
           .eq("gym_id", gymId)
-          .eq("status", "expired")
+          .eq("status", "vencido")
           .is("deleted_at", null)
           .eq("is_demo", false);
         alumnos = data ?? [];
@@ -504,7 +504,7 @@ function buildServer(gymId: string): McpServer {
           .from("alumnos")
           .select("id, full_name, phone")
           .eq("gym_id", gymId)
-          .eq("status", "active")
+          .eq("status", "activo")
           .is("deleted_at", null)
           .eq("is_demo", false);
 
