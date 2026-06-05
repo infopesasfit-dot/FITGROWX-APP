@@ -10,12 +10,12 @@ export type AlumnoSession = {
   dni: string | null;
 };
 
-export function setAlumnoSessionCookie(res: NextResponse, token: string): NextResponse {
+export function setAlumnoSessionCookie(res: NextResponse, token: string, maxAge = 30 * 24 * 60 * 60): NextResponse {
   res.cookies.set("fitgrowx_token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge,
     path: "/",
   });
   return res;
