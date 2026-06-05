@@ -70,9 +70,12 @@ export async function POST(req: NextRequest) {
   });
 
   if (!result.ok) {
-    const message = (result.data as any)?.message ?? result.error ?? "Error MP";
-    console.error("MP preapproval error:", result.error);
-    return NextResponse.json({ error: message }, { status: result.status || 500 });
+    console.error("[MP] preapproval failed", {
+      status: result.status,
+      error: result.error,
+      message: (result.data as any)?.message,
+    });
+    return NextResponse.json({ error: "Servicio de pagos no disponible." }, { status: result.status || 500 });
   }
 
   const data = result.data as any;

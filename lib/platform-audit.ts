@@ -20,15 +20,64 @@ const SENSITIVE_KEYS = new Set([
   "access_token",
   "refresh_token",
   "phone",
+  "telefono",
+  "whatsapp",
   "email",
+  "dni",
+  "document",
+  "cuit",
+  "cuil",
+  "tax_id",
+  "payout_info",
+  "bank_account",
+  "account_number",
+  "cbu",
+  "alias",
+  "cvu",
+  "mp_preapproval_id",
 ]);
+
+const SENSITIVE_KEY_PARTS = [
+  "password",
+  "token",
+  "secret",
+  "api_key",
+  "access_token",
+  "refresh_token",
+  "mp_access_token",
+  "webhook_secret",
+  "email",
+  "phone",
+  "telefono",
+  "whatsapp",
+  "dni",
+  "document",
+  "cuit",
+  "cuil",
+  "tax_id",
+  "payout",
+  "bank",
+  "account_number",
+  "cbu",
+  "cvu",
+  "preapproval",
+];
+
+function normalizeKey(key: string): string {
+  return key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+}
+
+function isSensitiveKey(key: string): boolean {
+  const normalized = normalizeKey(key);
+  return SENSITIVE_KEYS.has(normalized) || SENSITIVE_KEY_PARTS.some((part) => normalized.includes(part));
+}
 
 export function sanitizeAuditState(obj: unknown): unknown {
   if (obj === null || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeAuditState);
   const result: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
-    result[k] = SENSITIVE_KEYS.has(k) ? "[REDACTED]" : sanitizeAuditState(v);
+    result[k] = isSensitiveKey(k) ? "[REDACTED]" : sanitizeAuditState(v);
   }
   return result;
 }

@@ -75,8 +75,12 @@ export async function POST(req: NextRequest) {
   });
 
   if (!result.ok) {
-    const message = (result.data as any)?.message ?? result.error ?? "Error MP";
-    return NextResponse.json({ error: message }, { status: result.status || 500 });
+    console.error("[MP] create preference failed", {
+      status: result.status,
+      error: result.error,
+      message: (result.data as any)?.message,
+    });
+    return NextResponse.json({ error: "Servicio de pagos no disponible." }, { status: result.status || 500 });
   }
 
   return NextResponse.json({ init_point: (result.data as any)?.init_point });

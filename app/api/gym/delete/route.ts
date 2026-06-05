@@ -22,15 +22,20 @@ export async function DELETE() {
 
   const gymId = profile.gym_id;
 
-  // Block deletion of a gym with an active subscription
+  // Block deletion of a gym that is active or still inside trial.
   const { data: gym } = await admin
     .from("gyms")
-    .select("gym_status, is_subscription_active")
+    .select("gym_status, is_subscription_active, trial_expires_at")
     .eq("id", gymId)
     .single();
-  if (gym?.is_subscription_active) {
+
+  const hasActiveTrial = gym?.trial_expires_at
+    ? new Date(gym.trial_expires_at).getTime() > Date.now()
+    : false;
+
+  if (gym?.is_subscription_active || gym?.gym_status === "active" || hasActiveTrial) {
     return NextResponse.json(
-      { error: "No podés borrar un gym con suscripción activa. Cancelá la suscripción primero." },
+      { error: "No podés borrar un gym activo. Cancelá la suscripción o finalizá el trial primero." },
       { status: 409 },
     );
   }

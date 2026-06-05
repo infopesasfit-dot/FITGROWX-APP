@@ -17,6 +17,12 @@ const API_LIMITS: [string, number][] = [
 ];
 
 const BODY_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const MISSING_CONTENT_LENGTH_ALLOWED = new Set([
+  "/api/mp/webhook",
+  "/api/mp/gym-webhook",
+  "/api/webhooks/wa-motor",
+  "/api/whatsapp/webhook",
+]);
 
 function formatSize(bytes: number): string {
   return bytes >= 1_000_000
@@ -32,14 +38,19 @@ function getApiLimit(pathname: string): number {
 }
 
 // Middleware-level check for all /api/* routes.
-// Missing Content-Length is allowed (webhooks don't always send it).
-// Returns 413 only when Content-Length is present and exceeds the limit.
+// Missing Content-Length is denied by default; only provider webhooks are allowlisted.
 export function enforceApiPayloadLimit(req: NextRequest): NextResponse | null {
   if (!BODY_METHODS.has(req.method.toUpperCase())) return null;
   if (!req.nextUrl.pathname.startsWith("/api/")) return null;
 
   const contentLength = req.headers.get("content-length");
-  if (!contentLength) return null;
+  if (!contentLength) {
+    if (MISSING_CONTENT_LENGTH_ALLOWED.has(req.nextUrl.pathname)) return null;
+    return NextResponse.json(
+      { error: "Content-Length header requerido." },
+      { status: 411 }
+    );
+  }
 
   const bytes = parseInt(contentLength, 10);
   if (isNaN(bytes)) return null;
