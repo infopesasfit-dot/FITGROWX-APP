@@ -331,27 +331,13 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
     });
   }
 
-  // ── Guard: período ya cubierto por pago manual ────────────────────────────────
-  // Si la membresía ya vence más allá de la mitad del período del plan,
-  // el alumno pagó manualmente después de generar el link → ignorar el webhook.
-  const PERIODO_DIAS: Record<string, number> = {
-    mes: 30, mensual: 30, trimestral: 90, anual: 365, año: 365, semanal: 7, semana: 7,
-  };
-  const planDays = plan?.duracion_dias ?? (PERIODO_DIAS[plan?.periodo ?? ""] ?? 30);
-  const mitad = new Date();
-  mitad.setDate(mitad.getDate() + Math.floor(planDays / 2));
-  const mitadStr = mitad.toISOString().slice(0, 10);
-  if (alumno.next_expiration_date && alumno.next_expiration_date > mitadStr) {
-    // Período ya cubierto (p. ej. pago manual posterior al link). No extendemos,
-    // pero registramos el pago igual (idempotente) para no perder la traza.
-    await registrarPago(gymId, alumnoId, payment.transaction_amount, paymentId, planNombre, today, nuevoVencimiento);
-    logWebhook(gymId, paymentId, "duplicate", {
-      amount: payment.transaction_amount,
-      alumnoId,
-      errorMsg: `membership active until ${alumno.next_expiration_date} — período ya cubierto`,
-    });
-    return NextResponse.json({ ok: true });
-  }
+  // ── Vencimiento futuro: apilar en vez de descartar ────────────────────────────
+  // Si el alumno ya tiene un vencimiento futuro (p. ej. renovó anticipado o pagó
+  // manualmente), NO descartamos el pago: se registra y la membresía se extiende
+  // APILANDO sobre el vencimiento vigente. `nuevoVencimiento` ya parte de esa
+  // fecha futura (ver calcularNuevoVencimiento), así que el flujo normal de abajo
+  // —registro idempotente por mp_payment_id + extensión + notificación— hace lo
+  // correcto. La unicidad de mp_payment_id evita doble-apilado en reintentos de MP.
   // ─────────────────────────────────────────────────────────────────────────────
 
   // ── Gate de idempotencia ──────────────────────────────────────────────────────

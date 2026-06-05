@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { logger } from "@/lib/logger";
+import { sanitizeAuditState } from "@/lib/platform-audit";
 
 const sb = getSupabaseAdminClient();
 
@@ -23,7 +24,11 @@ async function writeResellerAuditLog(entry: {
   notes?: string;
 }) {
   try {
-    const { error } = await sb.from("reseller_audit_log").insert(entry);
+    const { error } = await sb.from("reseller_audit_log").insert({
+      ...entry,
+      before: entry.before ? (sanitizeAuditState(entry.before) as Record<string, unknown>) : entry.before,
+      after:  entry.after  ? (sanitizeAuditState(entry.after)  as Record<string, unknown>) : entry.after,
+    });
     if (error) console.error("Reseller audit log failed:", error.message);
   } catch (error) {
     console.error("Reseller audit log failed:", error);

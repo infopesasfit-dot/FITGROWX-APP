@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { getClientIp } from "@/lib/request-security";
 
 export type AlumnoLogAction =
   | "login_success"
@@ -49,12 +50,7 @@ export async function logAlumnoAction(entry: LogEntry) {
 }
 
 export async function getClientIpFromRequest(req: NextRequest): Promise<string> {
-  return (
-    req.headers.get("cf-connecting-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0] ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return getClientIp(req);
 }
 
 export async function logRequest(req: NextRequest, action: AlumnoLogAction, alumnoId?: string, gymId?: string) {
