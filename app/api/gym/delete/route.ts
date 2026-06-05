@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { logPlatformAudit } from "@/lib/platform-audit";
 
 export async function DELETE() {
   const supabase = await createSupabaseServerClient();
@@ -20,6 +21,19 @@ export async function DELETE() {
   }
 
   const gymId = profile.gym_id;
+
+  // Block deletion of a gym with an active subscription
+  const { data: gym } = await admin
+    .from("gyms")
+    .select("gym_status, is_subscription_active")
+    .eq("id", gymId)
+    .single();
+  if (gym?.is_subscription_active) {
+    return NextResponse.json(
+      { error: "No podés borrar un gym con suscripción activa. Cancelá la suscripción primero." },
+      { status: 409 },
+    );
+  }
 
   // Collect all user IDs for this gym before deleting anything
   const { data: gymUsers } = await admin
@@ -51,6 +65,16 @@ export async function DELETE() {
   await Promise.all(
     userIds.map((uid) => admin.auth.admin.deleteUser(uid))
   );
+
+  logPlatformAudit(admin, {
+    actor_id: user.id,
+    action: "delete_gym",
+    resource_type: "gym",
+    resource_id: gymId,
+    before_state: gym ?? null,
+    after_state: null,
+    meta: { deleted_by: "owner" },
+  });
 
   return NextResponse.json({ ok: true });
 }
