@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { applyRateLimit, getClientIp } from "@/lib/request-security";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const supabase = getSupabaseAdminClient();
 
@@ -10,6 +11,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const raw = await req.json();
+
+    const ts = await verifyTurnstileToken(req, raw.turnstileToken);
+    if (!ts.ok) return NextResponse.json({ error: ts.error }, { status: ts.status });
+
     const name      = raw.name?.trim()     || null;
     const gym_name  = raw.gym_name?.trim() || null;
     const phone     = raw.phone?.trim()    || null;

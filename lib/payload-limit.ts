@@ -11,7 +11,7 @@ export const PAYLOAD_LIMITS = {
 // Per-route overrides for middleware enforcement (prefix match, longest first)
 const API_LIMITS: [string, number][] = [
   ["/api/alumno/fotos",              10_000_000], // 10MB
-  ["/api/admin/upload-comprobante",   5_000_000], // 5MB
+  ["/api/pagos/upload-comprobante",   5_000_000], // 5MB
   ["/api/alumno/avatar",              2_000_000], // 2MB
   ["/api/admin/email-blast",            200_000], // 200KB
 ];

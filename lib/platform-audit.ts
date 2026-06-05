@@ -23,7 +23,7 @@ const SENSITIVE_KEYS = new Set([
   "email",
 ]);
 
-function sanitizeAuditState(obj: unknown): unknown {
+export function sanitizeAuditState(obj: unknown): unknown {
   if (obj === null || typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(sanitizeAuditState);
   const result: Record<string, unknown> = {};

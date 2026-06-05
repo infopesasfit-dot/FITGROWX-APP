@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "./supabase-admin";
+import { sanitizeAuditState } from "./platform-audit";
 
 type Level = "INFO" | "WARN" | "ERROR";
 
@@ -12,7 +13,9 @@ async function writeLog(
   meta?: Record<string, unknown>,
   duration_ms?: number,
 ) {
-  const entry = { level, message, route, duration_ms, meta, ts: new Date().toISOString() };
+  // Redact sensitive fields before persisting/transmitting (same policy as platform-audit)
+  const safeMeta = meta ? (sanitizeAuditState(meta) as Record<string, unknown>) : meta;
+  const entry = { level, message, route, duration_ms, meta: safeMeta, ts: new Date().toISOString() };
 
   if (level === "ERROR") console.error(JSON.stringify(entry));
   else if (level === "WARN") console.warn(JSON.stringify(entry));
@@ -20,10 +23,10 @@ async function writeLog(
 
   try {
     const sb = getSupabaseAdminClient();
-    await sb.from("platform_logs").insert({ level, message, route, meta, duration_ms });
+    await sb.from("platform_logs").insert({ level, message, route, meta: safeMeta, duration_ms });
 
     if (level === "ERROR") {
-      maybeAlert(message, route, meta);
+      maybeAlert(message, route, safeMeta);
     }
   } catch {
     // Logger jamás puede romper el request principal
