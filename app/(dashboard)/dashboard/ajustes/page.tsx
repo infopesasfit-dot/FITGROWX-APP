@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBrandAlert } from "@/components/brand-confirm";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 import {
   AlertTriangle,
   BarChart2,
@@ -229,6 +230,8 @@ function AjustesContent() {
   const [wlPhone,     setWlPhone]     = useState("");
   const [wlLoading,   setWlLoading]   = useState(false);
   const [wlDone,      setWlDone]      = useState(false);
+  const [wlTurnstileToken, setWlTurnstileToken] = useState<string | null>(null);
+  const handleWlTurnstileChange = useCallback((t: string | null) => setWlTurnstileToken(t), []);
   const [molineteKeys,       setMolineteKeys]       = useState<{ id: string; label: string; last_used_at: string | null; created_at: string }[]>([]);
   const [molineteLoading,    setMolineteLoading]    = useState(false);
   const [molineteGenerating, setMolineteGenerating] = useState(false);
@@ -1828,17 +1831,18 @@ function AjustesContent() {
                   <input value={wlName} onChange={e => setWlName(e.target.value)} placeholder="Tu nombre" style={inputStyle} />
                   <input type="email" value={wlEmail} onChange={e => setWlEmail(e.target.value)} placeholder="Email" style={inputStyle} />
                   <input value={wlPhone} onChange={e => setWlPhone(e.target.value)} placeholder="WhatsApp (ej: 1165432100)" style={inputStyle} />
+                  <TurnstileWidget onTokenChange={handleWlTurnstileChange} />
                 </div>
 
                 <button
-                  disabled={wlLoading || (!wlEmail && !wlPhone)}
+                  disabled={wlLoading || !wlTurnstileToken || (!wlEmail && !wlPhone)}
                   onClick={async () => {
                     setWlLoading(true);
                     try {
                       await fetch("/api/upsell/lead", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ name: wlName, email: wlEmail, phone: wlPhone, type: "whitelabel" }),
+                        body: JSON.stringify({ name: wlName, email: wlEmail, phone: wlPhone, type: "whitelabel", turnstileToken: wlTurnstileToken }),
                       });
                       setWlDone(true);
                     } finally {

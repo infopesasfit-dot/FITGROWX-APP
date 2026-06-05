@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
+import { TurnstileWidget } from "@/components/turnstile-widget";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCachedProfile } from "@/lib/gym-cache";
@@ -266,6 +267,8 @@ export default function LandingBuilderPage() {
   const [upsellPhone,   setUpsellPhone]   = useState("");
   const [upsellLoading, setUpsellLoading] = useState(false);
   const [upsellDone,    setUpsellDone]    = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const handleTurnstileChange = useCallback((t: string | null) => setTurnstileToken(t), []);
   const [logoFile,      setLogoFile]      = useState<File | null>(null);
   const [logoPreview,   setLogoPreview]   = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -416,7 +419,7 @@ export default function LandingBuilderPage() {
       await fetch("/api/upsell/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: upsellName, email: upsellEmail, phone: upsellPhone, gym_name: gymName, type }),
+        body: JSON.stringify({ name: upsellName, email: upsellEmail, phone: upsellPhone, gym_name: gymName, type, turnstileToken }),
       });
       setUpsellDone(true);
     } finally {
@@ -1093,11 +1096,12 @@ export default function LandingBuilderPage() {
                 <input value={upsellName} onChange={e => setUpsellName(e.target.value)} placeholder="Tu nombre" style={{ ...inputSt, padding: "12px 14px" }} />
                 <input type="email" value={upsellEmail} onChange={e => setUpsellEmail(e.target.value)} placeholder="Email" style={{ ...inputSt, padding: "12px 14px" }} />
                 <input value={upsellPhone} onChange={e => setUpsellPhone(e.target.value)} placeholder="WhatsApp (ej: 1165432100)" style={{ ...inputSt, padding: "12px 14px" }} />
+                <TurnstileWidget onTokenChange={handleTurnstileChange} />
               </div>
 
               <button
                 onClick={() => submitUpsell("landing_pro")}
-                disabled={upsellLoading || (!upsellEmail && !upsellPhone)}
+                disabled={upsellLoading || !turnstileToken || (!upsellEmail && !upsellPhone)}
                 style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: upsellLoading ? "#D1D5DB" : "linear-gradient(135deg,#EA6700,#F97316)", color: "#FFFFFF", font: `800 0.9rem/1 ${fd}`, cursor: upsellLoading ? "not-allowed" : "pointer" }}
               >
                 {upsellLoading ? "Enviando..." : "Me interesa, contactame →"}
