@@ -369,6 +369,7 @@ export default function PagosPage() {
         .from("alumnos")
         .select("id, full_name, planes(precio)")
         .eq("gym_id", profile.gymId)
+        .eq("is_demo", false)
         .is("deleted_at", null)
         .order("full_name"),
       supabase

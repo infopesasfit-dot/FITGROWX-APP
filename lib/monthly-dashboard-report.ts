@@ -113,11 +113,11 @@ export async function buildMonthlyDashboardReport(gymId: string, targetMonth = n
     supabase.from("prospectos").select("created_at, phone, clase_gratis_date").eq("gym_id", gymId).gte("created_at", prevMonthFrom).lte("created_at", monthTo),
     supabase.from("pagos").select("amount, date, status, concepto, alumno_id").eq("gym_id", gymId).gte("date", prevMonthFrom).lte("date", monthTo),
     supabase.from("egresos").select("monto, fecha, categoria").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", monthTo),
-    supabase.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gymId),
+    supabase.from("alumnos").select("id, full_name, phone, status, created_at, next_expiration_date").eq("gym_id", gymId).eq("is_demo", false),
     supabase.from("reservas").select("clase_id, fecha, estado").eq("gym_id", gymId).gte("fecha", prevMonthFrom).lte("fecha", monthTo),
     supabase.from("asistencias").select("alumno_id, fecha").eq("gym_id", gymId).gte("fecha", isoDate(attendanceFrom)).lte("fecha", isoDate(today)),
     supabase.from("gym_classes").select("day_of_week, max_capacity, event_type, event_date").eq("gym_id", gymId),
-    supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "activo"),
+    supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("status", "activo").eq("is_demo", false),
   ]);
 
   const prospectRows = (prospectRowsRaw ?? []) as ProspectoRow[];

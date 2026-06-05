@@ -37,6 +37,7 @@ export default function MiProgresoPage() {
         .from("alumnos")
         .select("full_name, next_expiration_date, status, planes(nombre, precio)")
         .eq("user_id", user.id)
+        .eq("is_demo", false)
         .maybeSingle();
 
       setProfile(data as Profile | null);

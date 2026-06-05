@@ -218,6 +218,7 @@ export default function AsistenciasPage() {
       .select("id, full_name, next_expiration_date, planes!plan_id(nombre, accent_color)")
       .eq("gym_id", profile.gymId)
       .eq("status", "activo")
+      .eq("is_demo", false)
       .is("deleted_at", null)
       .or(`next_expiration_date.is.null,next_expiration_date.gte.${today}`);
     const ausenteRows = (ausentesData ?? []) as unknown as Ausente[];
@@ -236,6 +237,7 @@ export default function AsistenciasPage() {
       .select("id, full_name, next_expiration_date, planes!plan_id(nombre, accent_color)")
       .eq("gym_id", gid)
       .eq("status", "activo")
+      .eq("is_demo", false)
       .is("deleted_at", null)
       .or(`next_expiration_date.is.null,next_expiration_date.gte.${today}`);
     const presenteIds = new Set(presentes.map(p => p.alumno_id));

@@ -100,6 +100,7 @@ export async function canAddAlumno(gymId: string): Promise<{ allowed: boolean; r
     .from("alumnos")
     .select("id", { count: "exact", head: true })
     .eq("gym_id", gymId)
+    .eq("is_demo", false)
     .is("deleted_at", null);
 
   const currentCount = count ?? 0;
