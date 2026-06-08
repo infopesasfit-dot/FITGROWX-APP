@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (error) {
+    console.error("[signup] Supabase error:", error.message, error.status, error.code);
     const msg = error.message.toLowerCase();
     const friendly =
       msg.includes("already registered") || msg.includes("already exists")
