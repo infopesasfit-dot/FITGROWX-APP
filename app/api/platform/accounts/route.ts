@@ -81,6 +81,7 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "id requerido." }, { status: 400 });
 
   const { data: accountBefore } = await sb.from("platform_accounts").select("status, company_name, owner_name, email, auth_user_id, gym_id").eq("id", id).maybeSingle();
+  const warnings: string[] = [];
 
   if (permanent) {
     // Require explicit confirmation in the body for irreversible deletion
@@ -111,22 +112,57 @@ export async function DELETE(req: NextRequest) {
         const { data: gymUsers } = await sb.from("profiles").select("id").eq("gym_id", gymId);
         const userIds = (gymUsers ?? []).map((p: { id: string }) => p.id);
 
-        await Promise.all([
-          sb.from("notifications").delete().eq("gym_id", gymId),
-          sb.from("asistencias").delete().eq("gym_id", gymId),
-          sb.from("gym_classes").delete().eq("gym_id", gymId),
-          sb.from("prospectos").delete().eq("gym_id", gymId),
-          sb.from("leads").delete().eq("gym_id", gymId),
-          sb.from("whatsapp_sessions").delete().eq("gym_id", gymId),
-          sb.from("monthly_dashboard_reports").delete().eq("gym_id", gymId),
-          sb.from("membresias").delete().eq("gym_id", gymId),
-        ]);
+        const permanentDeletes = [
+          { table: "notifications", query: () => sb.from("notifications").delete().eq("gym_id", gymId) },
+          { table: "asistencias", query: () => sb.from("asistencias").delete().eq("gym_id", gymId) },
+          { table: "gym_classes", query: () => sb.from("gym_classes").delete().eq("gym_id", gymId) },
+          { table: "prospectos", query: () => sb.from("prospectos").delete().eq("gym_id", gymId) },
+          { table: "leads", query: () => sb.from("leads").delete().eq("gym_id", gymId) },
+          { table: "whatsapp_sessions", query: () => sb.from("whatsapp_sessions").delete().eq("gym_id", gymId) },
+          { table: "monthly_dashboard_reports", query: () => sb.from("monthly_dashboard_reports").delete().eq("gym_id", gymId) },
+          { table: "membresias", query: () => sb.from("membresias").delete().eq("gym_id", gymId) },
+        ];
+
+        for (const item of permanentDeletes) {
+          const { error: deleteError } = await item.query();
+          if (deleteError) {
+            warnings.push("algunos datos pueden no haberse eliminado completamente");
+            void logger.error("partial permanent delete failed", {
+              route: "/platform/accounts",
+              meta: { table: item.table, gymId, error: deleteError },
+            });
+          }
+        }
 
         // Deletes alumnos, pagos, egresos, gym_cuentas, gym_promotions via cascade
-        await sb.from("gyms").delete().eq("id", gymId);
-        await sb.from("gym_settings").delete().eq("gym_id", gymId);
+        const { error: gymDeleteError } = await sb.from("gyms").delete().eq("id", gymId);
+        if (gymDeleteError) {
+          warnings.push("algunos datos pueden no haberse eliminado completamente");
+          void logger.error("partial permanent delete failed", {
+            route: "/platform/accounts",
+            meta: { table: "gyms", gymId, error: gymDeleteError },
+          });
+        }
 
-        await Promise.all(userIds.map((uid) => sb.auth.admin.deleteUser(uid)));
+        const { error: settingsDeleteError } = await sb.from("gym_settings").delete().eq("gym_id", gymId);
+        if (settingsDeleteError) {
+          warnings.push("algunos datos pueden no haberse eliminado completamente");
+          void logger.error("partial permanent delete failed", {
+            route: "/platform/accounts",
+            meta: { table: "gym_settings", gymId, error: settingsDeleteError },
+          });
+        }
+
+        for (const uid of userIds) {
+          const { error: userDeleteError } = await sb.auth.admin.deleteUser(uid);
+          if (userDeleteError) {
+            warnings.push("algunos datos pueden no haberse eliminado completamente");
+            void logger.error("partial permanent delete failed", {
+              route: "/platform/accounts",
+              meta: { table: "auth.users", userId: uid, error: userDeleteError },
+            });
+          }
+        }
       }
     }
   }
@@ -147,5 +183,7 @@ if (error) {
     after_state: { permanent },
   });
 
-  return NextResponse.json({ ok: true });
+  return warnings.length > 0
+    ? NextResponse.json({ ok: true, warnings: Array.from(new Set(warnings)) })
+    : NextResponse.json({ ok: true });
 }

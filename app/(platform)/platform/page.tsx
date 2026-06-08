@@ -769,13 +769,14 @@ function PlatformPage() {
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
       setAccounts(prev => prev.filter(a => a.id !== id));
       setStats(prev => ({ ...prev, platformAccounts: Math.max(0, prev.platformAccounts - 1) }));
+      await fetchPlatformData();
     } catch (e) {
       setFeedback(e instanceof Error ? e.message : "Error al eliminar.");
       resetFeedbackSoon();
     } finally {
       setDeletingId(null);
     }
-  }, [resetFeedbackSoon]);
+  }, [fetchPlatformData, resetFeedbackSoon]);
 
   const deleteLead = useCallback(async (id: string, name: string) => {
     if (!await confirm({
