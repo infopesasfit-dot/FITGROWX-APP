@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { headers } from "next/headers";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { CookieBanner } from "@/components/cookie-banner";
@@ -71,15 +72,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? "";
   return (
     <html lang="es" className={`h-full antialiased ${inter.variable} ${jetbrainsMono.variable}`} style={{ backgroundColor: "#050505" }}>
       <head>
         <meta name="theme-color" content="#050505" />
       </head>
-      <body className="min-h-full"><BrandConfirmProvider>{children}</BrandConfirmProvider><SpeedInsights /><Analytics /><CookieBanner /></body>
+      <body className="min-h-full" data-nonce={nonce || undefined}><BrandConfirmProvider>{children}</BrandConfirmProvider><SpeedInsights /><Analytics /><CookieBanner /></body>
     </html>
   );
 }
