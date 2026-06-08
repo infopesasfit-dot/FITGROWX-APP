@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { invalidateProfile, setImpersonatedGym } from "@/lib/gym-cache";
+import { invalidateProfile } from "@/lib/gym-cache";
 import { useBrandAlert, useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
@@ -210,13 +210,24 @@ export default function PlatformGyms() {
 
   const impersonate = async (g: GymRow) => {
     if (!g.auth_user_id) { brandAlert("Esta cuenta no tiene usuario registrado."); return; }
+    if (!g.gym_id) { brandAlert("No se encontró un gym asociado."); return; }
     setNavigating(true);
-    const { data } = await supabase.from("profiles").select("gym_id").eq("id", g.auth_user_id).single();
-    setNavigating(false);
-    if (!data?.gym_id) { brandAlert("No se encontró un gym asociado."); return; }
-    setImpersonatedGym({ gym_id: data.gym_id, gym_name: g.gym_name ?? g.company_name });
-    invalidateProfile();
-    router.push("/dashboard");
+    try {
+      const res = await fetch("/api/platform/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gym_id: g.gym_id }),
+      });
+      const payload = (await res.json().catch(() => null)) as { token?: string; error?: string } | null;
+      if (!res.ok || !payload?.token) {
+        brandAlert(payload?.error ?? "No se pudo iniciar impersonation.");
+        return;
+      }
+      invalidateProfile();
+      window.location.href = `/api/platform/impersonate/enter?token=${encodeURIComponent(payload.token)}`;
+    } finally {
+      setNavigating(false);
+    }
   };
 
   const extendTrial = async () => {

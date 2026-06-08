@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { invalidateProfile, setImpersonatedGym } from "@/lib/gym-cache";
+import { invalidateProfile } from "@/lib/gym-cache";
 import { WaHealthDashboard } from "@/components/wa-health-dashboard";
 import { useBrandAlert, useBrandConfirm } from "@/components/brand-confirm";
 
@@ -634,15 +634,23 @@ function PlatformPage() {
         resetFeedbackSoon();
         return;
       }
-      setImpersonatedGym({ gym_id: data.gym_id, gym_name: account.company_name });
+      const res = await fetch("/api/platform/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gym_id: data.gym_id }),
+      });
+      const payload = (await res.json().catch(() => null)) as { token?: string; error?: string } | null;
+      if (!res.ok || !payload?.token) {
+        throw new Error(payload?.error ?? "No se pudo iniciar impersonation.");
+      }
       invalidateProfile();
-      router.push("/dashboard");
+      window.location.href = `/api/platform/impersonate/enter?token=${encodeURIComponent(payload.token)}`;
     } catch {
       setNavigatingToGymId(null);
       setFeedback("Error al abrir el dashboard.");
       resetFeedbackSoon();
     }
-  }, [resetFeedbackSoon, router, supabase]);
+  }, [resetFeedbackSoon, supabase]);
 
   const updateAccountStatus = useCallback(async (id: string, status: AccountStatus) => {
     try {

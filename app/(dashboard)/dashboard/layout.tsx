@@ -264,7 +264,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return;
       }
       const gymIdVal = cachedProfile.gymId;
-      const userIdVal = cachedProfile.userId;
+      const userIdVal = cachedProfile.impersonatedUserId ?? cachedProfile.userId;
       const roleVal = cachedProfile.role as "admin" | "staff" | "platform_owner";
 
       setGymId(gymIdVal);
@@ -272,7 +272,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setRoleLoaded(true);
 
       if (roleVal === "platform_owner") {
-        setImpersonatedGym(getImpersonatedGym());
+        setImpersonatedGym(
+          cachedProfile.impersonatedGymName
+            ? { gym_id: gymIdVal, gym_name: cachedProfile.impersonatedGymName }
+            : getImpersonatedGym()
+        );
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -1050,10 +1054,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Viendo dashboard de <strong>{impersonatedGym.gym_name}</strong> como plataforma
             </span>
             <button
-              onClick={() => { clearImpersonation(); router.push("/platform"); }}
+              onClick={async () => {
+                clearImpersonation();
+                await fetch("/api/platform/impersonate/exit", { method: "POST" }).catch(() => null);
+                router.push("/platform");
+              }}
               style={{ font: `700 0.72rem/1 ${fd}`, color: "white", background: "#2563EB", padding: "5px 12px", borderRadius: 9999, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
             >
-              Salir
+              Salir del gym
             </button>
           </div>
         )}

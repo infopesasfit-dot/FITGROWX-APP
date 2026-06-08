@@ -127,7 +127,26 @@ export async function proxy(request: NextRequest) {
     const role = profile?.role ?? 'admin'
 
     if (role === 'platform_owner' && pathname.startsWith('/dashboard')) {
-      return NextResponse.redirect(new URL('/platform', request.url))
+      const impersonationToken = request.cookies.get('impersonation_token')?.value ?? null
+      if (impersonationToken) {
+        const { data: impersonation } = await supabase
+          .from('platform_impersonation_tokens')
+          .select('id')
+          .eq('token', impersonationToken)
+          .eq('platform_user_id', user.id)
+          .eq('used', true)
+          .gt('expires_at', new Date().toISOString())
+          .maybeSingle()
+
+        if (impersonation) {
+          response.headers.set('Content-Security-Policy', csp);
+          return response
+        }
+      }
+
+      const redirect = NextResponse.redirect(new URL('/platform', request.url))
+      redirect.cookies.delete('impersonation_token')
+      return redirect
     }
 
     if (role !== 'platform_owner' && pathname.startsWith('/platform')) {

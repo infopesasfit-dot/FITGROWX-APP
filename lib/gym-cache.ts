@@ -9,6 +9,8 @@ export interface GymProfile {
   gymId:  string;
   role:   string;
   userId: string;
+  impersonatedUserId?: string;
+  impersonatedGymName?: string;
 }
 
 export interface ImpersonatedGym {
@@ -47,6 +49,24 @@ export function clearImpersonation(): void {
   }
 }
 
+type ActiveImpersonation = {
+  active: boolean;
+  gym_id?: string;
+  gym_name?: string;
+  target_user_id?: string;
+};
+
+export async function getActiveImpersonation(): Promise<ActiveImpersonation | null> {
+  try {
+    const res = await fetch("/api/platform/impersonate/session", { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = (await res.json()) as ActiveImpersonation;
+    return data.active ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 interface CacheEntry<T> { data: T; ts: number }
 
 let profileEntry: CacheEntry<GymProfile> | null = null;
@@ -67,13 +87,26 @@ export async function getCachedProfile(): Promise<GymProfile | null> {
   if (!profile) return null;
 
   let gymId = profile.gym_id;
+  let impersonatedUserId: string | undefined;
+  let impersonatedGymName: string | undefined;
+
   if (profile.role === "platform_owner") {
-    const imp = getImpersonatedGym();
-    if (imp) gymId = imp.gym_id;
+    const active = await getActiveImpersonation();
+    if (active?.gym_id && active.target_user_id) {
+      gymId = active.gym_id;
+      impersonatedUserId = active.target_user_id;
+      impersonatedGymName = active.gym_name;
+    } else {
+      const imp = getImpersonatedGym();
+      if (imp) {
+        gymId = imp.gym_id;
+        impersonatedGymName = imp.gym_name;
+      }
+    }
   }
 
   profileEntry = {
-    data: { gymId, role: profile.role ?? "admin", userId: session.user.id },
+    data: { gymId, role: profile.role ?? "admin", userId: session.user.id, impersonatedUserId, impersonatedGymName },
     ts: Date.now(),
   };
   return profileEntry.data;
