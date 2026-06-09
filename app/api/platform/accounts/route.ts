@@ -99,15 +99,6 @@ export async function DELETE(req: NextRequest) {
       const gymId = profileRow?.gym_id;
 
       if (gymId) {
-        // Block permanent deletion of a gym with an active subscription/status/trial
-        const { data: gym } = await sb.from("gyms").select("gym_status, is_subscription_active, trial_expires_at").eq("id", gymId).single();
-        const hasActiveTrial = gym?.trial_expires_at
-          ? new Date(gym.trial_expires_at).getTime() > Date.now()
-          : false;
-        if (gym?.is_subscription_active || gym?.gym_status === "active" || hasActiveTrial) {
-          return NextResponse.json({ error: "No se puede borrar un gym activo" }, { status: 409 });
-        }
-
         // All user IDs for this gym (to delete auth users after)
         const { data: gymUsers } = await sb.from("profiles").select("id").eq("gym_id", gymId);
         const userIds = (gymUsers ?? []).map((p: { id: string }) => p.id);
