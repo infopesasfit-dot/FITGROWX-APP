@@ -1,42 +1,31 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, memo, useCallback } from "react";
-import dynamic from "next/dynamic";
 import {
   AlertTriangle,
-  ArrowRight,
   Building2,
   CheckCircle,
   Clock3,
   ExternalLink,
-  FileText,
-  FolderOpen,
   Loader2,
   MessageCircle,
   Phone,
-  Plus,
   Search,
   Send,
   ShieldAlert,
-  Smartphone,
   Trash2,
   UserCheck,
   Users,
-  WifiOff,
-  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { invalidateProfile } from "@/lib/gym-cache";
-import { WaHealthDashboard } from "@/components/wa-health-dashboard";
-import { useBrandAlert, useBrandConfirm } from "@/components/brand-confirm";
+import { useBrandConfirm } from "@/components/brand-confirm";
 
 const fd = "var(--font-inter, 'Inter', sans-serif)";
 const fb = "var(--font-inter, 'Inter', sans-serif)";
 
 type PlatformStats = {
-  vaultResources: number;
   platformAccounts: number;
   platformLeads: number;
 };
@@ -68,22 +57,6 @@ type PlatformLead = {
   created_at: string;
 };
 
-type VaultResourceRow = {
-  id: string;
-  title: string;
-  status: string;
-  format: string | null;
-  updated_at: string;
-};
-
-type VaultCategoryRow = {
-  id: string;
-  slug: string;
-  title: string;
-  description: string | null;
-  is_active: boolean;
-};
-
 type FeedbackRow = {
   id: string;
   gym_id: string;
@@ -97,7 +70,6 @@ type FeedbackRow = {
 
 type AccountStatus = "trial_setup" | "trial_active" | "trial_risk" | "converted" | "churned";
 type LeadStatus = "new" | "contacted" | "qualified" | "registered" | "lost";
-type ResourceStatus = "draft" | "published" | "archived";
 
 const shellCard: React.CSSProperties = {
   background: "rgba(248,250,252,0.88)",
@@ -119,16 +91,6 @@ function getErrorMessage(value: unknown) {
     return (value as { message: string }).message;
   }
   return "No se pudo cargar el panel de plataforma.";
-}
-
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
 }
 
 function statusTone(status: string) {
@@ -215,7 +177,6 @@ function emptyState(title: string, body: string) {
 function PlatformPage() {
   const router = useRouter();
   const confirm = useBrandConfirm();
-  const brandAlert = useBrandAlert();
   const [navigatingToGymId, setNavigatingToGymId] = useState<string | null>(null);
   const [tplDropdownId,  setTplDropdownId]  = useState<string | null>(null);
   const [crmSendingId,   setCrmSendingId]   = useState<string | null>(null);
@@ -230,17 +191,14 @@ function PlatformPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"crm" | "cms" | "feedback" | "whatsapp" | "onboarding">("crm");
+  const [activeTab, setActiveTab] = useState<"crm" | "feedback" | "onboarding">("crm");
   const [onboardingRows, setOnboardingRows] = useState<{ gym_id: string; gym_name: string | null; onboarding_completed: boolean | null; setup_alumnos: boolean | null; setup_planes: boolean | null; setup_landing: boolean | null; setup_whatsapp: boolean | null; setup_pagos: boolean | null }[]>([]);
   const [stats, setStats] = useState<PlatformStats>({
-    vaultResources: 0,
     platformAccounts: 0,
     platformLeads: 0,
   });
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [leads, setLeads] = useState<PlatformLead[]>([]);
-  const [vaultResources, setVaultResources] = useState<VaultResourceRow[]>([]);
-  const [vaultCategories, setVaultCategories] = useState<VaultCategoryRow[]>([]);
   const [feedbackRows, setFeedbackRows] = useState<FeedbackRow[]>([]);
   const [feedbackFilter, setFeedbackFilter] = useState<"pendientes" | "todos">("pendientes");
   const [resolvingId, setResolvingId] = useState<string | null>(null);
@@ -251,30 +209,8 @@ function PlatformPage() {
   const [updatingAccountId, setUpdatingAccountId] = useState<string | null>(null);
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [savingCategory, setSavingCategory] = useState(false);
-  const [savingResource, setSavingResource] = useState(false);
-  const [categoryForm, setCategoryForm] = useState({
-    title: "",
-    description: "",
-  });
-  const [resourceForm, setResourceForm] = useState({
-    title: "",
-    description: "",
-    category_id: "",
-    format: "Tutorial",
-    status: "draft" as ResourceStatus,
-  });
 
-  // WhatsApp platform session states
-  const PLAT_SESSION = "fitgrowx-platform";
-  const [platWaStatus, setPlatWaStatus] = useState<"unknown" | "connected" | "disconnected">("unknown");
-  const [platWaPhone, setPlatWaPhone] = useState<string | null>(null);
-  const [platQrOpen, setPlatQrOpen] = useState(false);
-  const [platQrImage, setPlatQrImage] = useState<string | null>(null);
-  const [platQrLoading, setPlatQrLoading] = useState(false);
-  const [platQrError, setPlatQrError] = useState<"max" | null>(null);
-  const platPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const platRetryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Templates for CRM send dropdown (loaded from DB on mount)
   const DEFAULT_TEMPLATES = {
     bienvenida:    "¡Hola {nombre}! 🎉 Bienvenido a FitGrowX. Tu gym ya está listo para escalar. Si tenés alguna duda, respondé este mensaje.",
     activacion_d3: "Ey {nombre}! Eli de FitGrowX 👋 ¿Pudiste arrancar a cargar tus alumnos? Si querés te muestro cómo hacerlo en 5 minutos, es más fácil de lo que parece.",
@@ -285,10 +221,6 @@ function PlatformPage() {
     reactivacion:  "¡Hola {nombre}! 👋 Hace un tiempo que no te vemos por FitGrowX. ¿Todo bien con el gym? Estamos acá para ayudarte.",
   };
   const [platMsgTemplate, setPlatMsgTemplate] = useState(DEFAULT_TEMPLATES);
-  const [platAutoEnabled, setPlatAutoEnabled] = useState<Record<string, boolean>>({});
-  const [tplSaving, setTplSaving] = useState<Record<string, boolean>>({});
-  const [tplTesting, setTplTesting] = useState<Record<string, "idle" | "sending" | "ok" | "error">>({});
-  const tplSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   type OverviewData = {
     sistema: { erroresH1: number; waDesconectados: number };
@@ -296,102 +228,28 @@ function PlatformPage() {
     atencion: { trialsRisk: number; trialsRiskList: { id: string; company_name: string; trial_ends_at: string }[]; inactivos7d: number; prospectosSinSeg: number; feedbackReciente7d: number };
   };
   const [overview, setOverview] = useState<OverviewData | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
   const lastFetchRef = useRef<number>(0);
   const CACHE_TTL = 60_000;
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const platWaProxy = async (action: string, extra?: Record<string, string>) => {
-    return fetch("/api/wa/proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, gymId: PLAT_SESSION, ...extra }),
-    });
-  };
-
-  const platStopPolling = () => {
-    if (platPollRef.current) { clearInterval(platPollRef.current); platPollRef.current = null; }
-    if (platRetryRef.current) { clearTimeout(platRetryRef.current); platRetryRef.current = null; }
-  };
-
-  const platStartStatusPoll = () => {
-    platStopPolling();
-    platPollRef.current = setInterval(async () => {
-      try {
-        const res = await platWaProxy("session-status");
-        const data = await res.json();
-        if (data.status === "active") {
-          platStopPolling();
-          setPlatWaStatus("connected");
-          if (data.phone) setPlatWaPhone(data.phone);
-          setPlatQrOpen(false);
-        }
-      } catch { /* noop */ }
-    }, 3000);
-  };
-
-  const platAttemptQr = async (attempt: number) => {
-    setPlatQrLoading(true);
-    setPlatQrImage(null);
-    try {
-      if (attempt === 0) await platWaProxy("session-delete").catch(() => {});
-      const res = await platWaProxy("qr-data");
-      const data = await res.json();
-      if (data.status === "active") {
-        setPlatWaStatus("connected");
-        setPlatQrOpen(false);
-        setPlatQrLoading(false);
-        return;
-      }
-      if (data.qr) {
-        setPlatQrImage(data.qr);
-        setPlatQrLoading(false);
-        platStartStatusPoll();
-        return;
-      }
-      platRetryRef.current = setTimeout(() => platAttemptQr(attempt + 1), 2000);
-    } catch {
-      setPlatQrLoading(false);
-      if (attempt < 4) platRetryRef.current = setTimeout(() => platAttemptQr(attempt + 1), 3000);
-      else setPlatQrError("max");
-    }
-  };
-
-  const platOpenQr = () => {
-    platStopPolling();
-    setPlatQrOpen(true);
-    setPlatQrImage(null);
-    setPlatQrError(null);
-    void platAttemptQr(0);
-  };
-
   const fetchPlatformData = useCallback(async () => {
     const [
-      { count: vaultResourcesCount, error: vaultCountError },
       { count: platformAccountsCount, error: accountsCountError },
       { count: platformLeadsCount, error: leadsCountError },
       { data: accountRows, error: accountRowsError },
       { data: leadRows, error: leadRowsError },
     ] = await Promise.all([
-      supabase.from("vault_resources").select("*", { count: "exact", head: true }),
       supabase.from("platform_accounts").select("*", { count: "exact", head: true }),
       supabase.from("platform_leads").select("*", { count: "exact", head: true }),
       supabase.from("platform_accounts").select("id,auth_user_id,company_name,owner_name,phone,status,subscription_plan,trial_ends_at,activation_score,next_follow_up_at,created_at").order("created_at", { ascending: false }).limit(20),
       supabase.from("platform_leads").select("id,full_name,business_name,phone,status,source,next_follow_up_at,created_at").order("created_at", { ascending: false }).limit(20),
     ]);
 
-    if (vaultCountError) throw vaultCountError;
     if (accountsCountError) throw accountsCountError;
     if (leadsCountError) throw leadsCountError;
     if (accountRowsError) throw accountRowsError;
     if (leadRowsError) throw leadRowsError;
 
     setStats({
-      vaultResources: vaultResourcesCount ?? 0,
       platformAccounts: platformAccountsCount ?? 0,
       platformLeads: platformLeadsCount ?? 0,
     });
@@ -403,21 +261,14 @@ function PlatformPage() {
 
   const fetchNonCriticalData = async () => {
     const [
-      { data: resourceRows, error: resourceRowsError },
-      { data: categoryRows, error: categoryRowsError },
       { data: feedbackData },
       { data: onboardingData },
     ] = await Promise.all([
-      supabase.from("vault_resources").select("id, title, status, format, updated_at").order("updated_at", { ascending: false }).limit(6),
-      supabase.from("vault_categories").select("id, slug, title, description, is_active").order("sort_order", { ascending: true }),
       supabase.from("platform_feedback").select("id, gym_id, gym_name, email, message, created_at, resolved_at, resolved_by").order("created_at", { ascending: false }).limit(100),
       supabase.from("gym_settings").select("gym_id, gym_name, onboarding_completed, setup_alumnos, setup_planes, setup_landing, setup_whatsapp, setup_pagos").order("gym_name", { ascending: true }),
     ]);
 
-    if (resourceRowsError || categoryRowsError) return;
-    setVaultResources((resourceRows ?? []) as VaultResourceRow[]);
     setFeedbackRows((feedbackData ?? []) as FeedbackRow[]);
-    setVaultCategories((categoryRows ?? []) as VaultCategoryRow[]);
     setOnboardingRows((onboardingData ?? []) as { gym_id: string; gym_name: string | null; onboarding_completed: boolean | null; setup_alumnos: boolean | null; setup_planes: boolean | null; setup_landing: boolean | null; setup_whatsapp: boolean | null; setup_pagos: boolean | null }[]);
   };
 
@@ -506,80 +357,18 @@ function PlatformPage() {
     return () => { mounted = false; clearInterval(t); };
   }, []);
 
+  // Load saved templates for the CRM send dropdown
   useEffect(() => {
-    if (activeTab !== "whatsapp") return;
-    (async () => {
-      try {
-        const res = await platWaProxy("session-status");
-        const data = await res.json();
-        setPlatWaStatus(data.status === "active" ? "connected" : "disconnected");
-        if (data.phone) setPlatWaPhone(data.phone);
-      } catch {
-        setPlatWaStatus("disconnected");
-      }
-      // Cargar plantillas desde DB
-      try {
-        const res = await fetch("/api/platform/wa-templates");
-        if (res.ok) {
-          const dbTpl: Record<string, { body: string; enabled: boolean }> = await res.json();
-          if (Object.keys(dbTpl).length > 0) {
-            const bodies: Record<string, string> = {};
-            const enableds: Record<string, boolean> = {};
-            for (const [k, v] of Object.entries(dbTpl)) {
-              bodies[k] = v.body;
-              enableds[k] = v.enabled;
-            }
-            setPlatMsgTemplate(prev => ({ ...prev, ...bodies }));
-            setPlatAutoEnabled(prev => ({ ...prev, ...enableds }));
-          }
-        }
-      } catch { /* non-fatal */ }
-    })();
-    return () => platStopPolling();
-  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Autoguardado de plantillas con debounce 1.5s
-  const handleTplChange = (key: string, value: string) => {
-    setPlatMsgTemplate(prev => ({ ...prev, [key]: value }));
-    if (tplSaveTimers.current[key]) clearTimeout(tplSaveTimers.current[key]);
-    tplSaveTimers.current[key] = setTimeout(async () => {
-      setTplSaving(prev => ({ ...prev, [key]: true }));
-      try {
-        await fetch("/api/platform/wa-templates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key, body: value }),
-        });
-      } catch { /* non-fatal */ }
-      setTplSaving(prev => ({ ...prev, [key]: false }));
-    }, 1500);
-  };
-
-  const handleTplTest = async (key: string, body: string) => {
-    const ownerPhone = process.env.NEXT_PUBLIC_OWNER_PHONE ?? "";
-    const phone = prompt("Número para el test (ej: 5491164893435):", ownerPhone || "");
-    if (!phone?.trim()) return;
-    setTplTesting(prev => ({ ...prev, [key]: "sending" }));
-    const r = await fetch("/api/platform/wa-templates/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, phone: phone.trim(), body }),
-    });
-    const state = r.ok ? "ok" : "error";
-    setTplTesting(prev => ({ ...prev, [key]: state }));
-    setTimeout(() => setTplTesting(prev => ({ ...prev, [key]: "idle" })), 3000);
-  };
-
-  const handleTplToggle = async (key: string, enabled: boolean) => {
-    setPlatAutoEnabled(prev => ({ ...prev, [key]: enabled }));
-    try {
-      await fetch("/api/platform/wa-templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, enabled }),
-      });
-    } catch { /* non-fatal */ }
-  };
+    fetch("/api/platform/wa-templates")
+      .then(r => r.ok ? r.json() : null)
+      .then((dbTpl: Record<string, { body: string; enabled: boolean }> | null) => {
+        if (!dbTpl || !Object.keys(dbTpl).length) return;
+        const bodies: Record<string, string> = {};
+        for (const [k, v] of Object.entries(dbTpl)) bodies[k] = v.body;
+        setPlatMsgTemplate(prev => ({ ...prev, ...bodies }));
+      })
+      .catch(() => {});
+  }, []);
 
   const crmHealth = useMemo(() => {
     const convertedClients = accounts.filter((account) => account.status === "converted").length;
@@ -800,76 +589,6 @@ function PlatformPage() {
     }
   }, [confirm, resetFeedbackSoon]);
 
-  const handleCategorySubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!categoryForm.title.trim()) return;
-
-    try {
-      setSavingCategory(true);
-      setFeedback(null);
-      const res = await fetch("/api/platform/vault", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "category", title: categoryForm.title.trim(), description: categoryForm.description.trim() || null }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al crear."); }
-      setCategoryForm({ title: "", description: "" });
-      await fetchPlatformData();
-      setFeedback("Categoría creada en el CMS.");
-      resetFeedbackSoon();
-    } catch (caughtError) {
-      setFeedback(getErrorMessage(caughtError));
-    } finally {
-      setSavingCategory(false);
-    }
-  }, [fetchPlatformData, resetFeedbackSoon, categoryForm]);
-
-  const handleResourceSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!resourceForm.title.trim() || !resourceForm.category_id) return;
-
-    try {
-      setSavingResource(true);
-      setFeedback(null);
-      const res = await fetch("/api/platform/vault", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "resource",
-          title: resourceForm.title.trim(),
-          description: resourceForm.description.trim() || null,
-          category_id: resourceForm.category_id,
-          format: resourceForm.format.trim() || null,
-          status: resourceForm.status,
-        }),
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error al crear."); }
-      setResourceForm({
-        title: "",
-        description: "",
-        category_id: vaultCategories[0]?.id ?? "",
-        format: "Tutorial",
-        status: "draft",
-      });
-      await fetchPlatformData();
-      setFeedback("Recurso creado en la base del CMS.");
-      resetFeedbackSoon();
-    } catch (caughtError) {
-      setFeedback(getErrorMessage(caughtError));
-    } finally {
-      setSavingResource(false);
-    }
-  }, [fetchPlatformData, resetFeedbackSoon, resourceForm, vaultCategories]);
-
-  useEffect(() => {
-    if (!resourceForm.category_id && vaultCategories.length > 0) {
-      setResourceForm((current) => ({
-        ...current,
-        category_id: vaultCategories[0].id,
-      }));
-    }
-  }, [resourceForm.category_id, vaultCategories]);
-
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 24px 48px" }}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
@@ -881,7 +600,7 @@ function PlatformPage() {
           <button
             key={tab.key}
             type="button"
-            onClick={() => setActiveTab(tab.key as "crm" | "cms" | "feedback" | "whatsapp" | "onboarding")}
+            onClick={() => setActiveTab(tab.key as "crm" | "feedback" | "onboarding")}
             style={{
               padding: "6px 12px",
               borderRadius: 999,
@@ -995,13 +714,6 @@ function PlatformPage() {
             }}
           >
             {[
-              ...(activeTab === "cms" ? [{
-                label: "Recursos CMS",
-                value: stats.vaultResources,
-                icon: FolderOpen,
-                tone: "rgba(249,115,22,0.1)",
-                color: "#F97316",
-              }] : []),
               {
                 label: "Clientes FitGrowX",
                 value: stats.platformAccounts,
@@ -1378,455 +1090,7 @@ function PlatformPage() {
                 })()}
               </article>
             </section>
-          ) : activeTab === "cms" ? (
-            <section
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.1fr 0.9fr",
-                gap: 18,
-                marginBottom: 24,
-              }}
-            >
-              <article style={{ ...shellCard, padding: 24 }}>
-                <div style={{ marginBottom: 18 }}>
-                  <p
-                    style={{
-                      marginBottom: 8,
-                      font: `700 0.74rem/1 ${fd}`,
-                      color: "#94A3B8",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.14em",
-                    }}
-                  >
-                    CMS Bóveda
-                  </p>
-                  <h2
-                    style={{
-                      font: `780 1.45rem/1.1 ${fd}`,
-                      color: "#111827",
-                      letterSpacing: "-0.03em",
-                      marginBottom: 10,
-                    }}
-                  >
-                    Base editorial para subir recursos sin tocar código
-                  </h2>
-                  <p style={{ font: `400 0.92rem/1.65 ${fb}`, color: "#475569" }}>
-                    Ya puedes separar categorías y recursos como contenido administrable. El próximo
-                    paso es conectar la bóveda pública a estas tablas y sumar alta/edición desde UI.
-                  </p>
-                </div>
-
-                <div style={{ marginBottom: 18 }}>
-                  <p style={{ marginBottom: 12, font: `700 0.78rem/1 ${fd}`, color: "#475569" }}>
-                    Categorías cargadas
-                  </p>
-                  {vaultCategories.length === 0
-                    ? emptyState(
-                        "Sin categorías en CMS",
-                        "La migración crea la estructura. Si no aparecen categorías, revisa que las semillas se hayan aplicado correctamente.",
-                      )
-                    : (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                        {vaultCategories.map((category) => (
-                          <span
-                            key={category.id}
-                            style={{
-                              padding: "9px 12px",
-                              borderRadius: 999,
-                              background: category.is_active ? "rgba(255,255,255,0.78)" : "rgba(148,163,184,0.16)",
-                              border: "1px solid rgba(255,255,255,0.95)",
-                              font: `600 0.78rem/1 ${fb}`,
-                              color: category.is_active ? "#334155" : "#94A3B8",
-                            }}
-                          >
-                            {category.title}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                </div>
-
-                <div>
-                  <p style={{ marginBottom: 12, font: `700 0.78rem/1 ${fd}`, color: "#475569" }}>
-                    Recursos en base
-                  </p>
-                  {vaultResources.length === 0
-                    ? emptyState(
-                        "Todavía no hay recursos en DB",
-                        "La siguiente etapa es migrar tus recursos actuales a `vault_resources` y luego crear el editor para la bóveda.",
-                      )
-                    : (
-                      <div style={{ display: "grid", gap: 12 }}>
-                        {vaultResources.map((resource) => {
-                          const tone = statusTone(resource.status);
-                          return (
-                            <article
-                              key={resource.id}
-                              style={{
-                                borderRadius: 18,
-                                background: "rgba(255,255,255,0.72)",
-                                border: "1px solid rgba(255,255,255,0.95)",
-                                padding: 16,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  gap: 12,
-                                  alignItems: "flex-start",
-                                  marginBottom: 10,
-                                }}
-                              >
-                                <div>
-                                  <p
-                                    style={{
-                                      marginBottom: 6,
-                                      font: `700 0.96rem/1.2 ${fd}`,
-                                      color: "#111827",
-                                    }}
-                                  >
-                                    {resource.title}
-                                  </p>
-                                  <p style={{ font: `400 0.82rem/1.5 ${fb}`, color: "#64748B" }}>
-                                    {resource.format ?? "Sin formato"} · actualizado{" "}
-                                    {new Date(resource.updated_at).toLocaleDateString()}
-                                  </p>
-                                </div>
-                                <span
-                                  style={{
-                                    padding: "7px 10px",
-                                    borderRadius: 999,
-                                    background: tone.bg,
-                                    color: tone.color,
-                                    font: `700 0.7rem/1 ${fd}`,
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.08em",
-                                  }}
-                                >
-                                  {resource.status}
-                                </span>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    )}
-                </div>
-              </article>
-
-              <article style={{ ...shellCard, padding: 24 }}>
-                <div style={{ marginBottom: 18 }}>
-                  <p
-                    style={{
-                      marginBottom: 8,
-                      font: `700 0.74rem/1 ${fd}`,
-                      color: "#94A3B8",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.14em",
-                    }}
-                  >
-                    Alta rápida CMS
-                  </p>
-                  <h2
-                    style={{
-                      font: `780 1.45rem/1.1 ${fd}`,
-                      color: "#111827",
-                      letterSpacing: "-0.03em",
-                      marginBottom: 10,
-                    }}
-                  >
-                    Crea categorías y recursos desde este panel
-                  </h2>
-                  <p style={{ font: `400 0.92rem/1.65 ${fb}`, color: "#475569" }}>
-                    Dejamos una primera capa simple para publicar la estructura editorial sin tocar
-                    código. Después afinamos editor, portada y contenido enriquecido.
-                  </p>
-                </div>
-
-                <div style={{ display: "grid", gap: 18 }}>
-                  <form
-                    onSubmit={handleCategorySubmit}
-                    style={{
-                      borderRadius: 20,
-                      background: "rgba(255,255,255,0.72)",
-                      border: "1px solid rgba(255,255,255,0.95)",
-                      padding: 18,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                      <Plus size={16} color="#F97316" />
-                      <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#111827" }}>Nueva categoría</p>
-                    </div>
-                    <div style={{ display: "grid", gap: 10 }}>
-                      <input
-                        value={categoryForm.title}
-                        onChange={(event) =>
-                          setCategoryForm((current) => ({ ...current, title: event.target.value }))
-                        }
-                        placeholder="Ej: Tutoriales de automatización"
-                        style={{
-                          width: "100%",
-                          borderRadius: 12,
-                          border: "1px solid rgba(148,163,184,0.18)",
-                          background: "rgba(255,255,255,0.88)",
-                          padding: "11px 12px",
-                          color: "#111827",
-                          outline: "none",
-                          font: `500 0.84rem/1 ${fb}`,
-                        }}
-                      />
-                      <textarea
-                        value={categoryForm.description}
-                        onChange={(event) =>
-                          setCategoryForm((current) => ({
-                            ...current,
-                            description: event.target.value,
-                          }))
-                        }
-                        placeholder="Descripción breve para la categoría"
-                        rows={3}
-                        style={{
-                          width: "100%",
-                          borderRadius: 12,
-                          border: "1px solid rgba(148,163,184,0.18)",
-                          background: "rgba(255,255,255,0.88)",
-                          padding: "11px 12px",
-                          color: "#111827",
-                          outline: "none",
-                          font: `500 0.84rem/1.5 ${fb}`,
-                          resize: "vertical",
-                        }}
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={savingCategory}
-                      style={{
-                        marginTop: 14,
-                        width: "100%",
-                        border: "none",
-                        borderRadius: 12,
-                        background: "#111827",
-                        color: "#FFFFFF",
-                        padding: "11px 14px",
-                        font: `700 0.84rem/1 ${fd}`,
-                        cursor: "pointer",
-                        opacity: savingCategory ? 0.7 : 1,
-                      }}
-                    >
-                      {savingCategory ? "Guardando..." : "Crear categoría"}
-                    </button>
-                  </form>
-
-                  <form
-                    onSubmit={handleResourceSubmit}
-                    style={{
-                      borderRadius: 20,
-                      background: "rgba(255,255,255,0.72)",
-                      border: "1px solid rgba(255,255,255,0.95)",
-                      padding: 18,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                      <Plus size={16} color="#2563EB" />
-                      <p style={{ font: `700 0.9rem/1 ${fd}`, color: "#111827" }}>Nuevo recurso</p>
-                    </div>
-                    <div style={{ display: "grid", gap: 10 }}>
-                      <input
-                        value={resourceForm.title}
-                        onChange={(event) =>
-                          setResourceForm((current) => ({ ...current, title: event.target.value }))
-                        }
-                        placeholder="Título del recurso"
-                        style={{
-                          width: "100%",
-                          borderRadius: 12,
-                          border: "1px solid rgba(148,163,184,0.18)",
-                          background: "rgba(255,255,255,0.88)",
-                          padding: "11px 12px",
-                          color: "#111827",
-                          outline: "none",
-                          font: `500 0.84rem/1 ${fb}`,
-                        }}
-                      />
-                      <textarea
-                        value={resourceForm.description}
-                        onChange={(event) =>
-                          setResourceForm((current) => ({
-                            ...current,
-                            description: event.target.value,
-                          }))
-                        }
-                        placeholder="Resumen corto para la card o listado"
-                        rows={3}
-                        style={{
-                          width: "100%",
-                          borderRadius: 12,
-                          border: "1px solid rgba(148,163,184,0.18)",
-                          background: "rgba(255,255,255,0.88)",
-                          padding: "11px 12px",
-                          color: "#111827",
-                          outline: "none",
-                          font: `500 0.84rem/1.5 ${fb}`,
-                          resize: "vertical",
-                        }}
-                      />
-                      <select
-                        value={resourceForm.category_id}
-                        onChange={(event) =>
-                          setResourceForm((current) => ({
-                            ...current,
-                            category_id: event.target.value,
-                          }))
-                        }
-                        style={{
-                          borderRadius: 12,
-                          border: "1px solid rgba(148,163,184,0.18)",
-                          background: "rgba(255,255,255,0.88)",
-                          padding: "11px 12px",
-                          color: "#111827",
-                          font: `600 0.82rem/1 ${fb}`,
-                        }}
-                      >
-                        <option value="">Selecciona una categoría</option>
-                        {vaultCategories.map((category) => (
-                          <option key={category.id} value={category.id}>
-                            {category.title}
-                          </option>
-                        ))}
-                      </select>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <input
-                          value={resourceForm.format}
-                          onChange={(event) =>
-                            setResourceForm((current) => ({
-                              ...current,
-                              format: event.target.value,
-                            }))
-                          }
-                          placeholder="Formato"
-                          style={{
-                            width: "100%",
-                            borderRadius: 12,
-                            border: "1px solid rgba(148,163,184,0.18)",
-                            background: "rgba(255,255,255,0.88)",
-                            padding: "11px 12px",
-                            color: "#111827",
-                            outline: "none",
-                            font: `500 0.84rem/1 ${fb}`,
-                          }}
-                        />
-                        <select
-                          value={resourceForm.status}
-                          onChange={(event) =>
-                            setResourceForm((current) => ({
-                              ...current,
-                              status: event.target.value as ResourceStatus,
-                            }))
-                          }
-                          style={{
-                            borderRadius: 12,
-                            border: "1px solid rgba(148,163,184,0.18)",
-                            background: "rgba(255,255,255,0.88)",
-                            padding: "11px 12px",
-                            color: "#111827",
-                            font: `600 0.82rem/1 ${fb}`,
-                          }}
-                        >
-                          {["draft", "published", "archived"].map((status) => (
-                            <option key={status} value={status}>
-                              {status}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={savingResource || vaultCategories.length === 0}
-                      style={{
-                        marginTop: 14,
-                        width: "100%",
-                        border: "none",
-                        borderRadius: 12,
-                        background: "#111827",
-                        color: "#FFFFFF",
-                        padding: "11px 14px",
-                        font: `700 0.84rem/1 ${fd}`,
-                        cursor: "pointer",
-                        opacity: savingResource || vaultCategories.length === 0 ? 0.7 : 1,
-                      }}
-                    >
-                      {savingResource ? "Guardando..." : "Crear recurso"}
-                    </button>
-                  </form>
-
-                  <div style={{ display: "grid", gap: 12 }}>
-                    {[
-                      "Migrar los recursos actuales desde data.ts a vault_resources.",
-                      "Permitir alta/edición de objetivo, outcome y contenido enriquecido.",
-                      "Conectar /dashboard/boveda a la base nueva.",
-                    ].map((item) => (
-                      <div
-                        key={item}
-                        style={{
-                          borderRadius: 16,
-                          background: "rgba(255,255,255,0.72)",
-                          border: "1px solid rgba(255,255,255,0.95)",
-                          padding: 14,
-                          font: `500 0.84rem/1.6 ${fb}`,
-                          color: "#475569",
-                        }}
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </article>
-            </section>
           ) : null}
-
-          {activeTab === "cms" && (
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link
-              href="/dashboard/boveda"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "12px 16px",
-                borderRadius: 14,
-                background: "#111827",
-                color: "#FFFFFF",
-                textDecoration: "none",
-                font: `700 0.88rem/1 ${fd}`,
-                boxShadow: "0 14px 28px rgba(15,23,42,0.16)",
-              }}
-            >
-              Ver bóveda actual
-              <ArrowRight size={15} />
-            </Link>
-
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "12px 16px",
-                borderRadius: 14,
-                background: "rgba(255,255,255,0.72)",
-                color: "#475569",
-                font: `600 0.86rem/1 ${fb}`,
-                border: "1px solid rgba(255,255,255,0.9)",
-              }}
-            >
-              <FileText size={15} />
-              Siguiente paso sugerido: conectar la bóveda al CMS nuevo
-            </div>
-          </div>
-          )}
 
       {/* ── Feedback tab ── */}
       {!loading && !error && authorized && activeTab === "feedback" && (() => {
@@ -1916,213 +1180,6 @@ function PlatformPage() {
           </>
         );
       })()}
-
-      {/* ── WhatsApp tab ── */}
-      {!loading && !error && authorized && activeTab === "whatsapp" && (
-        <>
-          {/* Connection status banner */}
-          <section style={{
-            ...shellCard,
-            padding: "22px 26px",
-            marginBottom: 20,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-            flexWrap: "wrap",
-            borderLeft: `4px solid ${platWaStatus === "connected" ? "#16A34A" : platWaStatus === "disconnected" ? "#DC2626" : "#94A3B8"}`,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              {/* Status dot */}
-              <div style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                background: platWaStatus === "connected" ? "rgba(22,163,74,0.12)" : platWaStatus === "disconnected" ? "rgba(220,38,38,0.10)" : "rgba(148,163,184,0.14)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                {platWaStatus === "connected"
-                  ? <CheckCircle size={20} color="#16A34A" />
-                  : platWaStatus === "disconnected"
-                  ? <WifiOff size={20} color="#DC2626" />
-                  : <Loader2 size={20} color="#94A3B8" style={{ animation: "spin 1s linear infinite" }} />}
-              </div>
-              <div>
-                <p style={{ margin: 0, font: `700 0.95rem/1 ${fd}`, color: "#111827" }}>
-                  {platWaStatus === "connected"
-                    ? `Conectado${platWaPhone ? ` · ${platWaPhone}` : ""}`
-                    : platWaStatus === "disconnected" ? "Sin conexión" : "Verificando..."}
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={platOpenQr}
-              style={{
-                padding: "10px 18px",
-                borderRadius: 12,
-                border: "none",
-                background: platWaStatus === "connected" ? "rgba(15,23,42,0.08)" : "#111827",
-                color: platWaStatus === "connected" ? "#374151" : "#fff",
-                font: `600 0.85rem/1 ${fd}`,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                flexShrink: 0,
-              }}
-            >
-              <Smartphone size={15} />
-              {platWaStatus === "connected" ? "Reconectar QR" : "Conectar QR"}
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                if (!await confirm({
-                  eyebrow: "WhatsApp",
-                  title: "¿Limpiar credenciales guardadas?",
-                  message: "Esto forzará un nuevo QR para conectar la cuenta.",
-                  confirmLabel: "Limpiar",
-                  variant: "danger",
-                })) return;
-                try {
-                  const res = await fetch("/api/whatsapp/wipe", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "X-Confirm-Wipe": "true",
-                    },
-                    body: JSON.stringify({ gymId: "fitgrowx-platform" }),
-                  });
-                  if (res.ok) {
-                    await brandAlert({ eyebrow: "WhatsApp", title: "Credenciales limpias", message: "Escaneá el QR nuevamente.", variant: "success" });
-                    setPlatWaStatus("unknown");
-                    setTimeout(() => { void platAttemptQr(0); }, 1000);
-                  } else {
-                    await brandAlert({ eyebrow: "WhatsApp", title: "Error al limpiar credenciales", variant: "danger" });
-                  }
-                } catch (err) {
-                  await brandAlert({ eyebrow: "WhatsApp", title: "Error", message: err instanceof Error ? err.message : "desconocido", variant: "danger" });
-                }
-              }}
-              style={{
-                padding: "10px 18px",
-                borderRadius: 12,
-                border: "1px solid #FCA5A5",
-                background: "#FEF2F2",
-                color: "#B91C1C",
-                font: `600 0.85rem/1 ${fd}`,
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            >
-              Limpiar credenciales
-            </button>
-          </section>
-
-          {/* QR Modal */}
-          {platQrOpen && (
-            <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <div style={{ background: "#fff", borderRadius: 24, padding: "36px 40px", maxWidth: 420, width: "90%", textAlign: "center", position: "relative" }}>
-                <button type="button" onClick={() => { platStopPolling(); setPlatQrOpen(false); }} style={{ position: "absolute", top: 14, right: 14, background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                  <X size={18} color="#6B7280" />
-                </button>
-                <Smartphone size={28} color="#111827" style={{ marginBottom: 12 }} />
-                <p style={{ margin: "0 0 6px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Conectá tu WhatsApp</p>
-                <p style={{ margin: "0 0 22px", font: `400 0.85rem/1.5 ${fb}`, color: "#6B7280" }}>
-                  Abrí WhatsApp → Dispositivos vinculados → Vincular dispositivo → Escaneá el QR
-                </p>
-                {platQrLoading && !platQrImage && (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "30px 0" }}>
-                    <Loader2 size={32} color="#2563EB" style={{ animation: "spin 1s linear infinite" }} />
-                    <p style={{ margin: 0, font: `400 0.85rem/1 ${fb}`, color: "#64748B" }}>Generando QR...</p>
-                  </div>
-                )}
-                {platQrImage && (
-                  <img src={platQrImage} alt="QR WhatsApp" style={{ width: 220, height: 220, borderRadius: 12, border: "1px solid rgba(0,0,0,0.08)" }} />
-                )}
-                {platQrError === "max" && (
-                  <div style={{ padding: "20px 0" }}>
-                    <p style={{ margin: "0 0 14px", font: `500 0.88rem/1.5 ${fb}`, color: "#B91C1C" }}>No se pudo generar el QR. Intentá de nuevo.</p>
-                    <button type="button" onClick={() => { setPlatQrError(null); void platAttemptQr(0); }} style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#111827", color: "#fff", font: `600 0.85rem/1 ${fd}`, cursor: "pointer" }}>
-                      Reintentar
-                    </button>
-                  </div>
-                )}
-                {platQrImage && (
-                  <p style={{ margin: "14px 0 0", font: `400 0.8rem/1.5 ${fb}`, color: "#9CA3AF" }}>
-                    El QR se actualiza automáticamente. Una vez escaneado, se cerrará esta ventana.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* WhatsApp Health Dashboard */}
-          <section style={{ marginBottom: 28 }}>
-            <WaHealthDashboard />
-          </section>
-
-          {/* ── Automatizaciones ── */}
-          <section style={{ ...shellCard, padding: "26px 28px" }}>
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ margin: "0 0 4px", font: `700 1rem/1 ${fd}`, color: "#111827" }}>Automatizaciones</p>
-              <p style={{ margin: 0, font: `400 0.83rem/1.5 ${fb}`, color: "#6B7280" }}>
-                Cada mensaje se dispara automáticamente. Activá o desactivá por separado y editá el texto cuando quieras — se guarda solo.
-              </p>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1, border: "1px solid rgba(15,23,42,0.08)", borderRadius: 14, overflow: "hidden" }}>
-              {(["bienvenida", "activacion_d3", "trial_vence", "trial_expirado", "primer_pago", "inactivo_7d", "reactivacion"] as const).map((key, idx, arr) => {
-                const labels: Record<string, string> = {
-                  bienvenida:     "Bienvenida",
-                  activacion_d3:  "Día 3 sin alumnos",
-                  trial_vence:    "Trial por vencer",
-                  trial_expirado: "Trial vencido",
-                  primer_pago:    "Primer pago 🎉",
-                  inactivo_7d:    "Sin actividad 7 días",
-                  reactivacion:   "Reactivación manual",
-                };
-                const enabled = platAutoEnabled[key] !== false;
-                const saving  = tplSaving[key];
-                return (
-                  <div key={key} style={{ borderBottom: idx < arr.length - 1 ? "1px solid rgba(15,23,42,0.06)" : "none", opacity: enabled ? 1 : 0.5, transition: "opacity 0.2s" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", background: "white" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleTplToggle(key, !enabled)}
-                        style={{ flexShrink: 0, width: 38, height: 21, borderRadius: 11, background: enabled ? "#111827" : "#D1D5DB", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s" }}
-                      >
-                        <span style={{ position: "absolute", top: 2.5, left: enabled ? 19 : 2.5, width: 16, height: 16, borderRadius: "50%", background: "white", boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s", display: "block" }} />
-                      </button>
-                      <p style={{ margin: 0, font: `600 0.85rem/1 ${fd}`, color: enabled ? "#111827" : "#9CA3AF", flex: 1 }}>{labels[key]}</p>
-                      {saving && <span style={{ font: `400 0.72rem/1 ${fb}`, color: "#94A3B8" }}>guardando…</span>}
-                      <button
-                        type="button"
-                        onClick={() => handleTplTest(key, platMsgTemplate[key])}
-                        disabled={tplTesting[key] === "sending"}
-                        style={{ padding: "4px 12px", borderRadius: 7, border: "1px solid rgba(15,23,42,0.10)", background: "white", font: `500 0.72rem/1 ${fd}`, color: tplTesting[key] === "ok" ? "#16A34A" : tplTesting[key] === "error" ? "#DC2626" : "#6B7280", cursor: "pointer", flexShrink: 0 }}
-                      >
-                        {tplTesting[key] === "sending" ? "Enviando…" : tplTesting[key] === "ok" ? "✓ Enviado" : tplTesting[key] === "error" ? "Error" : "Probar"}
-                      </button>
-                    </div>
-                    <div style={{ padding: "0 16px 13px 66px", background: "white" }}>
-                      <textarea
-                        rows={3}
-                        value={platMsgTemplate[key]}
-                        onChange={e => handleTplChange(key, e.target.value)}
-                        style={{ width: "100%", padding: "9px 12px", borderRadius: 9, border: "1px solid rgba(15,23,42,0.08)", background: "#F9FAFB", font: `400 0.83rem/1.6 ${fb}`, color: "#374151", outline: "none", resize: "vertical", boxSizing: "border-box" }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        </>
-      )}
 
       {/* ── Onboarding tab ── */}
       {!loading && !error && authorized && activeTab === "onboarding" && (() => {
