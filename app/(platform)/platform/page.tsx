@@ -551,9 +551,8 @@ function PlatformPage() {
       const url = `/api/platform/accounts?id=${id}${permanent ? "&permanent=true" : ""}`;
       const res = await fetch(url, {
         method: "DELETE",
-        ...(permanent
-          ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm_delete: PERMANENT_DELETE_PHRASE }) }
-          : {}),
+        headers: { "Content-Type": "application/json", ...(permanent ? {} : { "Content-Length": "2" }) },
+        body: permanent ? JSON.stringify({ confirm_delete: PERMANENT_DELETE_PHRASE }) : "{}",
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? "Error."); }
       setAccounts(prev => prev.filter(a => a.id !== id));
