@@ -874,10 +874,8 @@ function PlatformPage() {
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 24px 48px" }}>
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
         {[
-          { key: "crm", label: "Seller" },
-          { key: "cms", label: "CMS Bóveda" },
+          { key: "crm", label: "Clientes" },
           { key: "feedback", label: "Feedback" },
-          { key: "whatsapp", label: "WhatsApp" },
           { key: "onboarding", label: "Onboarding" },
         ].map((tab) => (
           <button
