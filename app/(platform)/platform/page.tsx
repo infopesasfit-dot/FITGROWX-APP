@@ -369,7 +369,7 @@ function PlatformPage() {
     void platAttemptQr(0);
   };
 
-  const fetchPlatformData = async () => {
+  const fetchPlatformData = useCallback(async () => {
     const [
       { count: vaultResourcesCount, error: vaultCountError },
       { count: platformAccountsCount, error: accountsCountError },
@@ -399,7 +399,7 @@ function PlatformPage() {
     setLeads((leadRows ?? []) as PlatformLead[]);
 
     fetchNonCriticalData();
-  };
+  }, []);
 
   const fetchNonCriticalData = async () => {
     const [
