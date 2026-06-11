@@ -35,6 +35,7 @@ type PlatformAccount = {
   auth_user_id: string | null;
   company_name: string;
   owner_name: string | null;
+  email: string | null;
   phone: string | null;
   status: string;
   subscription_plan: string | null;
@@ -240,7 +241,7 @@ function PlatformPage() {
     ] = await Promise.all([
       supabase.from("platform_accounts").select("*", { count: "exact", head: true }),
       supabase.from("platform_leads").select("*", { count: "exact", head: true }),
-      supabase.from("platform_accounts").select("id,auth_user_id,company_name,owner_name,phone,status,subscription_plan,trial_ends_at,activation_score,next_follow_up_at,created_at").order("created_at", { ascending: false }).limit(20),
+      supabase.from("platform_accounts").select("id,auth_user_id,company_name,owner_name,email,phone,status,subscription_plan,trial_ends_at,activation_score,next_follow_up_at,created_at").order("created_at", { ascending: false }).limit(20),
       supabase.from("platform_leads").select("id,full_name,business_name,phone,status,source,next_follow_up_at,created_at").order("created_at", { ascending: false }).limit(20),
     ]);
 
@@ -898,6 +899,11 @@ function PlatformPage() {
                                 <div style={{ minWidth: 0 }}>
                                   <p style={{ font: `700 0.95rem/1.2 ${fd}`, color: "#111827", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.company_name}</p>
                                   <p style={{ font: `400 0.78rem/1 ${fb}`, color: "#64748B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.owner_name ?? "—"}{a.phone ? ` · ${a.phone}` : ""}</p>
+                                  {a.email && (
+                                    <a href={`mailto:${a.email}`} style={{ fontSize: "0.75rem", color: "#6B7280" }}>
+                                      {a.email}
+                                    </a>
+                                  )}
                                   <p style={{ marginTop: 6, font: `500 0.73rem/1.4 ${fb}`, color: "#94A3B8", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{hint}</p>
                                 </div>
                                 {/* Estado */}
