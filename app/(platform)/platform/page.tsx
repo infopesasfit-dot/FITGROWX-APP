@@ -705,55 +705,6 @@ function PlatformPage() {
 
       {!loading && authorized && !error && (
         <>
-          <section
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 18,
-              marginBottom: 24,
-            }}
-          >
-            {[
-              {
-                label: "Clientes FitGrowX",
-                value: stats.platformAccounts,
-                icon: Building2,
-                tone: "rgba(37,99,235,0.10)",
-                color: "#2563EB",
-              },
-              {
-                label: "Leads de Plataforma",
-                value: stats.platformLeads,
-                icon: Users,
-                tone: "rgba(15,118,110,0.10)",
-                color: "#0F766E",
-              },
-            ].map(({ label, value, icon: Icon, tone, color }) => (
-              <article key={label} style={{ ...shellCard, padding: 22 }}>
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 16,
-                    background: tone,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 16,
-                  }}
-                >
-                  <Icon size={20} color={color} />
-                </div>
-                <p style={{ marginBottom: 8, font: `600 0.8rem/1 ${fb}`, color: "#94A3B8" }}>
-                  {label}
-                </p>
-                <p style={{ font: `800 2rem/1 ${fd}`, color: "#111827", letterSpacing: "-0.04em" }}>
-                  {value}
-                </p>
-              </article>
-            ))}
-          </section>
-
           {activeTab === "crm" ? (
             <section style={{ marginBottom: 24 }}>
               <article style={{ ...shellCard, padding: 24 }}>

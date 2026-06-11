@@ -51,9 +51,9 @@ export async function GET() {
       .select("monthly_value, subscription_plan")
       .eq("status", "converted"),
 
-    sb.from("platform_accounts")
+    sb.from("gyms")
       .select("id", { count: "exact", head: true })
-      .in("status", ["trial_active", "trial_risk", "converted"]),
+      .in("gym_status", ["trial", "active"]),
 
     sb.from("platform_accounts")
       .select("id", { count: "exact", head: true })
