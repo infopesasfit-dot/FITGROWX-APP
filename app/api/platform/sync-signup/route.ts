@@ -170,6 +170,16 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "Error interno. Intente nuevamente." }, { status: 500 });
     }
 
+    // Sync company_name in CRM to match the resolved gym name (non-critical)
+    const resolvedDisplayName = existingGym?.name ?? companyName;
+    const { error: paSyncErr } = await supabase
+      .from("platform_accounts")
+      .update({ company_name: resolvedDisplayName })
+      .eq("auth_user_id", user.id);
+    if (paSyncErr) {
+      void logger.error("company_name sync failed", { route: "/api/platform/sync-signup", meta: { paSyncErr } });
+    }
+
     const { data: existingLead } = await supabase
       .from("platform_leads")
       .select("id")

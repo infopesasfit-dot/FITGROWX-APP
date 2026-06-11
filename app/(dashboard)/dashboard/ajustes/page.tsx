@@ -483,6 +483,11 @@ function AjustesContent() {
     }
     setSlugError("");
     await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
+    fetch("/api/gym/sync-company-name", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gymName }),
+    }).catch(() => {});
     await supabase.from("gym_settings").upsert({ gym_id: gymId, gym_name: gymName, slug: cleanSlug || null, mp_access_token: mpToken.trim() || null, payment_info: paymentInfo.trim() || null }, { onConflict: "gym_id" });
     if (ownerUserId && ownerPhone.trim()) {
       await supabase.from("profiles").update({ phone: normalizePhone(ownerPhone.trim()) }).eq("id", ownerUserId);

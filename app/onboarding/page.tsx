@@ -155,6 +155,11 @@ export default function OnboardingPage() {
       if (gymId && values.gymName.trim()) {
         const { error: e } = await supabase.from("gyms").update({ name: values.gymName.trim() }).eq("id", gymId);
         if (e) throw new Error(e.message);
+        fetch("/api/gym/sync-company-name", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ gymName: values.gymName.trim() }),
+        }).catch(() => {});
       }
 
       if (gymId) {
