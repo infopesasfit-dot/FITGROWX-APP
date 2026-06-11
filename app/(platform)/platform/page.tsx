@@ -417,7 +417,7 @@ function PlatformPage() {
     }
     setNavigatingToGymId(account.id);
     try {
-      const { data } = await supabase.from("profiles").select("gym_id").eq("id", account.auth_user_id).single();
+      const { data } = await supabase.from("profiles").select("id,gym_id").eq("id", account.auth_user_id).single();
       if (!data?.gym_id) {
         setNavigatingToGymId(null);
         setFeedback("No se encontró un gym asociado a esta cuenta.");
