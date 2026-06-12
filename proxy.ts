@@ -125,7 +125,6 @@ export async function proxy(request: NextRequest) {
       .maybeSingle()
 
     const role = profile?.role ?? 'admin'
-    console.log("PROXY DEBUG", { userId: user.id, profile, role })
 
     if (role === 'platform_owner' && pathname.startsWith('/dashboard')) {
       const impersonationToken = request.cookies.get('impersonation_token')?.value ?? null
