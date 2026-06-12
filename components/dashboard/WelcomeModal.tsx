@@ -30,10 +30,10 @@ export default function WelcomeModal() {
       if (!user) return;
       const { data } = await supabase
         .from("gym_settings")
-        .select("gym_id, onboarding_completed")
+        .select("gym_id, onboarding_completed, welcome_modal_dismissed")
         .eq("gym_id", user.id)
         .maybeSingle();
-      if (!data || data.onboarding_completed === false) {
+      if (data?.onboarding_completed === true && data.welcome_modal_dismissed !== true) {
         setGymId(user.id);
         setShow(true);
       }
@@ -56,7 +56,7 @@ export default function WelcomeModal() {
 
       await supabase
         .from("gym_settings")
-        .update({ onboarding_completed: true })
+        .update({ welcome_modal_dismissed: true })
         .eq("gym_id", gymId);
 
       setShow(false);
@@ -71,7 +71,7 @@ export default function WelcomeModal() {
     if (!gymId) return;
     await supabase
       .from("gym_settings")
-      .update({ onboarding_completed: true })
+      .update({ welcome_modal_dismissed: true })
       .eq("gym_id", gymId);
     setShow(false);
   };
@@ -80,7 +80,7 @@ export default function WelcomeModal() {
     if (!gymId) return;
     await supabase
       .from("gym_settings")
-      .update({ onboarding_completed: true })
+      .update({ welcome_modal_dismissed: true })
       .eq("gym_id", gymId);
     setShow(false);
   };
