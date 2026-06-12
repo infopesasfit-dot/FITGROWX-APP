@@ -27,7 +27,7 @@ export default function PlatformHeader() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/start");
+    window.location.href = "/start";
   }
 
   const isUnder = (prefix: string) => pathname === prefix || pathname.startsWith(prefix + "/");
