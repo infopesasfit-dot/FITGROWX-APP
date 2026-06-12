@@ -49,6 +49,21 @@ const STEPS = [
   },
 ];
 
+const normalizeFreeText = (value: string) =>
+  value
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const slugify = (value: string) =>
+  normalizeFreeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
 export default function OnboardingPage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -109,12 +124,56 @@ export default function OnboardingPage() {
   const fullPhoneDigits = `${countryCode.replace(/\D/g, "")}${rawPhone}`;
   const selectedCountry = COUNTRIES.find(c => c.code === countryCode) ?? COUNTRIES[0];
 
-  const validateStep = (key: keyof typeof values): string | null => {
-    const value = values[key].trim();
-    if (key === "name" && (value.length < 2 || value.length > 100)) return "Ingresá un nombre válido.";
+  const validateStep = (key: keyof typeof values, nextValues = values): string | null => {
+    const value = normalizeFreeText(nextValues[key]);
+    const nextRawPhone = nextValues.phone.trim().replace(/\D/g, "");
+    const nextFullPhoneDigits = `${countryCode.replace(/\D/g, "")}${nextRawPhone}`;
+    if (key === "name" && (value.length < 1 || value.length > 100)) return "Ingresá tu nombre.";
     if (key === "gymName" && (value.length < 2 || value.length > 80)) return "Ingresá el nombre de tu gym.";
-    if (key === "phone" && (!/^\d{8,15}$/.test(fullPhoneDigits) || rawPhone.length < 8)) return "Ingresá un WhatsApp válido con código de país.";
+    if (key === "phone" && (!/^\d{8,15}$/.test(nextFullPhoneDigits) || nextRawPhone.length < 8)) return "Ingresá un WhatsApp válido con código de país.";
     return null;
+  };
+
+  const handleValueChange = (key: keyof typeof values, value: string) => {
+    const nextValues = { ...values, [key]: value };
+    setValues(nextValues);
+    if (error && !validateStep(key, nextValues)) setError(null);
+  };
+
+  const saveGymSettingsPatch = async (patch: Record<string, string | boolean | null>) => {
+    if (!gymId) return;
+    const { error: e } = await supabase.from("gym_settings").upsert(
+      { gym_id: gymId, ...patch },
+      { onConflict: "gym_id" }
+    );
+    if (e) throw new Error(e.message);
+  };
+
+  const saveCurrentStep = async (key: keyof typeof values) => {
+    const ownerName = normalizeFreeText(values.name);
+    const gymName = normalizeFreeText(values.gymName);
+    const slug = slugify(gymName) || null;
+
+    if (key === "name" && userId) {
+      const { error: e } = await supabase.from("profiles").update({ full_name: ownerName }).eq("id", userId);
+      if (e) throw new Error(e.message);
+      await saveGymSettingsPatch({ owner_name: ownerName || null });
+    }
+
+    if (key === "gymName" && gymId) {
+      const { error: e } = await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
+      if (e) throw new Error(e.message);
+      await saveGymSettingsPatch({ gym_name: gymName || null, slug });
+      fetch("/api/gym/sync-company-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gymName }),
+      }).catch(() => {});
+    }
+
+    if (key === "phone" && gymId) {
+      await saveGymSettingsPatch({ whatsapp: fullPhoneDigits });
+    }
   };
 
   const transition = (dir: 1 | -1, cb: () => void) => {
@@ -129,7 +188,15 @@ export default function OnboardingPage() {
     if (stepError) { setError(stepError); return; }
     setError(null);
     if (step < STEPS.length - 1) {
-      transition(1, () => setStep(s => s + 1));
+      setSaving(true);
+      try {
+        await saveCurrentStep(current.key);
+        transition(1, () => setStep(s => s + 1));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "No se pudo guardar. Intentá de nuevo.");
+      } finally {
+        setSaving(false);
+      }
       return;
     }
     await saveAll();
@@ -151,29 +218,32 @@ export default function OnboardingPage() {
         throw new Error("No se encontró tu gym. Recargá la página e intentá de nuevo.");
       }
 
-      if (userId && values.name.trim()) {
-        const { error: e } = await supabase.from("profiles").update({ full_name: values.name.trim() }).eq("id", userId);
+      const ownerName = normalizeFreeText(values.name);
+      const gymName = normalizeFreeText(values.gymName);
+      const slug = slugify(gymName) || null;
+
+      if (userId && ownerName) {
+        const { error: e } = await supabase.from("profiles").update({ full_name: ownerName }).eq("id", userId);
         if (e) throw new Error(e.message);
       }
 
-      if (gymId && values.gymName.trim()) {
-        const { error: e } = await supabase.from("gyms").update({ name: values.gymName.trim() }).eq("id", gymId);
+      if (gymId && gymName) {
+        const { error: e } = await supabase.from("gyms").update({ name: gymName }).eq("id", gymId);
         if (e) throw new Error(e.message);
         fetch("/api/gym/sync-company-name", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ gymName: values.gymName.trim() }),
+          body: JSON.stringify({ gymName }),
         }).catch(() => {});
       }
 
       if (gymId) {
         const fullPhone = rawPhone ? fullPhoneDigits : null;
-        const slug = values.gymName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || null;
         const { error: e } = await supabase.from("gym_settings").upsert(
           {
             gym_id: gymId,
-            owner_name: values.name.trim() || null,
-            gym_name: values.gymName.trim() || null,
+            owner_name: ownerName || null,
+            gym_name: gymName || null,
             whatsapp: fullPhone,
             slug,
             onboarding_completed: true,
@@ -395,57 +465,77 @@ export default function OnboardingPage() {
                     </div>
 
                     {/* Phone number input */}
+                    <div style={{ position: "relative", flex: 1 }}>
+                      <input
+                        ref={inputRef}
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        value={values.phone}
+                        onChange={e => handleValueChange("phone", e.target.value)}
+                        onKeyDown={handleKey}
+                        placeholder={current.placeholder}
+                        style={{
+                          width: "100%",
+                          height: 46,
+                          background: "rgba(0,0,0,0.3)",
+                          border: `1px solid ${!validateStep("phone") ? "#F97316" : "rgba(255,255,255,0.12)"}`,
+                          borderRadius: 12,
+                          color: "#fff",
+                          fontSize: 15,
+                          fontWeight: 500,
+                          padding: "12px 44px 12px 16px",
+                          outline: "none",
+                          transition: "border-color 0.15s",
+                          boxSizing: "border-box",
+                        }}
+                        className="placeholder:text-white/25 focus:border-[#F97316]"
+                      />
+                      {!validateStep("phone") && (
+                        <CheckCircle
+                          size={18}
+                          color="#F97316"
+                          style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ position: "relative" }}>
                     <input
                       ref={inputRef}
-                      type="tel"
-                      value={values.phone}
-                      onChange={e => setValues(v => ({ ...v, phone: e.target.value }))}
+                      type="text"
+                      autoComplete={current.key === "name" ? "name" : "organization"}
+                      inputMode="text"
+                      value={values[current.key]}
+                      onChange={e => handleValueChange(current.key, e.target.value)}
+                      onInput={e => handleValueChange(current.key, (e.target as HTMLInputElement).value)}
                       onKeyDown={handleKey}
                       placeholder={current.placeholder}
                       style={{
-                        flex: 1,
+                        width: "100%",
                         height: 46,
                         background: "rgba(0,0,0,0.3)",
-                        border: `1px solid ${values.phone.trim().length >= 2 ? "#F97316" : "rgba(255,255,255,0.12)"}`,
+                        border: `1px solid ${!validateStep(current.key) ? "#F97316" : "rgba(255,255,255,0.12)"}`,
                         borderRadius: 12,
                         color: "#fff",
                         fontSize: 15,
                         fontWeight: 500,
-                        padding: "12px 16px",
+                        padding: "12px 44px 12px 16px",
                         outline: "none",
-                        transition: "border-color 0.15s",
                         boxSizing: "border-box",
+                        transition: "border-color 0.15s",
                       }}
                       className="placeholder:text-white/25 focus:border-[#F97316]"
                     />
+                    {!validateStep(current.key) && (
+                      <CheckCircle
+                        size={18}
+                        color="#F97316"
+                        style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+                      />
+                    )}
                   </div>
-                ) : (
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    autoComplete="off"
-                    inputMode="text"
-                    value={values[current.key]}
-                    onChange={e => setValues(v => ({ ...v, [current.key]: e.target.value }))}
-                    onInput={e => setValues(v => ({ ...v, [current.key]: (e.target as HTMLInputElement).value }))}
-                    onKeyDown={handleKey}
-                    placeholder={current.placeholder}
-                    style={{
-                      width: "100%",
-                      height: 46,
-                      background: "rgba(0,0,0,0.3)",
-                      border: `1px solid ${values[current.key].trim().length >= 2 ? "#F97316" : "rgba(255,255,255,0.12)"}`,
-                      borderRadius: 12,
-                      color: "#fff",
-                      fontSize: 15,
-                      fontWeight: 500,
-                      padding: "12px 16px",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      transition: "border-color 0.15s",
-                    }}
-                    className="placeholder:text-white/25 focus:border-[#F97316]"
-                  />
                 )}
 
                 {error && (

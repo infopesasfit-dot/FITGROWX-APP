@@ -203,7 +203,7 @@ export async function proxy(request: NextRequest) {
         .eq('gym_id', profile.gym_id)
         .maybeSingle()
 
-      if (gymSettings?.onboarding_completed === false) {
+      if (gymSettings?.onboarding_completed !== true) {
         return NextResponse.redirect(new URL('/onboarding', request.url))
       }
     }
