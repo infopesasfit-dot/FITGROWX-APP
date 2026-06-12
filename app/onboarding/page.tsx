@@ -238,13 +238,15 @@ export default function OnboardingPage() {
       }
 
       if (gymId) {
-        const fullPhone = rawPhone ? fullPhoneDigits : null;
+        const phoneError = validateStep("phone");
+        if (phoneError) throw new Error(phoneError);
+
         const { error: e } = await supabase.from("gym_settings").upsert(
           {
             gym_id: gymId,
             owner_name: ownerName || null,
             gym_name: gymName || null,
-            whatsapp: fullPhone,
+            whatsapp: fullPhoneDigits,
             slug,
             onboarding_completed: true,
           },
