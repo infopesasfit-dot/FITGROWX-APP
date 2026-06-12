@@ -171,6 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [collapsed,        setCollapsed]        = useState(false);
   const [menuOpen,         setMenuOpen]         = useState(false);
   const [userName,         setUserName]         = useState("Admin");
+  const [userEmail,        setUserEmail]        = useState<string>("");
   const [userInitials,     setUserInitials]     = useState("FG");
   const [prospectBadge,    setProspectBadge]    = useState(0);
   const [hasPendingReports, setHasPendingReports] = useState(false);
@@ -280,6 +281,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       }
 
       const { data: { user } } = await supabase.auth.getUser();
+      setUserEmail(user?.email || "");
 
       // Actualiza last_seen_at en platform_accounts (fire-and-forget, no bloquea)
       fetch("/api/platform/ping", { method: "POST" }).catch(() => {});
@@ -994,8 +996,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {userInitials}
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ font: `700 0.875rem/1 ${fd}`, color: "#1A1D23", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userName}</p>
-                        <p style={{ font: `400 0.72rem/1 ${fb}`, color: "#9CA3AF", marginTop: 3 }}>{role === "staff" ? "Staff" : "Administrador"}</p>
+                        <p style={{ font: `700 0.875rem/1 ${fd}`, color: "#1A1D23", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{role === "staff" ? "Staff" : "Administrador"}</p>
+                        <p style={{ font: `400 0.72rem/1 ${fb}`, color: "#9CA3AF", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userEmail}</p>
                       </div>
                     </div>
 
