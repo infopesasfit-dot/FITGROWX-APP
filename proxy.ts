@@ -26,10 +26,12 @@ function buildCsp(nonce: string, allowUnsafeInline = false): string {
 function buildHeadersWithNonce(
   request: NextRequest,
   nonce: string,
+  csp: string,
   cookieUpdates?: Array<{ name: string; value: string }>,
 ): Headers {
   const headers = new Headers(request.headers);
   headers.set('x-nonce', nonce);
+  headers.set('Content-Security-Policy', csp);
 
   if (cookieUpdates?.length) {
     const cookieMap = new Map<string, string>();
@@ -64,7 +66,7 @@ export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const csp = buildCsp(nonce, request.nextUrl.pathname === '/start');
 
-  let response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce) } })
+  let response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce, csp) } })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -78,7 +80,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value)
           })
-          response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce, cookiesToSet) } })
+          response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce, csp, cookiesToSet) } })
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options)
           })
