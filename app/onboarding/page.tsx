@@ -147,6 +147,10 @@ export default function OnboardingPage() {
       const validationError = STEPS.map(s => validateStep(s.key)).find(Boolean);
       if (validationError) throw new Error(validationError);
 
+      if (!gymId) {
+        throw new Error("No se encontró tu gym. Recargá la página e intentá de nuevo.");
+      }
+
       if (userId && values.name.trim()) {
         const { error: e } = await supabase.from("profiles").update({ full_name: values.name.trim() }).eq("id", userId);
         if (e) throw new Error(e.message);

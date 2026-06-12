@@ -38,6 +38,7 @@ type PlatformAccount = {
   email: string | null;
   phone: string | null;
   gs_whatsapp?: string | null;
+  setup_score?: number;
   status: string;
   subscription_plan: string | null;
   trial_starts_at: string | null;
@@ -193,8 +194,7 @@ function PlatformPage() {
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"crm" | "feedback" | "onboarding">("crm");
-  const [onboardingRows, setOnboardingRows] = useState<{ gym_id: string; gym_name: string | null; onboarding_completed: boolean | null; setup_alumnos: boolean | null; setup_planes: boolean | null; setup_landing: boolean | null; setup_whatsapp: boolean | null; setup_pagos: boolean | null }[]>([]);
+  const [activeTab, setActiveTab] = useState<"crm" | "feedback">("crm");
   const [stats, setStats] = useState<PlatformStats>({
     platformAccounts: 0,
     platformLeads: 0,
@@ -267,15 +267,15 @@ function PlatformPage() {
       { data: onboardingData },
     ] = await Promise.all([
       supabase.from("platform_feedback").select("id, gym_id, gym_name, email, message, created_at, resolved_at, resolved_by").order("created_at", { ascending: false }).limit(100),
-      supabase.from("gym_settings").select("gym_id, gym_name, whatsapp, onboarding_completed, setup_alumnos, setup_planes, setup_landing, setup_whatsapp, setup_pagos").order("gym_name", { ascending: true }),
+      supabase.from("gym_settings").select("gym_id, gym_name, whatsapp, setup_alumnos, setup_planes, setup_landing, setup_whatsapp, setup_pagos").order("gym_name", { ascending: true }),
     ]);
 
     setFeedbackRows((feedbackData ?? []) as FeedbackRow[]);
     const gsRows = onboardingData ?? [];
-    setOnboardingRows(gsRows as { gym_id: string; gym_name: string | null; whatsapp?: string | null; onboarding_completed: boolean | null; setup_alumnos: boolean | null; setup_planes: boolean | null; setup_landing: boolean | null; setup_whatsapp: boolean | null; setup_pagos: boolean | null }[]);
     setAccounts(prev => prev.map(a => {
-      const gs = gsRows.find(g => g.gym_id === a.auth_user_id);
-      return { ...a, gs_whatsapp: (gs as { whatsapp?: string | null } | undefined)?.whatsapp ?? null };
+      const gs = gsRows.find(g => g.gym_id === a.auth_user_id) as { whatsapp?: string | null; setup_alumnos?: boolean | null; setup_planes?: boolean | null; setup_landing?: boolean | null; setup_whatsapp?: boolean | null; setup_pagos?: boolean | null } | undefined;
+      const setup_score = [gs?.setup_alumnos, gs?.setup_planes, gs?.setup_landing, gs?.setup_whatsapp, gs?.setup_pagos].filter(Boolean).length;
+      return { ...a, gs_whatsapp: gs?.whatsapp ?? null, setup_score };
     }));
   };
 
@@ -601,12 +601,11 @@ function PlatformPage() {
         {[
           { key: "crm", label: "Clientes" },
           { key: "feedback", label: "Feedback" },
-          { key: "onboarding", label: "Onboarding" },
         ].map((tab) => (
           <button
             key={tab.key}
             type="button"
-            onClick={() => setActiveTab(tab.key as "crm" | "feedback" | "onboarding")}
+            onClick={() => setActiveTab(tab.key as "crm" | "feedback")}
             style={{
               padding: "6px 12px",
               borderRadius: 999,
@@ -864,7 +863,7 @@ function PlatformPage() {
                                   <p style={{ marginTop: 6, font: `500 0.73rem/1.4 ${fb}`, color: "#94A3B8", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{hint}</p>
                                 </div>
                                 {/* Estado */}
-                                <div style={cellStyle}>
+                                <div style={{ ...cellStyle, flexDirection: "column", alignItems: "stretch", gap: 5 }}>
                                   <select
                                     value={a.status}
                                     disabled={updatingAccountId === a.id}
@@ -875,6 +874,15 @@ function PlatformPage() {
                                       <option key={s} value={s}>{statusLabel[s] ?? s}</option>
                                     ))}
                                   </select>
+                                  {(() => {
+                                    const sc = a.setup_score ?? 0;
+                                    const allDone = sc === 5;
+                                    return (
+                                      <span style={{ alignSelf: "center", font: `600 0.68rem/1 ${fd}`, color: allDone ? "#15803D" : "#C2410C", background: allDone ? "rgba(34,197,94,0.10)" : "rgba(249,115,22,0.10)", padding: "2px 8px", borderRadius: 999 }}>
+                                        Setup {sc}/5
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
                                 {/* Vencimiento */}
                                 <div style={{ ...cellStyle, flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
@@ -1154,84 +1162,6 @@ function PlatformPage() {
         );
       })()}
 
-      {/* ── Onboarding tab ── */}
-      {!loading && !error && authorized && activeTab === "onboarding" && (() => {
-        const STEPS = [
-          { key: "setup_alumnos",   label: "Alumnos" },
-          { key: "setup_planes",    label: "Planes" },
-          { key: "setup_landing",   label: "Landing" },
-          { key: "setup_whatsapp",  label: "WhatsApp" },
-          { key: "setup_pagos",     label: "Pagos" },
-        ] as const;
-
-        type ORow = typeof onboardingRows[number];
-        const stepsCompleted = (r: ORow) => STEPS.filter(s => r[s.key]).length;
-
-        // Sort: least steps done first (most stuck), then alphabetically
-        const sorted = [...onboardingRows].sort((a, b) => {
-          const diff = stepsCompleted(a) - stepsCompleted(b);
-          return diff !== 0 ? diff : (a.gym_name ?? "").localeCompare(b.gym_name ?? "");
-        });
-
-        const done  = onboardingRows.filter(r => r.onboarding_completed).length;
-        const total = onboardingRows.length;
-        const allStepsDone = onboardingRows.filter(r => stepsCompleted(r) === 5).length;
-
-        return (
-          <>
-            <section style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
-              {[
-                { label: "Total gyms", value: total, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-                { label: "Todos los pasos listos", value: allStepsDone, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
-                { label: "Con pasos pendientes", value: total - allStepsDone, color: "#F97316", bg: "rgba(249,115,22,0.08)" },
-              ].map(s => (
-                <div key={s.label} style={{ ...shellCard, padding: "18px 20px", background: s.bg, border: `1px solid ${s.color}20` }}>
-                  <p style={{ font: `700 1.6rem/1 ${fd}`, color: s.color, marginBottom: 4 }}>{s.value}</p>
-                  <p style={{ font: `500 0.78rem/1 ${fb}`, color: "#64748B" }}>{s.label}</p>
-                </div>
-              ))}
-            </section>
-            <section style={{ ...shellCard, padding: "20px 24px" }}>
-              <p style={{ font: `700 0.8rem/1 ${fd}`, color: "#111827", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 14 }}>Estado por gym</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {sorted.map(r => {
-                  const n = stepsCompleted(r);
-                  const pct = Math.round(n / STEPS.length * 100);
-                  const allDone = n === STEPS.length;
-                  return (
-                    <div key={r.gym_id} style={{ padding: "12px 16px", borderRadius: 12, background: allDone ? "rgba(34,197,94,0.04)" : "rgba(249,115,22,0.04)", border: `1px solid ${allDone ? "rgba(34,197,94,0.15)" : "rgba(249,115,22,0.12)"}` }}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                        <div>
-                          <p style={{ font: `600 0.88rem/1 ${fd}`, color: "#111827", marginBottom: 2 }}>{r.gym_name ?? "Sin nombre"}</p>
-                          <p style={{ font: `400 0.7rem/1 ${fb}`, color: "#94A3B8" }}>{r.gym_id}</p>
-                        </div>
-                        <span style={{ padding: "3px 10px", borderRadius: 999, font: `600 0.72rem/1 ${fd}`, background: allDone ? "rgba(34,197,94,0.12)" : "rgba(249,115,22,0.12)", color: allDone ? "#15803D" : "#C2410C" }}>
-                          {n}/{STEPS.length} pasos
-                        </span>
-                      </div>
-                      {/* Progress bar */}
-                      <div style={{ height: 4, borderRadius: 99, background: "rgba(0,0,0,0.06)", marginBottom: 8, overflow: "hidden" }}>
-                        <div style={{ height: "100%", width: `${pct}%`, borderRadius: 99, background: allDone ? "#22C55E" : "#F97316", transition: "width 0.3s" }} />
-                      </div>
-                      {/* Step pills */}
-                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                        {STEPS.map(s => {
-                          const ok = !!r[s.key];
-                          return (
-                            <span key={s.key} style={{ padding: "2px 8px", borderRadius: 999, font: `500 0.68rem/1.4 ${fd}`, background: ok ? "rgba(34,197,94,0.12)" : "rgba(100,116,139,0.1)", color: ok ? "#15803D" : "#64748B" }}>
-                              {ok ? "✓" : "○"} {s.label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          </>
-        );
-      })()}
 
         </>
       )}
