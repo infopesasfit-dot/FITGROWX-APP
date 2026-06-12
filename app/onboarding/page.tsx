@@ -419,8 +419,11 @@ export default function OnboardingPage() {
                   <input
                     ref={inputRef}
                     type="text"
+                    autoComplete="off"
+                    inputMode="text"
                     value={values[current.key]}
                     onChange={e => setValues(v => ({ ...v, [current.key]: e.target.value }))}
+                    onInput={e => setValues(v => ({ ...v, [current.key]: (e.target as HTMLInputElement).value }))}
                     onKeyDown={handleKey}
                     placeholder={current.placeholder}
                     style={{
