@@ -192,6 +192,19 @@ export async function proxy(request: NextRequest) {
     if ((role === 'admin' || role === 'staff') && matchesAny(pathname, STUDENT_ONLY)) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
+
+    // ── Onboarding gate ─────────────────────────────────────────────────────
+    if (role !== 'platform_owner' && profile?.gym_id && pathname.startsWith('/dashboard')) {
+      const { data: gymSettings } = await supabase
+        .from('gym_settings')
+        .select('onboarding_completed')
+        .eq('gym_id', profile.gym_id)
+        .maybeSingle()
+
+      if (gymSettings?.onboarding_completed === false) {
+        return NextResponse.redirect(new URL('/onboarding', request.url))
+      }
+    }
   }
 
   response.headers.set('Content-Security-Policy', csp);
