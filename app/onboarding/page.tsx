@@ -253,6 +253,12 @@ export default function OnboardingPage() {
         if (e) throw new Error(e.message);
       }
 
+      fetch("/api/platform/onboarding-completed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gymId }),
+      }).catch(() => {});
+
       setDone(true);
       setTimeout(() => router.push("/dashboard"), 2400);
     } catch (err) {

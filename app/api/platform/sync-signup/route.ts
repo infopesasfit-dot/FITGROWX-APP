@@ -327,31 +327,7 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
       })();
     }
 
-    // Notificar al dueño de la plataforma sobre nuevo gym registrado (solo en primer registro)
     if (!existingAccount) {
-      const resendKey = process.env.RESEND_API_KEY;
-      const alertEmail = process.env.ALERT_EMAIL ?? "elianafrancoanahi@gmail.com";
-      if (resendKey) {
-        try {
-          await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
-            body: JSON.stringify({
-              from: "FitGrowX <radar@fitgrowx.com>",
-              to: [alertEmail],
-              subject: `🏋️ Nuevo gym registrado: ${companyName}`,
-              text: `Nombre: ${normalizedName || "—"}\nEmail: ${normalizedEmail}\nWhatsApp: ${normalizedPhone || "—"}\nGym: ${companyName}\nTrial hasta: ${defaultTrialEnd.slice(0,10)}\n\nVer en plataforma: https://fitgrowx.com/platform`,
-            }),
-            signal: AbortSignal.timeout(5000),
-          });
-        } catch (err) {
-          void logger.error("Email alert failed on new gym registration", {
-            route: "sync-signup",
-            meta: { gymId: user.id, nombre: companyName, email: normalizedEmail, err: String(err) },
-          });
-        }
-      }
-
       // Mensaje de bienvenida WA desde el número de soporte (fire-and-forget)
       if (normalizedPhone) {
         (async () => {
@@ -377,27 +353,6 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
               .eq("auth_user_id", user.id);
           }
         })();
-      }
-
-      // Notificar al platform owner por WA sobre nuevo gym (fire-and-forget)
-      const ownerPhone = (process.env.OWNER_PHONE ?? process.env.ALERT_PHONE);
-      if (ownerPhone) {
-        void (async () => {
-          const trialStart = now.toISOString().slice(0, 10);
-          const msg =
-            `🏋️ Nuevo gym registrado\n` +
-            `Gym: ${companyName}\n` +
-            `Dueño: ${normalizedName || "—"}\n` +
-            `Email: ${normalizedEmail}\n` +
-            `Tel: ${normalizedPhone || "—"}\n` +
-            `Trial desde: ${trialStart}`;
-          await sendWa("fitgrowx-platform", ownerPhone, msg, { route: "sync-signup/owner-alert" });
-        })();
-      } else {
-        void logger.warn("OWNER_PHONE not set — skipping WA alert for new gym", {
-          route: "sync-signup",
-          meta: { gymId: user.id, nombre: companyName },
-        });
       }
     }
 
