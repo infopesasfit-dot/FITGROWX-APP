@@ -37,6 +37,7 @@ type PlatformAccount = {
   owner_name: string | null;
   email: string | null;
   phone: string | null;
+  gs_whatsapp?: string | null;
   status: string;
   subscription_plan: string | null;
   trial_starts_at: string | null;
@@ -266,11 +267,16 @@ function PlatformPage() {
       { data: onboardingData },
     ] = await Promise.all([
       supabase.from("platform_feedback").select("id, gym_id, gym_name, email, message, created_at, resolved_at, resolved_by").order("created_at", { ascending: false }).limit(100),
-      supabase.from("gym_settings").select("gym_id, gym_name, onboarding_completed, setup_alumnos, setup_planes, setup_landing, setup_whatsapp, setup_pagos").order("gym_name", { ascending: true }),
+      supabase.from("gym_settings").select("gym_id, gym_name, whatsapp, onboarding_completed, setup_alumnos, setup_planes, setup_landing, setup_whatsapp, setup_pagos").order("gym_name", { ascending: true }),
     ]);
 
     setFeedbackRows((feedbackData ?? []) as FeedbackRow[]);
-    setOnboardingRows((onboardingData ?? []) as { gym_id: string; gym_name: string | null; onboarding_completed: boolean | null; setup_alumnos: boolean | null; setup_planes: boolean | null; setup_landing: boolean | null; setup_whatsapp: boolean | null; setup_pagos: boolean | null }[]);
+    const gsRows = onboardingData ?? [];
+    setOnboardingRows(gsRows as { gym_id: string; gym_name: string | null; whatsapp?: string | null; onboarding_completed: boolean | null; setup_alumnos: boolean | null; setup_planes: boolean | null; setup_landing: boolean | null; setup_whatsapp: boolean | null; setup_pagos: boolean | null }[]);
+    setAccounts(prev => prev.map(a => {
+      const gs = gsRows.find(g => g.gym_id === a.auth_user_id);
+      return { ...a, gs_whatsapp: (gs as { whatsapp?: string | null } | undefined)?.whatsapp ?? null };
+    }));
   };
 
   // Close template dropdown on outside click
@@ -937,9 +943,20 @@ function PlatformPage() {
                                       )}
                                     </div>
                                   ) : (
-                                    <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, background: "rgba(148,163,184,0.08)", font: `500 0.7rem/1 ${fd}`, color: "#CBD5E1" }}>
-                                      <Phone size={12} /> Sin tel.
-                                    </div>
+                                    a.gs_whatsapp ? (
+                                      <a
+                                        href={`https://wa.me/${a.gs_whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${a.owner_name?.split(" ")[0] ?? a.company_name}, te escribo desde FitGrowX`)}`}
+                                        target="_blank" rel="noreferrer"
+                                        title="Abrir WhatsApp"
+                                        style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, background: "rgba(37,211,102,0.12)", color: "#16A34A", textDecoration: "none", font: `600 0.7rem/1 ${fd}`, whiteSpace: "nowrap" }}
+                                      >
+                                        <MessageCircle size={13} /> {a.gs_whatsapp}
+                                      </a>
+                                    ) : (
+                                      <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 8px", borderRadius: 8, background: "rgba(148,163,184,0.08)", font: `500 0.7rem/1 ${fd}`, color: "#CBD5E1" }}>
+                                        <Phone size={12} /> Sin tel.
+                                      </div>
+                                    )
                                   )}
                                   {/* Marcar contactado */}
                                   {!["converted", "churned"].includes(a.status) && (
