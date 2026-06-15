@@ -69,6 +69,9 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: ["/images/og-fitgrowx.png"],
   },
+  verification: {
+    google: '-fBE7D_XNiSQ5XXbz4wy6SOP5PTtEWymrBNEdmdnaF4',
+  },
 };
 
 export default function RootLayout({
