@@ -423,31 +423,31 @@ export default function AsistenciasPage() {
             <div style={{ textAlign: "center", marginBottom: 24 }}>
               <div style={{
                 width: 64, height: 64, borderRadius: "50%",
-                background: "rgba(220,38,38,0.1)", margin: "0 auto 16px",
+                background: "rgba(249,115,22,0.12)", margin: "0 auto 16px",
                 display: "flex", alignItems: "center", justifyContent: "center"
               }}>
-                <Unlock size={32} color="#DC2626" />
+                <Unlock size={32} color="#F97316" />
               </div>
               <h2 style={{ font: `700 1.25rem/1.2 ${fd}`, color: "#1A1D23", margin: "0 0 12px" }}>
-                Molinete no configurado
+                Molinete no conectado
               </h2>
               <p style={{ font: `400 0.9rem/1.5 ${fb}`, color: "#6B7280", margin: 0 }}>
-                No hay API keys de molinete generadas. Necesitás crear una para habilitar la función de apertura de puerta.
+                Esta función solo está disponible si conectás tu molinete con FitGrowX. Podés ver cómo hacerlo en la sección de Ajustes → Conexiones → API &amp; Agentes IA.
               </p>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <button
-                onClick={() => { setMolineteModalOpen(false); router.push("/dashboard/ajustes?tab=equipo"); }}
+                onClick={() => { setMolineteModalOpen(false); router.push("/dashboard/ajustes?tab=conexiones"); }}
                 style={{
                   padding: "12px 16px", borderRadius: 12, border: "none",
-                  background: "#FF7A18", color: "white", font: `600 0.9rem/1 ${fd}`,
+                  background: "#F97316", color: "white", font: `600 0.9rem/1 ${fd}`,
                   cursor: "pointer", width: "100%", transition: "background 0.2s"
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = "#E65A00"}
-                onMouseLeave={e => e.currentTarget.style.background = "#FF7A18"}
+                onMouseEnter={e => e.currentTarget.style.background = "#EA6C00"}
+                onMouseLeave={e => e.currentTarget.style.background = "#F97316"}
               >
-                Ir a Configuración
+                Ir a Ajustes
               </button>
               <button
                 onClick={() => setMolineteModalOpen(false)}

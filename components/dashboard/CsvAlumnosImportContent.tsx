@@ -11,19 +11,17 @@ const t1 = "#1A1D23";
 const t2 = "#6B7280";
 const t3 = "#9CA3AF";
 
-const AI_PROMPT = `Tengo una lista de contactos de mi gimnasio y necesito exportarla como CSV con exactamente estas cuatro columnas:
-nombre,apellido,dni,telefono
+const AI_PROMPT = `Tengo una lista de alumnos de mi gimnasio y necesito que conviertas el archivo que voy a adjuntar a un archivo CSV listo para importar.
+
+IMPORTANTE:
+- Analizá el archivo adjunto (Excel, CSV, PDF, imagen o texto).
+- Convertí los datos al formato CSV.
+- Entregame un archivo CSV descargable.
+- La primera fila debe contener exactamente estos encabezados:
+dni,full_name,telefono
 
 Reglas:
-- nombre: nombre de pila de la persona
-- apellido: apellido de la persona
-- dni: número de documento (solo dígitos, sin puntos)
-- telefono: número con código de país si lo tenés (ej: +5491122334455)
-- Sin filas de encabezado extra, solo los datos
-- Sin comillas innecesarias
-- Una persona por línea
-
-Por favor convertí mis contactos a ese formato CSV.`;
+- dni: número de documento solo con números, sin puntos ni espacios.`;
 
 type CsvInputRow = {
   nombre?: string; apellido?: string; dni?: string; telefono?: string;

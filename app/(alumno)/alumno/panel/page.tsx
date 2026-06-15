@@ -204,6 +204,10 @@ function AlumnoPanelInner() {
         if (pagoParam === "error") showToast("El pago no se completó. Intentá de nuevo.", false);
         if (pagoParam === "pendiente") showToast("Pago pendiente de acreditación.", true);
         if (pagoParam) router.replace("/alumno/panel");
+        const tabParam = searchParams.get("tab");
+        if (tabParam === "inicio" || tabParam === "calendario" || tabParam === "entrenamiento" || tabParam === "metas" || tabParam === "perfil") {
+          setTab(tabParam);
+        }
       })
       .catch(() => { setApiDown(true); });
   }, [router, searchParams]);
@@ -322,9 +326,9 @@ function AlumnoPanelInner() {
 
   useEffect(() => {
     if (!session) return;
-    if (tab !== "entrenamiento" || rutina) return;
+    if (tab !== "entrenamiento") return;
     void fetchBootstrap(session, true);
-  }, [session, tab, rutina, fetchBootstrap]);
+  }, [session, tab, fetchBootstrap]);
 
   // Init workout session when routine loads and user is on the entrenamiento tab
   useEffect(() => {
@@ -1193,7 +1197,20 @@ function AlumnoPanelInner() {
                 </div>
               ) : (
                 notifs.map(n => (
-                  <div key={n.id} style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: n.leida ? "transparent" : "rgba(249,115,22,0.04)", display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div key={n.id} onClick={() => {
+                    if (!n.link) return;
+                    setNotifOpen(false);
+                    try {
+                      const url = new URL(n.link, window.location.origin);
+                      const targetTab = url.searchParams.get("tab") as "inicio" | "calendario" | "entrenamiento" | "metas" | "perfil" | null;
+                      if (targetTab === "inicio" || targetTab === "calendario" || targetTab === "entrenamiento" || targetTab === "metas" || targetTab === "perfil") {
+                        setTab(targetTab);
+                        if (targetTab === "entrenamiento" && session) void fetchBootstrap(session, true);
+                      } else {
+                        router.push(n.link);
+                      }
+                    } catch { router.push(n.link); }
+                  }} style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: n.leida ? "transparent" : "rgba(249,115,22,0.04)", display: "flex", gap: 12, alignItems: "flex-start", cursor: n.link ? "pointer" : "default" }}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%", background: n.leida ? "transparent" : "#F97316", marginTop: 6, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ font: `600 0.85rem/1.3 ${fd}`, color: n.leida ? "rgba(255,255,255,0.55)" : "#fff", margin: 0, marginBottom: 3 }}>{n.title}</p>
