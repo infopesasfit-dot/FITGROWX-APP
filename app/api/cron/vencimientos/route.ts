@@ -76,10 +76,10 @@ function buildPaymentSuffix(gymHasMP: boolean, paymentInfo: string | null): stri
 }
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
-  return Object.entries(vars).reduce(
-    (msg, [key, val]) => msg.replace(new RegExp(`\\[${key}\\]`, "g"), val),
-    template,
-  );
+  return Object.entries(vars).reduce((msg, [key, val]) => {
+    const withBrackets = msg.replace(new RegExp(`\\[${key}\\]`, "g"), val);
+    return withBrackets.replace(new RegExp(`\\{${key}\\}`, "gi"), val);
+  }, template);
 }
 
 async function enviarMensajeWA(gymId: string, phone: string, message: string): Promise<boolean> {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { QrCode, CheckCircle, XCircle, RefreshCw, Scan, Copy, Download, X } from "lucide-react";
+import { QrCode, CheckCircle, XCircle, Scan, Copy, Download, X } from "lucide-react";
 import { getCachedProfile, invalidateDashboardCache, invalidateAsistenciasCache } from "@/lib/gym-cache";
 import QRCode from "qrcode";
 
@@ -202,6 +202,12 @@ export default function ScannerPage() {
     return () => { stopCamera(); };
   }, [stopCamera]);
 
+  useEffect(() => {
+    if (!result || loading) return;
+    const t = window.setTimeout(() => setResult(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [result, loading]);
+
   // Fallback: process image from file input
   const handleFileCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -241,6 +247,7 @@ export default function ScannerPage() {
   const statusLabel = result?.alumno ? (STATUS_LABEL[result.alumno.status] ?? result.alumno.status) : "";
   const isMembershipIssue = result?.error_code === "membership_expired" || result?.error_code === "membership_inactive";
   const isSystemIssue = result?.error_code === "system_error";
+  const isOk = Boolean(result?.ok && result?.alumno?.status === "activo");
 
   return (
     <div style={{ width: "100%", maxWidth: isMobile ? "100%" : 760, margin: "0 auto", padding: isMobile ? "16px 14px 28px" : "28px 24px 40px", display: "flex", flexDirection: "column", gap: isMobile ? 14 : 18, overflowX: "hidden", boxSizing: "border-box" }}>
@@ -256,47 +263,53 @@ export default function ScannerPage() {
         </p>
       </div>
 
-      {/* Result card — visible desde cualquier método */}
+      {/* Result overlay — kiosk mode, auto-dismiss 3s */}
       {result && !loading && (
-        <div style={{ borderRadius: 20, overflow: "hidden", border: "1px solid #E6E8EC", background: "white", boxShadow: "0 18px 46px rgba(16,24,40,0.08)" }}>
-          {result.ok && result.alumno ? (
-            <>
-              {result.alumno.status === "activo" ? (
-                <div style={{ background: "#FF6A00", padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                  <CheckCircle size={48} color="white" strokeWidth={2} />
-                  <p style={{ font: `900 1.5rem/1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>AL DÍA ✓</p>
-                  {result.hora && <p style={{ font: `400 0.75rem/1 ${fd}`, color: "rgba(255,255,255,0.75)" }}>{result.hora.slice(0, 5)}h · {result.already ? "Ya registrado hoy" : "Entrada registrada"}</p>}
-                </div>
-              ) : (
-                <div style={{ background: "#DC2626", padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-                  <XCircle size={48} color="white" strokeWidth={2} />
-                  <p style={{ font: `900 1.5rem/1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>DEUDA PENDIENTE</p>
-                  <p style={{ font: `500 0.8rem/1 ${fd}`, color: "rgba(255,255,255,0.8)" }}>Cuota vencida — contactar al alumno</p>
-                </div>
-              )}
-              <div style={{ background: "white", padding: "14px 18px", display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ font: `700 1rem/1.2 ${fd}`, color: "#1A1D23", marginBottom: 4 }}>{result.alumno.full_name}</p>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ font: `600 0.68rem/1 ${fd}`, color: statusColor, background: `${statusColor}12`, border: `1px solid ${statusColor}22`, padding: "3px 8px", borderRadius: 9999 }}>{statusLabel}</span>
-                    {result.alumno.plan && <span style={{ font: `400 0.68rem/1 ${fd}`, color: "#6B7280", border: "1px solid rgba(0,0,0,0.08)", padding: "3px 8px", borderRadius: 9999 }}>{result.alumno.plan}</span>}
-                    {result.alumno.expiration && <span style={{ font: `400 0.68rem/1 ${fd}`, color: "#6B7280", border: "1px solid rgba(0,0,0,0.08)", padding: "3px 8px", borderRadius: 9999 }}>Vence: {result.alumno.expiration}</span>}
-                  </div>
-                </div>
-                {result.already && <RefreshCw size={18} color="#3B82F6" />}
-              </div>
-            </>
-          ) : (
-            <div style={{ background: isSystemIssue ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.04)", border: `1px solid ${isSystemIssue ? "rgba(217,119,6,0.28)" : "rgba(220,38,38,0.3)"}`, borderRadius: 16, padding: "18px 20px", display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <XCircle size={20} color={isSystemIssue ? "#D97706" : "#DC2626"} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                <p style={{ font: `800 0.95rem/1 ${fd}`, color: isSystemIssue ? "#B45309" : "#B91C1C" }}>{result.error_title ?? "Error al escanear"}</p>
-                {result.alumno?.full_name && <p style={{ font: `600 0.84rem/1.3 ${fd}`, color: "#1A1D23" }}>{result.alumno.full_name}</p>}
-                <p style={{ font: `500 0.84rem/1.4 ${fd}`, color: isSystemIssue ? "#92400E" : "#DC2626" }}>{result.error ?? "Error desconocido."}</p>
-                {result.error_hint && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280" }}>{result.error_hint}</p>}
-                {isMembershipIssue && result.alumno?.expiration && <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "#6B7280" }}>Vencimiento: {result.alumno.expiration}</p>}
-              </div>
-            </div>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: isOk ? "#0D4A1F" : "#4A0D0D", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 28, padding: 40 }}>
+          {isOk
+            ? <CheckCircle size={80} color="white" strokeWidth={1.5} />
+            : <XCircle    size={80} color="white" strokeWidth={1.5} />}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center" }}>
+            <p style={{ font: `900 2.8rem/1 ${fd}`, color: "white", letterSpacing: "-0.04em" }}>
+              {isOk ? "AL DÍA ✓" : (result.error_title ?? "ACCESO DENEGADO")}
+            </p>
+            {result.alumno?.full_name && (
+              <p style={{ font: `700 1.4rem/1.2 ${fd}`, color: "rgba(255,255,255,0.85)" }}>
+                {result.alumno.full_name}
+              </p>
+            )}
+            {!result.ok && !result.alumno?.full_name && result.error && (
+              <p style={{ font: `500 1rem/1.4 ${fd}`, color: "rgba(255,255,255,0.7)", maxWidth: 320 }}>
+                {result.error}
+              </p>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            {result.alumno?.status && (
+              <span style={{ font: `700 0.78rem/1 ${fd}`, color: "white", background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", padding: "5px 14px", borderRadius: 9999 }}>
+                {statusLabel}
+              </span>
+            )}
+            {result.alumno?.plan && (
+              <span style={{ font: `400 0.78rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", padding: "5px 14px", borderRadius: 9999 }}>
+                {result.alumno.plan}
+              </span>
+            )}
+            {result.alumno?.expiration && (
+              <span style={{ font: `400 0.78rem/1 ${fd}`, color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", padding: "5px 14px", borderRadius: 9999 }}>
+                Vence: {result.alumno.expiration}
+              </span>
+            )}
+            {result.hora && isOk && (
+              <span style={{ font: `400 0.78rem/1 ${fd}`, color: "rgba(255,255,255,0.55)", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", padding: "5px 14px", borderRadius: 9999 }}>
+                {result.hora.slice(0, 5)}h · {result.already ? "Ya registrado hoy" : "Entrada registrada"}
+              </span>
+            )}
+          </div>
+          {result.error_hint && (
+            <p style={{ font: `400 0.8rem/1.5 ${fd}`, color: "rgba(255,255,255,0.5)", textAlign: "center", maxWidth: 300 }}>
+              {result.error_hint}
+            </p>
           )}
         </div>
       )}
