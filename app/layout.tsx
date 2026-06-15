@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     "software gimnasio México",
   ],
   icons: {
-    icon: "/favicon.ico",
+    icon: "/favicon.png",
   },
   alternates: {
     canonical: "/",
