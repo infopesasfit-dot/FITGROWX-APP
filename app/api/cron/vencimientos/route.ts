@@ -114,20 +114,6 @@ async function enviarMensajeWA(gymId: string, phone: string, message: string): P
   }
 }
 
-async function obtenerTokensExistentes(alumnoIds: string[]): Promise<Record<string, string>> {
-  const { data } = await supabase
-    .from("alumno_tokens")
-    .select("alumno_id, token")
-    .in("alumno_id", alumnoIds)
-    .gt("expires_at", new Date().toISOString());
-
-  const map: Record<string, string> = {};
-  for (const t of data ?? []) {
-    if (!map[t.alumno_id]) map[t.alumno_id] = t.token;
-  }
-  return map;
-}
-
 async function crearTokensFaltantes(
   alumnos: { id: string }[],
   gymId: string,
@@ -377,8 +363,8 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
 
 // ── Bloque 4: Follow-ups post-vencimiento (día 3 y día 7) ────────────────────
 
-const MSG_D3 = `Hola [Nombre], soy del staff de [Gym]. Te recuerdo que tu cuota vence el [Fecha].[Monto] Si querés renovar, avisame.`;
-const MSG_D7 = `Hola [Nombre], soy del staff de [Gym]. Tu cuota vence dentro de una semana ([Fecha]).[Monto] ¿Querés que te ayude a renovar?`;
+const MSG_D3 = `Hola [Nombre], soy del staff de [Gym]. Tu cuota *venció* el [Fecha].[Monto] Podés renovarla acá 👇`;
+const MSG_D7 = `Hola [Nombre], soy del staff de [Gym]. Tu cuota lleva una semana vencida (desde el [Fecha]).[Monto] Renovala cuando quieras 👇`;
 
 async function enviarFollowupsPostVencimiento(
   gyms: GymSettings[],
@@ -402,7 +388,10 @@ async function enviarFollowupsPostVencimiento(
     if (error) { console.error(`[vencimientos] followups gym=${gym.gym_id}:`, error.message); continue; }
     if (!alumnos?.length) continue;
 
-    const tokenMap = await obtenerTokensExistentes(alumnos.map(a => a.id));
+    // Siempre crear tokens frescos — obtenerTokensExistentes devuelve el hash almacenado
+    // en DB que no puede usarse en la URL (pagar-link volvería a hashearlo → doble hash → inválido)
+    const tokenMap: Record<string, string> = {};
+    await crearTokensFaltantes(alumnos as { id: string }[], gym.gym_id, tokenMap);
 
     const gymName      = gym.gym_name ?? "el gym";
     const paymentSuffix = buildPaymentSuffix(Boolean(gym.mp_access_token), gym.payment_info);
@@ -423,7 +412,7 @@ async function enviarFollowupsPostVencimiento(
         const templateBranded = ensureGymBranding(templateBase, gymName);
         const precio = getPlanPrecio(alumno.planes);
         const montoStr = precio && precio > 0 ? `\n💰 Importe: $${Math.round(precio).toLocaleString("es-AR")}` : "";
-        const mensaje = fillTemplate(templateBranded + paymentSuffix, {
+        const mensaje = fillTemplate(templateBranded + (link ? `\n\n👉 ${link}` : "") + paymentSuffix, {
           Nombre: alumno.full_name,
           Gym:    gymName,
           Link:   link,
@@ -487,7 +476,7 @@ async function enviarNotificacionesVenceHoy(
     if (error) { console.error(`[vencimientos] vence-hoy gym=${gym.gym_id}:`, error.message); continue; }
     if (!alumnos?.length) continue;
 
-    const tokenMap = await obtenerTokensExistentes(alumnos.map(a => a.id));
+    const tokenMap: Record<string, string> = {};
     await crearTokensFaltantes(alumnos, gym.gym_id, tokenMap);
 
     const gymName       = gym.gym_name ?? "el gym";
@@ -565,7 +554,7 @@ async function enviarRecordatoriosProximos(
     );
     if (!pendientes.length) continue;
 
-    const tokenMap = await obtenerTokensExistentes(pendientes.map(a => a.id));
+    const tokenMap: Record<string, string> = {};
     await crearTokensFaltantes(pendientes, gym.gym_id, tokenMap);
 
     const template      = gym.vencimiento_msg?.trim() || MSG_DEFAULT_VENCIMIENTO;
