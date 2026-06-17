@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import { CookieBanner } from "@/components/cookie-banner";
@@ -15,6 +15,12 @@ const inter = Inter({
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
+  display: "swap",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space",
   display: "swap",
 });
 
@@ -78,7 +84,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={`h-full antialiased ${inter.variable} ${jetbrainsMono.variable}`} style={{ backgroundColor: "#050505" }}>
+    <html lang="es" className={`h-full antialiased ${inter.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`} style={{ backgroundColor: "#050505" }}>
       <head>
         <meta name="theme-color" content="#050505" />
       </head>
