@@ -148,12 +148,12 @@ export async function POST(req: NextRequest) {
 
   if (insErr) {
     console.error("[checkin-publico] insert error:", insErr.message, insErr.code, insErr.details);
-    return NextResponse.json({ ok: false, error: "Error al registrar la asistencia. Intentá de nuevo." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Error al registrar la asistencia. Intentá de nuevo.", error_code: "system_error" }, { status: 500 });
   }
 
   if (!insertedData || insertedData.length === 0) {
     console.error("[checkin-publico] INSERT returned no data — RLS blocked silently?");
-    return NextResponse.json({ ok: false, error: "Error al registrar la asistencia. Intentá de nuevo." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Error al registrar la asistencia. Intentá de nuevo.", error_code: "system_error" }, { status: 500 });
   }
 
   return NextResponse.json({

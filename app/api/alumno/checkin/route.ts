@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
   const cutoffHora = formatTimeInTimeZone(new Date(Date.now() - 30 * 60 * 1000));
   const { data: recentAsist } = await supabaseAdmin
     .from("asistencias")
-    .select("id")
+    .select("id, hora")
     .eq("alumno_id", alumno_id)
     .eq("fecha", today)
     .gte("hora", cutoffHora)
@@ -168,6 +168,7 @@ export async function POST(req: NextRequest) {
         status: alumnoRow.status,
         expiration,
       },
+      hora: (recentAsist as { id: string; hora: string | null }).hora ?? undefined,
     });
   }
 

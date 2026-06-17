@@ -140,6 +140,7 @@ export default function CheckinPublicoPage({ params }: { params: Promise<{ gymId
     const isOk = result.ok;
     const isAlreadyIn = result.ok && result.already;
     const isMembership = result.error_code === "membership_expired" || result.error_code === "membership_inactive";
+    const isSystemError = result.error_code === "system_error";
 
     return (
       <>
@@ -166,10 +167,11 @@ export default function CheckinPublicoPage({ params }: { params: Promise<{ gymId
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <p style={{ font: `900 1.5rem/1.1 ${fd}`, color: "white", letterSpacing: "-0.03em" }}>
-                  {isAlreadyIn   ? "Ya registrado hoy"
-                   : isOk        ? "¡Buen entrenamiento!"
+                  {isAlreadyIn    ? "Ya registrado hoy"
+                   : isOk         ? "¡Buen entrenamiento!"
                    : isMembership ? (result.error_code === "membership_expired" ? "Membresía vencida" : "Membresía inactiva")
-                   :               "No encontrado"}
+                   : isSystemError ? "Error del sistema"
+                   :                "No encontrado"}
                 </p>
                 {result.alumno?.full_name && (
                   <p style={{ font: `600 1rem/1 ${fd}`, color: isOk ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.6)" }}>

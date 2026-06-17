@@ -127,20 +127,44 @@ export function QrModal({
           <div style={{ marginBottom: 20 }}>
             <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.2)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16 }}>Apuntá la cámara al QR del gym</p>
             {checkinResult ? (
-              <div style={{ background: checkinResult.ok ? "rgba(52,211,153,0.06)" : "rgba(239,68,68,0.06)", border: `1px solid ${checkinResult.ok ? "rgba(52,211,153,0.18)" : "rgba(239,68,68,0.18)"}`, borderRadius: 16, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: checkinResult.ok ? "rgba(52,211,153,0.12)" : "rgba(239,68,68,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <div style={{
+                background: checkinResult.ok ? "rgba(52,211,153,0.12)" : "rgba(239,68,68,0.12)",
+                border: `1.5px solid ${checkinResult.ok ? "rgba(52,211,153,0.35)" : "rgba(239,68,68,0.35)"}`,
+                borderRadius: 18,
+                padding: "22px 20px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 10,
+                textAlign: "center",
+              }}>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", background: checkinResult.ok ? "rgba(52,211,153,0.18)" : "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {checkinResult.ok
-                    ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    ? <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    : <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   }
                 </div>
-                <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
-                  <p style={{ font: `700 0.9rem/1.2 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.01em" }}>
+                <div>
+                  <p style={{ font: `800 1.1rem/1.2 ${fd}`, color: "#FFFFFF", letterSpacing: "-0.02em", margin: 0 }}>
                     {checkinResult.already ? "Ya registrado hoy" : checkinResult.ok ? "¡Buen entreno!" : "Sin acceso"}
                   </p>
-                  {checkinResult.ok && checkinResult.hora && <p style={{ font: `400 0.62rem/1 ${fd}`, color: "rgba(255,255,255,0.25)", marginTop: 3 }}>{checkinResult.hora.slice(0, 5)}h · Entrada registrada</p>}
-                  {!checkinResult.ok && checkinResult.error && <p style={{ font: `400 0.72rem/1.3 ${fd}`, color: "#EF4444", marginTop: 3 }}>{checkinResult.error}</p>}
+                  {checkinResult.ok && checkinResult.hora && (
+                    <p style={{ font: `400 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.35)", marginTop: 5 }}>
+                      Entrada registrada a las {checkinResult.hora.slice(0, 5)}h
+                    </p>
+                  )}
+                  {!checkinResult.ok && checkinResult.error && (
+                    <p style={{ font: `400 0.78rem/1.4 ${fd}`, color: "rgba(239,68,68,0.85)", marginTop: 5 }}>
+                      {checkinResult.error}
+                    </p>
+                  )}
                 </div>
+                <button
+                  onClick={() => setCheckinResult(null)}
+                  style={{ marginTop: 4, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "7px 18px", font: `500 0.68rem/1 ${fd}`, color: "rgba(255,255,255,0.4)", cursor: "pointer", letterSpacing: "0.05em" }}
+                >
+                  Escanear de nuevo
+                </button>
               </div>
             ) : scanActive ? (
               <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", background: "#000", aspectRatio: "4/3" }}>
@@ -164,6 +188,11 @@ export function QrModal({
                   </div>
                 )}
                 <button onClick={stopScan} style={{ position: "absolute", top: 10, right: 10, width: 30, height: 30, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
+              </div>
+            ) : checkinLoading ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 0", gap: 14 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid rgba(249,115,22,0.2)", borderTopColor: "#F97316", animation: "spin 0.7s linear infinite" }} />
+                <p style={{ font: `400 0.72rem/1 ${fd}`, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em" }}>Registrando asistencia...</p>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

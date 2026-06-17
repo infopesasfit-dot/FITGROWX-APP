@@ -113,16 +113,25 @@ export default function ScannerPage() {
     setLoading(true);
     setResult(null);
 
-    const res = await fetch("/api/alumno/checkin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ qr_data }),
-    });
-    const data: CheckinResult = await res.json();
-    setResult(data);
-    if (data.ok) {
-      invalidateAsistenciasCache();
-      invalidateDashboardCache();
+    try {
+      const res = await fetch("/api/alumno/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qr_data }),
+      });
+      const data: CheckinResult = await res.json();
+      setResult(data);
+      if (data.ok) {
+        invalidateAsistenciasCache();
+        invalidateDashboardCache();
+      }
+    } catch {
+      setResult({
+        ok: false,
+        error: "Error de conexión. Intentá de nuevo.",
+        error_code: "network_error",
+        error_title: "Sin conexión",
+      });
     }
     setLoading(false);
 
