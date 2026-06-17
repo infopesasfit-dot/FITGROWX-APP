@@ -967,6 +967,7 @@ function AlumnoPanelInner() {
                 inlineKg={inlineKg}
                 inlineSaving={inlineSaving}
                 latestPesoByExercise={latestPesoByExercise}
+                pesosPorEjercicio={pesosPorEjercicio}
                 markSerie={markSerie}
                 handleInlineKgSave={handleInlineKgSave}
                 setInlineKg={setInlineKg}

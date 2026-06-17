@@ -63,6 +63,7 @@ interface PanelTabEntrenamientoProps {
   inlineKg: Record<string, string>;
   inlineSaving: Record<string, boolean>;
   latestPesoByExercise: Map<string, Peso>;
+  pesosPorEjercicio: Map<string, { peso: number; fecha: string }[]>;
   markSerie: (ejercicio: string, idx: number) => void;
   handleInlineKgSave: (ejercicio: string) => void;
   setInlineKg: (fn: (prev: Record<string, string>) => Record<string, string>) => void;
@@ -259,6 +260,7 @@ export function PanelTabEntrenamiento({
   inlineKg,
   inlineSaving,
   latestPesoByExercise,
+  pesosPorEjercicio,
   markSerie,
   handleInlineKgSave,
   setInlineKg,
@@ -350,7 +352,23 @@ export function PanelTabEntrenamiento({
                     {inlineSaving[ej.nombre] ? "…" : "Guardar"}
                   </button>
                 </div>
-                {lastKg && <p style={{ font: `400 0.65rem/1 ${fd}`, color: "rgba(255,255,255,0.28)", margin: 0 }}>Último: {lastKg.peso} kg</p>}
+                {(() => {
+                  const hist = pesosPorEjercicio.get(ej.nombre) ?? [];
+                  if (hist.length === 0) return null;
+                  const recent = [...hist].reverse().slice(0, 5);
+                  return (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 0, borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 8, marginTop: 2 }}>
+                      <p style={{ font: `500 0.58rem/1 ${fd}`, color: "rgba(255,255,255,0.22)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>Historial</p>
+                      {recent.map((h, idx) => (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", borderBottom: idx < recent.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                          <span style={{ font: `400 0.64rem/1 ${fm}`, color: "rgba(255,255,255,0.28)", flexShrink: 0, width: 68 }}>{fmtDate(h.fecha)}</span>
+                          <span style={{ font: `600 0.8rem/1 ${fm}`, color: idx === 0 ? "#F97316" : "#FFFFFF" }}>{h.peso} kg</span>
+                          {idx === 0 && <span style={{ font: `500 0.56rem/1 ${fd}`, color: "rgba(249,115,22,0.6)", letterSpacing: "0.05em" }}>ÚLTIMO</span>}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
