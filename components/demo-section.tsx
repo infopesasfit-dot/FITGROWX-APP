@@ -237,7 +237,7 @@ export function DemoSection() {
             dragMomentum={false}
             dragElastic={0.12}
             whileDrag={{ scale: 1.04, cursor: "grabbing" }}
-            className="absolute -bottom-10 -left-4 z-30 w-[160px] sm:w-[200px] lg:-left-8 lg:bottom-[-16px] cursor-grab"
+            className="absolute -bottom-10 -right-4 z-30 w-[160px] sm:w-[200px] lg:-right-8 lg:bottom-[-16px] cursor-grab"
             style={{
               rotateX: phoneTiltX,
               rotateY: phoneTiltY,

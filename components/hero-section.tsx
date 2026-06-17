@@ -109,7 +109,7 @@ export function HeroSection() {
         <div style={getFadeUpStyle(0)}>
           <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-            Para dueños de gym que quieren cobrar sin perseguir
+            Tu gym en modo automático. Vos a lo que importa.
           </span>
         </div>
 
