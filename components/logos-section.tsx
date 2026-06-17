@@ -161,16 +161,9 @@ export function LogosSection() {
               </span>
             </div>
 
-            <h2
-              className="text-3xl font-semibold leading-[1.1] tracking-[-0.04em] sm:text-4xl lg:text-[2.6rem]"
-              style={{
-                backgroundImage: "linear-gradient(170deg, #ffffff 30%, rgba(255,255,255,0.45) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              Gimnasios y boxes que ya crecen con orden
+            <h2 className="text-3xl font-extralight leading-[1.08] tracking-[-0.05em] text-white sm:text-4xl lg:text-[2.6rem]">
+              Gimnasios y boxes{" "}
+              <span className="text-white/35">que ya crecen con orden</span>
             </h2>
 
             <p className="mt-5 text-[15px] leading-relaxed text-white/38 font-light">

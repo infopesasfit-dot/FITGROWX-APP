@@ -79,9 +79,9 @@ export function OutcomesSection() {
 
       <div className="mx-auto grid max-w-7xl gap-8 px-6 lg:grid-cols-[0.82fr_1.18fr] lg:items-start lg:gap-10 lg:px-10">
         <motion.div variants={headingVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.4 }} className="relative z-10">
-          <h2 className="max-w-xs text-[2.4rem] font-semibold leading-[1.06] tracking-[-0.055em] text-white sm:text-[2.8rem] lg:text-[3.6rem]">
+          <h2 className="max-w-xs text-[2.4rem] font-extralight leading-[1.08] tracking-[-0.05em] text-white sm:text-[2.8rem] lg:text-[3.6rem]">
             Menos caos.{" "}
-            <span className="block bg-gradient-to-r from-white via-white/92 to-white/46 bg-clip-text text-transparent">
+            <span className="block text-white/35">
               Más negocio.
             </span>
           </h2>

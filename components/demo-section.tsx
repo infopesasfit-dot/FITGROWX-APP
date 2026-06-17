@@ -139,14 +139,7 @@ export function DemoSection() {
         {/* ── COPY ── */}
         <div ref={copyRef} className="relative z-20">
           <motion.h2
-            className="text-3xl font-extralight leading-[1.1] tracking-[-0.05em] sm:text-4xl lg:text-6xl"
-            style={{
-              backgroundImage:
-                "linear-gradient(135deg, #ffffff 0%, #ffe8d6 38%, #ffb87a 68%, #ff8c3a 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
+            className="text-3xl font-extralight leading-[1.08] tracking-[-0.05em] text-white sm:text-4xl lg:text-6xl"
             variants={fadeUp(0)}
             initial={false}
             animate="visible"
@@ -154,7 +147,7 @@ export function DemoSection() {
             Un panel para vos.{" "}
             <br />
             <span
-              className="font-extralight italic"
+              className="font-extralight italic text-white/35"
               style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
             >
               Una app
