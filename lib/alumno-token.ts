@@ -29,7 +29,7 @@ export async function getValidAlumnoToken(req: NextRequest): Promise<AlumnoToken
     .from("alumno_tokens")
     .select("alumno_id, gym_id, expires_at")
     .eq("token", tokenHash)
-    .single();
+    .maybeSingle();
   const tokenRow = data as AlumnoTokenRow | null;
 
   if (error || !tokenRow) return null;

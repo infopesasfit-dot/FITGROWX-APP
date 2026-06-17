@@ -139,13 +139,7 @@ async function crearTokensFaltantes(
   const now = new Date();
   const alumnoIds = sinToken.map(a => a.id);
 
-  // Invalidate existing tokens (same pattern as pay-link)
-  await supabase
-    .from("alumno_tokens")
-    .update({ expires_at: now.toISOString() })
-    .in("alumno_id", alumnoIds)
-    .gt("expires_at", now.toISOString());
-
+  // INSERT new tokens FIRST — if this fails, old tokens remain valid (no window with no valid token)
   const nuevos = sinToken.map(a => {
     const rawToken = crypto.randomUUID();
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -161,10 +155,18 @@ async function crearTokensFaltantes(
   const { error } = await supabase.from("alumno_tokens").insert(nuevos);
   if (error) {
     console.error("[vencimientos] crearTokensFaltantes:", error.message);
-    // Limpiar mapeos porque los tokens no existen en DB
     for (const a of sinToken) delete tokenMap[a.id];
     return;
   }
+
+  // Invalidate old tokens AFTER new ones are in DB — exclude the ones we just created
+  const newTokenHashes = nuevos.map(n => n.token).join(",");
+  await supabase
+    .from("alumno_tokens")
+    .update({ expires_at: now.toISOString() })
+    .in("alumno_id", alumnoIds)
+    .gt("expires_at", now.toISOString())
+    .not("token", "in", `(${newTokenHashes})`);
 }
 
 // ── Bloque 1: Transferencias pendientes sin validar ───────────────────────────
@@ -408,7 +410,7 @@ async function enviarFollowupsPostVencimiento(
     for (const alumno of alumnos as AlumnoVencido[]) {
       if (!alumno.phone || !alumno.next_expiration_date) continue;
 
-      const diasVencido = Math.floor((Date.now() - new Date(alumno.next_expiration_date).getTime()) / 86_400_000);
+      const diasVencido = Math.floor((Date.now() - new Date(alumno.next_expiration_date + "T12:00:00").getTime()) / 86_400_000);
       const link        = buildPaymentLink(tokenMap[alumno.id], Boolean(gym.mp_access_token));
 
       const enviarFollowup = async (
