@@ -65,7 +65,7 @@ export function usePagoModal(
     if (!pagoTarget) return;
 
     const montoBase = parseFloat(pagoMonto);
-    if (isNaN(montoBase) || montoBase <= 0) { setPagoError("Ingresá un monto válido."); return; }
+    if (isNaN(montoBase) || montoBase < 0) { setPagoError("Ingresá un monto válido."); return; }
     if (pagoTipo === "otro" && !pagoDetalle.trim()) { setPagoError("Agregá un detalle para este cobro."); return; }
 
     const discountValue = parseFloat(pagoDiscountValue || "0");
@@ -90,7 +90,7 @@ export function usePagoModal(
         ? (montoBase * discountValue) / 100
         : 0;
     const montoFinal = Math.max(0, montoBase - discountAmount);
-    if (montoFinal <= 0) { setPagoError("El total final no puede quedar en $0 o menos."); setPagoSaving(false); return; }
+    if (montoFinal < 0) { setPagoError("El total final no puede quedar negativo."); setPagoSaving(false); return; }
 
     const duracion       = pagoTarget.planes?.duracion_dias ?? 30;
     const currentExpiry  = pagoTarget.next_expiration_date ? new Date(pagoTarget.next_expiration_date) : null;

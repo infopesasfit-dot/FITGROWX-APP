@@ -1,0 +1,3 @@
+ALTER TABLE planes
+  ADD COLUMN IF NOT EXISTS active        BOOLEAN     NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS duracion_dias INTEGER;

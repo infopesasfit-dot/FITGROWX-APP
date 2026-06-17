@@ -887,10 +887,10 @@ export default function AlumnosPage() {
       if (newPlan) {
         const base = new Date(); base.setHours(12, 0, 0, 0);
         const PM: Record<string, number> = { mes: 1, mensual: 1, trimestral: 3, anual: 12, año: 12 };
-        const PD: Record<string, number> = { semanal: 7, semana: 7 };
+        const PD: Record<string, number> = { semanal: 7, semana: 7, "24h": 1 };
         const per = newPlan.periodo ?? "mensual";
         let exp: Date;
-        if (newPlan.duracion_dias > 0) {
+        if (newPlan.duracion_dias != null && newPlan.duracion_dias > 0) {
           exp = new Date(base); exp.setDate(exp.getDate() + newPlan.duracion_dias);
         } else if (PM[per]) {
           exp = addMonths(base, PM[per]);

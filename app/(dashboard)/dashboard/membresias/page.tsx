@@ -551,17 +551,32 @@ export default function MembresiasPage() {
                       </div>
 
                       {/* Nombre */}
-                      <div style={{ marginBottom: 6 }}>
-                        <p style={{ font: `500 0.65rem/1 ${fb}`, color: t3, textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6 }}>Nombre del plan</p>
-                        <input
-                          className="inline-field"
-                          value={draft.nombre}
-                          onChange={e => updateDraft(p.id, "nombre", e.target.value)}
-                          placeholder="Ej: Plan Básico"
-                          maxLength={80}
-                          style={{ ...inlineInput, font: `800 1.25rem/1.2 ${fd}`, color: t1, display: "block" }}
-                        />
-                      </div>
+                      {(() => {
+                        const nombreInvalid = saveAttempted.has(p.id) && !draft.nombre.trim();
+                        return (
+                          <div style={{ marginBottom: 6 }}>
+                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: nombreInvalid ? "#DC2626" : t3, textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6 }}>
+                              Nombre del plan{nombreInvalid ? " — requerido" : ""}
+                            </p>
+                            <input
+                              className="inline-field"
+                              value={draft.nombre}
+                              onChange={e => {
+                                updateDraft(p.id, "nombre", e.target.value);
+                                if (saveAttempted.has(p.id)) setSaveAttempted(prev => { const s = new Set(prev); s.delete(p.id); return s; });
+                              }}
+                              placeholder="Ej: Plan Básico"
+                              maxLength={80}
+                              style={{ ...inlineInput, font: `800 1.25rem/1.2 ${fd}`, color: t1, display: "block", background: nombreInvalid ? "rgba(220,38,38,0.06)" : undefined, boxShadow: nombreInvalid ? "0 0 0 1.5px rgba(220,38,38,0.5)" : undefined, borderRadius: 8 }}
+                            />
+                            {nombreInvalid && (
+                              <p style={{ font: `400 0.74rem/1 ${fb}`, color: "#DC2626", marginTop: 6 }}>
+                                Ingresá un nombre para el plan
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* Precio + Período */}
                       <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
