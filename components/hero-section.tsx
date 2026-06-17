@@ -88,12 +88,12 @@ export function HeroSection() {
 
           {/* H1 — Space Grotesk 700 */}
           <h1
-            className="relative z-10 mx-auto mt-0 max-w-5xl text-[3.6rem] leading-[0.92] tracking-[-0.04em] sm:text-[5.5rem] lg:text-[8.5rem]"
+            className="relative z-10 mx-auto mt-8 max-w-5xl text-[3.4rem] leading-[0.92] tracking-[-0.04em] sm:text-[5.2rem] lg:text-[7.8rem]"
             style={{ ...getFadeUpStyle(0), fontFamily: FSG, fontWeight: 700 }}
           >
             <span
               className="block bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(180deg, #f3f4f8 8%, #8a8a98 100%)" }}
+              style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #eceef4 42%, #8a8a98 100%)" }}
             >
               Cero bajas
             </span>
