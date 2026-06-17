@@ -42,13 +42,6 @@ export async function POST(req: NextRequest) {
   const { data: profile } = await supabase.from("profiles").select("gym_id").eq("id", user.id).single();
   if (profile?.gym_id !== gym_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
 
-  // Obtener email del gym para precompletar el pago
-  const { data: settings } = await supabaseAdmin
-    .from("gym_settings")
-    .select("email")
-    .eq("gym_id", gym_id)
-    .maybeSingle();
-
   const body = {
     reason: `FitGrowX — ${plan.name}`,
     auto_recurring: {
@@ -57,7 +50,6 @@ export async function POST(req: NextRequest) {
       transaction_amount: amount,
       currency_id: "ARS",
     },
-    payer_email: settings?.email ?? user.email,
     back_url: `${APP_URL}/dashboard/suscripcion?mp=success`,
     external_reference: `${gym_id}|${plan_key}`,
     // El status arranca pending hasta que el user confirma el pago

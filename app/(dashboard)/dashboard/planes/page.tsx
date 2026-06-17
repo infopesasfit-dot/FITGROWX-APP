@@ -427,6 +427,9 @@ export default function PlanesPage() {
                   ${formatArs(checkoutAmount)}
                 </p>
               </div>
+              <p style={{ font: `400 ${isDesktop ? "0.72rem" : "0.68rem"}/1.45 ${fb}`, color: t3, marginBottom: 12 }}>
+                Te vamos a redirigir a Mercado Pago. Usá el email de tu cuenta de MP para iniciar sesión y completar el pago.
+              </p>
               {mpError && <p style={{ font: `400 ${isDesktop ? "0.74rem" : "0.7rem"}/1 ${fb}`, color: "#DC2626", marginBottom: 10 }}>{mpError}</p>}
               <button
                 onClick={handlePay}
