@@ -21,7 +21,7 @@ function PrimaryButton() {
       }}
     >
       <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-      Empezar prueba gratis
+      Probar 30 días gratis
       <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
     </a>
   );
@@ -50,7 +50,7 @@ function GhostButton() {
         className="pointer-events-none absolute inset-x-0 top-0 h-px rounded-full"
         style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent)" }}
       />
-      Ver cómo se ve
+      Ver cómo funciona
       <ArrowRight className="h-4 w-4 opacity-35 transition-all duration-200 group-hover:translate-x-0.5 group-hover:opacity-60" />
     </a>
   );
@@ -112,7 +112,7 @@ export function HeroSection() {
             style={{ fontFamily: "var(--font-mono)" }}
           >
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-            Tu gym en modo automático. Vos a lo que importa.
+            Retención en piloto automático
           </span>
         </div>
 
@@ -126,7 +126,7 @@ export function HeroSection() {
               backgroundImage: "linear-gradient(180deg, #f3f4f8 8%, #8a8a98 100%)",
             }}
           >
-            ¿Cuántos socios se fueron este mes
+            Cero bajas
           </span>
           <span
             className="ml-2 bg-clip-text text-transparent"
@@ -134,7 +134,7 @@ export function HeroSection() {
               backgroundImage: "linear-gradient(95deg, #ff9a4a 0%, #fb5c0a 60%, #d94000 100%)",
             }}
           >
-            sin que lo supieras?
+            por sorpresa.
           </span>
         </h1>
 
@@ -142,9 +142,9 @@ export function HeroSection() {
           className="mx-auto mt-8 max-w-2xl text-base font-light leading-relaxed tracking-tight text-white/40 lg:text-lg"
           style={getFadeUpStyle(0.24)}
         >
-          FitGrowX te avisa antes de que se vaya cada uno.{" "}
+          FitGrowX detecta qué socios están por dejar tu gimnasio y los reactiva por WhatsApp.{" "}
           <span className="font-medium text-white/70">
-            Automático, por WhatsApp, sin que tengas que acordarte.
+            Automático, todos los días, sin que tengas que estar encima.
           </span>
         </p>
 
@@ -160,9 +160,9 @@ export function HeroSection() {
           className="mt-8 flex flex-wrap items-center justify-center gap-3 text-[12px] uppercase tracking-[0.1em] text-white/26"
           style={{ ...getFadeUpStyle(0.4), fontFamily: "var(--font-mono)" }}
         >
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">30 días gratis</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Sin tarjeta</span>
-          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Setup simple</span>
+          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Activás en un día</span>
+          <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Cancelás cuando quieras</span>
         </div>
       </div>
     </section>
