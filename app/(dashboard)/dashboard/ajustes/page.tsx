@@ -173,6 +173,7 @@ function AjustesContent() {
   const [slugError, setSlugError] = useState("");
   const [mpToken, setMpToken] = useState("");
   const [paymentInfo, setPaymentInfo] = useState("");
+  const [mpOAuthToast, setMpOAuthToast] = useState<"connected" | "error" | null>(null);
   const [email, setEmail] = useState("");
   const [saved, setSaved] = useState(false);
   const [reportSending, setReportSending] = useState(false);
@@ -308,6 +309,13 @@ function AjustesContent() {
   useEffect(() => {
     setActiveTab(normalizeTab(searchTab));
   }, [searchTab]);
+
+  useEffect(() => {
+    const mp = searchParams.get("mp");
+    const mpError = searchParams.get("mp_error");
+    if (mp === "connected") setMpOAuthToast("connected");
+    else if (mpError) setMpOAuthToast("error");
+  }, [searchParams]);
 
   const activeLogoSrc = logoPreview ?? logoUrl;
 
@@ -1209,57 +1217,71 @@ function AjustesContent() {
               desc="Conectá tu cuenta para generar links de cobro para tus alumnos."
             >
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <div>
-                    <span style={{ font: `500 0.78rem/1 ${fb}`, color: t2 }}>Clave de conexión</span>
-                    <p style={{ font: `400 0.68rem/1.3 ${fb}`, color: t3, marginTop: 3 }}>La genera MercadoPago y la pegás acá una sola vez.</p>
+
+                {/* OAuth toast */}
+                {mpOAuthToast === "connected" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 12, background: "rgba(22,163,74,0.07)", border: "1px solid rgba(22,163,74,0.20)" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#16A34A", flexShrink: 0 }} />
+                    <p style={{ font: `500 0.82rem/1.4 ${fb}`, color: "#15803D", flex: 1 }}>
+                      ¡Mercado Pago conectado exitosamente! Ya podés generar links de cobro.
+                    </p>
+                    <button onClick={() => setMpOAuthToast(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#15803D", padding: 2 }}>
+                      <X size={14} />
+                    </button>
                   </div>
-                  {mpToken ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, font: `600 0.68rem/1 ${fb}`, color: "#16A34A", background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.18)", padding: "3px 9px", borderRadius: 9999 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16A34A", display: "inline-block" }} />
-                      Conectado
-                    </span>
-                  ) : (
-                    <span style={{ font: `600 0.68rem/1 ${fb}`, color: t3 }}>Desconectado</span>
-                  )}
-                </div>
+                )}
+                {mpOAuthToast === "error" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 12, background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.18)" }}>
+                    <p style={{ font: `500 0.82rem/1.4 ${fb}`, color: "#DC2626", flex: 1 }}>
+                      No se pudo conectar con Mercado Pago. Intentá de nuevo.
+                    </p>
+                    <button onClick={() => setMpOAuthToast(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", padding: 2 }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
 
-                <div style={{ background: "#F8FAFC", border: "1px solid rgba(15,23,42,0.07)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <p style={{ font: `600 0.72rem/1 ${fb}`, color: t2, textTransform: "uppercase" as const, letterSpacing: "0.08em" }}>Cómo conectar tu cuenta</p>
-                  {[
-                    { n: "1", text: "Entrá a mercadopago.com.ar con la cuenta de tu negocio" },
-                    { n: "2", text: 'En el menú, buscá "Tu negocio" → "Herramientas para desarrolladores" → "Panel de desarrolladores"' },
-                    { n: "3", text: 'Hacé click en "Crear aplicación" (o elegí una que ya tengas)' },
-                    { n: "4", text: 'Andá a "Credenciales de producción" y copiá el texto largo que empieza con APP_USR-' },
-                    { n: "5", text: "Pegalo en el campo de abajo y guardá — listo, ya podés cobrar online" },
-                  ].map(step => (
-                    <div key={step.n} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                      <span style={{ width: 20, height: 20, borderRadius: "50%", background: "#009EE3", color: "white", font: `700 0.65rem/1 ${fb}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>{step.n}</span>
-                      <span style={{ font: `400 0.78rem/1.45 ${fb}`, color: t2 }}>{step.text}</span>
+                {/* Estado de conexión */}
+                {mpToken ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderRadius: 14, background: "rgba(22,163,74,0.05)", border: "1px solid rgba(22,163,74,0.16)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(22,163,74,0.10)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <CreditCard size={16} color="#16A34A" />
+                      </div>
+                      <div>
+                        <p style={{ font: `700 0.85rem/1 ${fd}`, color: "#15803D" }}>Cuenta conectada</p>
+                        <p style={{ font: `400 0.72rem/1.3 ${fb}`, color: "#166534", marginTop: 3 }}>Tu cuenta de Mercado Pago está activa</p>
+                      </div>
                     </div>
-                  ))}
-                  <a href="https://www.mercadopago.com.ar/developers/panel" target="_blank" rel="noopener noreferrer"
-                    style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 2, padding: "8px 14px", background: "#009EE3", borderRadius: 9, font: `700 0.75rem/1 ${fb}`, color: "white", textDecoration: "none", width: "fit-content" }}
+                    <button
+                      onClick={async () => {
+                        setMpToken("");
+                        await supabase.from("gym_settings").update({ mp_access_token: null }).eq("gym_id", gymId!);
+                      }}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, border: "1px solid rgba(220,38,38,0.20)", background: "white", color: "#DC2626", font: `600 0.75rem/1 ${fd}`, cursor: "pointer", flexShrink: 0 }}
+                    >
+                      <X size={12} />
+                      Desconectar
+                    </button>
+                  </div>
+                ) : (
+                  <a
+                    href="/api/mp/oauth/start"
+                    style={{
+                      display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 10,
+                      padding: "13px 20px", borderRadius: 14, textDecoration: "none",
+                      background: "#009EE3", color: "white",
+                      font: `700 0.88rem/1 ${fd}`,
+                      boxShadow: "0 4px 14px rgba(0,158,227,0.28)",
+                      transition: "opacity 0.15s",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = "0.88")}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Ir al panel de desarrolladores
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Conectar con Mercado Pago
                   </a>
-                </div>
-
-                <div style={{ position: "relative" }}>
-                  <CreditCard size={15} color={t3} style={{ position: "absolute", top: 14, left: 14 }} />
-                  <input
-                    value={mpToken}
-                    onChange={(event) => setMpToken(event.target.value)}
-                    placeholder="Pegá acá tu clave (empieza con APP_USR-...)"
-                    type="password"
-                    autoComplete="off"
-                    style={{ ...inputStyle, paddingLeft: 40 }}
-                  />
-                </div>
-                <p style={{ font: `400 0.7rem/1.4 ${fb}`, color: t3 }}>
-                  Tu token se guarda de forma segura y solo se usa para generar links de pago.
-                </p>
+                )}
 
                 {webhookUrl && (
                   <div style={{ background: "#F0FDF4", border: "1px solid rgba(22,163,74,0.20)", borderRadius: 12, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6 }}>
@@ -1282,13 +1304,6 @@ function AjustesContent() {
                     </div>
                   </div>
                 )}
-                <button
-                  onClick={handleSaveGym}
-                  disabled={saved}
-                  style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 12, border: "none", background: saved ? "#E5E7EB" : ACCENT, color: saved ? t2 : "white", font: `700 0.82rem/1 ${fd}`, cursor: saved ? "default" : "pointer", transition: "all 0.2s" }}
-                >
-                  {saved ? "Guardado ✓" : "Guardar token"}
-                </button>
 
                 <div style={{ borderTop: "1px solid rgba(15,23,42,0.07)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                   <div>
