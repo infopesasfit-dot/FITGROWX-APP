@@ -21,7 +21,7 @@ export function VideoSection() {
           viewport={{ once: true, amount: 0 }}
           transition={{ duration: 0.75, ease: EASE }}
         >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-4">Demo</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#FF8C3A] mb-4" style={{ fontFamily: "var(--font-mono)" }}>Demo</p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.08]">
             Mirá cómo funciona{" "}
             <span className="text-white/35">por dentro.</span>

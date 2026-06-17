@@ -70,7 +70,7 @@ export function BenefitsSection() {
           viewport={{ once: true, amount: 0 }}
           transition={{ duration: 0.75, ease: EASE }}
         >
-          <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-5">Producto</h2>
+          <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#FF8C3A] mb-5" style={{ fontFamily: "var(--font-mono)" }}>Producto</h2>
           <p className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.08]">
             Resultados reales.{" "}
             <span className="text-white/35">No solo tecnología.</span>

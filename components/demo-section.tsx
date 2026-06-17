@@ -179,11 +179,11 @@ export function DemoSection() {
             initial={false}
             animate="visible"
           >
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] uppercase tracking-[0.15em] text-white/50">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] uppercase tracking-[0.1em] text-white/50" style={{ fontFamily: "var(--font-mono)" }}>
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
               Panel dueño &amp; staff
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] uppercase tracking-[0.15em] text-white/50">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-[10px] uppercase tracking-[0.1em] text-white/50" style={{ fontFamily: "var(--font-mono)" }}>
               <span className="h-1.5 w-1.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(255,106,0,0.5)]" />
               App del alumno con tu marca
             </div>

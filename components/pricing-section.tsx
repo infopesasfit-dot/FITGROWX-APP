@@ -76,8 +76,8 @@ function PlanCard({
         {/* Badge */}
         {plan.badge ? (
           <span
-            className="self-start mb-3 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide"
-            style={{ background: "rgba(255,106,0,0.16)", color: "#FF8C3A" }}
+            className="self-start mb-3 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.08em]"
+            style={{ background: "rgba(255,106,0,0.16)", color: "#FF8C3A", fontFamily: "var(--font-mono)" }}
           >
             {plan.badge}
           </span>
@@ -141,7 +141,7 @@ export function PricingSection({ plans }: { plans: FitgrowxPlanDefinition[] }) {
         whileInView="visible"
         viewport={{ once: true, amount: 0 }}
       >
-        <h2 className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#FF8C3A] mb-4">Precios</h2>
+        <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#FF8C3A] mb-4" style={{ fontFamily: "var(--font-mono)" }}>Precios</h2>
         <p className="text-3xl sm:text-4xl lg:text-5xl font-extralight tracking-[-0.05em] text-white leading-[1.08]">
           30 días gratis.{" "}
           <span className="italic font-normal text-[#FF8C3A]">Después elegís</span> según tu gym.

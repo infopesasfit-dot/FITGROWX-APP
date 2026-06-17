@@ -107,7 +107,10 @@ export function HeroSection() {
 
       <div className="relative mx-auto max-w-5xl px-6 lg:px-10">
         <div style={getFadeUpStyle(0)}>
-          <span className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/40 backdrop-blur-sm">
+          <span
+            className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold normal-case tracking-[0.02em] text-white/40 backdrop-blur-sm"
+            style={{ fontFamily: "var(--font-mono)" }}
+          >
             <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
             Tu gym en modo automático. Vos a lo que importa.
           </span>
@@ -154,8 +157,8 @@ export function HeroSection() {
         </div>
 
         <div
-          className="mt-8 flex flex-wrap items-center justify-center gap-3 text-[11px] uppercase tracking-[0.15em] text-white/26"
-          style={getFadeUpStyle(0.4)}
+          className="mt-8 flex flex-wrap items-center justify-center gap-3 text-[12px] uppercase tracking-[0.1em] text-white/26"
+          style={{ ...getFadeUpStyle(0.4), fontFamily: "var(--font-mono)" }}
         >
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">30 días gratis</span>
           <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Sin tarjeta</span>

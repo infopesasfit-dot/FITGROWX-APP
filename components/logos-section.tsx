@@ -156,7 +156,7 @@ export function LogosSection() {
                 className="h-1.5 w-1.5 rounded-full animate-pulse"
                 style={{ background: "#FF6A00", boxShadow: "0 0 6px #FF6A00" }}
               />
-              <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#FF8040]">
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#FF8040]" style={{ fontFamily: "var(--font-mono)" }}>
                 En vivo
               </span>
             </div>
