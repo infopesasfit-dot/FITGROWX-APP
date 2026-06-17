@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 // CSP is set per-request by middleware.ts using nonces (see middleware.ts).
 const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
+  // X-Frame-Options se aplica por ruta abajo:
+  // - DENY para todo el sitio
+  // - SAMEORIGIN solo para /alumno/auth, usado por /dashboard/preview
   // El browser no intenta adivinar el Content-Type
   { key: "X-Content-Type-Options", value: "nosniff" },
   // Fuerza HTTPS por 1 año en todos los subdominios
@@ -26,8 +28,18 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
-        headers: securityHeaders,
+        source: "/:path((?!alumno/auth$).*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          ...securityHeaders,
+        ],
+      },
+      {
+        source: "/alumno/auth",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          ...securityHeaders,
+        ],
       },
     ];
   },

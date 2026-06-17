@@ -4,7 +4,12 @@ import { getGymSummary } from '@/lib/supabase-relations'
 import { enforceApiPayloadLimit } from '@/lib/payload-limit'
 
 // ── CSP Nonce ───────────────────────────────────────────────────────────────
-function buildCsp(nonce: string, allowUnsafeInline = false): string {
+function buildCsp(
+  nonce: string,
+  allowUnsafeInline = false,
+  allowSameOriginFrames = false,
+  allowSameOriginFrameAncestors = false,
+): string {
   const scriptSrc = allowUnsafeInline
     ? `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://vercel.live`
     : `script-src 'self' 'nonce-${nonce}' https://challenges.cloudflare.com https://vercel.live`;
@@ -16,10 +21,10 @@ function buildCsp(nonce: string, allowUnsafeInline = false): string {
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vitals.vercel-insights.com https://va.vercel-scripts.com https://challenges.cloudflare.com https://vercel.live",
-    "frame-src https://challenges.cloudflare.com",
+    `frame-src ${allowSameOriginFrames ? "'self' " : ""}https://challenges.cloudflare.com`,
     "object-src 'none'",
     "base-uri 'self'",
-    "frame-ancestors 'none'",
+    `frame-ancestors ${allowSameOriginFrameAncestors ? "'self'" : "'none'"}`,
   ].join('; ');
 }
 
@@ -64,7 +69,11 @@ export async function proxy(request: NextRequest) {
   }
 
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
-  const csp = buildCsp(nonce, request.nextUrl.pathname === '/start');
+  const pathname = request.nextUrl.pathname
+  const searchParams = request.nextUrl.searchParams
+  const isDashboardPreview = pathname === '/dashboard/preview'
+  const isAlumnoAuthPreview = pathname === '/alumno/auth' && searchParams.get('preview') === '1'
+  const csp = buildCsp(nonce, pathname === '/start', isDashboardPreview, isDashboardPreview || isAlumnoAuthPreview);
 
   let response = NextResponse.next({ request: { headers: buildHeadersWithNonce(request, nonce, csp) } })
 
@@ -90,9 +99,6 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
-  const searchParams = request.nextUrl.searchParams
-
   // Error de Supabase auth (ej: otp_expired) → redirigir a /start con el error
   if (pathname === '/' && searchParams.get('error_code')) {
     const errorCode = searchParams.get('error_code')!
@@ -214,5 +220,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/:path*', '/dashboard/:path*', '/platform/:path*', '/platform', '/onboarding/:path*', '/onboarding', '/login', '/register', '/start', '/checkout-pro'],
+  matcher: ['/api/:path*', '/dashboard/:path*', '/platform/:path*', '/platform', '/onboarding/:path*', '/onboarding', '/alumno/auth', '/login', '/register', '/start', '/checkout-pro'],
 }
