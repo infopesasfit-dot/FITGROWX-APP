@@ -72,7 +72,7 @@ export function HeroSection() {
       `}</style>
 
       <section
-        className="relative w-full overflow-hidden pb-24 pt-20 text-center lg:pb-32 lg:pt-32"
+        className="relative w-full overflow-hidden pb-24 pt-32 text-center lg:pb-32 lg:pt-48"
         style={{ backgroundColor: "#070b14" }}
       >
         {/* Grilla horizontal fina */}
@@ -88,7 +88,7 @@ export function HeroSection() {
 
           {/* H1 — Space Grotesk 700 */}
           <h1
-            className="relative z-10 mx-auto mt-0 max-w-5xl text-[3.6rem] leading-[1.0] tracking-[-0.04em] sm:text-[5.5rem] lg:text-[8.5rem]"
+            className="relative z-10 mx-auto mt-0 max-w-5xl text-[3.6rem] leading-[0.92] tracking-[-0.04em] sm:text-[5.5rem] lg:text-[8.5rem]"
             style={{ ...getFadeUpStyle(0), fontFamily: FSG, fontWeight: 700 }}
           >
             <span
