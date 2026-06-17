@@ -91,16 +91,10 @@ export function HeroSection() {
             className="relative z-10 mx-auto mt-8 max-w-5xl text-[3.4rem] leading-[0.92] tracking-[-0.04em] sm:text-[5.2rem] lg:text-[7.8rem]"
             style={{ ...getFadeUpStyle(0), fontFamily: FSG, fontWeight: 700 }}
           >
-            <span
-              className="block bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(180deg, #ffffff 0%, #eceef4 42%, #8a8a98 100%)" }}
-            >
+            <span className="block text-white">
               Cero bajas
             </span>
-            <span
-              className="block bg-clip-text text-transparent"
-              style={{ backgroundImage: "linear-gradient(95deg, #ff9a4a 0%, #fb5c0a 60%, #d94000 100%)" }}
-            >
+            <span className="block text-[#FF6A00]">
               por sorpresa.
             </span>
           </h1>
