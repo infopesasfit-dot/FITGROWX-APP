@@ -556,7 +556,7 @@ export default function MembresiasPage() {
                         return (
                           <div style={{ marginBottom: 6 }}>
                             <p style={{ font: `500 0.65rem/1 ${fb}`, color: nombreInvalid ? "#DC2626" : t3, textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6 }}>
-                              Nombre del plan{nombreInvalid ? " — requerido" : ""}
+                              Nombre del plan <span style={{ color: "#EF4444", fontWeight: 700 }}>*</span>{nombreInvalid ? " — requerido" : ""}
                             </p>
                             <input
                               className="inline-field"
@@ -582,7 +582,7 @@ export default function MembresiasPage() {
                       <div style={{ marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
                         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
                           <div>
-                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6 }}>Precio</p>
+                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em", marginBottom: 6 }}>Precio <span style={{ color: "#EF4444", fontWeight: 700 }}>*</span></p>
                             <div style={{ display: "flex", alignItems: "baseline", gap: 2 }}>
                               <span style={{ font: `400 1rem/1 ${fd}`, color: "#AEAEB2" }}>$</span>
                               <input
@@ -595,7 +595,7 @@ export default function MembresiasPage() {
                             </div>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Período</p>
+                            <p style={{ font: `500 0.65rem/1 ${fb}`, color: "#AEAEB2", textTransform: "uppercase" as const, letterSpacing: "0.07em" }}>Período <span style={{ color: "#EF4444", fontWeight: 700 }}>*</span></p>
                             <div style={{ display: "flex", gap: 2, background: "#F2F2F7", borderRadius: 8, padding: 2 }}>
                               {(["mes", "trimestral", "año", "24h"] as const).map(op => (
                                 <button key={op} type="button" onClick={() => updatePeriodo(p.id, op)} style={{ padding: "4px 6px", borderRadius: 6, border: "none", font: `500 0.63rem/1 ${fb}`, cursor: "pointer", transition: "all 0.16s", background: draft.periodo === op ? "white" : "transparent", color: draft.periodo === op ? "#1C1C1E" : "#8E8E93", boxShadow: draft.periodo === op ? "0 1px 3px rgba(0,0,0,0.12)" : "none", whiteSpace: "nowrap" as const }}>
