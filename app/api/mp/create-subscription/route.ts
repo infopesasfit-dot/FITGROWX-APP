@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 import { fetchMpWithTimeout } from "@/lib/mp/timeout";
 
-const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN!;
+const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 const supabaseAdmin = createClient(
@@ -13,6 +13,11 @@ const supabaseAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  if (!MP_ACCESS_TOKEN || MP_ACCESS_TOKEN === "TU_ACCESS_TOKEN_MP_AQUI") {
+    console.error("[MP] MP_ACCESS_TOKEN no está configurado");
+    return NextResponse.json({ error: "Servicio de pagos no disponible." }, { status: 500 });
+  }
+
   // Security: Only accept gym_id, plan_key, and billing. Price and description are resolved server-side from FITGROWX_PLANS
   const reqBody = await req.json();
   const gym_id = reqBody.gym_id;
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+  if (!user || !user.email) return NextResponse.json({ error: "No autorizado." }, { status: 401 });
 
   const { data: profile } = await supabase.from("profiles").select("gym_id").eq("id", user.id).single();
   if (profile?.gym_id !== gym_id) return NextResponse.json({ error: "Acceso denegado." }, { status: 403 });
@@ -52,7 +57,7 @@ export async function POST(req: NextRequest) {
       transaction_amount: amount,
       currency_id: "ARS",
     },
-    payer_email: settings?.email ?? undefined,
+    payer_email: settings?.email ?? user.email,
     back_url: `${APP_URL}/dashboard/suscripcion?mp=success`,
     external_reference: `${gym_id}|${plan_key}`,
     // El status arranca pending hasta que el user confirma el pago
@@ -72,8 +77,7 @@ export async function POST(req: NextRequest) {
   if (!result.ok) {
     console.error("[MP] preapproval failed", {
       status: result.status,
-      error: result.error,
-      message: (result.data as any)?.message,
+      body: result.error, // raw MP response body (text)
     });
     return NextResponse.json({ error: "Servicio de pagos no disponible." }, { status: result.status || 500 });
   }
