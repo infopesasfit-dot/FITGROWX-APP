@@ -33,6 +33,8 @@ type GymSettings = {
   payment_info: string | null;
 };
 
+type PlanRelation = { precio: number | null } | { precio: number | null }[] | null;
+
 type AlumnoVencido = {
   id: string;
   full_name: string;
@@ -40,6 +42,7 @@ type AlumnoVencido = {
   next_expiration_date: string | null;
   notif_vencido_d3_para: string | null;
   notif_vencido_d7_para: string | null;
+  planes: PlanRelation;
 };
 
 type AlumnoPendiente = {
@@ -48,6 +51,15 @@ type AlumnoPendiente = {
   phone: string | null;
   next_expiration_date: string | null;
   notif_vencimiento_para: string | null;
+  planes: PlanRelation;
+};
+
+type AlumnoVenceHoy = {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  next_expiration_date: string | null;
+  planes: PlanRelation;
 };
 
 // ── Utilidades ────────────────────────────────────────────────────────────────
@@ -73,6 +85,11 @@ function buildPaymentLink(token: string | undefined, gymHasMP: boolean): string 
 function buildPaymentSuffix(gymHasMP: boolean, paymentInfo: string | null): string {
   if (gymHasMP || !paymentInfo) return "";
   return `\n\n💳 Datos de pago:\n${paymentInfo}`;
+}
+
+function getPlanPrecio(planes: PlanRelation): number | null {
+  if (Array.isArray(planes)) return planes[0]?.precio ?? null;
+  return planes?.precio ?? null;
 }
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
@@ -358,8 +375,8 @@ async function sincronizarStatus(todayStr: string, log: string[]): Promise<void>
 
 // ── Bloque 4: Follow-ups post-vencimiento (día 3 y día 7) ────────────────────
 
-const MSG_D3 = `Hola [Nombre], soy del staff de [Gym]. Te recuerdo que tu cuota vence el [Fecha]. Si querés renovar, avisame.`;
-const MSG_D7 = `Hola [Nombre], soy del staff de [Gym]. Tu cuota vence dentro de una semana ([Fecha]). ¿Querés que te ayude a renovar?`;
+const MSG_D3 = `Hola [Nombre], soy del staff de [Gym]. Te recuerdo que tu cuota vence el [Fecha].[Monto] Si querés renovar, avisame.`;
+const MSG_D7 = `Hola [Nombre], soy del staff de [Gym]. Tu cuota vence dentro de una semana ([Fecha]).[Monto] ¿Querés que te ayude a renovar?`;
 
 async function enviarFollowupsPostVencimiento(
   gyms: GymSettings[],
@@ -371,7 +388,7 @@ async function enviarFollowupsPostVencimiento(
   for (const gym of gyms) {
     const { data: alumnos, error } = await supabase
       .from("alumnos")
-      .select("id, full_name, phone, next_expiration_date, notif_vencido_d3_para, notif_vencido_d7_para")
+      .select("id, full_name, phone, next_expiration_date, notif_vencido_d3_para, notif_vencido_d7_para, planes(precio)")
       .eq("gym_id", gym.gym_id)
       .eq("status", "vencido")
       .eq("is_demo", false)
@@ -402,10 +419,14 @@ async function enviarFollowupsPostVencimiento(
       ) => {
         if (yaEnviado === alumno.next_expiration_date) return;
         const templateBranded = ensureGymBranding(templateBase, gymName);
+        const precio = getPlanPrecio(alumno.planes);
+        const montoStr = precio && precio > 0 ? `\n💰 Importe: $${Math.round(precio).toLocaleString("es-AR")}` : "";
         const mensaje = fillTemplate(templateBranded + paymentSuffix, {
           Nombre: alumno.full_name,
           Gym:    gymName,
           Link:   link,
+          Fecha:  new Date(alumno.next_expiration_date! + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long" }),
+          Monto:  montoStr,
         });
         await enqueueWABulk([{
           gymId:    gym.gym_id,
@@ -440,7 +461,7 @@ async function enviarFollowupsPostVencimiento(
 
 // ── Bloque 5b: Notificación día exacto de vencimiento ────────────────────────
 
-const MSG_VENCE_HOY = `¡Hola [Nombre]! 🔔 Tu membresía en *[Gym]* vence *hoy*. Renovála para no perder tu acceso. 💪`;
+const MSG_VENCE_HOY = `¡Hola [Nombre]! 🔔 Tu membresía en *[Gym]* vence *hoy*.[Monto] Renovála para no perder tu acceso. 💪`;
 
 async function enviarNotificacionesVenceHoy(
   gyms: GymSettings[],
@@ -452,7 +473,7 @@ async function enviarNotificacionesVenceHoy(
   for (const gym of gyms) {
     const { data: alumnos, error } = await supabase
       .from("alumnos")
-      .select("id, full_name, phone, next_expiration_date")
+      .select("id, full_name, phone, next_expiration_date, planes(precio)")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
       .eq("is_demo", false)
@@ -470,12 +491,15 @@ async function enviarNotificacionesVenceHoy(
     const gymName       = gym.gym_name ?? "el gym";
     const paymentSuffix = buildPaymentSuffix(Boolean(gym.mp_access_token), gym.payment_info);
 
-    for (const alumno of alumnos) {
-      const link    = buildPaymentLink(tokenMap[alumno.id], Boolean(gym.mp_access_token));
-      const mensaje = fillTemplate(MSG_VENCE_HOY + (link ? `\n\n👉 ${link}` : "") + paymentSuffix, {
+    for (const alumno of alumnos as AlumnoVenceHoy[]) {
+      const link     = buildPaymentLink(tokenMap[alumno.id], Boolean(gym.mp_access_token));
+      const precio   = getPlanPrecio(alumno.planes);
+      const montoStr = precio && precio > 0 ? `\n💰 Importe: $${Math.round(precio).toLocaleString("es-AR")}` : "";
+      const mensaje  = fillTemplate(MSG_VENCE_HOY + (link ? `\n\n👉 ${link}` : "") + paymentSuffix, {
         Nombre: alumno.full_name,
         Gym:    gymName,
         Link:   link,
+        Monto:  montoStr,
       });
       await enqueueWABulk([{
         gymId:    gym.gym_id,
@@ -506,7 +530,7 @@ async function enviarNotificacionesVenceHoy(
 
 // ── Bloque 5: Recordatorios pre-vencimiento ───────────────────────────────────
 
-const MSG_DEFAULT_VENCIMIENTO = `¡Hola [Nombre]! 👋 Tu membresía en *[Gym]* vence el *[Fecha]*. Renovála para seguir entrenando sin interrupciones. 💪`;
+const MSG_DEFAULT_VENCIMIENTO = `¡Hola [Nombre]! 👋 Tu membresía en *[Gym]* vence el *[Fecha]*.[Monto] Renovála para seguir entrenando sin interrupciones. 💪`;
 
 async function enviarRecordatoriosProximos(
   gyms: GymSettings[],
@@ -521,7 +545,7 @@ async function enviarRecordatoriosProximos(
 
     const { data: alumnos, error } = await supabase
       .from("alumnos")
-      .select("id, full_name, phone, next_expiration_date, notif_vencimiento_para")
+      .select("id, full_name, phone, next_expiration_date, notif_vencimiento_para, planes(precio)")
       .eq("gym_id", gym.gym_id)
       .eq("status", "activo")
       .eq("is_demo", false)
@@ -529,7 +553,7 @@ async function enviarRecordatoriosProximos(
       .not("phone", "is", null)
       .not("next_expiration_date", "is", null)
       .lte("next_expiration_date", cutoffStr)
-      .gte("next_expiration_date", todayStr);
+      .gt("next_expiration_date", todayStr);
 
     if (error) { console.error(`[vencimientos] recordatorios gym=${gym.gym_id}:`, error.message); continue; }
     if (!alumnos?.length) continue;
@@ -550,11 +574,14 @@ async function enviarRecordatoriosProximos(
       const link     = buildPaymentLink(tokenMap[alumno.id], Boolean(gym.mp_access_token));
       const fechaVto = new Date(alumno.next_expiration_date! + "T12:00:00")
         .toLocaleDateString("es-AR", { day: "numeric", month: "long" });
+      const precio   = getPlanPrecio(alumno.planes);
+      const montoStr = precio && precio > 0 ? `\n💰 Importe: $${Math.round(precio).toLocaleString("es-AR")}` : "";
       const mensaje  = fillTemplate(template + (link ? `\n\n👉 Renová desde acá: ${link}` : "") + paymentSuffix, {
         Nombre: alumno.full_name,
         Gym:    gymName,
         Fecha:  fechaVto,
         Link:   link,
+        Monto:  montoStr,
       });
 
       await enqueueWABulk([{

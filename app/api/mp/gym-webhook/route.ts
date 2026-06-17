@@ -371,6 +371,18 @@ async function handlePost(req: NextRequest): Promise<NextResponse> {
 
   // Solo llegamos acá la primera vez (resultadoPago === "ok")
   await extenderMembresia(alumnoId, today, nuevoVencimiento);
+
+  // Registrar ingreso en egresos — no bloqueante
+  void supabase.from("egresos").insert({
+    gym_id:    gymId,
+    titulo:    `Membresía MP — ${alumno.full_name}`,
+    monto:     payment.transaction_amount,
+    categoria: "Membresías",
+    fecha:     today,
+    metodo:    "mercadopago",
+  }).then(({ error: eErr }) => {
+    if (eErr) void logger.error("egresos insert failed", { route: "/api/mp/gym-webhook", meta: { gymId, alumnoId, paymentId, error: eErr.message } });
+  });
   // ─────────────────────────────────────────────────────────────────────────────
 
   // Invalidate dashboard snapshot so next load reflects this payment
