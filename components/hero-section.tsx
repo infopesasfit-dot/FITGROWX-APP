@@ -86,30 +86,19 @@ export function HeroSection() {
 
         <div className="relative mx-auto max-w-5xl px-6 lg:px-10">
 
-          {/* Eyebrow — JetBrains Mono */}
-          <div style={getFadeUpStyle(0)}>
-            <span
-              className="inline-flex items-center gap-2.5 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40"
-              style={{ fontFamily: FM }}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FF6A00]" />
-              Retención en piloto automático
-            </span>
-          </div>
-
           {/* H1 — Space Grotesk 700 */}
           <h1
-            className="relative z-10 mx-auto mt-10 max-w-4xl text-[2.6rem] leading-[1.02] tracking-[-0.04em] sm:text-[3.8rem] lg:text-[5.4rem]"
-            style={{ ...getFadeUpStyle(0.12), fontFamily: FSG, fontWeight: 700 }}
+            className="relative z-10 mx-auto mt-0 max-w-5xl text-[3.6rem] leading-[1.0] tracking-[-0.04em] sm:text-[5.5rem] lg:text-[8.5rem]"
+            style={{ ...getFadeUpStyle(0), fontFamily: FSG, fontWeight: 700 }}
           >
             <span
-              className="bg-clip-text text-transparent"
+              className="block bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(180deg, #f3f4f8 8%, #8a8a98 100%)" }}
             >
               Cero bajas
             </span>
             <span
-              className="ml-3 bg-clip-text text-transparent"
+              className="block bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(95deg, #ff9a4a 0%, #fb5c0a 60%, #d94000 100%)" }}
             >
               por sorpresa.
@@ -119,7 +108,7 @@ export function HeroSection() {
           {/* Cuerpo — Inter */}
           <p
             className="mx-auto mt-8 max-w-2xl text-base font-light leading-relaxed tracking-tight text-white/40 lg:text-lg"
-            style={getFadeUpStyle(0.24)}
+            style={getFadeUpStyle(0.14)}
           >
             FitGrowX detecta qué socios están por dejar tu gimnasio y los reactiva por WhatsApp.{" "}
             <span className="font-medium text-white/70">
@@ -130,7 +119,7 @@ export function HeroSection() {
           {/* CTAs */}
           <div
             className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
-            style={getFadeUpStyle(0.34)}
+            style={getFadeUpStyle(0.24)}
           >
             <PrimaryButton />
             <GhostButton />
@@ -139,7 +128,7 @@ export function HeroSection() {
           {/* Trust row — JetBrains Mono */}
           <div
             className="mt-8 flex flex-wrap items-center justify-center gap-3 text-[11px] uppercase tracking-[0.1em] text-white/26"
-            style={{ ...getFadeUpStyle(0.4), fontFamily: FM }}
+            style={{ ...getFadeUpStyle(0.32), fontFamily: FM }}
           >
             <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Sin tarjeta</span>
             <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-2">Activás en un día</span>
