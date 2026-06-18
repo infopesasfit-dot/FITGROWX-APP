@@ -60,6 +60,8 @@ function Stat({ value, prefix = "", suffix = "", label }: {
 export function BenefitsSection() {
   return (
     <section id="beneficios" className="scroll-mt-24 relative py-20 lg:py-32">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-28" style={{ background: "linear-gradient(to bottom, #050505, transparent)" }} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-28" style={{ background: "linear-gradient(to top, #050505, transparent)" }} />
       <div className="mx-auto max-w-7xl px-6 lg:px-10">
 
         {/* Header — same style as pricing section */}

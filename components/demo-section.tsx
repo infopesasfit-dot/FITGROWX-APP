@@ -86,8 +86,10 @@ export function DemoSection() {
     <section
       id="demo"
       ref={sectionRef}
-      className="scroll-mt-32 relative overflow-hidden border-y border-white/[0.04]"
+      className="scroll-mt-32 relative [overflow:clip] border-y border-white/[0.04]"
     >
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-28" style={{ background: "linear-gradient(to bottom, #050505, transparent)" }} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-28" style={{ background: "linear-gradient(to top, #050505, transparent)" }} />
       {/* ── Luz azul fría — esquina superior izquierda ── */}
       <div
         className="pointer-events-none absolute -left-20 -top-20 w-[640px]"
@@ -127,7 +129,7 @@ export function DemoSection() {
       />
 
       <div
-        className="mx-auto grid max-w-7xl gap-10 px-6 py-14 lg:gap-16 lg:py-32 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:px-10"
+        className="mx-auto grid max-w-7xl gap-10 px-6 py-14 lg:gap-16 lg:py-32 lg:grid-cols-[0.85fr_1.15fr] lg:items-start lg:px-10"
         style={{
           maskImage:
             "radial-gradient(ellipse 110% 90% at 50% 50%, black 45%, rgba(0,0,0,0.7) 70%, rgba(0,0,0,0.2) 88%, transparent 100%)",
@@ -185,7 +187,7 @@ export function DemoSection() {
 
         {/* ── MOCKUPS ── */}
         <motion.div
-          className="relative flex justify-center lg:justify-end pb-16 sm:pb-8 lg:pb-0"
+          className="relative flex justify-center lg:justify-end pb-16 sm:pb-8 lg:pb-0 lg:sticky lg:top-24 lg:self-start"
           variants={fadeUp(0.12)}
           initial={false}
           animate="visible"

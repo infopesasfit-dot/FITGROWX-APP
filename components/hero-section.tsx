@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { motion, useScroll, useTransform, useReducedMotion } from "framer-motion";
 import { ArrowRight, ChevronRight } from "lucide-react";
 
 const FM   = "var(--font-mono,'JetBrains Mono',monospace)";
@@ -62,6 +64,14 @@ function GhostButton() {
 }
 
 export function HeroSection() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"],
+  });
+  const yGrid = useTransform(scrollYProgress, [0, 1], reduced ? [0, 0] : [0, 32]);
+
   return (
     <>
       <style>{`
@@ -69,18 +79,30 @@ export function HeroSection() {
           from { opacity: 0; transform: translateY(22px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes fadeUp {
+            from { opacity: 1; transform: none; }
+            to   { opacity: 1; transform: none; }
+          }
+        }
       `}</style>
 
       <section
+        ref={sectionRef}
         className="relative w-full overflow-hidden pb-24 pt-32 text-center lg:pb-32 lg:pt-48"
         style={{ backgroundColor: "#070b14" }}
       >
-        {/* Grilla horizontal fina */}
-        <div
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-28" style={{ background: "linear-gradient(to bottom, #050505, transparent)" }} />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-28" style={{ background: "linear-gradient(to top, #050505, transparent)" }} />
+        {/* Grilla horizontal + vertical con fade en bordes — parallax sutil */}
+        <motion.div
           className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage: "linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px)",
-            backgroundSize: "100% 56px",
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
+            backgroundSize: "70px 70px",
+            maskImage: "linear-gradient(180deg, transparent 0%, black 12%, black 88%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(180deg, transparent 0%, black 12%, black 88%, transparent 100%)",
+            y: yGrid,
           }}
         />
 

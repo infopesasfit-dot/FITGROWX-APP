@@ -5,6 +5,7 @@ import { BentoBackground } from "@/components/bento-background";
 import { HeroSection } from "@/components/hero-section";
 import { LandingHeader } from "@/components/landing-header";
 import { LogosSection } from "@/components/logos-section";
+import { RevealSection } from "@/components/reveal-section";
 import { FITGROWX_PLANS } from "@/lib/fitgrowx-plans";
 import { SoftwareApplicationJsonLd, OrganizationJsonLd, FaqJsonLd } from "@/components/SeoJsonLd";
 
@@ -39,32 +40,37 @@ export default function Home() {
         <HeroSection />
 
         {/* SECCIÓN LOGOS / SOCIAL PROOF */}
-        <LogosSection />
+        <RevealSection><LogosSection /></RevealSection>
 
         {/* SECCIÓN BENEFICIOS */}
-        <div id="beneficios" className="relative z-10 scroll-mt-24 overflow-hidden">
-          {/* Mancha Azul Flotante */}
-          <div
-            className="pointer-events-none absolute top-[20%] -left-[10%] h-[700px] w-[130%] opacity-50 mix-blend-screen -z-10"
-            style={{
-              background: "radial-gradient(ellipse at 15% 45%, rgba(30,80,240,0.22) 0%, rgba(10,40,180,0.08) 35%, transparent 60%)",
-              filter: "blur(110px)",
-              transform: "rotate(-5deg)",
-            }}
-          />
-          <BenefitsSection />
-        </div>
+        <RevealSection>
+          <div id="beneficios" className="relative z-10 scroll-mt-24 overflow-hidden">
+            {/* Mancha Azul Flotante */}
+            <div
+              className="pointer-events-none absolute top-[20%] -left-[10%] h-[700px] w-[130%] opacity-50 mix-blend-screen -z-10"
+              style={{
+                background: "radial-gradient(ellipse at 15% 45%, rgba(30,80,240,0.22) 0%, rgba(10,40,180,0.08) 35%, transparent 60%)",
+                filter: "blur(110px)",
+                transform: "rotate(-5deg)",
+              }}
+            />
+            <BenefitsSection />
+          </div>
+        </RevealSection>
 
-        <div className="relative z-20">
+        <RevealSection className="relative z-20">
           <DemoSection />
-        </div>
+        </RevealSection>
 
-        <div className="relative z-20">
+        <RevealSection className="relative z-20">
           <VideoSection />
-        </div>
+        </RevealSection>
 
         {/* SECCIÓN PLANES (MANTENIDA) */}
+        <RevealSection>
         <section id="planes" className="scroll-mt-24 relative overflow-hidden py-20 lg:py-28">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-28" style={{ background: "linear-gradient(to bottom, #050505, transparent)" }} />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-28" style={{ background: "linear-gradient(to top, #050505, transparent)" }} />
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <div 
               className="absolute top-[20%] -left-[10%] h-[700px] w-[700px] rounded-full opacity-[0.06]"
@@ -77,6 +83,7 @@ export default function Home() {
 
           <PricingSection plans={plans} />
         </section>
+        </RevealSection>
 
         <LandingWhatsApp />
 

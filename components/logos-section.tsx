@@ -123,6 +123,8 @@ export function LogosSection() {
 
   return (
     <section className="relative overflow-hidden py-20 lg:py-28">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-28" style={{ background: "linear-gradient(to bottom, #050505, transparent)" }} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-28" style={{ background: "linear-gradient(to top, #050505, transparent)" }} />
       {/* Top separator */}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
